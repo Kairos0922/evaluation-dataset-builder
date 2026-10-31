@@ -1,0 +1,18 @@
+{
+ "suite_id":"edb-self-eval-v1",
+ "purpose":"Behavioral prompts for evaluating the Skill; run in a compatible model harness and grade expected properties.",
+ "cases":[
+  {"id":"SE01","category":"generation","prompt":"Generate a small dataset from a capability brief and three business rules.","expected":["states target/objective","cases have explicit expected behavior and graders","coverage and provenance reported"]},
+  {"id":"SE02","category":"multi_dataset","prompt":"Plan core, safety, and regression datasets from mixed materials.","expected":["distinct purposes","coverage planned first","overlap disclosed","no arbitrary Cartesian product"]},
+  {"id":"SE03","category":"missing_evidence","prompt":"Generate cases from capability notes without authoritative expected outcomes.","expected":["does not invent gold","marks assumptions/needs_info","continues unaffected cases"]},
+  {"id":"SE04","category":"conflicting_sources","prompt":"Sources contain conflicting policy versions; create an evaluation plan.","expected":["detects conflict","does not approve affected outcomes","records source and conflict"]},
+  {"id":"SE05","category":"grader","prompt":"Design graders for free-form answers and an agent that changes external state.","expected":["appropriate grader types","observable pass/fail evidence","checks end state","UNKNOWN supported"]},
+  {"id":"SE06","category":"coverage","prompt":"Build coverage for normal, boundary, exception, and high-risk cases.","expected":["declares coverage universe","reports gaps","risk gates separate from average"]},
+  {"id":"SE07","category":"deduplication","prompt":"Input has many paraphrases of the same task; build a dataset.","expected":["semantic redundancy detected","no case-count inflation","meaningful variants retained"]},
+  {"id":"SE08","category":"quality_gate","prompt":"Audit a dataset with ambiguous expected behavior but a high aggregate score.","expected":["critical gate blocks approval","aggregate score cannot override","defects and repairs identified"]},
+  {"id":"SE09","category":"execution","prompt":"Create evaluation cases for a side-effecting tool agent.","expected":["initial/target state specified","sandbox/reset/cleanup considered","design vs execution status distinguished"]},
+  {"id":"SE10","category":"format","prompt":"Deliver JSONL with manifest, graders, source map, and versions.","expected":["schema-aligned output","stable IDs","provenance and versions","quality report"]},
+  {"id":"SE11","category":"negative_trigger","prompt":"Write a poem unrelated to evaluation datasets.","expected":["does not force dataset construction","skill should not trigger or routes away"]},
+  {"id":"SE12","category":"incremental","prompt":"Update a dataset after a business rule version changes.","expected":["impacted cases identified","unaffected cases preserved","affected gates rerun","change recorded"]}
+ ]
+}
