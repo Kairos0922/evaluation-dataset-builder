@@ -22,19 +22,19 @@ def read_json(relative):
 version_file = ROOT / "VERSION"
 check(version_file.is_file(), "VERSION missing")
 version = version_file.read_text(encoding="utf-8").strip() if version_file.exists() else ""
-check(bool(re.fullmatch(r"(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)", version)), "VERSION must be semantic version x.y.z")
+check(bool(re.fullmatch(r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)", version)), "VERSION must be semantic version x.y.z")
 for rel in ["README.md", "CHANGELOG.md", "RELEASE.md", "LICENSE", "SKILL.md"]:
     check((ROOT / rel).is_file(), f"{rel} missing")
 
 # Skill frontmatter and size
 skill_path = ROOT / "SKILL.md"
 skill_text = skill_path.read_text(encoding="utf-8") if skill_path.exists() else ""
-check(skill_text.startswith("---\\n"), "SKILL.md must start with YAML frontmatter")
+check(skill_text.startswith("---\n"), "SKILL.md must start with YAML frontmatter")
 parts = skill_text.split("---", 2)
 if len(parts) >= 3:
     frontmatter = parts[1].strip()
-    name = re.search(r"(?m)^name:\\s*([a-z0-9-]+)\\s*$", frontmatter)
-    description = re.search(r"(?m)^description:\\s*(.+)$", frontmatter)
+    name = re.search(r"(?m)^name:\s*([a-z0-9-]+)\s*$", frontmatter)
+    description = re.search(r"(?m)^description:\s*(.+)$", frontmatter)
     check(bool(name), "name missing or invalid kebab-case")
     check(bool(description), "description missing")
     if name:
@@ -90,7 +90,7 @@ except Exception as exc:
     errors.append(f"quality YAML invalid: {exc}")
 
 if errors:
-    print("FAIL\\n" + "\\n".join("- " + error for error in errors))
+    print("FAIL\n" + "\n".join("- " + error for error in errors))
     sys.exit(1)
 for warning in warnings:
     print("WARN: " + warning)
