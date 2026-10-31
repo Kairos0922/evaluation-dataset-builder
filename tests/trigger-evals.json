@@ -1,0 +1,25 @@
+{
+ "skill_name":"evaluation-dataset-builder",
+ "evals":[
+  {"query":"帮我根据这份产品说明生成一套 Agent 评测集，带评分标准和覆盖矩阵","should_trigger":true},
+  {"query":"我们有历史工单和线上 trace，想构建回归 eval dataset","should_trigger":true},
+  {"query":"设计多个评测集分别测核心能力、安全和工具调用","should_trigger":true},
+  {"query":"审查这份评测集是否有重复用例、评分器不可靠的问题","should_trigger":true},
+  {"query":"把这些业务规则转成可执行的 benchmark cases","should_trigger":true},
+  {"query":"为我的 Skill 生成高质量测试样例并提供 grader","should_trigger":true},
+  {"query":"根据旧版评测集和本次规则变更做增量更新","should_trigger":true},
+  {"query":"为 API workflow 自动化系统规划边界和异常测试","should_trigger":true},
+  {"query":"帮我评估这个 eval set 的覆盖率、风险覆盖和可追溯性","should_trigger":true},
+  {"query":"从这些真实案例整理一份用于模型发布评估的 held-out test set","should_trigger":true},
+  {"query":"解释一下 evaluation dataset 和 benchmark 有什么区别","should_trigger":false},
+  {"query":"帮我写一个普通的产品介绍，不需要测试用例","should_trigger":false},
+  {"query":"给这份 CSV 做数据清洗和缺失值填充","should_trigger":false},
+  {"query":"我需要写一个 pytest 单元测试文件，测试这段 Python 函数","should_trigger":false},
+  {"query":"帮我总结这份业务文档的主要内容","should_trigger":false},
+  {"query":"给我的 Agent 写一段 system prompt，但不用生成评测集","should_trigger":false},
+  {"query":"比较两款模型的公开 benchmark 分数","should_trigger":false},
+  {"query":"帮我把测试报告翻译成英文","should_trigger":false},
+  {"query":"设计一份用户满意度问卷","should_trigger":false},
+  {"query":"分析这段 agent trace 为什么调用工具失败，不需要构建评测集","should_trigger":false}
+ ]
+}
