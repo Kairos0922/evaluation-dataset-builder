@@ -1,0 +1,29 @@
+standard:
+  name: High-Quality Evaluation Dataset Standard
+  version: 1.0.0
+scoring:
+  scale: [1, 5]
+  weights:
+    business_fidelity: 15
+    capability_alignment: 15
+    scenario_coverage: 15
+    risk_coverage: 15
+    case_validity: 10
+    grader_reliability: 15
+    diagnostic_power: 5
+    case_uniqueness: 5
+    traceability_maintainability: 5
+  thresholds:
+    approved: 4.5
+    usable: 3.8
+  critical_gates: [G1_evidence_fidelity, G2_objective_alignment, G3_expected_behavior, G4_grader_validity, G5_safety_compliance, G6_feasibility, G7_integrity]
+checks:
+  case_level:
+    - {key: G1_evidence_fidelity, severity: critical, method: hybrid}
+    - {key: G2_objective_alignment, severity: critical, method: semantic_review}
+    - {key: G3_expected_behavior, severity: critical, method: hybrid}
+    - {key: G4_grader_validity, severity: critical, method: hybrid}
+    - {key: G5_safety_compliance, severity: critical, method: policy_review}
+    - {key: G6_feasibility, severity: critical, method: hybrid}
+    - {key: G7_integrity, severity: critical, method: deterministic_and_semantic}
+  dataset_level: [objective_coverage, capability_coverage, scenario_coverage, risk_coverage, complexity_distribution, provenance_distribution, semantic_duplicate_rate, grader_calibration, execution_readiness, heldout_independence]
