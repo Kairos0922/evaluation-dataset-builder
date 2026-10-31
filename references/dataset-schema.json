@@ -1,0 +1,31 @@
+{
+  "$schema":"https://json-schema.org/draft/2020-12/schema",
+  "title":"Evaluation Dataset Case",
+  "type":"object",
+  "required":["case_id","dataset_id","title","evaluation_target","objective","scenario_type","user_input","expected_behavior","grading","source_refs","quality_status"],
+  "properties":{
+    "case_id":{"type":"string","minLength":1},"dataset_id":{"type":"string","minLength":1},
+    "title":{"type":"string","minLength":1},"evaluation_target":{"type":"string","minLength":1},
+    "objective":{"type":"string","minLength":1},"capability_keys":{"type":"array","items":{"type":"string"},"minItems":1},
+    "scenario_id":{"type":["string","null"]},
+    "scenario_type":{"enum":["normal","boundary","exception","adversarial","safety","multi_turn","tool_use","other"]},
+    "risk_level":{"enum":["low","medium","high","critical","not_applicable"]},
+    "source_refs":{"type":"array","items":{"type":"object"}},
+    "preconditions":{"type":"array","items":{"type":"string"}},
+    "user_input":{"type":["string","object","array"]},
+    "expected_behavior":{"type":["string","array","object"]},
+    "forbidden_behavior":{"type":"array","items":{"type":"string"}},
+    "reference_outcome":{"type":["object","array","string","null"]},
+    "grading":{"type":"object","required":["method","criteria","pass_conditions","fail_conditions","evidence_required"],"properties":{
+      "method":{"enum":["rule_based","reference_match","llm_judge","state_check","trace_check","hybrid","human_review"]},
+      "criteria":{"type":"array","items":{"type":"object"}},
+      "pass_conditions":{"type":"array","items":{"type":"string"}},
+      "fail_conditions":{"type":"array","items":{"type":"string"}},
+      "evidence_required":{"type":"array","items":{"type":"string"}},
+      "uncertainty_policy":{"type":"string"}
+    }},
+    "execution_requirements":{"type":"object"},
+    "quality_status":{"enum":["candidate","validated","approved","needs_info","rejected","execution_verified"]},
+    "quality_review":{"type":"object"},"assumptions":{"type":"array","items":{"type":"string"}},"version":{"type":"string"}
+  },"additionalProperties":true
+}
