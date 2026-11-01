@@ -1,6 +1,6 @@
 # Evaluation Dataset Builder
 
-**Version:** 1.0.0 · **Type:** General-purpose Agent Skill
+**Version:** 0.0.1 · **Release status:** BLOCKED — release gates outstanding · **Type:** General-purpose Agent Skill
 
 A Skill for planning, generating, validating, repairing, and packaging high-quality evaluation datasets for agents, skills, models, APIs, workflows, and other systems.
 
@@ -38,11 +38,11 @@ This calls the metadata endpoint `GET /models`, not a generation endpoint. It ve
 - `references/`: quality standard, schema, graders, coverage, evidence, request planning, and provider profile
 - `tests/self-eval-cases.json`: behavioral self-evaluation prompts
 - `tests/trigger-evals.json`: trigger-positive and trigger-negative queries
-- `tests/test_deepseek_model_preflight.py`: offline unit tests for metadata/budget logic
+- `tests/test_deepseek_model_preflight.py`: offline unit tests for budget and metadata logic
 - `scripts/validate_skill.py`: structural and policy validation
 - `scripts/deepseek_model_preflight.py`: metadata-only model and budget preflight
-- `RELEASE.md`: release/install notes
-- `VERSION`: release version
+- `RELEASE.md`: release/install notes and release gates
+- `VERSION`: intended package version
 
 ## Validate
 ```bash
@@ -52,8 +52,9 @@ python -m unittest discover -s tests -p "test_*.py" -v
 
 Structural validation and offline unit tests do **not** establish semantic quality or prove live generation success. Run the self-evaluation fixtures in a compatible model harness; see `tests/README.md`.
 
-## Quality standard
-The Skill uses the versioned High-Quality Evaluation Dataset Standard in `references/quality-standard.md` and its machine-readable counterpart. Scores are evidence-backed rubric judgments. Critical gate failures block approval regardless of aggregate score.
+## Release discipline
+
+The package remains at v0.0.1 until the release gates in `RELEASE.md` are met. Passing CI alone is not release approval. No formal GitHub Release or tag should be created while the release status is BLOCKED.
 
 ## Safety and limitations
 - Do not upload secrets or unnecessary personal data.
