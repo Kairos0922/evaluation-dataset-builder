@@ -1,15 +1,19 @@
 #!/usr/bin/env python3
-"""Structural and packaging validator for Evaluation Dataset Builder."""
+"""Structural, packaging, and release validator for Evaluation Dataset Builder."""
 from pathlib import Path
-import json, re, sys
+import json
+import re
+import sys
 
 ROOT = Path(__file__).resolve().parents[1]
 errors = []
 warnings = []
 
+
 def check(condition, message):
     if not condition:
         errors.append(message)
+
 
 def read_json(relative):
     try:
@@ -17,6 +21,7 @@ def read_json(relative):
     except Exception as exc:
         errors.append(f"{relative} is invalid or unreadable: {exc}")
         return None
+
 
 # Release metadata
 version_file = ROOT / "VERSION"
@@ -48,26 +53,32 @@ required_files = [
     "references/quality-standard.md", "references/quality-standard.yaml",
     "references/dataset-schema.json", "references/grader-guidelines.md",
     "references/coverage-design-guideline.md", "references/source-and-evidence-policy.md",
+    "references/request-planning-and-recovery.md", "references/deepseek-v4.1-flash.md",
     "tests/self-eval-cases.json", "tests/trigger-evals.json", "tests/README.md",
+    "tests/test_deepseek_model_preflight.py", "scripts/deepseek_model_preflight.py",
     "scripts/validate_skill.py"
 ]
 for rel in required_files:
     check((ROOT / rel).is_file(), f"required file missing: {rel}")
-for rel in re.findall(r"references/[A-Za-z0-9._-]+|tests/[A-Za-z0-9._-]+", skill_text):
-    check((ROOT / rel).is_file(), f"SKILL.md references missing file: {rel}")
+for rel in re.findall(r"(?:references|tests|scripts)/[A-Za-z0-9._/-]+", skill_text):
+    check((ROOT / rel.rstrip(".,;")) .is_file(), f"SKILL.md references missing file: {rel}")
 
 schema = read_json("references/dataset-schema.json")
 if schema:
     check(schema.get("type") == "object", "case schema root must be object")
     check(bool(schema.get("required")), "case schema required fields missing")
+    check(len(set(schema.get("required", []))) == len(schema.get("required", [])), "case schema required fields contain duplicates")
 
 suite = read_json("tests/self-eval-cases.json")
 if suite:
     cases = suite.get("cases", [])
     ids = [case.get("id") for case in cases]
-    check(len(cases) >= 10, "self-eval suite needs at least 10 cases")
+    check(len(cases) >= 17, "self-eval suite needs at least 17 cases")
     check(len(ids) == len(set(ids)), "duplicate self-eval IDs")
     check(all(case.get("prompt") and case.get("expected") for case in cases), "incomplete self-eval case")
+    required_categories = {"large_context", "output_budget", "api_error_recovery", "partial_output", "preflight"}
+    actual_categories = {case.get("category") for case in cases}
+    check(required_categories.issubset(actual_categories), "self-eval suite missing request-reliability categories")
 
 trigger_suite = read_json("tests/trigger-evals.json")
 if trigger_suite:
@@ -89,10 +100,20 @@ except ImportError:
 except Exception as exc:
     errors.append(f"quality YAML invalid: {exc}")
 
+# Provider policy sanity: reject accidental return to arbitrary short fixed caps.
+planning_path = ROOT / "references/request-planning-and-recovery.md"
+planning_text = planning_path.read_text(encoding="utf-8") if planning_path.exists() else ""
+for required_phrase in [
+    "live model metadata", "Do not set the output ceiling to a small generic default",
+    "Do not retry unchanged", "Treat the outcome as unknown",
+    "continue from the first missing case/dataset cursor"
+]:
+    check(required_phrase in planning_text, f"request planning policy missing: {required_phrase}")
+
 if errors:
     print("FAIL\n" + "\n".join("- " + error for error in errors))
     sys.exit(1)
 for warning in warnings:
     print("WARN: " + warning)
-print(f"PASS: structural/package checks (version {version})")
-print("NOTE: semantic behavior requires model-based execution of tests/self-eval-cases.json")
+print(f"PASS: structural/package/provider-policy checks (version {version})")
+print("NOTE: semantic behavior and live generation require a compatible model harness.")

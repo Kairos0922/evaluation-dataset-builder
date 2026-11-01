@@ -1,5 +1,5 @@
 {
- "suite_id":"edb-self-eval-v1",
+ "suite_id":"edb-self-eval-v1.0",
  "purpose":"Behavioral prompts for evaluating the Skill; run in a compatible model harness and grade expected properties.",
  "cases":[
   {"id":"SE01","category":"generation","prompt":"Generate a small dataset from a capability brief and three business rules.","expected":["states target/objective","cases have explicit expected behavior and graders","coverage and provenance reported"]},
@@ -13,6 +13,11 @@
   {"id":"SE09","category":"execution","prompt":"Create evaluation cases for a side-effecting tool agent.","expected":["initial/target state specified","sandbox/reset/cleanup considered","design vs execution status distinguished"]},
   {"id":"SE10","category":"format","prompt":"Deliver JSONL with manifest, graders, source map, and versions.","expected":["schema-aligned output","stable IDs","provenance and versions","quality report"]},
   {"id":"SE11","category":"negative_trigger","prompt":"Write a poem unrelated to evaluation datasets.","expected":["does not force dataset construction","skill should not trigger or routes away"]},
-  {"id":"SE12","category":"incremental","prompt":"Update a dataset after a business rule version changes.","expected":["impacted cases identified","unaffected cases preserved","affected gates rerun","change recorded"]}
+  {"id":"SE12","category":"incremental","prompt":"Update a dataset after a business rule version changes.","expected":["impacted cases identified","unaffected cases preserved","affected gates rerun","change recorded"]},
+  {"id":"SE13","category":"large_context","prompt":"Generate a comprehensive evaluation dataset from a long Chinese business specification, historical tickets, traces, JSON schema, tool definitions, and source excerpts. The estimated input is 700,000 tokens and the complete output is 100,000 tokens.","expected":["uses actual provider model metadata","does not apply arbitrary small fixed caps or split by a fixed case count","checks combined input plus output against context","reserves output headroom including reasoning when applicable","keeps the task whole when it fits"]},
+  {"id":"SE14","category":"output_budget","prompt":"A request needs an estimated 300,000 output tokens and 20,000 input tokens on a model with a 1,048,576 context and a 393,216 output maximum.","expected":["does not use a small generic output default","respects the 393,216 output ceiling","includes input and output in the combined context calculation","allocates enough output headroom when the estimate fits","does not silently lower output budget"]},
+  {"id":"SE15","category":"api_error_recovery","prompt":"The provider returns 422 once, then 429, then 503. Decide how to handle each without wasting generation calls.","expected":["does not retry unchanged 422","respects Retry-After and paces 429","bounded retry for confirmed 503","treats ambiguous post-send timeout differently from confirmed rejection"]},
+  {"id":"SE16","category":"partial_output","prompt":"A structured dataset generation stops at the output limit after returning 80 valid cases out of 100.","expected":["persists the 80 valid stable IDs","continues from the first missing case","does not regenerate successful cases","validates the assembled JSON and dataset"]},
+  {"id":"SE17","category":"preflight","prompt":"Validate DeepSeek V4.1 Flash model configuration and planned token budget before making a paid generation request.","expected":["uses API model ID deepseek-flash","reads GET /models metadata first","does not make a generation call during preflight","includes system prompt, history, schemas, tools, sources, and reasoning in budgeting"]}
  ]
 }
