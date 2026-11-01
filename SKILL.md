@@ -13,20 +13,24 @@ Build evaluation assets that are business-grounded, capability-aligned, represen
 - Support multiple purpose-specific datasets in one request.
 - Read references/quality-standard.md and references/quality-standard.yaml before generation or audit.
 - Use references/dataset-schema.json for the case contract and references/grader-guidelines.md for grader design.
+- Read references/request-planning-and-recovery.md before any large or paid model-generation task.
+- When using DeepSeek V4.1 Flash, also read references/deepseek-v4.1-flash.md and run scripts/deepseek_model_preflight.py when credentials are available.
 - Validate case-level and dataset-level quality separately. Critical failures cannot be averaged away.
 - If information is incomplete, proceed with safe defaults, record assumptions, and mark affected cases needs_info.
-- Do not claim execution verification unless a harness ran the case and recorded evidence.
+- Never claim execution verification unless a harness ran the case and recorded evidence.
+- Never promise that an external model request is guaranteed to succeed; preflight, budget, and recovery reduce avoidable failures but cannot control provider availability.
 
 ## Workflow
 1. Parse target, evaluation objectives, capabilities, rules, scenarios, historical cases, environment, constraints, and output requirements.
 2. Build a knowledge model containing targets, capabilities, rules, scenarios, risks, constraints, source references, assumptions, and conflicts.
 3. Plan datasets before cases. For each dataset define purpose, target capabilities, scope, exclusions, coverage dimensions, size/distribution, grader approach, execution needs, and relation to other datasets.
 4. Create a coverage matrix. Prioritize business importance, risk, frequency, known failures, capability gaps, and diagnostic value. Do not blindly generate Cartesian products.
-5. Generate cases with measurable objectives, credible or labeled synthetic scenarios, complete inputs/preconditions, explicit expected and forbidden behavior, observable grading evidence, and provenance.
-6. Design graders alongside cases. Choose deterministic, reference, rubric/LLM, state/end-result, trace/tool-call, or hybrid grading based on the outcome measured.
-7. Review cases and datasets against the quality standard. Combine independent semantic review with deterministic checks.
-8. Repair defects and rerun affected checks. Limit repair iterations; unresolved cases become needs_info or rejected.
-9. Package datasets, manifest, coverage matrix, graders, quality reports, source map, assumptions/limitations, and version history.
+5. Before generation, preflight the complete request and allocate input/output budgets from live model metadata where available. Include instructions, history, schemas, tools, evidence, multimodal payloads, visible output, and reasoning tokens where applicable. Do not apply arbitrary fixed small caps; split only when the estimated complete request cannot fit the actual provider limits.
+6. Generate cases with measurable objectives, credible or labeled synthetic scenarios, complete inputs/preconditions, explicit expected and forbidden behavior, observable grading evidence, and provenance. Allocate enough output budget for the complete requested artifact plus a configurable estimation margin.
+7. Design graders alongside cases. Choose deterministic, reference, rubric/LLM, state/end-result, trace/tool-call, or hybrid grading based on the outcome measured.
+8. Review cases and datasets against the quality standard. Prefer local deterministic validation for structure and avoid an unnecessary second model call; use a semantic judge call only when required by the evaluation purpose.
+9. Repair defects and rerun affected checks. For partial generation, persist valid records and continue from the first missing stable ID/cursor instead of regenerating successful work. Classify API errors and retry only confirmed transient failures within a bounded policy.
+10. Package datasets, manifest, coverage matrix, graders, quality reports, source map, assumptions/limitations, and version history.
 
 ## Evidence precedence
 1. Authoritative policy, business rule, or safety requirement.
@@ -63,4 +67,7 @@ Report purpose, dataset plan, coverage choices/gaps, per-dimension quality, gate
 - references/grader-guidelines.md
 - references/coverage-design-guideline.md
 - references/source-and-evidence-policy.md
+- references/request-planning-and-recovery.md
+- references/deepseek-v4.1-flash.md
+- scripts/deepseek_model_preflight.py
 - tests/self-eval-cases.json
