@@ -26,12 +26,12 @@ python -m unittest discover -s tests -p "test_*.py" -v
 | Package and entrypoint integrity | Skill, references, schema, manifest, and required files validate | PASS |
 | Deterministic validation | Structural and policy validator passes | PASS |
 | CI and offline tests | GitHub Actions validator and unit-test job pass | PASS |
-| DeepSeek live preflight | Authenticated `GET /models` confirms live model ID and limits in the target runtime | BLOCKED — credentials/runtime not verified here |
+| DeepSeek live preflight | Authenticated `GET /models` confirms live model ID and limits in GitHub Actions runner | PASS — run `41362696533`, commit `c4162aa`; secret injected, `deepseek-flash` metadata returned, no generation request sent |
 | Model behavior benchmark | Run the self-evaluation suite with the target Skill/model; report per-case outcomes and critical failures | NOT RUN |
 | Independent quality review | Human review of representative generated outputs, graders, coverage, and evidence traceability | NOT RUN |
 | Target-system execution validation | Execute applicable tool/action cases in a controlled harness; verify end state, side effects, reset, and cleanup | NOT RUN |
 
-**Release decision: BLOCKED.** Three required evidence gates have not been completed, and the live DeepSeek preflight has not been confirmed in the target runtime. The passing CI result covers deterministic package/policy checks and mocked offline budget tests only. It does not satisfy behavioral, independent-review, or execution gates.
+**Release decision: BLOCKED.** The live DeepSeek metadata preflight is now verified in GitHub Actions (run `41362696533`): the runner received the configured secret, authenticated `GET /models`, and returned the `deepseek-flash` model metadata. No generation request was sent. Model behavior benchmarking, independent human quality review, and target-system execution validation remain incomplete. Passing CI and metadata preflight do not satisfy those gates.
 
 ## DeepSeek preflight
 
