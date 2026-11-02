@@ -1,29 +1,29 @@
 standard:
-  name: High-Quality Evaluation Dataset Standard
+  name: 高质量评测数据集标准
   version: 1.0.0
 scoring:
   scale: [1, 5]
   weights:
-    business_fidelity: 15
-    capability_alignment: 15
-    scenario_coverage: 15
-    risk_coverage: 15
-    case_validity: 10
-    grader_reliability: 15
-    diagnostic_power: 5
-    case_uniqueness: 5
-    traceability_maintainability: 5
+    business_fidelity: 15       # 业务贴合度
+    capability_alignment: 15   # 能力对齐度
+    scenario_coverage: 15      # 场景覆盖度
+    risk_coverage: 15           # 风险覆盖度
+    case_validity: 10           # 用例有效性
+    grader_reliability: 15      # 评分器可靠性
+    diagnostic_power: 5         # 诊断能力
+    case_uniqueness: 5          # 用例独特性
+    traceability_maintainability: 5 # 可追溯性与可维护性
   thresholds:
     approved: 4.5
     usable: 3.8
   critical_gates: [G1_evidence_fidelity, G2_objective_alignment, G3_expected_behavior, G4_grader_validity, G5_safety_compliance, G6_feasibility, G7_integrity]
 checks:
   case_level:
-    - {key: G1_evidence_fidelity, severity: critical, method: hybrid}
-    - {key: G2_objective_alignment, severity: critical, method: semantic_review}
-    - {key: G3_expected_behavior, severity: critical, method: hybrid}
-    - {key: G4_grader_validity, severity: critical, method: hybrid}
-    - {key: G5_safety_compliance, severity: critical, method: policy_review}
-    - {key: G6_feasibility, severity: critical, method: hybrid}
-    - {key: G7_integrity, severity: critical, method: deterministic_and_semantic}
+    - {key: G1_evidence_fidelity, severity: critical, method: hybrid} # 证据与业务依据
+    - {key: G2_objective_alignment, severity: critical, method: semantic_review} # 目标对齐
+    - {key: G3_expected_behavior, severity: critical, method: hybrid} # 预期行为
+    - {key: G4_grader_validity, severity: critical, method: hybrid} # 评分器有效性
+    - {key: G5_safety_compliance, severity: critical, method: policy_review} # 安全与合规
+    - {key: G6_feasibility, severity: critical, method: hybrid} # 执行可行性
+    - {key: G7_integrity, severity: critical, method: deterministic_and_semantic} # 数据完整性
   dataset_level: [objective_coverage, capability_coverage, scenario_coverage, risk_coverage, complexity_distribution, provenance_distribution, semantic_duplicate_rate, grader_calibration, execution_readiness, heldout_independence]

@@ -1,28 +1,34 @@
-# Release 0.0.1
+# 0.0.1 发布候选说明
 
-## Scope
-General-purpose Agent Skill for evaluation dataset planning, generation, quality review, repair, and packaging. No domain-specific assumptions are built in.
+**状态：** 尚未正式发布
 
-## Install
-Copy the complete repository Skill contents into a directory named `evaluation-dataset-builder` in the target Skill environment. Keep `SKILL.md` and the `references/` directory together; optional tests/scripts are for validation and development.
+## 范围
 
-## Validate
-```bash
-python scripts/validate_skill.py
-```
+通用 Agent Skill，用于评测数据集规划、生成、质量审查、修复和打包。正式运行包不包含模型、供应商、模型接口、模型参数或密钥依赖。
 
-## Use
-Provide the evaluation target, objectives, capability/business documentation, rules/policies, historical cases/traces, environment constraints, desired dataset split/count, and output format in one request. The Skill will plan datasets, generate cases and graders, review quality, and report assumptions/gaps. Missing authoritative evidence must not be fabricated.
+## 安装
 
-## Release gates
-- [x] Skill entrypoint and progressive reference files
-- [x] Version and changelog
-- [x] Case schema and quality standard
-- [x] Structural validator
-- [x] CI workflow
-- [x] Self-evaluation and trigger fixtures
-- [ ] Claude/model behavioral benchmark executed
-- [ ] Independent human review of generated benchmark outputs
-- [ ] Execution harness validation for target systems
+将 `skill-package.json` 中 `included_files` 列出的文件安装到目标 Skill 环境，并保持 `SKILL.md` 与 `references/` 文件的相对路径不变。开发和测试文件不属于正式运行包。
 
-This is a first public baseline (0.0.1), not a claim of benchmark-proven production performance. Use controlled rollout and review outputs before high-impact release decisions.
+## 验证
+
+在开发环境运行：
+
+    python scripts/validate_skill.py
+    python -m unittest discover -s tests -p "test_*.py" -v
+
+## 使用
+
+提供评测对象、目标能力、业务资料、规则、历史案例、环境约束、数据集数量与划分，以及输出格式。Skill 将规划数据集、生成用例和评分器、审查质量并报告假设与缺口。不得编造缺失的权威依据。
+
+## 发布门禁
+
+- [ ] 正式包清单与实际打包结果一致。
+- [ ] 中文自然语言规范和模型无关性检查通过。
+- [ ] Schema、质量标准、引用路径和离线测试通过。
+- [ ] 行为测试达到预设阈值，并提供可审查报告。
+- [ ] 独立审查通过。
+- [ ] 目标运行环境验证通过，并提供可核验执行证据。
+- [ ] 所有门禁均绑定到同一候选提交。
+
+只有全部门禁通过后，才可以创建 `v0.0.1` 标签并发布 GitHub Release。结构验证通过不等于正式发布批准。

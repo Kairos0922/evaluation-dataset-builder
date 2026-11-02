@@ -1,58 +1,59 @@
-# High-Quality Evaluation Dataset Standard
+# 高质量评测数据集标准
 
-Version: 1.0.0 (initial operational baseline)
+**标准版本：** 1.0.0  
+**用途：** 评测数据集的设计、审查、修复和验收。
 
-## Purpose
-A high-quality dataset is fit for a stated evaluation purpose, grounded in credible evidence, representative of important scenarios, measurable with reliable graders, and maintainable. Case count alone is not quality.
+高质量数据集必须适用于明确的评测目的，有可信证据作为依据，覆盖重要场景，能够使用可靠的评分器判定，并且可以维护。用例数量本身不代表质量。
 
-## Dimensions (1–5, evidence-backed)
-1. business_fidelity: grounded in real objectives, authoritative rules, or explicitly labeled synthetic scenarios.
-2. capability_alignment: measures the intended capability, not incidental knowledge.
-3. scenario_coverage: covers important workflows, variants, boundaries, and task types.
-4. risk_coverage: covers relevant failures, safety, privacy, permissions, abuse, and high-impact cases.
-5. case_validity: coherent, complete, feasible, and sufficiently unambiguous.
-6. grader_reliability: explicit, evidence-based, stable pass/fail criteria.
-7. diagnostic_power: identifies capability/requirement failures and distinguishes performance levels.
-8. case_uniqueness: avoids semantic duplicates and template-only variations.
-9. traceability_maintainability: sources, assumptions, versions, and update rationale are recorded.
+## 质量维度
 
-Score anchors: 1 invalid; 2 weak; 3 adequate with caveats; 4 good; 5 excellent. Use not_assessed when evidence is insufficient.
+每项按 1–5 分评分。所有分数都必须有证据支持。证据不足时使用 not_assessed，不得猜分。
 
-## Case-level critical gates
-G1 Evidence/fidelity: no unsupported or conflicting expected behavior.
-G2 Objective alignment: measures declared objective.
-G3 Expected behavior: explicit and judgeable.
-G4 Grader validity: defensible criteria and observable evidence.
-G5 Safety/compliance: no policy/privacy/compliance violation.
-G6 Feasibility: required state, tools, data, permissions, and environment are available or specified.
-G7 Integrity: no severe duplication, fabricated provenance, or misleading labels.
+| 机器键 | 中文维度 | 评价内容 |
+|---|---|---|
+| business_fidelity | 业务贴合度 | 是否依据真实目标、权威规则，或明确标记的合成场景 |
+| capability_alignment | 能力对齐度 | 是否测量声明的能力，而非无关知识 |
+| scenario_coverage | 场景覆盖度 | 是否覆盖重要流程、变体、边界和任务类型 |
+| risk_coverage | 风险覆盖度 | 是否覆盖相关失败、安全、隐私、权限和高影响场景 |
+| case_validity | 用例有效性 | 用例是否连贯、完整、可行且歧义足够少 |
+| grader_reliability | 评分器可靠性 | 通过和失败条件是否明确、稳定且有证据 |
+| diagnostic_power | 诊断能力 | 是否能定位能力或要求缺陷，并区分表现水平 |
+| case_uniqueness | 用例独特性 | 是否避免语义重复和仅有模板差异的用例 |
+| traceability_maintainability | 可追溯性与可维护性 | 是否记录来源、假设、版本和更新理由 |
 
-## Dataset-level critical gates
-- Objectives and required capabilities have planned coverage.
-- Required critical risks are covered.
-- Dataset is not dominated by near-duplicates.
-- Graders are validated for intended use.
-- Coverage claims map to a declared coverage universe.
-- Intended use is compatible with evidence and independence.
+评分锚点：1 分表示无效且有严重缺陷；2 分表示较弱且有重大缺口；3 分表示基本可用但有明确限制；4 分表示良好且主要要求均满足；5 分表示优秀且证据充分、没有已知重大缺陷。
 
-## Scoring and disposition
-quality_score = sum((dimension_score / 5) * dimension_weight). Weights sum to 100 and are reported.
-A/Approved: all critical gates pass, score >= 4.5, required coverage thresholds met.
-B/Usable: all critical gates pass, score >= 3.8, caveats documented.
-C/Needs Improvement: no disqualifying integrity/safety issue, but score or coverage is insufficient.
-Rejected: unresolved critical gate failure or materially invalid dataset.
-Composite scores never override critical gates.
+## 用例级关键门禁
 
-## Grader quality
-Define criterion, evidence, pass/fail conditions, acceptable variants, UNKNOWN handling, reference source, and calibration. Prefer deterministic checks for constrained outputs; state/end-result checks for acting agents; rubric judging for open-ended outputs. Validate graders against positive, negative, borderline, and adversarial cases. Model-generated gold must be labeled and independently checked.
+| 门禁 | 要求 |
+|---|---|
+| G1 证据与业务依据 | 不得包含无依据或存在冲突的预期行为 |
+| G2 目标对齐 | 用例必须测量声明的评测目标 |
+| G3 预期行为 | 预期行为必须明确且可判定 |
+| G4 评分器有效性 | 判定条件合理，且具有可观察证据 |
+| G5 安全与合规 | 不得违反适用的安全、隐私和合规要求 |
+| G6 执行可行性 | 所需状态、工具、数据、权限和环境已提供或明确说明 |
+| G7 数据完整性 | 不得存在严重重复、虚构来源或误导性标签 |
 
-## Dataset-level review
-Check objective/capability/scenario/risk coverage, complexity distribution, source distribution, semantic duplicates, grader calibration, execution readiness, held-out independence, provenance, and maintenance plan.
+任何关键门禁失败，都不得仅依靠综合分数批准用例。
 
-## Governance
-- Remove secrets and unnecessary personal data; label synthetic vs real-derived data.
-- Separate development/tuning and held-out evaluation data where decisions depend on results.
-- For side-effecting tasks define sandbox, reset, cleanup, allowed actions, and cost limits.
-- Record standard, schema, builder, source, target, and dataset versions.
-- Use independent review, repair, and revalidation. Unresolved cases are needs_info or rejected.
-- Report dimension scores, gates, coverage numerator/denominator, duplicate analysis, grader validation, provenance, assumptions, limitations, and intended-use restrictions.
+## 数据集级关键门禁
+
+已规划目标和必需能力的覆盖范围；已覆盖必需的关键风险；数据集不被近似重复用例主导；评分器已针对预定用途完成校准；覆盖声明对应明确的覆盖范围全集；预定用途与证据质量、数据独立性相符。
+
+## 评分与处置
+
+综合质量分 = Σ（维度得分 ÷ 5 × 维度权重）。所有维度权重之和必须为 100，并在报告中列出。综合分不能覆盖关键门禁失败。
+
+| 等级 | 要求 |
+|---|---|
+| A / Approved | 所有关键门禁通过，综合分不低于 4.5，且满足覆盖要求 |
+| B / Usable | 所有关键门禁通过，综合分不低于 3.8，且已记录限制 |
+| C / Needs Improvement | 不存在数据完整性或安全性否决问题，但分数或覆盖不足 |
+| Rejected | 存在未解决的关键门禁失败，或数据集存在实质性无效问题 |
+
+## 评分器与治理
+
+每个评分器必须定义判定标准、证据、通过和失败条件、可接受变体、UNKNOWN 处理、参考来源和校准方法。受约束的输出优先使用确定性检查；具有副作用的 Agent 使用状态或终态检查；开放式回答使用明确量表。使用正例、负例、边界例和对抗例校准评分器。自动生成的金标准必须明确标注，并经过独立核验。
+
+审查目标、能力、场景和风险覆盖；任务复杂度分布；来源分布；语义重复率；评分器校准；执行就绪情况；独立留出集；来源追溯和维护计划。删除密钥和不必要的个人信息；区分真实来源数据和合成数据。对具有副作用的任务，定义隔离环境、重置、清理、允许操作和成本限制。记录标准、Schema、构建工具、来源、评测对象和数据集版本。未解决的用例必须标记为 needs_info 或 rejected。

@@ -1,48 +1,61 @@
-# Evaluation Dataset Builder
+# 评测数据集构建 Skill
 
-**Version:** 0.0.1 · **Type:** General-purpose Agent Skill
+**版本：** 0.0.1  
+**发布状态：** 发布候选，尚未正式发布  
+**类型：** 通用 Agent Skill
 
-A Skill for planning, generating, validating, repairing, and packaging high-quality evaluation datasets for agents, skills, models, APIs, workflows, and other systems.
+## 简介
 
-## What it does
-- Parses source materials and separates evidence, assumptions, conflicts, and unknowns.
-- Plans multiple purpose-specific datasets and coverage matrices before generating cases.
-- Generates structured cases with expected behavior, forbidden behavior, graders, evidence requirements, and provenance.
-- Applies case-level and dataset-level quality gates; critical failures cannot be averaged away.
-- Repairs defects and reports coverage gaps, limitations, and quality scores.
-- Supports incremental updates and versioned evaluation assets.
+本 Skill 用于规划、生成、验证、修复和打包面向 Agent、Skill、API、工作流及其他系统的评测数据集。它强调业务依据、场景覆盖、可观察的评分条件、执行可行性和来源追溯。
 
-## Quick start
-1. Install the complete Skill directory in your compatible Skill runtime.
-2. Provide the target system, evaluation goals, source materials, constraints, dataset splits/counts, and desired output format.
-3. Review the generated manifest, cases, graders, coverage matrix, quality report, assumptions, and unresolved issues.
-4. Execute cases in a controlled harness if execution verification is required.
+## 主要能力
 
-## Repository layout
-- `SKILL.md`: Skill instructions and workflow
-- `references/`: quality standard, schema, grader, coverage, and evidence policies
-- `tests/self-eval-cases.json`: behavioral self-evaluation prompts
-- `tests/trigger-evals.json`: trigger-positive and trigger-negative queries
-- `scripts/validate_skill.py`: structural validation
-- `RELEASE.md`: release/install notes
-- `VERSION`: release version
+- 整理资料，并区分事实、推断、假设、冲突和未知事项。
+- 在生成用例前规划数据集及覆盖矩阵。
+- 生成包含预期行为、禁止行为、评分器、证据要求和来源信息的结构化用例。
+- 分别执行用例级和数据集级质量检查，关键缺陷不得被平均分抵消。
+- 修复缺陷，并报告覆盖缺口、限制和质量状态。
+- 支持增量更新和版本化评测资产。
+- 使用宿主 Agent 当前提供的能力；不指定或依赖具体模型、供应商或接口。
 
-## Validate
-```bash
-python scripts/validate_skill.py
-```
+## 安装和使用
 
-Structural validation checks packaging and schema consistency. It does **not** establish semantic quality or model behavior. Run the self-evaluation fixtures in a compatible model harness; see `tests/README.md`.
+1. 将正式 Skill 包安装到兼容的运行环境。
+2. 提供评测对象、评测目标、业务资料、规则、历史案例、环境约束、数据集数量与划分，以及交付格式。
+3. 审查生成的清单、用例、评分器、覆盖矩阵、质量报告、假设和未解决问题。
+4. 如需验证真实执行行为，在受控测试环境中执行用例，并保存可核验证据。
 
-## Quality standard
-The Skill uses the versioned High-Quality Evaluation Dataset Standard in `references/quality-standard.md` and its machine-readable counterpart. Scores are evidence-backed rubric judgments. Critical gate failures block approval regardless of aggregate score.
+宿主 Agent 的工具和权限由运行环境决定。Skill 不假设宿主一定具有文件读取、网络访问、代码执行或外部系统操作能力。能力缺失时，应标明影响，并继续完成不依赖该能力的工作。
 
-## Safety and limitations
-- Do not upload secrets or unnecessary personal data.
-- Treat traces as observed behavior, not ground truth.
-- Label synthetic/inferred cases and do not fabricate source references.
-- For side-effecting agents, define sandboxing, reset, cleanup, permissions, and cost limits.
-- Behavioral evaluation and execution verification require external runtimes/harnesses.
+## 仓库结构
 
-## License
-MIT. See `LICENSE`.
+- `SKILL.md`：入口指令和执行流程。
+- `references/`：中文写作规范、宿主能力适配、术语表、质量标准、Schema、评分器、覆盖设计、证据治理和任务恢复规范。
+- `skill-package.json`：正式运行包清单及排除范围。
+- `tests/`：行为用例、触发用例和离线测试。
+- `scripts/`：结构验证与开发辅助程序。
+- `.github/`：持续集成和发布工作流。
+
+开发、测试和发布设施不属于正式 Skill 运行包。具体打包范围以 `skill-package.json` 为准。
+
+## 本地检查
+
+在 Python 3.10 或更高版本的开发环境中运行：
+
+    python scripts/validate_skill.py
+    python -m unittest discover -s tests -p "test_*.py" -v
+
+结构验证和离线测试不能证明语义质量，也不能证明真实环境执行成功。行为评测和目标运行环境验证必须分别提供证据。
+
+## 安全与限制
+
+- 不提交密钥或不必要的个人信息。
+- 将执行轨迹视为观察记录，不将其直接视为正确答案。
+- 明确标注合成和推断内容，不得伪造来源引用。
+- 对具有副作用的任务，定义隔离环境、重置、清理、权限和成本限制。
+- 宿主能力、外部服务和运行环境可能不可用；不得承诺无法控制的成功率。
+- 需要真实执行才能证明的结论，必须在目标环境中执行并保留证据。
+
+## 许可
+
+本项目采用 MIT License，详见 `LICENSE`。

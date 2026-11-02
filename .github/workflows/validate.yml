@@ -1,16 +1,35 @@
-name: Validate Skill
+name: 验证 Skill
 on:
   push:
-    branches: ["main", "feat/**"]
+    branches: ["main", "master", "release/**", "work/**", "feat/**"]
   pull_request:
   workflow_dispatch:
+
 jobs:
-  structural-validation:
+  require-master-target:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检查 PR 目标分支
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          if [ "$BASE_REF" != "master" ]; then
+            echo "发布候选 PR 必须以 master 为目标分支。"
+            exit 1
+          fi
+
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install pyyaml
-      - run: python scripts/validate_skill.py
+      - name: 安装验证依赖
+        run: python -m pip install pyyaml
+      - name: 验证正式包
+        run: python scripts/validate_skill.py
+      - name: 运行离线测试
+        run: python -m unittest discover -s tests -p "test_*.py" -v

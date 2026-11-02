@@ -1,0 +1,62 @@
+name: Publish v0.0.1
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_publish:
+        description: Explicitly approve publishing v0.0.1 after all gates pass
+        required: true
+        type: boolean
+        default: false
+      candidate_sha:
+        description: Exact merged PR #2 head SHA to verify and release
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: read
+  actions: read
+
+jobs:
+  verify-and-publish:
+    if: github.event_name == 'workflow_dispatch' && inputs.confirm_publish == true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.candidate_sha }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify merged PR, exact SHA, CI report, baseline, stability, and independent approval; create tag
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RELEASE_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          RELEASE_PR_NUMBER: "2"
+        run: python scripts/create_release_tag.py
+      - name: Publish GitHub Release and attach the exact-run report
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG_NAME: v0.0.1
+        run: |
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release edit "$TAG_NAME" --title "$TAG_NAME" --notes-file artifacts/release-notes.md
+            gh release upload "$TAG_NAME" artifacts/eval-report.json artifacts/release-notes.md --clobber
+          else
+            gh release create "$TAG_NAME" \
+              artifacts/eval-report.json \
+              artifacts/release-notes.md \
+              --title "$TAG_NAME" \
+              --notes-file artifacts/release-notes.md \
+              --verify-tag
+          fi
+      - name: Mark RELEASE.md published with verified run and reviewer evidence
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          RELEASE_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          RELEASE_PR_NUMBER: "2"
+        run: python scripts/update_release_doc.py

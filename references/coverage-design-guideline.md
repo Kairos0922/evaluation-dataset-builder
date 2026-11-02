@@ -1,15 +1,23 @@
-# Coverage Design Guidelines
+# 评测覆盖设计规范
 
-Plan coverage before generating cases. Select relevant axes:
-- objectives and capabilities;
-- workflow/scenario families;
-- input variation and ambiguity;
-- normal, boundary, exception, adversarial conditions;
-- risk/impact and failure modes;
-- task complexity and step count;
-- tools, permissions, and environment state;
-- source type and confidence.
+## 先定义覆盖范围
 
-Prioritize business importance, risk, credible frequency, known failures, capability uncertainty, diagnostic value, feasibility, and cost. Define the coverage universe and report numerator/denominator. Do not inflate coverage with redundant cases or blindly generate Cartesian products.
+生成用例前，先定义有限且可解释的覆盖范围全集。根据评测目标选择相关维度：评测目标和能力；工作流与场景类别；输入变化和信息歧义；正常、边界、异常和对抗条件；风险、影响和失败模式；任务复杂度和步骤数量；工具、权限和环境状态；来源类型和证据置信程度。
 
-Create separate datasets when purpose, audience, grader, risk posture, execution setup, or release use differs materially. Shared source scenarios are acceptable if objectives differ and overlap is disclosed.
+并非所有任务都需要全部维度。必须说明纳入和排除某个维度的理由。
+
+## 确定优先级
+
+优先考虑业务重要性、风险和潜在影响、有依据的发生频率、已知失败和历史缺陷、能力不确定性、对诊断和改进的价值、执行可行性和成本。
+
+## 控制组合数量
+
+不得盲目列举所有维度的笛卡尔积。先固定必须覆盖的高风险组合，再根据影响、频率和缺口补充用例。
+
+不同数据集可以有不同目的、受众、评分器、风险要求和执行环境。当这些因素存在实质差异时，应分别规划。共享业务场景时，必须说明各数据集的判定目标和计数口径。
+
+## 覆盖报告
+
+覆盖报告必须说明覆盖范围全集及其定义、每个维度的取值、已覆盖项目数和总项目数、覆盖率计算方式、未覆盖项目和缺口原因、关键风险是否覆盖，以及共享场景和重复计数规则。
+
+覆盖率必须有分子、分母和统计口径。不得把未提供的数据描述为已覆盖，不得通过重复措辞虚增覆盖数量。

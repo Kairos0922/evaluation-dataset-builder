@@ -1,7 +1,37 @@
-# Self-evaluation protocol
+# 离线测试与开发验收说明
 
-Run each prompt from self-eval-cases.json in a fresh context with the Skill loaded. Grade expected properties, not wording. Include trigger-positive, paraphrase, and negative-trigger cases. Repeat stochastic cases when measuring consistency. Report per-case results, aggregate pass rate, critical failures, model/version, and run configuration.
+## 测试范围
 
-For capability uplift, compare with a matched baseline without the Skill. Keep a held-out subset for regression and avoid tuning indefinitely against all cases.
+本目录包含评测数据集构建 Skill 的静态样例、离线单元测试和可选的行为评测程序。
 
-The repository currently includes fixtures and structural validation, not a model-run harness. Do not report behavioral benchmark scores from fixture inspection alone. Add a runtime adapter once model/provider and credentials are configured.
+本次合入只运行以下不调用模型的检查：
+
+1. 正式包结构与清单验证。
+2. Schema、测试数据和质量标准的静态检查。
+3. 使用模拟响应的离线单元测试。
+
+本次不运行 `tests/run_eval.py`，不启动模型服务，不调用任何模型接口，也不触发 `.github/workflows/behavioral-eval.yml`。
+
+## 目录说明
+
+- `self-eval-cases.json`：Skill 构建行为的离线评测样例。
+- `trigger-evals.json`：Skill 适用范围的正负触发样例。
+- `test_*.py`：离线单元测试。涉及网络请求的测试使用模拟响应，不访问真实服务。
+- `run_eval.py`：可选的外部行为评测运行器。执行该程序会调用外部模型服务，必须另行获得明确授权，并确认预算、密钥和测试数据范围。
+
+## 本地离线检查
+
+Python 3.10 或更高版本：
+
+```bash
+python scripts/validate_skill.py
+python -m unittest discover -s tests -p "test_*.py" -v
+```
+
+如需执行上述离线测试，不需要配置模型密钥，也不需要访问模型服务。
+
+## 外部行为评测
+
+外部行为评测不是本次合入门禁。只有在另行批准后，才可评估目标环境、评测数据、费用上限、服务凭证、运行次数和停止条件。不得在未经授权时运行 `tests/run_eval.py` 或手动触发行为评测工作流。
+
+模型调用结果不能替代独立人工审查，也不能替代目标运行环境验证。未执行的评测必须标记为未运行，不得报告为通过。

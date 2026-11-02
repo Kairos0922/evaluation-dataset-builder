@@ -1,13 +1,17 @@
-# Changelog
+# 版本变更记录
 
-## 0.0.1 — 2026-11-01
-- Initial general-purpose Evaluation Dataset Builder Skill.
-- Added quality standard, case schema, grader and coverage guidance.
-- Added evidence/source governance and quality gates.
-- Added self-evaluation and trigger-evaluation fixtures.
-- Added structural validator and CI workflow.
+## 0.0.1 — 发布候选
 
-### Known limitations
-- Behavioral self-evaluation requires a compatible model runtime/harness and is not executed by structural CI.
-- Dataset quality scores are rubric-based reviewer outputs unless a calibrated grader and evidence are supplied.
-- Execution verification requires an external target-system harness.
+- 建立通用评测数据集构建 Skill。
+- 增加中文质量标准、用例 Schema、评分器规范、覆盖设计和证据治理规则。
+- 增加宿主 Agent 能力适配规范，明确 Skill 不依赖具体模型或供应商。
+- 增加正式包清单，区分运行时文件与开发、测试和发布设施。
+- 规范中文技术写作、统一术语和质量状态。
+- 重构正式包验证器，检查文件清单、引用完整性、模型无关性、Schema 和测试集结构。
+- 完善离线测试与发布门禁。
+
+### 发布边界
+
+版本保持 **0.0.1**。本次改造用于完善 0.0.1 发布候选，不代表发布门禁已通过。
+
+结构验证、离线测试、行为评测、独立审查和目标运行环境验证是不同的证据。未完成的门禁必须明确标记，不得将发布候选描述为正式发布。

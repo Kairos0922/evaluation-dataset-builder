@@ -1,31 +1,496 @@
 {
-  "$schema":"https://json-schema.org/draft/2020-12/schema",
-  "title":"Evaluation Dataset Case",
-  "type":"object",
-  "required":["case_id","dataset_id","title","evaluation_target","objective","scenario_type","user_input","expected_behavior","grading","source_refs","quality_status"],
-  "properties":{
-    "case_id":{"type":"string","minLength":1},"dataset_id":{"type":"string","minLength":1},
-    "title":{"type":"string","minLength":1},"evaluation_target":{"type":"string","minLength":1},
-    "objective":{"type":"string","minLength":1},"capability_keys":{"type":"array","items":{"type":"string"},"minItems":1},
-    "scenario_id":{"type":["string","null"]},
-    "scenario_type":{"enum":["normal","boundary","exception","adversarial","safety","multi_turn","tool_use","other"]},
-    "risk_level":{"enum":["low","medium","high","critical","not_applicable"]},
-    "source_refs":{"type":"array","items":{"type":"object"}},
-    "preconditions":{"type":"array","items":{"type":"string"}},
-    "user_input":{"type":["string","object","array"]},
-    "expected_behavior":{"type":["string","array","object"]},
-    "forbidden_behavior":{"type":"array","items":{"type":"string"}},
-    "reference_outcome":{"type":["object","array","string","null"]},
-    "grading":{"type":"object","required":["method","criteria","pass_conditions","fail_conditions","evidence_required"],"properties":{
-      "method":{"enum":["rule_based","reference_match","llm_judge","state_check","trace_check","hybrid","human_review"]},
-      "criteria":{"type":"array","items":{"type":"object"}},
-      "pass_conditions":{"type":"array","items":{"type":"string"}},
-      "fail_conditions":{"type":"array","items":{"type":"string"}},
-      "evidence_required":{"type":"array","items":{"type":"string"}},
-      "uncertainty_policy":{"type":"string"}
-    }},
-    "execution_requirements":{"type":"object"},
-    "quality_status":{"enum":["candidate","validated","approved","needs_info","rejected","execution_verified"]},
-    "quality_review":{"type":"object"},"assumptions":{"type":"array","items":{"type":"string"}},"version":{"type":"string"}
-  },"additionalProperties":true
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Evaluation Dataset Case",
+  "type": "object",
+  "required": [
+    "case_id",
+    "dataset_id",
+    "title",
+    "evaluation_target",
+    "objective",
+    "scenario_type",
+    "user_input",
+    "expected_behavior",
+    "grading",
+    "source_refs",
+    "quality_status"
+  ],
+  "properties": {
+    "case_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "用例的稳定且唯一标识。更新数据集时不得因内容修订而随意更改。"
+    },
+    "dataset_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "所属数据集的稳定标识。"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "用例标题，应简洁描述被测场景。"
+    },
+    "evaluation_target": {
+      "type": "string",
+      "minLength": 1,
+      "description": "被评测的系统、Agent、Skill、API、工作流或具体能力。"
+    },
+    "objective": {
+      "type": "string",
+      "minLength": 1,
+      "description": "本用例需要验证的具体行为或能力，应可观察、可判定。"
+    },
+    "capability_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1,
+      "description": "本用例覆盖的能力标识列表。"
+    },
+    "scenario_id": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "description": "业务场景的稳定标识；没有可复用场景标识时可以为空。"
+    },
+    "scenario_type": {
+      "enum": [
+        "normal",
+        "boundary",
+        "exception",
+        "adversarial",
+        "safety",
+        "multi_turn",
+        "tool_use",
+        "other"
+      ],
+      "description": "场景类别。枚举值是机器标识，保持原样。"
+    },
+    "risk_level": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical",
+        "not_applicable"
+      ],
+      "description": "风险等级。枚举值是机器标识，保持原样。"
+    },
+    "source_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "source_type"
+        ],
+        "properties": {
+          "source_id": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "来源的稳定标识。"
+          },
+          "source_type": {
+            "enum": [
+              "authoritative_policy",
+              "system_documentation",
+              "confirmed_expert_process",
+              "verified_historical_eval",
+              "incident_ticket",
+              "user_feedback",
+              "trace_log",
+              "derived_scenario",
+              "synthetic_scenario",
+              "inference_assumption"
+            ],
+            "description": "来源类别。枚举值是机器标识，保持原样。"
+          },
+          "title": {
+            "type": "string",
+            "description": "来源标题或名称。"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "来源版本；未提供时填写 null。"
+          },
+          "effective_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "来源生效日期；未提供时填写 null。"
+          },
+          "authority": {
+            "type": "string",
+            "description": "来源责任方及其适用权限范围。"
+          },
+          "locator": {
+            "type": "string",
+            "description": "可定位到具体内容的位置，例如章节、条款、URL 或文件页码。"
+          },
+          "quoted_evidence": {
+            "type": "string",
+            "description": "支撑本项结论的原文证据；不得编造或改写成伪引文。"
+          }
+        },
+        "additionalProperties": true
+      },
+      "description": "支撑用例和预期行为的来源记录。不得填写虚构来源。"
+    },
+    "preconditions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "执行用例前必须成立的状态、权限和环境条件。"
+    },
+    "user_input": {
+      "type": [
+        "string",
+        "object",
+        "array"
+      ],
+      "description": "提供给被测对象的输入内容。"
+    },
+    "expected_behavior": {
+      "type": [
+        "string",
+        "array",
+        "object"
+      ],
+      "description": "被测对象应表现出的明确、可观察行为。"
+    },
+    "forbidden_behavior": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "被测对象不得出现的行为。"
+    },
+    "reference_outcome": {
+      "type": [
+        "object",
+        "array",
+        "string",
+        "null"
+      ],
+      "description": "有可信依据时填写的参考结果；依据不足时不得编造。"
+    },
+    "grading": {
+      "type": "object",
+      "required": [
+        "method",
+        "criteria",
+        "pass_conditions",
+        "fail_conditions",
+        "evidence_required"
+      ],
+      "properties": {
+        "method": {
+          "enum": [
+            "rule_based",
+            "reference_match",
+            "llm_judge",
+            "state_check",
+            "trace_check",
+            "hybrid",
+            "human_review"
+          ],
+          "description": "评分方法。枚举值是机器标识，保持原样。"
+        },
+        "criteria": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          },
+          "description": "需要分别判定的评分项。"
+        },
+        "pass_conditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "判为通过必须满足的条件。"
+        },
+        "fail_conditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "判为失败的条件。"
+        },
+        "evidence_required": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "作出判定前必须取得的证据。"
+        },
+        "acceptable_variants": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "允许的等价表达或结果变体。"
+        },
+        "partial_credit_policy": {
+          "type": "string",
+          "description": "允许部分得分时的规则；不允许时明确说明。"
+        },
+        "uncertainty_policy": {
+          "type": "string",
+          "description": "证据缺失、歧义或无法核验时的处理规则。"
+        },
+        "reference_authority": {
+          "type": "string",
+          "description": "参考依据的来源和权威性。"
+        },
+        "calibration_cases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "用于校准评分器的用例 ID。"
+        }
+      },
+      "additionalProperties": true,
+      "description": "评分器的判定方法、标准、证据和校准要求。"
+    },
+    "execution_requirements": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "DESIGN_ONLY",
+            "READY_TO_RUN",
+            "EXECUTION_VERIFIED",
+            "NOT_RUN"
+          ],
+          "description": "执行状态。枚举值是机器标识，保持原样。"
+        },
+        "initial_state": {
+          "type": [
+            "object",
+            "array",
+            "string"
+          ],
+          "description": "执行前必须存在的初始状态。"
+        },
+        "required_permissions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "执行所需身份和权限。"
+        },
+        "environment": {
+          "type": "object",
+          "description": "执行环境及隔离要求。"
+        },
+        "test_data": {
+          "type": "array",
+          "items": {},
+          "description": "测试数据和外部依赖。"
+        },
+        "allowed_actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "本用例允许执行的操作。"
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "按顺序执行的具体步骤。"
+        },
+        "expected_end_state": {
+          "type": [
+            "object",
+            "array",
+            "string"
+          ],
+          "description": "执行后必须达到的状态。"
+        },
+        "observable_assertions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "用于验证结果的可观察断言。"
+        },
+        "forbidden_side_effects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "不得产生的副作用。"
+        },
+        "reset_plan": {
+          "type": "string",
+          "description": "测试结束后的状态重置或回滚步骤。"
+        },
+        "cleanup_plan": {
+          "type": "string",
+          "description": "正常结束时必须完成的清理步骤。"
+        },
+        "failure_cleanup": {
+          "type": "string",
+          "description": "执行失败时必须执行的清理步骤。"
+        },
+        "cost_and_rate_limits": {
+          "type": "object",
+          "description": "本用例适用的成本、频率和资源限制。"
+        },
+        "execution_evidence": {
+          "type": "object",
+          "properties": {
+            "run_id": {
+              "type": "string",
+              "description": "真实执行记录的标识。"
+            },
+            "executed_at": {
+              "type": "string",
+              "description": "真实执行时间。"
+            },
+            "candidate_sha": {
+              "type": "string",
+              "description": "实际执行版本的提交标识。"
+            },
+            "artifact_refs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "真实执行产物的引用。"
+            },
+            "state_before": {
+              "type": [
+                "object",
+                "array",
+                "string"
+              ],
+              "description": "执行前的状态快照。"
+            },
+            "state_after": {
+              "type": [
+                "object",
+                "array",
+                "string"
+              ],
+              "description": "执行后的状态快照。"
+            }
+          },
+          "additionalProperties": true,
+          "description": "实际执行后形成的证据；未执行时不得填写虚构内容。"
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "READY_TO_RUN",
+                  "EXECUTION_VERIFIED"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "status",
+              "initial_state",
+              "required_permissions",
+              "environment",
+              "test_data",
+              "allowed_actions",
+              "steps",
+              "expected_end_state",
+              "observable_assertions",
+              "forbidden_side_effects",
+              "reset_plan",
+              "cleanup_plan",
+              "failure_cleanup"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "EXECUTION_VERIFIED"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "status",
+              "initial_state",
+              "required_permissions",
+              "environment",
+              "test_data",
+              "allowed_actions",
+              "steps",
+              "expected_end_state",
+              "observable_assertions",
+              "forbidden_side_effects",
+              "reset_plan",
+              "cleanup_plan",
+              "failure_cleanup",
+              "execution_evidence"
+            ]
+          }
+        }
+      ],
+      "additionalProperties": true,
+      "description": "执行环境、权限、步骤、终态、断言和清理要求。"
+    },
+    "quality_status": {
+      "enum": [
+        "candidate",
+        "validated",
+        "approved",
+        "needs_info",
+        "rejected"
+      ],
+      "description": "用例质量状态。枚举值是机器标识，保持原样。"
+    },
+    "quality_review": {
+      "type": "object",
+      "description": "质量审查记录、缺陷、结论和证据。"
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "尚未确认的推断或假设。必须明确标记，不得作为事实。"
+    },
+    "version": {
+      "type": "string",
+      "description": "用例或所属数据集的版本标识。"
+    }
+  },
+  "additionalProperties": true,
+  "$comment": "字段名、枚举值和机器标识保持原样；字段含义及填写要求使用中文说明。自然语言字段默认使用简体中文。"
 }
