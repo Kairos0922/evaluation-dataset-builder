@@ -48,8 +48,8 @@ jobs:
           fi
           PR_HEAD="$(gh api "repos/$GITHUB_REPOSITORY/pulls/2" --jq '.head.sha')"
           PR_BASE="$(gh api "repos/$GITHUB_REPOSITORY/pulls/2" --jq '.base.ref')"
-          if [ "$PR_HEAD" != "$CANDIDATE_SHA" ] || [ "$PR_BASE" != "main" ]; then
-            echo "Candidate SHA must exactly match open PR #2 head targeting main."
+          if [ "$PR_HEAD" != "$CANDIDATE_SHA" ] || [ "$PR_BASE" != "master" ]; then
+            echo "Candidate SHA must exactly match open PR #2 head targeting master."
             exit 2
           fi
           echo "Verified exact PR #2 candidate SHA."
