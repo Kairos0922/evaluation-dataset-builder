@@ -1,6 +1,6 @@
 # 评测数据集构建术语表
 
-本术语表是本 Skill 的唯一术语依据。自然语言说明使用统一中文名称；机器字段、枚举和固定 ID 保留原样。
+本术语表统一评测数据集构建过程中的核心概念。自然语言说明使用统一中文名称；机器字段、枚举和固定 ID 保留原样。
 
 | 机器标识或英文术语 | 统一中文名称 | 定义 |
 |---|---|---|
@@ -12,7 +12,7 @@
 | Coverage Universe | 覆盖范围全集 | 覆盖率计算所依据的完整范围和统计口径 |
 | Grader | 评分器 | 根据预先定义的证据和条件判定结果的机制 |
 | Reference Outcome | 参考结果 | 用于判定结果的可信预期值或预期行为 |
-| Ground Truth | 真实依据 | 有权威来源支持、可用于判定的事实或结果 |
+| Ground Truth | 已核实的判定依据 | 有权威来源支持、可用于判定的事实或结果 |
 | Provenance | 来源追溯 | 记录结论、数据和材料的来源、版本和定位信息 |
 | Evidence | 证据 | 支持或否定某项判定的可核验材料 |
 | Baseline | 对照基线 | 用于比较的参照系统或参照结果 |
@@ -29,9 +29,13 @@
 
 ## 固定状态和字段
 
-以下值属于机器接口，必须保持原样：
-- 质量状态：candidate、validated、approved、needs_info、rejected、execution_verified。
-- 执行状态：DESIGN_ONLY、READY_TO_RUN、EXECUTION_VERIFIED、NOT RUN。
-- 结果状态：BLOCKED、READY_FOR_RETEST、VERIFIED、RERUN_REQUIRED、UNKNOWN、NOT APPROVED。
+以下值属于结构化数据接口，必须保持原样：
+
+- 质量状态：candidate、validated、approved、needs_info、rejected。
+- 执行状态：DESIGN_ONLY、READY_TO_RUN、EXECUTION_VERIFIED、NOT_RUN。
+- 修复状态：BLOCKED、READY_FOR_RETEST、VERIFIED、RERUN_REQUIRED。
+- 判定结果：PASS、FAIL、UNKNOWN、NOT_RUN。
 - 核心字段：case_id、dataset_id、evaluation_target、objective、expected_behavior、forbidden_behavior、source_refs、grading、quality_status。
-- 稳定用例编号：例如 SE01、SE02。
+- 稳定用例编号示例：SE01、SE02。
+
+质量状态、执行状态、修复状态和判定结果是不同维度，不得互相替代。例如，质量状态为 approved 不代表执行状态为 EXECUTION_VERIFIED。
