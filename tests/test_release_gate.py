@@ -900,9 +900,11 @@ class ReleaseGateUnitTests(unittest.TestCase):
         }]}
         with mock.patch.object(RUN_EVAL, "api_call", return_value=json.dumps(response)) as call:
             RUN_EVAL.judge_case(
-                "key", "deepseek-v4-pro", ["criterion"], "Closest available sentence."
+                "key", "openai/gpt-oss-120b", ["criterion"], "Closest available sentence.",
+                api_url="https://api.groq.com/openai/v1/chat/completions",
             )
-        self.assertEqual(call.call_args.kwargs["max_completion_tokens"], 1200)
+        self.assertEqual(call.call_args.kwargs["max_completion_tokens"], 2400)
+        self.assertEqual(call.call_args.kwargs["api_url"], "https://api.groq.com/openai/v1/chat/completions")
         self.assertFalse(call.call_args.kwargs["thinking"])
         self.assertEqual(call.call_args.kwargs["temperature"], 0.0)
 
