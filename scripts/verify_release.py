@@ -184,12 +184,13 @@ def main():
         f"/repos/{repo}/pulls/{PR_NUMBER}/reviews?per_page=100", token
     )
     runs_response = api_request(
-        f"/repos/{repo}/actions/runs?event=workflow_dispatch&per_page=100",
+        f"/repos/{repo}/actions/runs?per_page=100",
         token,
     )
     matching_runs = [
         item for item in (runs_response.get("workflow_runs") or [])
         if item.get("name") == "Behavioral Skill Evaluation"
+        and item.get("event") in ("push", "workflow_dispatch")
         and candidate_sha in str(item.get("display_title") or "")
         and item.get("status") == "completed"
         and item.get("conclusion") == "success"
