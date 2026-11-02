@@ -40,7 +40,7 @@ def build_published_release_doc(current, report, candidate_sha, release_sha, rev
     evidence = (
         "## Release evidence\n\n"
         f"- Reviewed PR head SHA: `{candidate_sha}`\n"
-        f"- Merged main commit / tag SHA: `{release_sha}`\n"
+        f"- Merged master commit / tag SHA: `{release_sha}`\n"
         f"- Evaluation workflow run: {report.get('workflow_run_id')}\n"
         f"- Generator: `{report['models']['generator']}`\n"
         f"- Independent Judge: `{report['models']['judge_and_trigger']}`\n"
