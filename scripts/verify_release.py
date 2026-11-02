@@ -189,7 +189,7 @@ def main():
     )
     matching_runs = [
         item for item in (runs_response.get("workflow_runs") or [])
-        if item.get("name") == "Behavioral Skill Evaluation"
+        if str(item.get("name") or "").startswith("Behavioral Skill Evaluation")
         and item.get("event") in ("push", "workflow_dispatch")
         and candidate_sha in str(item.get("display_title") or "")
         and item.get("status") == "completed"
