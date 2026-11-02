@@ -93,11 +93,11 @@ def main():
     require(release.get("tag_name") == "v0.0.1",
             "GitHub Release v0.0.1 must exist before updating RELEASE.md.")
     repository = api_request(f"/repos/{repo}", token)
-    require(repository.get("default_branch") == "main",
+    require(repository.get("default_branch") == "master",
             "Repository default branch must be main.")
     pr = api_request(f"/repos/{repo}/pulls/2", token)
-    require(pr.get("merged") is True and (pr.get("base") or {}).get("ref") == "main",
-            "PR #2 must be merged into main before RELEASE.md can be updated.")
+    require(pr.get("merged") is True and (pr.get("base") or {}).get("ref") == "master",
+            "PR #2 must be merged into master before RELEASE.md can be updated.")
     require((pr.get("head") or {}).get("sha") == candidate_sha,
             "Merged PR #2 head differs from the published candidate.")
     release_sha = pr.get("merge_commit_sha")
@@ -131,7 +131,7 @@ def main():
             "message": "Mark v0.0.1 as published with verified release evidence",
             "content": base64.b64encode(updated.encode("utf-8")).decode("ascii"),
             "sha": current_file["sha"],
-            "branch": "main",
+            "branch": "master",
         },
     )
     print(json.dumps({
