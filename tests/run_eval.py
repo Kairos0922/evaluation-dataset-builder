@@ -11,6 +11,15 @@ import sys
 import time
 from datetime import datetime, timezone
 from collections import deque
+
+try:
+    import tiktoken
+except ImportError:  # pragma: no cover - production workflow installs this dependency
+    tiktoken = None
+
+GROQ_TOKENIZER_MARGIN = 0.10
+GROQ_CHAT_FRAMING_TOKENS = 32
+GROQ_TOKEN_ENCODER = None
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -106,14 +115,25 @@ def build_payload(model, system, user, max_completion_tokens=900,
     return payload
 
 
-def estimate_request_tokens(system, user, max_completion_tokens):
-    """Conservatively estimate total tokens for a request before sending it.
+def estimate_request_tokens(system, user, max_completion_tokens, model=None):
+    """Estimate complete prompt plus reserved output before sending a request.
 
-    DeepSeek exposes exact prompt/completion usage in successful responses. Before the
-    call, use half the UTF-8 byte length as a conservative proxy: this intentionally
-    overestimates typical English text and avoids undercounting CJK characters.
-    Add the full requested completion budget.
+    GPT-OSS uses the o200k_harmony tokenizer, which extends o200k_base with
+    Harmony control tokens. Count the plain-text system/user content using
+    o200k_base, then add framing overhead and a 10% margin for the chat template,
+    provider serialization, and estimator variance. Reserve the full requested
+    completion budget. Other providers retain the conservative UTF-8 fallback.
     """
+    global GROQ_TOKEN_ENCODER
+    if model == "openai/gpt-oss-120b" and tiktoken is not None:
+        if GROQ_TOKEN_ENCODER is None:
+            GROQ_TOKEN_ENCODER = tiktoken.get_encoding("o200k_base")
+        prompt_tokens = (
+            len(GROQ_TOKEN_ENCODER.encode(system, disallowed_special=()))
+            + len(GROQ_TOKEN_ENCODER.encode(user, disallowed_special=()))
+        )
+        guarded_prompt = math.ceil(prompt_tokens * (1 + GROQ_TOKENIZER_MARGIN))
+        return guarded_prompt + GROQ_CHAT_FRAMING_TOKENS + max_completion_tokens
     prompt_bytes = len(system.encode("utf-8")) + len(user.encode("utf-8"))
     return math.ceil(prompt_bytes / 2) + max_completion_tokens
 
@@ -191,7 +211,7 @@ def estimate_request_cost_usd(model, system, user, max_completion_tokens):
         raise ProviderStopError(
             f"No conservative price entry is configured for provider model {model!r}; refusing an unbudgeted call."
         )
-    prompt_tokens = estimate_request_tokens(system, user, 0)
+    prompt_tokens = estimate_request_tokens(system, user, 0, model=model)
     return (
         prompt_tokens * pricing["input"]
         + max_completion_tokens * pricing["output"]
@@ -319,7 +339,7 @@ def api_call(api_key, model, system, user, max_completion_tokens=900,
             "manually resolving this checkpoint."
         )
 
-    estimated_tokens = estimate_request_tokens(system, user, max_completion_tokens)
+    estimated_tokens = estimate_request_tokens(system, user, max_completion_tokens, model=model)
     estimated_cost = estimate_request_cost_usd(model, system, user, max_completion_tokens)
     def make_request(request_payload):
         return urllib.request.Request(
