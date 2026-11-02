@@ -531,14 +531,26 @@ class ReleaseGateUnitTests(unittest.TestCase):
             ):
                 RUN_EVAL.throttle_model("openai/gpt-oss-120b", 8001)
             RUN_EVAL.CHECKPOINT_STORE = {
-                "estimated_tokens_reserved_by_model": {
-                    "openai/gpt-oss-120b": 199500
-                }
+                "estimated_tokens_reserved_by_model": {"openai/gpt-oss-120b": 199500},
+                "estimated_tokens_reserved_by_model_by_day": {
+                    "2026-11-02": {"openai/gpt-oss-120b": 199500}
+                },
             }
-            with self.assertRaisesRegex(
-                RUN_EVAL.EvaluationBudgetExceeded, "daily token reservation"
-            ):
+            with mock.patch.object(RUN_EVAL, "utc_date_key", return_value="2026-11-02"):
+                with self.assertRaisesRegex(
+                    RUN_EVAL.EvaluationBudgetExceeded, "UTC-day token reservation"
+                ):
+                    RUN_EVAL.reserve_model_daily_tokens("openai/gpt-oss-120b", 1000)
+            with mock.patch.object(RUN_EVAL, "utc_date_key", return_value="2026-11-03"):
                 RUN_EVAL.reserve_model_daily_tokens("openai/gpt-oss-120b", 1000)
+            self.assertEqual(
+                RUN_EVAL.CHECKPOINT_STORE["estimated_tokens_reserved_by_model_by_day"]["2026-11-03"]["openai/gpt-oss-120b"],
+                1000,
+            )
+            self.assertEqual(
+                RUN_EVAL.CHECKPOINT_STORE["estimated_tokens_reserved_by_model"]["openai/gpt-oss-120b"],
+                200500,
+            )
         finally:
             RUN_EVAL.MODEL_RATE_HISTORY = saved_history
             RUN_EVAL.CHECKPOINT_STORE = saved_store
