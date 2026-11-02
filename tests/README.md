@@ -6,13 +6,13 @@ The evaluator uses DeepSeek's OpenAI-compatible Chat Completions API:
 
 - Base URL: https://api.deepseek.com
 - Generator: `deepseek-flash` (DeepSeek-V4.1-Flash-1017)
-- Judge and Trigger classifier: separately configured OpenAI-compatible endpoint/model
+- Judge and Trigger classifier: Groq `openai/gpt-oss-120b` by default (independent of the DeepSeek Generator), or a separately configured OpenAI-compatible endpoint/model
 - Generator secret: `DEEPSEEK_API_KEY`
-- Independent Judge secret: `EVAL_JUDGE_API_KEY`; endpoint/model/pricing are repository Actions variables
+- Independent Judge secret: `GROQ_API_KEY` (fallback) or `EVAL_JUDGE_API_KEY`; endpoint/model/pricing can be overridden with repository Actions variables
 
 Generation uses non-thinking mode and an 16,384-token output ceiling for both Skill and matched-baseline responses. Trigger classification uses 180 tokens; Judge rubric scoring uses 1,200 tokens. The local estimated total-request guard is 950,000 tokens, below DeepSeek Flash's documented 1M context window; the model's maximum output capacity is not used as the per-call budget. The runner records both endpoints, model IDs, token usage, conservative peak-price cost estimates, and checkpoint cache hits.
 
-**Important model-routing constraint (2026-11-02):** DeepSeek announced that requests using `deepseek-v4-pro` are routed to V4.1 Flash from 2026-09-14 until V4.1-Pro is launched. Therefore `deepseek-v4-pro` is not an independent Judge for `deepseek-flash`. The harness detects and rejects this same-backend configuration before making a paid request. Configure a genuinely independent OpenAI-compatible Judge using `EVAL_JUDGE_BASE_URL`, `EVAL_JUDGE_MODEL`, `EVAL_JUDGE_API_KEY`, `EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION`, and `EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION`.
+**Important model-routing constraint (2026-11-02):** DeepSeek announced that requests using `deepseek-v4-pro` are routed to V4.1 Flash from 2026-09-14 until V4.1-Pro is launched. Therefore `deepseek-v4-pro` is not an independent Judge for `deepseek-flash`. The harness detects and rejects this same-backend configuration before making a paid request. The default independent Judge is Groq `openai/gpt-oss-120b` at `https://api.groq.com/openai/v1`, using `GROQ_API_KEY`, and conservative published prices of $0.15/M input and $0.60/M output. Override with `EVAL_JUDGE_BASE_URL`, `EVAL_JUDGE_MODEL`, `EVAL_JUDGE_API_KEY`, `EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION`, and `EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION` when using another provider.
 
 Each evaluation is protected by a USD 1.50 estimated-spend ceiling and a 220-request ceiling. The request count and peak-price cost reservation are persisted before each network call, including requests that fail or are truncated. Cost estimates reserve each request at peak-hour cache-miss prices before sending it. The runner stops immediately on insufficient balance/quota, authentication failure, or budget exhaustion. Successful API responses are checkpointed after each call; rerunning with the same commit, models, suite, and run count reuses completed responses. Each repeated run has a distinct cache namespace so stability testing still generates independent samples.
 
@@ -53,7 +53,7 @@ Optional controls:
 - `DEEPSEEK_MAX_TOKENS` (default: 16384)
 - `DEEPSEEK_MAX_ESTIMATED_REQUEST_TOKENS` (default: 950000)
 - `EVAL_JUDGE_BASE_URL`, `EVAL_JUDGE_MODEL`, `EVAL_JUDGE_API_KEY`, `EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION`, and `EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION` (required for an independent Judge endpoint)
-- `--checkpoint` (default: `artifacts/eval-checkpoint.json`); successful responses are stored after each call.
+- `--checkpoint` (default: `artifacts/eval-checkpoint.json`); successful responses and conservative provider token reservations are stored after each call. Groq Judge calls are locally paced to 30 RPM / 8K TPM and capped at 180K reserved tokens per evaluation; the provider's account-specific limits remain authoritative.
 - GitHub Actions manual fallback accepts `resume_run_id` to restore a prior workflow artifact checkpoint. Use the same branch/SHA, models, suite, and run count so the signature matches.
 
 Never commit API keys or reports containing sensitive business prompts/data.
