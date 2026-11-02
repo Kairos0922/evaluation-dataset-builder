@@ -81,7 +81,7 @@ def create_release_tag():
             "Merged PR head SHA does not match the candidate SHA.")
     release_sha = pr.get("merge_commit_sha")
     require(bool(release_sha),
-            "Merged PR does not expose merge_commit_sha; refusing to tag a non-master commit.")
+            "Merged PR does not expose merge_commit_sha; refusing to tag a non-main commit.")
     author = (pr.get("user") or {}).get("login")
     require(bool(author), "Could not identify the release PR author.")
 
@@ -137,7 +137,7 @@ def create_release_tag():
     notes = (
         "# Evaluation Dataset Builder v0.0.1\n\n"
         f"- Reviewed PR head SHA: `{candidate_sha}`\n"
-        f"- Merged master commit / tag SHA: `{release_sha}`\n"
+        f"- Merged main commit / tag SHA: `{release_sha}`\n"
         f"- Validation run: {run_url}\n"
         f"- Independent reviewer: {reviewer}\n"
         f"- Generator: `{report['models']['generator']}`; Judge: `{report['models']['judge_and_trigger']}`\n"

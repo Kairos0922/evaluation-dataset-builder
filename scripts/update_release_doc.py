@@ -95,10 +95,10 @@ def main():
             "GitHub Release v0.0.1 must exist before updating RELEASE.md.")
     repository = api_request(f"/repos/{repo}", token)
     require(repository.get("default_branch") == "main",
-            "Repository default branch must be master.")
+            "Repository default branch must be main.")
     pr = api_request(f"/repos/{repo}/pulls/{pr_number}", token)
     require(pr.get("merged") is True and (pr.get("base") or {}).get("ref") == "main",
-            "configured release PR must be merged into master before RELEASE.md can be updated.")
+            "configured release PR must be merged into main before RELEASE.md can be updated.")
     require((pr.get("head") or {}).get("sha") == candidate_sha,
             "Merged configured release PR head differs from the published candidate.")
     release_sha = pr.get("merge_commit_sha")
@@ -119,7 +119,7 @@ def main():
     )
 
     current_file = api_request(
-        f"/repos/{repo}/contents/RELEASE.md?ref=master", token
+        f"/repos/{repo}/contents/RELEASE.md?ref=main", token
     )
     current = base64.b64decode(current_file["content"]).decode("utf-8")
     updated = build_published_release_doc(
