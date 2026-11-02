@@ -12,7 +12,7 @@ import zipfile
 from pathlib import Path
 
 API = "https://api.github.com"
-PR_NUMBER = int(os.getenv("RELEASE_PR_NUMBER", "12"))
+PR_NUMBER = int(os.getenv("RELEASE_PR_NUMBER", "13"))
 BEHAVIOR_MIN = 0.90
 PRECISION_MIN = 0.95
 RECALL_MIN = 0.95
