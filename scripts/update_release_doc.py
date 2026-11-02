@@ -95,14 +95,14 @@ def main():
     repository = api_request(f"/repos/{repo}", token)
     require(repository.get("default_branch") == "master",
             "Repository default branch must be master.")
-    pr = api_request(f"/repos/{repo}/pulls/2", token)
+    pr = api_request(f"/repos/{repo}/pulls/12", token)
     require(pr.get("merged") is True and (pr.get("base") or {}).get("ref") == "master",
-            "PR #2 must be merged into master before RELEASE.md can be updated.")
+            "PR #12 must be merged into master before RELEASE.md can be updated.")
     require((pr.get("head") or {}).get("sha") == candidate_sha,
-            "Merged PR #2 head differs from the published candidate.")
+            "Merged PR #12 head differs from the published candidate.")
     release_sha = pr.get("merge_commit_sha")
     require(bool(release_sha),
-            "Merged PR #2 has no merge_commit_sha.")
+            "Merged PR #12 has no merge_commit_sha.")
     tag_ref = api_request(f"/repos/{repo}/git/ref/tags/v0.0.1", token)
     tag_object = tag_ref.get("object") or {}
     tag_sha = tag_object.get("sha")
@@ -111,7 +111,7 @@ def main():
         tag_sha = (annotated.get("object") or {}).get("sha")
     require(tag_sha == release_sha,
             "v0.0.1 tag does not point to the merged master commit.")
-    reviews = api_request(f"/repos/{repo}/pulls/2/reviews?per_page=100", token)
+    reviews = api_request(f"/repos/{repo}/pulls/12/reviews?per_page=100", token)
     reviewer = latest_approved_review(
         reviews, (pr.get("user") or {}).get("login"), candidate_sha,
         report.get("workflow_run_id"),
