@@ -89,12 +89,13 @@ def create_release_tag():
         f"/repos/{repo}/pulls/{pr_number}/reviews?per_page=100", token
     )
     runs_response = api_request(
-        f"/repos/{repo}/actions/runs?event=workflow_dispatch&per_page=100",
+        f"/repos/{repo}/actions/runs?per_page=100",
         token,
     )
     matching_runs = [
         run for run in (runs_response.get("workflow_runs") or [])
         if run.get("name") == "Behavioral Skill Evaluation"
+        and run.get("event") in ("push", "workflow_dispatch")
         and candidate_sha in str(run.get("display_title") or "")
         and run.get("status") == "completed"
         and run.get("conclusion") == "success"
