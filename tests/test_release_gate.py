@@ -885,7 +885,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 "Target: Billing Support. Objective: verify monthly totals.",
             )
         self.assertIn("1-3 short VERBATIM substrings", call.call_args.args[2])
-        self.assertEqual(call.call_args.kwargs["max_completion_tokens"], 1200)
+        self.assertEqual(call.call_args.kwargs["max_completion_tokens"], 2400)
         self.assertLessEqual(call.call_args.kwargs["max_completion_tokens"], RUN_EVAL.MAX_COMPLETION_TOKENS)
         self.assertEqual(results[0]["score"], 1)
         self.assertTrue(results[0]["evidence_validated"])
@@ -893,7 +893,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "Target: Billing Support.", "Objective: verify monthly totals."
         ])
 
-    def test_judge_uses_pro_non_thinking_mode_with_bounded_json_output(self):
+    def test_judge_uses_independent_non_thinking_mode_with_bounded_json_output(self):
         response = {"checks": [{
             "index": 0, "score": 0, "rationale": "Missing evidence.",
             "evidence": ["Closest available sentence."],
