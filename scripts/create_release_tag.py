@@ -137,7 +137,7 @@ def create_release_tag():
     notes = (
         "# Evaluation Dataset Builder v0.0.1\n\n"
         f"- Reviewed PR head SHA: `{candidate_sha}`\n"
-        f"- Merged main commit / tag SHA: `{release_sha}`\n"
+        f"- Merged master commit / tag SHA: `{release_sha}`\n"
         f"- Validation run: {run_url}\n"
         f"- Independent reviewer: {reviewer}\n"
         f"- Generator: `{report['models']['generator']}`; Judge: `{report['models']['judge_and_trigger']}`\n"
