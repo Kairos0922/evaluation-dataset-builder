@@ -20,9 +20,9 @@ Provide the evaluation target, objectives, capability/business documentation, ru
 ## Evaluation provider configuration
 
 - Generator: `deepseek-flash` (DeepSeek-V4.1-Flash-1017), non-thinking mode.
-- Independent Judge/Trigger: a separately configured OpenAI-compatible provider/model (`EVAL_JUDGE_BASE_URL`, `EVAL_JUDGE_MODEL`); do not use `deepseek-v4-pro` as an independent Judge because DeepSeek currently routes it to V4.1 Flash.
+- Independent Judge/Trigger: Groq `openai/gpt-oss-120b` by default, using `GROQ_API_KEY`; custom providers can use `EVAL_JUDGE_*`. Do not use `deepseek-v4-pro` as an independent Judge because DeepSeek currently routes it to V4.1 Flash.
 - Per-evaluation budget: USD 1.50 estimated peak-price ceiling and 220-call ceiling.
-- Secrets: `DEEPSEEK_API_KEY` (Generator) and `EVAL_JUDGE_API_KEY` (independent Judge). Repository variables: Judge base URL, model ID, and explicit input/output token prices.
+- Secrets: `DEEPSEEK_API_KEY` (Generator) and `GROQ_API_KEY` (independent Judge; `EVAL_JUDGE_API_KEY` overrides). Default Judge pricing is conservatively reserved at $0.15/M input and $0.60/M output.
 
 ## Release gates
 
