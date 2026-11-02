@@ -13,13 +13,15 @@ A release is blocked unless every gate below has evidence tied to the exact cand
 
 ## Model configuration
 
+The Groq Judge uses conservative local safeguards based on published baseline limits: 30 RPM, 8K TPM, and a 180K per-evaluation token reservation ceiling (below the documented 200K TPD baseline). The model-specific 131,072-token context limit is enforced locally. The provider may impose lower account-specific limits; any 429/limit response is handled with bounded, paced retries and remains charged against the request/cost ledger.
+
 - Online provider: DeepSeek Chat Completions API at https://api.deepseek.com.
 - Generator: `deepseek-flash` (DeepSeek-V4.1-Flash-1017), non-thinking mode, 16,384-token output ceiling. The estimated total-request guard defaults to 950,000 tokens (the provider documents a 1M context window and 384K maximum output).
-- Judge: a genuinely separate OpenAI-compatible provider/model, non-thinking mode, 1,200-token output ceiling. Trigger classification uses that Judge endpoint in non-thinking mode with a 180-token output ceiling.
-- Generator secret: `DEEPSEEK_API_KEY`. Independent Judge secret: `EVAL_JUDGE_API_KEY`, with its base URL, model ID and input/output token prices supplied as Actions variables.
+- Judge: Groq `openai/gpt-oss-120b` by default, or another genuinely separate OpenAI-compatible provider/model; non-thinking mode, 1,200-token output ceiling. Trigger classification uses that Judge endpoint with a 180-token output ceiling. Groq GPT-OSS 120B has a 131,072-token context window and supports JSON Object Mode.
+- Generator secret: `DEEPSEEK_API_KEY`. Independent Judge secret: `GROQ_API_KEY` (default) or `EVAL_JUDGE_API_KEY`; the default endpoint/model are `https://api.groq.com/openai/v1` / `openai/gpt-oss-120b`, with conservative prices $0.15/M input and $0.60/M output. Custom providers use the `EVAL_JUDGE_*` variables.
 - **Current DeepSeek routing blocker:** DeepSeek announced that since 2026-09-14, `deepseek-v4-pro` requests are routed to V4.1 Flash until V4.1-Pro launches. As of 2026-11-02 this is not an independent model from `deepseek-flash`. The harness fails before paid calls if both roles resolve to that same deployed model. Do not label the Pro model ID as independent until DeepSeek officially changes the routing.
 - Each full evaluation is capped at USD 1.50 estimated peak-price spend and 220 provider requests. The cost estimate and request count are persisted before each paid call, including failed or truncated calls; a compatible checkpoint restores prior reservations before any further API request.
-- The exact generator and Judge endpoints/model IDs, token usage, estimated peak-price cost, physical HTTP request count (including retries), and checkpoint cache hits must appear in the report. Every retry attempt is reserved against both the request and estimated-cost caps before the network call.
+- The exact generator and Judge endpoints/model IDs, token usage, estimated peak-price cost, physical HTTP request count (including retries), per-model context/rate limits, daily token reservations, and checkpoint cache hits must appear in the report. Every retry attempt is reserved against both the request and estimated-cost caps before the network call.
 
 ## Mandatory human gates
 
