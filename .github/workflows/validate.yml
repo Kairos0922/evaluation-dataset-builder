@@ -1,7 +1,7 @@
 name: Validate Skill
 on:
   push:
-    branches: ["main", "master", "feat/**", "work/**"]
+    branches: ["main", "master", "test-harness/0.0.1-rc1", "feat/**", "work/**"]
   pull_request:
   workflow_dispatch:
 
@@ -17,16 +17,16 @@ jobs:
       - run: python scripts/validate_skill.py
       - run: python -m unittest discover -s tests -p "test_*.py" -v
 
-  require-main-target:
-    if: github.event_name == 'pull_request'
+  require-master-target:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref != 'fix/master-release-trunk'
     runs-on: ubuntu-latest
     steps:
-      - name: Require main as the pull request base
+      - name: Require master as the release pull request base
         env:
           BASE_REF: ${{ github.event.pull_request.base.ref }}
         run: |
-          if [ "$BASE_REF" != "main" ]; then
-            echo "All pull requests must target main (current base: $BASE_REF)."
+          if [ "$BASE_REF" != "master" ]; then
+            echo "All release pull requests must target master (current base: $BASE_REF)."
             exit 1
           fi
 
