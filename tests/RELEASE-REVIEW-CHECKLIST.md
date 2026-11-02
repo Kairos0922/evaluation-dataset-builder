@@ -49,7 +49,7 @@ Also inspect every failed case, judge rationale/evidence, representative generat
 - [ ] Case schema includes observable assertions; applicable Agent/Skill/tool cases include trace constraints.
 - [ ] Process constraints and outcome constraints are judged separately; missing traces are not treated as successful execution.
 - [ ] Change-impact links identify affected rules, scenarios, cases, graders, and coverage reports; local repairs have evidence of retesting.
-- [ ] Dataset manifest validates against `references/dataset-manifest-schema.json`.
+- [ ] Dataset manifest validates against `skills/evaluation-dataset-builder/references/dataset-manifest-schema.json`.
 
 ## Baseline review
 
