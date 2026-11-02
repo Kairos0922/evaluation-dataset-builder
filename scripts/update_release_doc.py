@@ -40,7 +40,7 @@ def build_published_release_doc(current, report, candidate_sha, release_sha, rev
     evidence = (
         "## Release evidence\n\n"
         f"- Reviewed PR head SHA: `{candidate_sha}`\n"
-        f"- Merged master commit / tag SHA: `{release_sha}`\n"
+        f"- Merged main commit / tag SHA: `{release_sha}`\n"
         f"- Evaluation workflow run: {report.get('workflow_run_id')}\n"
         f"- Generator: `{report['models']['generator']}`\n"
         f"- Independent Judge: `{report['models']['judge_and_trigger']}`\n"
@@ -78,8 +78,9 @@ def main():
     token = os.getenv("GITHUB_TOKEN")
     repo = os.getenv("GITHUB_REPOSITORY")
     supplied_candidate_sha = os.getenv("RELEASE_CANDIDATE_SHA")
-    require(token and repo,
-            "GITHUB_TOKEN and GITHUB_REPOSITORY are required.")
+    pr_number = int(os.getenv("RELEASE_PR_NUMBER", "0"))
+    require(token and repo and pr_number > 0,
+            "GITHUB_TOKEN, GITHUB_REPOSITORY, and RELEASE_PR_NUMBER are required.")
 
     with open("artifacts/eval-report.json", encoding="utf-8") as handle:
         report = json.load(handle)
@@ -93,16 +94,16 @@ def main():
     require(release.get("tag_name") == "v0.0.1",
             "GitHub Release v0.0.1 must exist before updating RELEASE.md.")
     repository = api_request(f"/repos/{repo}", token)
-    require(repository.get("default_branch") == "master",
+    require(repository.get("default_branch") == "main",
             "Repository default branch must be master.")
-    pr = api_request(f"/repos/{repo}/pulls/13", token)
-    require(pr.get("merged") is True and (pr.get("base") or {}).get("ref") == "master",
-            "PR #13 must be merged into master before RELEASE.md can be updated.")
+    pr = api_request(f"/repos/{repo}/pulls/{pr_number}", token)
+    require(pr.get("merged") is True and (pr.get("base") or {}).get("ref") == "main",
+            "configured release PR must be merged into master before RELEASE.md can be updated.")
     require((pr.get("head") or {}).get("sha") == candidate_sha,
-            "Merged PR #13 head differs from the published candidate.")
+            "Merged configured release PR head differs from the published candidate.")
     release_sha = pr.get("merge_commit_sha")
     require(bool(release_sha),
-            "Merged PR #13 has no merge_commit_sha.")
+            "Merged configured release PR has no merge_commit_sha.")
     tag_ref = api_request(f"/repos/{repo}/git/ref/tags/v0.0.1", token)
     tag_object = tag_ref.get("object") or {}
     tag_sha = tag_object.get("sha")
@@ -110,8 +111,8 @@ def main():
         annotated = api_request(f"/repos/{repo}/git/tags/{tag_sha}", token)
         tag_sha = (annotated.get("object") or {}).get("sha")
     require(tag_sha == release_sha,
-            "v0.0.1 tag does not point to the merged master commit.")
-    reviews = api_request(f"/repos/{repo}/pulls/13/reviews?per_page=100", token)
+            "v0.0.1 tag does not point to the merged main commit.")
+    reviews = api_request(f"/repos/{repo}/pulls/{pr_number}/reviews?per_page=100", token)
     reviewer = latest_approved_review(
         reviews, (pr.get("user") or {}).get("login"), candidate_sha,
         report.get("workflow_run_id"),
@@ -131,7 +132,7 @@ def main():
             "message": "Mark v0.0.1 as published with verified release evidence",
             "content": base64.b64encode(updated.encode("utf-8")).decode("ascii"),
             "sha": current_file["sha"],
-            "branch": "master",
+            "branch": "main",
         },
     )
     print(json.dumps({

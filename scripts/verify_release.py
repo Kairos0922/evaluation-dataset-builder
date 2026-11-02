@@ -12,7 +12,7 @@ import zipfile
 from pathlib import Path
 
 API = "https://api.github.com"
-PR_NUMBER = int(os.getenv("RELEASE_PR_NUMBER", "13"))
+PR_NUMBER = int(os.getenv("RELEASE_PR_NUMBER", "0"))
 BEHAVIOR_MIN = 0.90
 PRECISION_MIN = 0.95
 RECALL_MIN = 0.95
@@ -154,14 +154,14 @@ def main():
     require(tag_name == "v0.0.1", "This workflow only publishes v0.0.1.")
 
     repository = api_request(f"/repos/{repo}", token)
-    require(repository.get("default_branch") == "master",
-            "Repository default branch must be master before v0.0.1 can be published.")
+    require(repository.get("default_branch") == "main",
+            "Repository default branch must be main before v0.0.1 can be published.")
 
     pr = api_request(f"/repos/{repo}/pulls/{PR_NUMBER}", token)
     require(pr.get("merged") is True and pr.get("state") == "closed",
             "The release PR must be merged and closed.")
-    require((pr.get("base") or {}).get("ref") == "master",
-            "The release PR must have merged into master.")
+    require((pr.get("base") or {}).get("ref") == "main",
+            "The release PR must have merged into main.")
     candidate_sha = (pr.get("head") or {}).get("sha")
     release_sha = pr.get("merge_commit_sha")
     require(bool(candidate_sha) and bool(release_sha),
@@ -176,7 +176,7 @@ def main():
             f"/repos/{repo}/git/tags/{tag_object['sha']}", token
         ).get("object") or {}
     require(tag_object.get("sha") == release_sha == tag_sha,
-            "The v0.0.1 tag must point to the actual merged master commit (PR merge_commit_sha).")
+            "The v0.0.1 tag must point to the actual merged main commit (PR merge_commit_sha).")
     author = (pr.get("user") or {}).get("login")
     require(author, "Could not identify the release PR author.")
 
