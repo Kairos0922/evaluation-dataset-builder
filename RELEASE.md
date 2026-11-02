@@ -26,6 +26,9 @@ Provide the evaluation target, objectives, capability/business documentation, ru
 
 ## Release gates
 
+- [ ] Repository default branch changed from `main` to `master` by an administrator. The release verifier intentionally blocks publication until this setting is changed.
+
+
 - [x] Trusted-event-only DeepSeek metadata preflight workflow; PR jobs do not receive the DeepSeek secret.
 - [x] Exact-SHA manually dispatched behavior-evaluation workflow with independent Judge configuration and spend caps.
 
