@@ -201,7 +201,7 @@
           "enum": [
             "rule_based",
             "reference_match",
-            "llm_judge",
+            "rubric_based",
             "state_check",
             "trace_check",
             "hybrid",
