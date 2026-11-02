@@ -40,7 +40,7 @@ def main():
         return report()
 
     version = read_text("VERSION").strip()
-    check(bool(re.fullmatch(r"(0|[1-9]\\d*)\\.(0|[1-9]\\d*)\\.(0|[1-9]\\d*)", version)),
+    check(bool(re.fullmatch(r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)", version)),
           "VERSION 必须符合 x.y.z 语义化版本格式")
     check(manifest.get("version") == version, "skill-package.json 与 VERSION 版本不一致")
     check(manifest.get("entrypoint") == "SKILL.md", "入口文件必须为 SKILL.md")
@@ -76,12 +76,12 @@ def main():
               f"正式包包含不允许的文件类型：{rel}")
 
     skill = read_text("SKILL.md")
-    check(skill.startswith("---\\n"), "SKILL.md 必须以 YAML frontmatter 开始")
+    check(skill.startswith("---\n"), "SKILL.md 必须以 YAML frontmatter 开始")
     parts = skill.split("---", 2)
     if len(parts) >= 3:
         fm = parts[1].strip()
-        name = re.search(r"(?m)^name:\\s*([a-z0-9-]+)\\s*$", fm)
-        desc = re.search(r"(?m)^description:\\s*(.+)$", fm)
+        name = re.search(r"(?m)^name:\s*([a-z0-9-]+)\s*$", fm)
+        desc = re.search(r"(?m)^description:\s*(.+)$", fm)
         check(bool(name), "SKILL.md 缺少有效的 name 属性")
         check(bool(desc), "SKILL.md 缺少 description 属性")
         if name:
