@@ -146,7 +146,6 @@ approved 不代表 EXECUTION_VERIFIED。不得把设计完成、结构校验通�
 
 ## 12. 参考规范
 
-- references/chinese-controlled-writing.md
 - references/host-agent-capability-adapter.md
 - references/terminology.md
 - references/quality-standard.md
@@ -155,7 +154,6 @@ approved 不代表 EXECUTION_VERIFIED。不得把设计完成、结构校验通�
 - references/grader-guidelines.md
 - references/coverage-design-guideline.md
 - references/source-and-evidence-policy.md
-- references/task-planning-and-recovery.md
 - references/business-scenario-model.md
 - references/scenario-buckets.md
 - references/change-impact-and-repair.md
