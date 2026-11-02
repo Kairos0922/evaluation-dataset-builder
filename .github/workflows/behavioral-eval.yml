@@ -1,3 +1,4 @@
+run-name: Behavioral Skill Evaluation — ${{ inputs.candidate_sha }}
 name: Behavioral Skill Evaluation
 on:
   workflow_dispatch:
