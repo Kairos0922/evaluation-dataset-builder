@@ -396,6 +396,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
             self.assertEqual(urlopen.call_count, 1)
             self.assertEqual(RUN_EVAL.API_REQUEST_COUNT, 1)
             self.assertEqual(len(RUN_EVAL.CHECKPOINT_STORE["uncertain_requests"]), 1)
+            self.assertEqual(RUN_EVAL.CHECKPOINT_STORE["pending_requests"], {})
 
             with mock.patch.object(
                 RUN_EVAL.urllib.request, "urlopen"
@@ -413,6 +414,94 @@ class ReleaseGateUnitTests(unittest.TestCase):
             RUN_EVAL.ESTIMATED_COST_RESERVED_USD = saved["reserved_cost"]
             RUN_EVAL.CHECKPOINT_PATH = saved["checkpoint_path"]
             RUN_EVAL.CHECKPOINT_STORE = saved["checkpoint_store"]
+            RUN_EVAL.MAX_API_REQUESTS = saved["max_requests"]
+            RUN_EVAL.MAX_ESTIMATED_COST_USD = saved["max_cost"]
+
+    def test_interrupted_inflight_request_is_never_resent(self):
+        saved = {
+            "checkpoint_path": RUN_EVAL.CHECKPOINT_PATH,
+            "checkpoint_store": RUN_EVAL.CHECKPOINT_STORE,
+            "api_requests": RUN_EVAL.API_REQUEST_COUNT,
+            "reserved_cost": RUN_EVAL.ESTIMATED_COST_RESERVED_USD,
+        }
+        try:
+            RUN_EVAL.CHECKPOINT_PATH = None
+            payload = RUN_EVAL.build_payload(
+                "deepseek-flash", "system", "user", max_completion_tokens=10
+            )
+            key = RUN_EVAL.checkpoint_key({
+                "endpoint": RUN_EVAL.API_URL, "payload": payload
+            })
+            RUN_EVAL.CHECKPOINT_STORE = {
+                "responses": {},
+                "pending_requests": {key: {"status": "in_flight"}},
+                "uncertain_requests": {},
+            }
+            with mock.patch.object(RUN_EVAL.urllib.request, "urlopen") as urlopen:
+                with self.assertRaisesRegex(
+                    RUN_EVAL.ProviderStopError, "interrupted while in flight"
+                ):
+                    RUN_EVAL.api_call(
+                        "test-key", "deepseek-flash", "system", "user",
+                        max_completion_tokens=10,
+                    )
+                urlopen.assert_not_called()
+        finally:
+            RUN_EVAL.CHECKPOINT_PATH = saved["checkpoint_path"]
+            RUN_EVAL.CHECKPOINT_STORE = saved["checkpoint_store"]
+            RUN_EVAL.API_REQUEST_COUNT = saved["api_requests"]
+            RUN_EVAL.ESTIMATED_COST_RESERVED_USD = saved["reserved_cost"]
+
+    def test_inflight_marker_is_persisted_before_send_and_cleared_on_success(self):
+        saved = {
+            "checkpoint_path": RUN_EVAL.CHECKPOINT_PATH,
+            "checkpoint_store": RUN_EVAL.CHECKPOINT_STORE,
+            "api_requests": RUN_EVAL.API_REQUEST_COUNT,
+            "reserved_cost": RUN_EVAL.ESTIMATED_COST_RESERVED_USD,
+            "max_requests": RUN_EVAL.MAX_API_REQUESTS,
+            "max_cost": RUN_EVAL.MAX_ESTIMATED_COST_USD,
+        }
+        class Response:
+            headers = {}
+            def __enter__(self):
+                return self
+            def __exit__(self, *args):
+                return False
+            def read(self):
+                return json.dumps({
+                    "choices": [{"finish_reason": "stop", "message": {"content": "ok"}}],
+                    "usage": {"prompt_tokens": 5, "completion_tokens": 3, "total_tokens": 8},
+                }).encode("utf-8")
+        try:
+            RUN_EVAL.CHECKPOINT_PATH = None
+            RUN_EVAL.CHECKPOINT_STORE = {
+                "responses": {}, "pending_requests": {}, "uncertain_requests": {}
+            }
+            RUN_EVAL.API_REQUEST_COUNT = 0
+            RUN_EVAL.ESTIMATED_COST_RESERVED_USD = 0.0
+            RUN_EVAL.MAX_API_REQUESTS = 10
+            RUN_EVAL.MAX_ESTIMATED_COST_USD = 5.0
+            def inspect_pending(request, timeout):
+                self.assertEqual(len(RUN_EVAL.CHECKPOINT_STORE["pending_requests"]), 1)
+                return Response()
+            with mock.patch.object(
+                RUN_EVAL.urllib.request, "urlopen", side_effect=inspect_pending
+            ) as urlopen:
+                self.assertEqual(
+                    RUN_EVAL.api_call(
+                        "test-key", "deepseek-flash", "system", "user",
+                        max_completion_tokens=10,
+                    ),
+                    "ok",
+                )
+            self.assertEqual(urlopen.call_count, 1)
+            self.assertEqual(RUN_EVAL.CHECKPOINT_STORE["pending_requests"], {})
+            self.assertEqual(len(RUN_EVAL.CHECKPOINT_STORE["responses"]), 1)
+        finally:
+            RUN_EVAL.CHECKPOINT_PATH = saved["checkpoint_path"]
+            RUN_EVAL.CHECKPOINT_STORE = saved["checkpoint_store"]
+            RUN_EVAL.API_REQUEST_COUNT = saved["api_requests"]
+            RUN_EVAL.ESTIMATED_COST_RESERVED_USD = saved["reserved_cost"]
             RUN_EVAL.MAX_API_REQUESTS = saved["max_requests"]
             RUN_EVAL.MAX_ESTIMATED_COST_USD = saved["max_cost"]
 
