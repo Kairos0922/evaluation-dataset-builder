@@ -161,7 +161,7 @@ def main():
     require(pr.get("merged") is True and pr.get("state") == "closed",
             "The release PR must be merged and closed.")
     require((pr.get("base") or {}).get("ref") == "main",
-            "The release PR must have merged into main.")
+            "The release PR must have merged into master.")
     candidate_sha = (pr.get("head") or {}).get("sha")
     release_sha = pr.get("merge_commit_sha")
     require(bool(candidate_sha) and bool(release_sha),
