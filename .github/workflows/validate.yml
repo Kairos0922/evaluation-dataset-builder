@@ -1,7 +1,7 @@
 name: Validate Skill
 on:
   push:
-    branches: ["main", "feat/**"]
+    branches: ["main", "master", "feat/**", "work/**"]
   pull_request:
   workflow_dispatch:
 
@@ -17,7 +17,25 @@ jobs:
       - run: python scripts/validate_skill.py
       - run: python -m unittest discover -s tests -p "test_*.py" -v
 
+  require-main-target:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require main as the pull request base
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          if [ "$BASE_REF" != "main" ]; then
+            echo "All pull requests must target main (current base: $BASE_REF)."
+            exit 1
+          fi
+
   deepseek-live-preflight:
+    if: >-
+      (github.event_name == 'push' &&
+       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) ||
+      (github.event_name == 'workflow_dispatch' &&
+       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
     # This job performs only GET /models; it never submits a generation request.
     runs-on: ubuntu-latest
     timeout-minutes: 3
