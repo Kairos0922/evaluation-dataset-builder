@@ -22,6 +22,7 @@ Provide the evaluation target, objectives, capability/business documentation, ru
 - Generator: `deepseek-flash` (DeepSeek-V4.1-Flash-1017), non-thinking mode.
 - Independent Judge/Trigger: Groq `openai/gpt-oss-120b` by default, using `GROQ_API_KEY`; custom providers can use `EVAL_JUDGE_*`. Do not use `deepseek-v4-pro` as an independent Judge because DeepSeek currently routes it to V4.1 Flash.
 - Per-evaluation budget: USD 1.50 estimated peak-price ceiling and 220-call ceiling.
+- Judge output ceiling: 2,400 tokens per scoring call. Conservative Groq safeguards: 30 RPM, 8K TPM, and 180K reserved tokens per UTC day; the checkpoint supports resuming across provider daily resets.
 - Secrets: `DEEPSEEK_API_KEY` (Generator) and `GROQ_API_KEY` (independent Judge; `EVAL_JUDGE_API_KEY` overrides). Default Judge pricing is conservatively reserved at $0.15/M input and $0.60/M output.
 
 ## Release gates
@@ -34,7 +35,9 @@ Provide the evaluation target, objectives, capability/business documentation, ru
 
 
 - [x] DeepSeek live metadata preflight: authenticated `GET /models` passed in GitHub Actions run `41362696533`; no generation request was sent.
-- [ ] Independent Judge configuration and complete behavior benchmark.
+- [x] Independent Judge metadata preflight: authenticated Groq `GET /models` passed in candidate workflow run `41369272868`; no generation request was sent.
+- [x] Independent Judge credential/model metadata preflight: Groq `GET /models` passed in run `41369272868`; no generation request was sent by the preflight.
+- [ ] Complete two-run behavior benchmark, baseline comparison, and trigger/stability thresholds.
 - [ ] Independent human review and target-runtime execution evidence.
 
 
