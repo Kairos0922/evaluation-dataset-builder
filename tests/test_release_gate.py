@@ -741,7 +741,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
                     )
         self.assertEqual(result, "generated output")
         self.assertEqual(len(calls), 2)
-        throttle.assert_called_once()
+        self.assertEqual(throttle.call_count, 2)
         sleep.assert_called_once_with(1.0)
 
     def test_spend_guard_blocks_before_network_request(self):
