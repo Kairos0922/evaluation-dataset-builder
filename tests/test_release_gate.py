@@ -416,6 +416,44 @@ class ReleaseGateUnitTests(unittest.TestCase):
             RUN_EVAL.MAX_API_REQUESTS = saved["max_requests"]
             RUN_EVAL.MAX_ESTIMATED_COST_USD = saved["max_cost"]
 
+    def test_external_judge_payload_omits_deepseek_specific_fields(self):
+        payload = RUN_EVAL.build_payload(
+            "openai/gpt-oss-120b", "system prompt", "candidate output",
+            max_completion_tokens=1200, json_mode=True, thinking=False,
+            deepseek_fields=False,
+        )
+        self.assertEqual(payload["model"], "openai/gpt-oss-120b")
+        self.assertEqual(payload["max_tokens"], 1200)
+        self.assertIn("response_format", payload)
+        self.assertNotIn("thinking", payload)
+        self.assertNotIn("reasoning_effort", payload)
+
+    def test_groq_judge_context_and_rate_budgets_fail_closed(self):
+        saved_history = RUN_EVAL.MODEL_RATE_HISTORY
+        saved_store = RUN_EVAL.CHECKPOINT_STORE
+        try:
+            RUN_EVAL.MODEL_RATE_HISTORY = {}
+            with self.assertRaisesRegex(
+                RUN_EVAL.EvaluationBudgetExceeded, "context safety limit"
+            ):
+                RUN_EVAL.throttle_model("openai/gpt-oss-120b", 131073)
+            with self.assertRaisesRegex(
+                RUN_EVAL.EvaluationBudgetExceeded, "per-minute token allowance"
+            ):
+                RUN_EVAL.throttle_model("openai/gpt-oss-120b", 8001)
+            RUN_EVAL.CHECKPOINT_STORE = {
+                "estimated_tokens_reserved_by_model": {
+                    "openai/gpt-oss-120b": 199500
+                }
+            }
+            with self.assertRaisesRegex(
+                RUN_EVAL.EvaluationBudgetExceeded, "daily token reservation"
+            ):
+                RUN_EVAL.reserve_model_daily_tokens("openai/gpt-oss-120b", 1000)
+        finally:
+            RUN_EVAL.MODEL_RATE_HISTORY = saved_history
+            RUN_EVAL.CHECKPOINT_STORE = saved_store
+
     def test_payload_uses_deepseek_openai_chat_compatibility(self):
         payload = RUN_EVAL.build_payload(
             "deepseek-v4-pro", "system prompt", "user prompt",
