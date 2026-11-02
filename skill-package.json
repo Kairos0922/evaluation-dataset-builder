@@ -16,7 +16,11 @@
     "references/grader-guidelines.md",
     "references/coverage-design-guideline.md",
     "references/source-and-evidence-policy.md",
-    "references/task-planning-and-recovery.md"
+    "references/task-planning-and-recovery.md",
+    "references/business-scenario-model.md",
+    "references/scenario-buckets.md",
+    "references/change-impact-and-repair.md",
+    "references/dataset-manifest-schema.json"
   ],
   "excluded_paths": [
     ".github/**",
