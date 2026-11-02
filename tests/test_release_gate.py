@@ -224,6 +224,17 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn("EVAL_JUDGE_MAX_COMPLETION_TOKENS", workflow)
         self.assertIn("candidate-evaluation-report-", workflow)
 
+    def test_release_scripts_require_master_and_match_run_name_prefix(self):
+        creator = (ROOT / "scripts" / "create_release_tag.py").read_text(encoding="utf-8")
+        verifier = (ROOT / "scripts" / "verify_release.py").read_text(encoding="utf-8")
+        updater = (ROOT / "scripts" / "update_release_doc.py").read_text(encoding="utf-8")
+        self.assertIn('default_branch") == "master"', creator)
+        self.assertIn('default_branch") == "master"', verifier)
+        self.assertIn('default_branch") == "master"', updater)
+        self.assertIn('startswith("Behavioral Skill Evaluation")', creator)
+        self.assertIn('startswith("Behavioral Skill Evaluation")', verifier)
+        self.assertIn('contents/RELEASE.md?ref=master', updater)
+
     def test_release_tag_creator_is_present_and_compiles(self):
         path = ROOT / "scripts" / "create_release_tag.py"
         self.assertTrue(path.is_file())
