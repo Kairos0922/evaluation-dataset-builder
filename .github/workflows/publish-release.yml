@@ -62,5 +62,5 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           RELEASE_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
-          RELEASE_PR_NUMBER: "2"
+          RELEASE_PR_NUMBER: ${{ inputs.release_pr_number }}
         run: python scripts/update_release_doc.py
