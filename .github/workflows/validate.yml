@@ -1,4 +1,4 @@
-名称: 验证 Skill
+name: 验证 Skill
 on:
   push:
     branches: ["main", "master", "release/**", "work/**", "feat/**"]
@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  结构验证:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
