@@ -9,6 +9,7 @@ import os
 import re
 import sys
 import time
+from datetime import datetime, timezone
 from collections import deque
 import urllib.error
 import urllib.request
@@ -55,7 +56,7 @@ ESTIMATED_COST_RESERVED_USD = 0.0
 CACHE_HITS_BY_MODEL = {}
 CURRENT_RUN_INDEX = 0
 CHECKPOINT_PATH = None
-CHECKPOINT_STORE = {"schema_version": 6, "signature": None, "responses": {}, "pending_requests": {}, "uncertain_requests": {}}
+CHECKPOINT_STORE = {"schema_version": 6, "signature": None, "responses": {}, "pending_requests": {}, "uncertain_requests": {}, "estimated_tokens_reserved_by_model_by_day": {}}
 
 
 def effective_model_identity(base_url, model):
@@ -158,19 +159,28 @@ def throttle_model(model, estimated_tokens):
     history.append((time.monotonic(), estimated_tokens))
 
 
+def utc_date_key():
+    """UTC calendar date used for provider daily quota accounting."""
+    return datetime.now(timezone.utc).date().isoformat()
+
+
 def reserve_model_daily_tokens(model, estimated_tokens):
-    """Persist conservative per-model daily token reservations before each HTTP attempt."""
+    """Persist conservative per-model daily reservations and cumulative evaluation totals."""
     limits = MODEL_RATE_LIMITS.get(model)
     if not limits:
         return
-    reservations = CHECKPOINT_STORE.setdefault("estimated_tokens_reserved_by_model", {})
-    current = int(reservations.get(model, 0) or 0)
-    if current + estimated_tokens > limits["tpd"]:
+    day = utc_date_key()
+    by_day = CHECKPOINT_STORE.setdefault("estimated_tokens_reserved_by_model_by_day", {})
+    daily = by_day.setdefault(day, {})
+    current_daily = int(daily.get(model, 0) or 0)
+    if current_daily + estimated_tokens > limits["tpd"]:
         raise EvaluationBudgetExceeded(
-            f"Conservative {model} daily token reservation would exceed "
-            f"{limits['tpd']} tokens; stopping before another provider request."
+            f"Conservative {model} UTC-day token reservation would exceed "
+            f"{limits['tpd']} tokens; resume after the provider daily reset."
         )
-    reservations[model] = current + estimated_tokens
+    daily[model] = current_daily + estimated_tokens
+    totals = CHECKPOINT_STORE.setdefault("estimated_tokens_reserved_by_model", {})
+    totals[model] = int(totals.get(model, 0) or 0) + estimated_tokens
     save_checkpoint()
 
 
@@ -209,6 +219,9 @@ def configure_checkpoint(path, signature):
                 CHECKPOINT_STORE.setdefault("pending_requests", {})
                 CHECKPOINT_STORE.setdefault("uncertain_requests", {})
                 CHECKPOINT_STORE.setdefault("estimated_tokens_reserved_by_model", {})
+                daily_reservations = CHECKPOINT_STORE.setdefault("estimated_tokens_reserved_by_model_by_day", {})
+                if not daily_reservations and CHECKPOINT_STORE.get("estimated_tokens_reserved_by_model"):
+                    daily_reservations[utc_date_key()] = dict(CHECKPOINT_STORE["estimated_tokens_reserved_by_model"])
                 API_REQUEST_COUNT = int(existing.get("api_requests", 0) or 0)
                 ESTIMATED_COST_RESERVED_USD = float(
                     existing.get("estimated_cost_reserved_usd", 0.0) or 0.0
@@ -227,6 +240,7 @@ def configure_checkpoint(path, signature):
         "api_requests": 0,
         "estimated_cost_reserved_usd": 0.0,
         "estimated_tokens_reserved_by_model": {},
+        "estimated_tokens_reserved_by_model_by_day": {},
         "pending_requests": {},
         "uncertain_requests": {},
         "responses": {},
@@ -560,7 +574,7 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
     try:
         raw = api_call(
             api_key, model, system, user,
-            max_completion_tokens=1200, json_mode=True, temperature=0.0,
+            max_completion_tokens=int(os.getenv("EVAL_JUDGE_MAX_COMPLETION_TOKENS", "2400")), json_mode=True, temperature=0.0,
             thinking=False, api_url=api_url,
         )
     except ProviderStopError:
@@ -985,6 +999,8 @@ def main():
                     "checkpoint_cache_hits": CACHE_HITS_BY_MODEL,
                     "checkpoint_path": args.checkpoint,
                     "estimated_tokens_reserved_by_model": CHECKPOINT_STORE.get("estimated_tokens_reserved_by_model", {}),
+            "estimated_tokens_reserved_by_model_by_day": CHECKPOINT_STORE.get("estimated_tokens_reserved_by_model_by_day", {}),
+                    "estimated_tokens_reserved_by_model_by_day": CHECKPOINT_STORE.get("estimated_tokens_reserved_by_model_by_day", {}),
                     "model_context_limits": MODEL_CONTEXT_LIMITS,
                     "model_rate_limits": MODEL_RATE_LIMITS,
                     "pricing_usd_per_million_tokens": MODEL_PRICING_USD_PER_MILLION,
