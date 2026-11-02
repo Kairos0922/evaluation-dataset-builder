@@ -329,7 +329,7 @@ def api_call(api_key, model, system, user, max_completion_tokens=900,
                 response_headers = response.headers
             choices = data.get("choices") or []
             if not choices:
-                raise ProviderStopError("DeepSeek response contained no choices; stopping to protect the paid budget.")
+                raise ProviderStopError("Provider response contained no choices; stopping to protect the paid budget.")
             finish_reason = choices[0].get("finish_reason")
             if finish_reason == "length":
                 usage = data.get("usage") or {}
@@ -472,7 +472,7 @@ def api_call(api_key, model, system, user, max_completion_tokens=900,
             }
             save_checkpoint()
             raise ProviderStopError(
-                "DeepSeek generation request ended with an ambiguous network outcome; "
+                "Provider generation request ended with an ambiguous network outcome; "
                 "it was not retried to avoid duplicate billing. Inspect provider request/"
                 "billing logs before manually resolving the checkpoint."
             ) from exc
@@ -920,7 +920,7 @@ def main():
             partial_report = {
                 "schema_version": "1.2",
                 "status": "INCOMPLETE",
-                "provider": "DeepSeek",
+                "provider": "multi-provider",
                 "api_base_url": DEEPSEEK_BASE_URL,
                 "judge_api_base_url": judge_api_base_url,
                 "git_sha": evaluation_git_sha(),
@@ -938,8 +938,10 @@ def main():
                     "api_requests": API_REQUEST_COUNT,
                     "checkpoint_cache_hits": CACHE_HITS_BY_MODEL,
                     "checkpoint_path": args.checkpoint,
-            "estimated_tokens_reserved_by_model": CHECKPOINT_STORE.get("estimated_tokens_reserved_by_model", {}),
                     "estimated_tokens_reserved_by_model": CHECKPOINT_STORE.get("estimated_tokens_reserved_by_model", {}),
+                    "model_context_limits": MODEL_CONTEXT_LIMITS,
+                    "model_rate_limits": MODEL_RATE_LIMITS,
+                    "pricing_usd_per_million_tokens": MODEL_PRICING_USD_PER_MILLION,
                 },
                 "automated_gate_pass": False,
                 "release_approved": False,
@@ -1045,6 +1047,9 @@ def main():
             "api_requests": API_REQUEST_COUNT,
             "checkpoint_cache_hits": CACHE_HITS_BY_MODEL,
             "checkpoint_path": args.checkpoint,
+            "estimated_tokens_reserved_by_model": CHECKPOINT_STORE.get("estimated_tokens_reserved_by_model", {}),
+            "model_context_limits": MODEL_CONTEXT_LIMITS,
+            "model_rate_limits": MODEL_RATE_LIMITS,
         },
     }
     all_runs_pass = all(run["automated_run_pass"] for run in runs)
