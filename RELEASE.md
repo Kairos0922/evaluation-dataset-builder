@@ -1,57 +1,34 @@
-# Release 0.0.1 — Candidate (not yet published)
+# 0.0.1 发布候选说明
 
-## Scope
+**状态：** 尚未正式发布
 
-General-purpose Agent Skill for evaluation dataset planning, generation, quality review, repair, and packaging. No domain-specific assumptions are built in.
+## 范围
 
-## Install
+通用 Agent Skill，用于评测数据集规划、生成、质量审查、修复和打包。正式运行包不包含模型、供应商、模型接口、模型参数或密钥依赖。
 
-Copy the complete repository Skill contents into a directory named evaluation-dataset-builder in the target Skill environment. Keep SKILL.md and the references/ directory together; optional tests/scripts are for validation and development.
+## 安装
 
-## Validate
+将 `skill-package.json` 中 `included_files` 列出的文件安装到目标 Skill 环境，并保持 `SKILL.md` 与 `references/` 文件的相对路径不变。开发和测试文件不属于正式运行包。
+
+## 验证
+
+在开发环境运行：
 
     python scripts/validate_skill.py
-    python -m unittest discover -s tests -p "test_*.py"
+    python -m unittest discover -s tests -p "test_*.py" -v
 
-## Use
+## 使用
 
-Provide the evaluation target, objectives, capability/business documentation, rules/policies, historical cases/traces, environment constraints, desired dataset split/count, and output format in one request. The Skill will plan datasets, generate cases and graders, review quality, and report assumptions/gaps. Missing authoritative evidence must not be fabricated.
+提供评测对象、目标能力、业务资料、规则、历史案例、环境约束、数据集数量与划分，以及输出格式。Skill 将规划数据集、生成用例和评分器、审查质量并报告假设与缺口。不得编造缺失的权威依据。
 
-## Evaluation provider configuration
+## 发布门禁
 
-- Generator: `deepseek-flash` (DeepSeek-V4.1-Flash-1017), non-thinking mode.
-- Independent Judge/Trigger: Groq `openai/gpt-oss-120b` by default, using `GROQ_API_KEY`; custom providers can use `EVAL_JUDGE_*`. Do not use `deepseek-v4-pro` as an independent Judge because DeepSeek currently routes it to V4.1 Flash.
-- Per-evaluation budget: USD 1.50 estimated peak-price ceiling and 220-call ceiling.
-- Judge output ceiling: 2,400 tokens per scoring call. Conservative Groq safeguards: 30 RPM, 8K TPM, and 180K reserved tokens per UTC day; the checkpoint supports resuming across provider daily resets.
-- Secrets: `DEEPSEEK_API_KEY` (Generator) and `GROQ_API_KEY` (independent Judge; `EVAL_JUDGE_API_KEY` overrides). Default Judge pricing is conservatively reserved at $0.15/M input and $0.60/M output.
+- [ ] 正式包清单与实际打包结果一致。
+- [ ] 中文自然语言规范和模型无关性检查通过。
+- [ ] Schema、质量标准、引用路径和离线测试通过。
+- [ ] 行为测试达到预设阈值，并提供可审查报告。
+- [ ] 独立审查通过。
+- [ ] 目标运行环境验证通过，并提供可核验执行证据。
+- [ ] 所有门禁均绑定到同一候选提交。
 
-## Release gates
-
-- [ ] Repository default branch changed from `main` to `master` by an administrator. The release verifier intentionally blocks publication until this setting is changed.
-
-
-- [x] Trusted-event-only DeepSeek metadata preflight workflow; PR jobs do not receive the DeepSeek secret.
-- [x] Exact-SHA manually dispatched behavior-evaluation workflow with independent Judge configuration and spend caps.
-
-
-- [x] DeepSeek live metadata preflight: authenticated `GET /models` passed in GitHub Actions run `41362696533`; no generation request was sent.
-- [x] Independent Judge metadata preflight: authenticated Groq `GET /models` passed in candidate workflow run `41369272868`; no generation request was sent.
-- [x] Independent Judge credential/model metadata preflight: Groq `GET /models` passed in run `41369272868`; no generation request was sent by the preflight.
-- [ ] Complete two-run behavior benchmark, baseline comparison, and trigger/stability thresholds.
-- [ ] Independent human review and target-runtime execution evidence.
-
-
-- [x] Skill entrypoint, reference files, case schema, and quality standards
-- [x] Structural validator and offline release-gate unit tests
-- [x] Behavior evaluation harness with mandatory matched baseline
-- [x] Trigger fixture: 40 balanced queries (20 positive, 20 negative)
-- [x] Repeated-run stability calculation (minimum two full runs)
-- [x] Paid DeepSeek provider with peak-price spend cap and resumable API-response checkpointing
-- [ ] Behavioral pass rate >= 90% on every run
-- [ ] Trigger Precision >= 95% and Recall >= 95% on every run
-- [ ] Baseline comparison reviewed and accepted
-- [ ] Stability spread <= 5 percentage points for all three metrics
-- [ ] Independent human review of critical cases and generated outputs
-- [ ] Target-runtime validation
-
-This is a release candidate only. Do not publish tag v0.0.1 until every automated and human gate in RELEASE-GATE.md has passed on the exact release commit.
+只有全部门禁通过后，才可以创建 `v0.0.1` 标签并发布 GitHub Release。结构验证通过不等于正式发布批准。
