@@ -76,7 +76,7 @@ def create_release_tag():
     require(pr.get("merged") is True and pr.get("state") == "closed",
             "The release PR must be merged and closed.")
     require((pr.get("base") or {}).get("ref") == "main",
-            "The release PR must merge into main.")
+            "The release PR must merge into master.")
     require((pr.get("head") or {}).get("sha") == candidate_sha,
             "Merged PR head SHA does not match the candidate SHA.")
     release_sha = pr.get("merge_commit_sha")
