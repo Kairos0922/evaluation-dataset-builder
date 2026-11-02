@@ -39,6 +39,18 @@ For each case, record result and evidence/output location reviewed.
 
 Also inspect every failed case, judge rationale/evidence, representative generated outputs, and baseline comparison. Any unresolved critical defect blocks release.
 
+## Business-model and dataset-construction review
+
+- [ ] Business model links capabilities, rules, workflow/state, risks, and observable evidence to traceable sources.
+- [ ] Coverage universe and applicability are explicit; gaps have reasons and priorities.
+- [ ] Generated cases map to coverage gaps and state their incremental coverage value.
+- [ ] Scenario buckets are selected by applicability; high-risk and known-defect areas are addressed.
+- [ ] Real cases and synthetic gap-fill cases are clearly distinguished; synthetic cases are not treated as authoritative gold.
+- [ ] Case schema includes observable assertions; applicable Agent/Skill/tool cases include trace constraints.
+- [ ] Process constraints and outcome constraints are judged separately; missing traces are not treated as successful execution.
+- [ ] Change-impact links identify affected rules, scenarios, cases, graders, and coverage reports; local repairs have evidence of retesting.
+- [ ] Dataset manifest validates against `references/dataset-manifest-schema.json`.
+
 ## Baseline review
 
 - Mean Skill behavior pass rate:
