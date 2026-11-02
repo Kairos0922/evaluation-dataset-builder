@@ -251,6 +251,7 @@ def configure_checkpoint(path, signature):
 def save_checkpoint():
     if CHECKPOINT_PATH is None:
         return
+    CHECKPOINT_STORE["updated_at_utc"] = datetime.now(timezone.utc).isoformat()
     temporary = CHECKPOINT_PATH.with_suffix(CHECKPOINT_PATH.suffix + ".tmp")
     temporary.write_text(
         json.dumps(CHECKPOINT_STORE, ensure_ascii=False, separators=(",", ":")),
@@ -999,7 +1000,6 @@ def main():
                     "checkpoint_cache_hits": CACHE_HITS_BY_MODEL,
                     "checkpoint_path": args.checkpoint,
                     "estimated_tokens_reserved_by_model": CHECKPOINT_STORE.get("estimated_tokens_reserved_by_model", {}),
-            "estimated_tokens_reserved_by_model_by_day": CHECKPOINT_STORE.get("estimated_tokens_reserved_by_model_by_day", {}),
                     "estimated_tokens_reserved_by_model_by_day": CHECKPOINT_STORE.get("estimated_tokens_reserved_by_model_by_day", {}),
                     "model_context_limits": MODEL_CONTEXT_LIMITS,
                     "model_rate_limits": MODEL_RATE_LIMITS,
@@ -1057,7 +1057,7 @@ def main():
     report = {
         "schema_version": "1.2",
         "status": "COMPLETE",
-        "provider": "DeepSeek",
+        "provider": "multi-provider",
         "api_base_url": DEEPSEEK_BASE_URL,
         "judge_api_base_url": judge_api_base_url,
         "suite_id": suite["suite_id"],
@@ -1112,6 +1112,7 @@ def main():
             "checkpoint_cache_hits": CACHE_HITS_BY_MODEL,
             "checkpoint_path": args.checkpoint,
             "estimated_tokens_reserved_by_model": CHECKPOINT_STORE.get("estimated_tokens_reserved_by_model", {}),
+            "estimated_tokens_reserved_by_model_by_day": CHECKPOINT_STORE.get("estimated_tokens_reserved_by_model_by_day", {}),
             "model_context_limits": MODEL_CONTEXT_LIMITS,
             "model_rate_limits": MODEL_RATE_LIMITS,
             "pending_requests": len(CHECKPOINT_STORE.get("pending_requests", {})),
