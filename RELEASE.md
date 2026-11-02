@@ -20,9 +20,9 @@ Provide the evaluation target, objectives, capability/business documentation, ru
 ## Evaluation provider configuration
 
 - Generator: `deepseek-flash` (DeepSeek-V4.1-Flash-1017), non-thinking mode.
-- Independent Judge/Trigger: `deepseek-v4-pro`; Judge uses low thinking effort.
+- Independent Judge/Trigger: a separately configured OpenAI-compatible provider/model (`EVAL_JUDGE_BASE_URL`, `EVAL_JUDGE_MODEL`); do not use `deepseek-v4-pro` as an independent Judge because DeepSeek currently routes it to V4.1 Flash.
 - Per-evaluation budget: USD 1.50 estimated peak-price ceiling and 220-call ceiling.
-- Secret: `DEEPSEEK_API_KEY` (GitHub Actions repository secret).
+- Secrets: `DEEPSEEK_API_KEY` (Generator) and `EVAL_JUDGE_API_KEY` (independent Judge). Repository variables: Judge base URL, model ID, and explicit input/output token prices.
 
 ## Release gates
 
