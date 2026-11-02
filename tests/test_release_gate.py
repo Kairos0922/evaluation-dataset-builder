@@ -1121,8 +1121,15 @@ class ReleaseGateUnitTests(unittest.TestCase):
             set(case_schema["required"])
         ))
         self.assertGreaterEqual(case_props["coverage_tags"]["minItems"], 1)
-        self.assertIn("business_rule", case_props["scenario_bucket"]["enum"])
-        self.assertIn("integration", case_props["scenario_bucket"]["enum"])
+        self.assertNotIn("scenario_type", case_props)
+        bucket_schema = case_props["scenario_bucket"]
+        self.assertEqual(bucket_schema["type"], "array")
+        self.assertEqual(bucket_schema["minItems"], 1)
+        self.assertTrue(bucket_schema["uniqueItems"])
+        self.assertIn("business_rule", bucket_schema["items"]["enum"])
+        self.assertIn("integration", bucket_schema["items"]["enum"])
+        self.assertIn("rubric_based", case_props["grading"]["properties"]["method"]["enum"])
+        self.assertNotIn("llm_judge", case_props["grading"]["properties"]["method"]["enum"])
 
         manifest_schema = json.loads(
             (ROOT / "references" / "dataset-manifest-schema.json").read_text(encoding="utf-8")
