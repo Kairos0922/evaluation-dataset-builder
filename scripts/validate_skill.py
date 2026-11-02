@@ -51,9 +51,9 @@ def main():
     check(isinstance(excluded, list), "excluded_paths 必须是数组")
     check(len(included) == len(set(included)), "included_files 存在重复路径")
 
+    # 正式运行包采用精确白名单，防止无关文档或开发资产被意外打包。
     required = {
-        "SKILL.md", "README.md", "LICENSE",
-        "references/chinese-controlled-writing.md",
+        "SKILL.md", "LICENSE",
         "references/host-agent-capability-adapter.md",
         "references/terminology.md",
         "references/quality-standard.md",
@@ -62,14 +62,19 @@ def main():
         "references/grader-guidelines.md",
         "references/coverage-design-guideline.md",
         "references/source-and-evidence-policy.md",
-        "references/task-planning-and-recovery.md",
         "references/business-scenario-model.md",
         "references/scenario-buckets.md",
         "references/change-impact-and-repair.md",
         "references/dataset-manifest-schema.json"
     }
-    check(required.issubset(set(included)),
-          "正式包清单缺少必需文件：" + ", ".join(sorted(required - set(included))))
+    included_set = set(included)
+    check(required.issubset(included_set),
+          "正式包清单缺少必需文件：" + ", ".join(sorted(required - included_set)))
+    check(included_set == required,
+          "正式包清单必须与已审查的运行时白名单完全一致；未批准的额外文件：" +
+          ", ".join(sorted(included_set - required)))
+    check("README.md" not in included_set,
+          "README.md 是仓库说明文档，不得进入正式 Skill 运行包")
 
     for rel in included:
         path = ROOT / rel
@@ -103,10 +108,11 @@ def main():
     # 对正式包做模型/供应商耦合检查。只检查自然语言文件，不扫描固定属性和法律文本。
     forbidden_patterns = [
         r"DeepSeek", r"OpenAI", r"Anthropic", r"Gemini", r"Groq",
-        r"Claude", r"GPT-[0-9]", r"模型供应商", r"模型密钥",
-        r"模型 API", r"模型接口", r"上下文窗口", r"最大输出 Token"
+        r"Claude", r"GPT-[0-9]", r"\bLLM\b", r"\bllm[_-](?:judge|grader)\b",
+        r"模型供应商", r"模型密钥", r"模型 API", r"模型接口",
+        r"上下文窗口", r"最大输出 Token"
     ]
-    scan_files = [p for p in included if p not in {"LICENSE", "references/dataset-schema.json", "references/quality-standard.yaml"}]
+    scan_files = [p for p in included if p != "LICENSE"]
     for rel in scan_files:
         path = ROOT / rel
         if not path.is_file():
