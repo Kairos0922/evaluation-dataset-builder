@@ -1,6 +1,6 @@
 run-name: Behavioral Skill Evaluation — ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.sha }}
 name: Behavioral Skill Evaluation
-# The scoped push trigger runs only when this workflow file is deliberately changed on the candidate branch.
+# Candidate revision: exact o200k token accounting, preserved 8K TPM ceiling, and automatic resume of the 21-request checkpoint.
 on:
   push:
     branches: ["test-harness/0.0.1-rc1"]
@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       candidate_sha:
-        description: Exact current PR #2 head SHA to evaluate
+        description: Exact current main branch SHA to evaluate
         required: true
         type: string
       generator_model:
@@ -18,7 +18,7 @@ on:
       resume_run_id:
         description: Optional prior Actions run ID containing an evaluation checkpoint
         required: false
-        default: ""
+        default: "41369272868"
 
 permissions:
   contents: read
@@ -36,7 +36,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Verify candidate SHA is the exact open PR #2 head
+      - name: Install model-aware tokenizer for Groq rate budgeting
+        run: python -m pip install --disable-pip-version-check tiktoken
+      - name: Verify candidate SHA is the exact main branch head
         env:
           GH_TOKEN: ${{ github.token }}
           CANDIDATE_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.sha }}
@@ -46,13 +48,12 @@ jobs:
             echo "candidate_sha must be a full 40-character commit SHA."
             exit 2
           fi
-          PR_HEAD="$(gh api "repos/$GITHUB_REPOSITORY/pulls/2" --jq '.head.sha')"
-          PR_BASE="$(gh api "repos/$GITHUB_REPOSITORY/pulls/2" --jq '.base.ref')"
-          if [ "$PR_HEAD" != "$CANDIDATE_SHA" ] || [ "$PR_BASE" != "master" ]; then
-            echo "Candidate SHA must exactly match open PR #2 head targeting master."
+          MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
+          if [ "$MAIN_SHA" != "$CANDIDATE_SHA" ]; then
+            echo "Candidate SHA must exactly match the current main branch head."
             exit 2
           fi
-          echo "Verified exact PR #2 candidate SHA."
+          echo "Verified exact main branch candidate SHA."
       - name: Structural validation and offline release-gate tests
         run: python scripts/validate_skill.py
       - name: Run offline release-harness unit tests
@@ -90,7 +91,7 @@ jobs:
       - name: Restore checkpoint from a previous Actions run when requested
         env:
           GH_TOKEN: ${{ github.token }}
-          RESUME_RUN_ID: ${{ inputs.resume_run_id }}
+          RESUME_RUN_ID: ${{ inputs.resume_run_id || '41369272868' }}
         run: |
           if [ -n "$RESUME_RUN_ID" ]; then
             mkdir -p artifacts
@@ -113,6 +114,7 @@ jobs:
           DEEPSEEK_MAX_ESTIMATED_COST_USD: "1.50"
           DEEPSEEK_MAX_API_REQUESTS: "220"
           DEEPSEEK_MAX_TOKENS: "16384"
+          EVAL_JUDGE_MAX_COMPLETION_TOKENS: ${{ vars.EVAL_JUDGE_MAX_COMPLETION_TOKENS || '2400' }}
           GROQ_JUDGE_RPM: ${{ vars.GROQ_JUDGE_RPM || '30' }}
           GROQ_JUDGE_TPM: ${{ vars.GROQ_JUDGE_TPM || '8000' }}
           GROQ_JUDGE_TPD: ${{ vars.GROQ_JUDGE_TPD || '180000' }}

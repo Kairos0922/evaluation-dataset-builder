@@ -1,49 +1,34 @@
-# Release 0.0.1
+# 0.0.1 发布候选说明
 
-<badge>Release status: BLOCKED — do not publish</badge>
+**状态：** 尚未正式发布
 
-## Scope
+## 范围
 
-General-purpose Agent Skill for evaluation dataset planning, generation, quality review, repair, and packaging. The 0.0.1 release candidate includes model-aware request budgeting and a DeepSeek V4.1 Flash metadata-only preflight helper.
+通用 Agent Skill，用于评测数据集规划、生成、质量审查、修复和打包。正式运行包不包含模型、供应商、模型接口、模型参数或密钥依赖。
 
-The agreed target version for this release remains **0.0.1**. A change in capability or implementation does not by itself authorize changing the version. Do not create a Git tag or GitHub Release until all required gates pass and release approval is explicit.
+## 安装
 
-## Install
+将 `skill-package.json` 中 `included_files` 列出的文件安装到目标 Skill 环境，并保持 `SKILL.md` 与 `references/` 文件的相对路径不变。开发和测试文件不属于正式运行包。
 
-For internal testing, copy the complete repository Skill contents into a directory named `evaluation-dataset-builder` in the target Skill environment. Keep `SKILL.md` and the `references/` directory together. Internal testing is not a public release.
+## 验证
 
-## Validate
+在开发环境运行：
 
-```bash
-python scripts/validate_skill.py
-python -m unittest discover -s tests -p "test_*.py" -v
-```
+    python scripts/validate_skill.py
+    python -m unittest discover -s tests -p "test_*.py" -v
 
-## Release gates
+## 使用
 
-| Gate | Required evidence | Current status |
-|---|---|---|
-| Package and entrypoint integrity | Skill, references, schema, manifest, and required files validate | PASS |
-| Deterministic validation | Structural and policy validator passes | PASS |
-| CI and offline tests | GitHub Actions validator and unit-test job pass | PASS |
-| DeepSeek live preflight | Authenticated `GET /models` confirms live model ID and limits in GitHub Actions runner | PASS — run `41362696533`, commit `c4162aa`; secret injected, `deepseek-flash` metadata returned, no generation request sent |
-| Model behavior benchmark | Run the self-evaluation suite with the target Skill/model; report per-case outcomes and critical failures | NOT RUN |
-| Independent quality review | Human review of representative generated outputs, graders, coverage, and evidence traceability | NOT RUN |
-| Target-system execution validation | Execute applicable tool/action cases in a controlled harness; verify end state, side effects, reset, and cleanup | NOT RUN |
+提供评测对象、目标能力、业务资料、规则、历史案例、环境约束、数据集数量与划分，以及输出格式。Skill 将规划数据集、生成用例和评分器、审查质量并报告假设与缺口。不得编造缺失的权威依据。
 
-**Release decision: BLOCKED.** The live DeepSeek metadata preflight is now verified in GitHub Actions (run `41362696533`): the runner received the configured secret, authenticated `GET /models`, and returned the `deepseek-flash` model metadata. No generation request was sent. Model behavior benchmarking, independent human quality review, and target-system execution validation remain incomplete. Passing CI and metadata preflight do not satisfy those gates.
+## 发布门禁
 
-## DeepSeek preflight
+- [ ] 正式包清单与实际打包结果一致。
+- [ ] 中文自然语言规范和模型无关性检查通过。
+- [ ] Schema、质量标准、引用路径和离线测试通过。
+- [ ] 行为测试达到预设阈值，并提供可审查报告。
+- [ ] 独立审查通过。
+- [ ] 目标运行环境验证通过，并提供可核验执行证据。
+- [ ] 所有门禁均绑定到同一候选提交。
 
-Set `DEEPSEEK_API_KEY` in the target runtime and run:
-
-```bash
-python scripts/deepseek_model_preflight.py
-python scripts/deepseek_model_preflight.py --input-tokens 250000 --estimated-output-tokens 120000
-```
-
-This reads live model metadata through `GET /models`; it does not send a generation prompt. Supply estimated input/output tokens to validate a specific planned request. A successful preflight is necessary operational evidence, but it does not replace model behavior benchmarking.
-
-## Publication rule
-
-Do not mark this version publishable, create a version tag, or create a GitHub Release until every required gate above has recorded evidence and the release owner approves the result. A green CI run is necessary but not sufficient.
+只有全部门禁通过后，才可以创建 `v0.0.1` 标签并发布 GitHub Release。结构验证通过不等于正式发布批准。

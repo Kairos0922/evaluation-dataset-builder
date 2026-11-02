@@ -1,13 +1,23 @@
-# Grader Design Guidelines
+# 评分器设计规范
 
-Choose the grader based on the measured outcome:
-- Deterministic/rule-based for exact labels, schemas, numeric values, and constraints.
-- Reference-based when a trustworthy expected result exists.
-- Rubric/LLM judge for open-ended outputs with multiple acceptable forms.
-- State/end-result checks for agents that change files, call APIs, or alter environments.
-- Trace/tool-call checks for process constraints and prohibited actions.
-- Hybrid when outcomes have multiple facets.
+## 选择评分方式
 
-Every grader defines criterion, observable evidence, pass/fail conditions, acceptable variants, partial-credit policy, UNKNOWN behavior, reference authority, and calibration method.
+根据需要测量的结果选择评分器：规则评分用于固定标签、Schema、数值和明确约束；参考结果比对仅在存在可信预期结果时使用；量表评分用于表达形式开放但可定义评价维度的回答；状态检查用于验证 Agent 修改文件、调用接口或改变环境后的真实结果；执行轨迹检查用于检查流程约束、工具调用和禁止操作；人工审查用于必须由责任人判断的复杂或高影响结果；混合评分用于包含多个不同判定维度的结果。
 
-Prefer end-state checks over transcript claims for acting agents. Do not exact-match free-form text unless exactness is the target. Validate graders against positive, negative, borderline, and adversarial examples. For high-impact use, compare judge decisions with human-reviewed samples. Never treat unverified model-generated gold as authoritative.
+## 必备定义
+
+每个评分器必须说明判定标准、评分方法、必须观察的证据、通过条件、失败条件、可接受的结果变体、部分得分规则、UNKNOWN 的处理方式、参考依据及其权威性，以及校准用例和校准结果。
+
+## 判定原则
+
+对结构化和受约束的结果，优先使用确定性检查。只有存在可信参考结果时，才进行参考结果比对。不得对允许多种合理表达的自然语言回答进行无依据的逐字匹配。
+
+对会改变文件、资源、权限或外部系统状态的 Agent，必须检查实际终态和副作用。对工具使用过程有要求时，必须检查实际执行轨迹，不能只依据最终文字。
+
+当关键证据缺失、格式错误、存在歧义或无法核验时，必须判为 UNKNOWN 或按规则阻断，不得判为通过。
+
+## 校准要求
+
+使用正例、负例、边界例和对抗例验证评分器。记录每类用例的数量、结果和已发现的问题。高影响用途应抽取样本与人工审查结果比较。
+
+不得将未经核验的自动生成参考答案当作权威依据。评分器规则发生变化时，必须评估受影响用例并重新校准。

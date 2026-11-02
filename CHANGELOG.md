@@ -1,19 +1,17 @@
-# Changelog
+# 版本变更记录
 
-## 0.0.1 — release candidate; publication pending
+## 0.0.1 — 发布候选
 
-- Initial general-purpose Evaluation Dataset Builder Skill with quality standard, case schema, grader and coverage guidance, and evidence governance.
-- Added model-aware request planning using live provider metadata, combined input/output budgeting, configurable headroom, and no arbitrary small fixed caps.
-- Added DeepSeek V4.1 Flash profile and metadata-only preflight helper.
-- Added bounded API error handling, ambiguous-timeout guidance, and cursor-based recovery for partial output.
-- Expanded self-evaluation fixtures and added offline preflight/budget unit tests.
+- 建立通用评测数据集构建 Skill。
+- 增加中文质量标准、用例 Schema、评分器规范、覆盖设计和证据治理规则。
+- 增加宿主 Agent 能力适配规范，明确 Skill 不依赖具体模型或供应商。
+- 增加正式包清单，区分运行时文件与开发、测试和发布设施。
+- 规范中文技术写作、统一术语和质量状态。
+- 重构正式包验证器，检查文件清单、引用完整性、模型无关性、Schema 和测试集结构。
+- 完善离线测试与发布门禁。
 
-### Release boundary
+### 发布边界
 
-The package version remains **0.0.1**. These changes improve the 0.0.1 release candidate; they do not authorize a major-version increase or waive the release gates.
+版本保持 **0.0.1**。本次改造用于完善 0.0.1 发布候选，不代表发布门禁已通过。
 
-Structural CI and offline unit tests passed on the pull-request commit. Live model behavior, independent human review, and target-system execution validation have not been completed. See `RELEASE.md`.
-
-## Historical baseline
-
-The initial 0.0.1 repository baseline introduced the general-purpose Skill, quality standard, schema, graders, self-evaluation fixtures, validator, and release documentation.
+结构验证、离线测试、行为评测、独立审查和目标运行环境验证是不同的证据。未完成的门禁必须明确标记，不得将发布候选描述为正式发布。

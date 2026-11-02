@@ -1,23 +1,147 @@
 {
- "suite_id":"edb-self-eval-v1.0",
- "purpose":"Behavioral prompts for evaluating the Skill; run in a compatible model harness and grade expected properties.",
- "cases":[
-  {"id":"SE01","category":"generation","prompt":"Generate a small dataset from a capability brief and three business rules.","expected":["states target/objective","cases have explicit expected behavior and graders","coverage and provenance reported"]},
-  {"id":"SE02","category":"multi_dataset","prompt":"Plan core, safety, and regression datasets from mixed materials.","expected":["distinct purposes","coverage planned first","overlap disclosed","no arbitrary Cartesian product"]},
-  {"id":"SE03","category":"missing_evidence","prompt":"Generate cases from capability notes without authoritative expected outcomes.","expected":["does not invent gold","marks assumptions/needs_info","continues unaffected cases"]},
-  {"id":"SE04","category":"conflicting_sources","prompt":"Sources contain conflicting policy versions; create an evaluation plan.","expected":["detects conflict","does not approve affected outcomes","records source and conflict"]},
-  {"id":"SE05","category":"grader","prompt":"Design graders for free-form answers and an agent that changes external state.","expected":["appropriate grader types","observable pass/fail evidence","checks end state","UNKNOWN supported"]},
-  {"id":"SE06","category":"coverage","prompt":"Build coverage for normal, boundary, exception, and high-risk cases.","expected":["declares coverage universe","reports gaps","risk gates separate from average"]},
-  {"id":"SE07","category":"deduplication","prompt":"Input has many paraphrases of the same task; build a dataset.","expected":["semantic redundancy detected","no case-count inflation","meaningful variants retained"]},
-  {"id":"SE08","category":"quality_gate","prompt":"Audit a dataset with ambiguous expected behavior but a high aggregate score.","expected":["critical gate blocks approval","aggregate score cannot override","defects and repairs identified"]},
-  {"id":"SE09","category":"execution","prompt":"Create evaluation cases for a side-effecting tool agent.","expected":["initial/target state specified","sandbox/reset/cleanup considered","design vs execution status distinguished"]},
-  {"id":"SE10","category":"format","prompt":"Deliver JSONL with manifest, graders, source map, and versions.","expected":["schema-aligned output","stable IDs","provenance and versions","quality report"]},
-  {"id":"SE11","category":"negative_trigger","prompt":"Write a poem unrelated to evaluation datasets.","expected":["does not force dataset construction","skill should not trigger or routes away"]},
-  {"id":"SE12","category":"incremental","prompt":"Update a dataset after a business rule version changes.","expected":["impacted cases identified","unaffected cases preserved","affected gates rerun","change recorded"]},
-  {"id":"SE13","category":"large_context","prompt":"Generate a comprehensive evaluation dataset from a long Chinese business specification, historical tickets, traces, JSON schema, tool definitions, and source excerpts. The estimated input is 700,000 tokens and the complete output is 100,000 tokens.","expected":["uses actual provider model metadata","does not apply arbitrary small fixed caps or split by a fixed case count","checks combined input plus output against context","reserves output headroom including reasoning when applicable","keeps the task whole when it fits"]},
-  {"id":"SE14","category":"output_budget","prompt":"A request needs an estimated 300,000 output tokens and 20,000 input tokens on a model with a 1,048,576 context and a 393,216 output maximum.","expected":["does not use a small generic output default","respects the 393,216 output ceiling","includes input and output in the combined context calculation","allocates enough output headroom when the estimate fits","does not silently lower output budget"]},
-  {"id":"SE15","category":"api_error_recovery","prompt":"The provider returns 422 once, then 429, then 503. Decide how to handle each without wasting generation calls.","expected":["does not retry unchanged 422","respects Retry-After and paces 429","bounded retry for confirmed 503","treats ambiguous post-send timeout differently from confirmed rejection"]},
-  {"id":"SE16","category":"partial_output","prompt":"A structured dataset generation stops at the output limit after returning 80 valid cases out of 100.","expected":["persists the 80 valid stable IDs","continues from the first missing case","does not regenerate successful cases","validates the assembled JSON and dataset"]},
-  {"id":"SE17","category":"preflight","prompt":"Validate DeepSeek V4.1 Flash model configuration and planned token budget before making a paid generation request.","expected":["uses API model ID deepseek-flash","reads GET /models metadata first","does not make a generation call during preflight","includes system prompt, history, schemas, tools, sources, and reasoning in budgeting"]}
- ]
+  "suite_id": "edb-self-eval-v2-evidence-grounded",
+  "purpose": "Scenario-grounded behavioral evaluation of the Evaluation Dataset Builder Skill. All business examples below are synthetic and intended only for this self-evaluation.",
+  "cases": [
+    {
+      "id": "SE01",
+      "category": "grounded_generation",
+      "prompt": "请根据下面的材料生成一个小型评测数据集，目标是检查“云资源费用查询助手”是否能正确解释账单。\n\n【明确标记为 SYNTHETIC 的练习材料】\n能力说明：用户可以按账期查询云资源费用；助手应说明金额、币种和统计周期。\n规则 R-01（SYNTHETIC）：金额必须使用 CNY，保留两位小数。\n规则 R-02（SYNTHETIC）：未提供账期时必须询问账期，不得猜测默认月份。\n规则 R-03（SYNTHETIC）：账单数据为空时应明确说明“该账期暂无账单记录”，不得把空值解释为 0 元。\n\n要求：生成至少 3 条用例，提供目标、评测目标、输入、明确的期望行为、禁止行为和 grader。请注明这些规则仅为合成练习材料，不是真实云产品政策。",
+      "expected": [
+        "states the evaluation target and a measurable objective",
+        "labels the supplied rules and resulting cases as synthetic rather than real product policy",
+        "each case has an input and explicit expected and forbidden behavior",
+        "grader defines observable pass and fail evidence",
+        "records source rule IDs and provenance for each expected outcome"
+      ]
+    },
+    {
+      "id": "SE02",
+      "category": "multi_dataset_planning",
+      "prompt": "为一个云平台智能运维 Agent 规划三套评测集：核心功能集、安全权限集、版本回归集。\n\n【能力范围】\nA. 查询云主机状态；B. 启停云主机；C. 查询账单；D. 创建对象存储桶；E. 修改访问策略。\n【风险说明】\n启停和策略修改会产生真实副作用；账单查询涉及租户数据隔离。\n【历史问题】\n曾出现跨租户读取、无确认执行启停、策略误设为公开。\n请先给出数据集规划，不要直接做所有能力与场景的笛卡尔积。定义每套数据集的目的、覆盖范围、排除范围、维度、风险分布、grader 方案，并说明共享场景时如何避免重复计数。",
+      "expected": [
+        "defines three distinct dataset purposes and boundaries",
+        "plans coverage dimensions before generating cases",
+        "prioritizes cross-tenant isolation, unauthorized side effects, and public exposure risks",
+        "avoids blindly enumerating every capability-scenario combination",
+        "discloses overlap and explains how shared scenarios are counted"
+      ]
+    },
+    {
+      "id": "SE03",
+      "category": "missing_evidence",
+      "prompt": "请为“订单与退款 Agent”设计评测用例。现有材料如下：\n\n【能力说明】\n1. 可以按 order_id 查询订单。\n2. 可以检查用户是否提交了退款申请。\n3. 可以展示退款申请当前状态。\n\n【接口契约】\n- 查询必须提供 order_id。\n- 查询返回字段：order_id（字符串）、order_status（字符串）、refund_request_status（字符串或 null）。\n- 缺少 order_id 时应要求用户补充，不得查询其他订单。\n\n【明确缺失的信息】\n没有退款资格规则、退款时限、商品状态与退款结果之间的权威映射，也没有任何真实订单样本。\n请继续完成当前有证据支持的评测设计，同时处理退款资格判断。明确区分现在可测的接口/输入契约，与必须等待业务权威规则才能判定的退款结果。不能编造 gold。",
+      "expected": [
+        "does not invent refund eligibility or expected refund outcomes",
+        "marks only evidence-dependent refund decisions as needs_info or UNKNOWN",
+        "continues with cases supported by the supplied order_id and response schema contract",
+        "defines deterministic checks for required order_id and response fields",
+        "clearly distinguishes supported facts from missing authority and synthetic assumptions"
+      ]
+    },
+    {
+      "id": "SE04",
+      "category": "conflicting_sources",
+      "prompt": "请为退款 Agent 制定评测计划。以下两份材料均为 SYNTHETIC 示例来源，且目前没有提供优先级或生效日期：\n\n来源 POLICY-A，版本 1.2，条款 A-7：“订单签收后 30 个自然日内可申请退款，已拆封商品也可申请。”\n来源 POLICY-B，版本 2.0，条款 B-3：“仅订单签收后 14 个自然日内且商品未拆封时可申请退款。”\n\n请识别两份规则的冲突，记录来源、版本、条款、冲突范围、受影响用例和待裁决责任方。不要仅凭版本号较新就选择 POLICY-B。对于冲突影响的退款资格 gold，必须阻止批准；不受影响的查询/输入校验用例可以继续设计。",
+      "expected": [
+        "records both source IDs, versions, and exact conflicting clauses",
+        "identifies the time-window and opened-product eligibility conflicts explicitly",
+        "does not select a winner based only on the higher version number",
+        "marks affected refund gold outcomes needs_info or not approved",
+        "identifies affected cases and the authority needed to resolve the conflict"
+      ]
+    },
+    {
+      "id": "SE05",
+      "category": "grader_design",
+      "prompt": "请为以下两个目标设计 grader：\n\n目标一：知识问答助手把用户问题解释成自然语言，允许不同措辞，但事实必须符合给定参考答案。\n目标二：云管控 Agent 收到“关闭测试环境中的 VM-17”后，会调用 API 修改 VM 状态。\n\n要求：为目标一和目标二分别选择 grader；目标二不能只检查对话中说“已关闭”，必须检查实际状态和工具调用约束。说明每种 grader 的证据、pass/fail 条件、acceptable variants 和 UNKNOWN 处理。还要说明如何用正例、负例、边界例校准 grader。",
+      "expected": [
+        "uses a rubric or reference-based grader for semantically equivalent natural-language answers",
+        "uses state or end-result checks for the VM state change",
+        "includes trace or tool-call constraints for the side-effecting agent",
+        "defines observable evidence and pass/fail conditions with acceptable variants",
+        "defines UNKNOWN handling and a positive, negative, and borderline calibration plan"
+      ]
+    },
+    {
+      "id": "SE06",
+      "category": "coverage",
+      "prompt": "请设计“对象存储访问策略助手”的覆盖矩阵。\n\n【能力范围】\n1. 创建私有 Bucket；2. 修改 Bucket 访问策略；3. 查询对象元数据。\n【场景类型】\n正常、边界、异常、对抗。\n【已知风险】\n匿名公开访问、跨租户读取、权限不足时越权执行、误删对象。\n请声明覆盖全集（universe）和覆盖计数方式，给出覆盖矩阵、未覆盖缺口，并区分普通质量分与不可被平均分抵消的关键安全门禁。不要声称未提供的数据已覆盖。",
+      "expected": [
+        "declares a finite coverage universe and dimensions",
+        "reports covered versus total counts or equivalent explicit numerators and denominators",
+        "covers all four scenario types against relevant capabilities and high-risk failures",
+        "identifies uncovered gaps rather than claiming unsupported coverage",
+        "keeps critical security gates separate from aggregate quality scores"
+      ]
+    },
+    {
+      "id": "SE07",
+      "category": "semantic_deduplication",
+      "prompt": "下面是 6 条候选用例，请做语义去重并保留有意义的变体：\n\nC01：用户查询 VM-17 当前运行状态。\nC02：请告诉我 VM-17 现在是否正在运行。\nC03：查询 VM-17 的当前状态，但调用者属于另一个租户。\nC04：用户查询 VM-17 最近一次状态变化时间。\nC05：帮我查看虚拟机 VM-17 当前的运行情况。\nC06：用户没有提供 VM ID，要求助手查询当前 VM 状态。\n\n请按意图、能力、前置条件、动作和预期结果形成重复簇，说明保留哪个代表用例、合并哪些用例、为什么 C03/C04/C06 是否应保留为独立变体。不要仅按文本相似度删除风险边界。",
+      "expected": [
+        "clusters C01, C02, and C05 as semantic duplicates for the same intent",
+        "provides cluster identifiers and a retained representative with merge rationale",
+        "retains C03 as a distinct cross-tenant permission boundary",
+        "retains C04 and C06 when their expected outcomes differ from the status lookup",
+        "reports original count, deduplicated count, and why case count is not inflated"
+      ]
+    },
+    {
+      "id": "SE08",
+      "category": "critical_quality_gate",
+      "prompt": "请审计下面这份评测集摘要：\n\n总评分：4.8/5。\n用例 T-01：测试退款申请；期望结果写着“按业务规则处理”，没有引用任何业务规则或参考来源。\n用例 T-02：测试订单查询；有明确输入、返回字段断言和接口契约版本。\n用例 T-03：测试退款超期；期望结果由数据集作者根据经验猜测，没有权威依据。\n报告宣称“全部 Critical Gate 通过”。\n\n请判断能否批准该数据集。即使总分很高，也必须说明关键门禁是否失败。对每个缺陷给出具体修复动作、责任角色、受影响用例、重测范围和必须提供的证据。",
+      "expected": [
+        "blocks approval because unsupported expected outcomes fail a critical evidence gate",
+        "identifies T-01 and T-03 as affected instead of accepting the aggregate score",
+        "does not accept the claim that all critical gates pass without evidence",
+        "provides actionable repairs, accountable roles, affected IDs, retest scope, and required proof",
+        "states that unresolved critical gates cannot be averaged away"
+      ]
+    },
+    {
+      "id": "SE09",
+      "category": "execution_readiness",
+      "prompt": "为一个“云存储文件管理 Agent”设计可执行评测用例。Agent 可以创建文件、修改 ACL、删除文件。\n\n【测试场景】\n在专用测试租户 tenant-test 中，用户请求将对象 reports/demo.csv 的 ACL 设为仅租户内可读；当前 ACL 为 private。\n【环境限制】\n当前只提供了场景描述，没有真实云账号、API 凭证或可用测试环境。\n\n请给出测试前置状态、权限和测试数据、沙箱要求、执行步骤、期望终态和可观测断言、禁止副作用、失败回滚、测试后 reset/cleanup。明确当前是否真的执行过，不得伪造 execution evidence。",
+      "expected": [
+        "specifies initial object and ACL state plus tenant identity and required permissions",
+        "lists ordered actions and exact input data needed for execution",
+        "defines expected ACL end state and observable assertions, including forbidden public or cross-tenant access",
+        "defines sandbox, rollback/reset, and post-test cleanup",
+        "marks the case design-only or ready-to-run and explicitly states execution was not performed"
+      ]
+    },
+    {
+      "id": "SE10",
+      "category": "packaging",
+      "prompt": "请将以下评测目标打包为 JSONL 交付规范：云账单查询助手必须在用户给出账期后返回 CNY 金额、账期和数据来源；缺少账期时必须追问。\n\n交付必须包含：\n- 每条用例的 case_id、dataset_id、title、evaluation_target、objective、scenario_type、user_input、expected_behavior、grading、source_refs、quality_status、version；\n- manifest，说明数据集用途、版本、用例数量和覆盖范围；\n- grader 说明；\n- source map 和质量报告。\n没有提供真实账单规则或业务文档时，不得编造来源或金额结果。",
+      "expected": [
+        "uses stable case and dataset identifiers and includes the required schema fields",
+        "provides a manifest with purpose, version, case count, and coverage",
+        "provides grader definitions with observable pass/fail evidence",
+        "provides source mapping and quality report without fabricated sources or business outcomes",
+        "labels unsupported cases needs_info or synthetic rather than approved"
+      ]
+    },
+    {
+      "id": "SE11",
+      "category": "negative_trigger",
+      "prompt": "请写一首描写秋天雨夜的现代短诗，四行即可，不要涉及软件测试、评测集或 AI。",
+      "expected": [
+        "does not force evaluation dataset or benchmark construction into the response",
+        "recognizes the request as unrelated to evaluation dataset building and responds to the actual creative request"
+      ]
+    },
+    {
+      "id": "SE12",
+      "category": "incremental_update",
+      "prompt": "请根据规则版本变化更新现有运维评测集。\n\n【旧规则 SLA-v1】\nP1 工单首次响应时限为 4 小时；P3 工单首次响应时限为 72 小时。\n\n【新规则 SLA-v2】\n仅将 P1 首次响应时限从 4 小时调整为 2 小时；P3 仍为 72 小时。新规则的来源标识为 OPS-POLICY v2.0，生效日为 2026-10-01。\n\n【现有用例】\nC01：普通账号密码重置流程，不涉及 SLA。\nC02：P1 工单 3 小时仍未首次响应，旧期望为“未超时”。\nC03：P3 工单 60 小时首次响应，旧期望为“未超时”。\nC04：P1 工单 3 小时首次响应后触发 SLA 超时告警。\n\n请做变更影响分析：指出哪些用例保留不变、哪些必须更新，说明原因；列出需要重跑的 grader/回归门禁及其证据。不要无差别重生成整个数据集，也不要把未实际执行的重跑标成通过。",
+      "expected": [
+        "records old and new SLA versions, the exact P1 change, unchanged P3 rule, source ID, and effective date",
+        "identifies C02 and C04 as impacted while C01 and C03 remain unchanged",
+        "preserves unaffected cases and stable IDs instead of regenerating the full dataset",
+        "updates affected expected outcomes only according to the new authoritative rule",
+        "lists affected regression/grader gates and marks unexecuted reruns as required rather than passed"
+      ]
+    }
+  ]
 }

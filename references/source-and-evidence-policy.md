@@ -1,5 +1,30 @@
-# Source and Evidence Policy
+# 来源与证据治理规范
 
-Source categories: authoritative_policy, system_documentation, confirmed_expert_process, verified_historical_eval, incident_ticket, user_feedback, trace_log, derived_scenario, synthetic_scenario, inference_assumption.
+## 来源类别
 
-Record source IDs and version/date when available. Distinguish observed behavior from correct behavior. Traces show what happened; tickets show reported issues; neither alone proves the correct outcome. Label synthetic and inferred content. Never fabricate source references. Conflicts in authoritative evidence must be preserved and affected cases marked needs_info. Prefer authoritative rules or human-verified references for gold outcomes.
+以下值是结构化数据中的固定枚举，必须保持原样：
+
+| source_type | 中文来源类别 | 使用说明 |
+|---|---|---|
+| authoritative_policy | 权威政策或业务规则 | 正式批准并适用于目标场景的规则 |
+| system_documentation | 系统文档 | 当前产品、系统或接口的正式文档 |
+| confirmed_expert_process | 已确认的专家流程 | 已由责任专家确认的操作流程 |
+| verified_historical_eval | 已核实的历史评测 | 能够追溯到真实评测过程和结果的材料 |
+| incident_ticket | 事故或问题工单 | 证明问题曾被报告，不单独证明正确结果 |
+| user_feedback | 用户反馈 | 用户对行为或问题的描述，不单独证明金标准 |
+| trace_log | 执行轨迹或日志 | 记录观察到的行为，不单独证明行为正确 |
+| derived_scenario | 派生场景 | 基于已确认依据推导的场景 |
+| synthetic_scenario | 合成场景 | 为测试或说明构造的示例 |
+| inference_assumption | 推断或假设 | 需要明确披露且不得冒充事实的内容 |
+
+## 来源记录
+
+有来源 ID、版本或日期时必须记录。记录标题、来源责任方、适用范围、定位信息和相关原文。不得伪造来源引用。原始材料没有提供版本、条款或日期时，写明 NOT PROVIDED，不得自行补充。
+
+## 证据与结论
+
+区分观察到的行为和正确行为。执行轨迹说明发生了什么，不能单独证明应该发生什么。工单说明问题曾被报告，不能单独证明正确规则。用户反馈说明用户感知或报告的情况，不能单独作为权威金标准。派生场景必须指出其依据和推导关系。合成与推断内容必须明确标记。权威来源存在冲突时，保留冲突并将受影响用例标记为 needs_info。
+
+## 金标准要求
+
+只有权威规则、正式文档或经过人工核验的参考结果可以作为高可信金标准。证据不足时，不得生成确定性预期结果。应继续完成不受影响的用例，并记录需要补充的来源、责任角色和具体问题。
