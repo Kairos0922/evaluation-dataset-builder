@@ -94,7 +94,7 @@ def create_release_tag():
     )
     matching_runs = [
         run for run in (runs_response.get("workflow_runs") or [])
-        if run.get("name") == "Behavioral Skill Evaluation"
+        if str(run.get("name") or "").startswith("Behavioral Skill Evaluation")
         and run.get("event") in ("push", "workflow_dispatch")
         and candidate_sha in str(run.get("display_title") or "")
         and run.get("status") == "completed"
