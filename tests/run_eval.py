@@ -55,7 +55,7 @@ ESTIMATED_COST_RESERVED_USD = 0.0
 CACHE_HITS_BY_MODEL = {}
 CURRENT_RUN_INDEX = 0
 CHECKPOINT_PATH = None
-CHECKPOINT_STORE = {"schema_version": 5, "signature": None, "responses": {}}
+CHECKPOINT_STORE = {"schema_version": 6, "signature": None, "responses": {}, "pending_requests": {}, "uncertain_requests": {}}
 
 
 def effective_model_identity(base_url, model):
@@ -204,8 +204,11 @@ def configure_checkpoint(path, signature):
     if CHECKPOINT_PATH.exists():
         try:
             existing = json.loads(CHECKPOINT_PATH.read_text(encoding="utf-8"))
-            if existing.get("schema_version") == 5 and existing.get("signature") == signature and isinstance(existing.get("responses"), dict):
+            if existing.get("schema_version") == 6 and existing.get("signature") == signature and isinstance(existing.get("responses"), dict):
                 CHECKPOINT_STORE = existing
+                CHECKPOINT_STORE.setdefault("pending_requests", {})
+                CHECKPOINT_STORE.setdefault("uncertain_requests", {})
+                CHECKPOINT_STORE.setdefault("estimated_tokens_reserved_by_model", {})
                 API_REQUEST_COUNT = int(existing.get("api_requests", 0) or 0)
                 ESTIMATED_COST_RESERVED_USD = float(
                     existing.get("estimated_cost_reserved_usd", 0.0) or 0.0
@@ -219,10 +222,13 @@ def configure_checkpoint(path, signature):
         except (OSError, ValueError):
             print("Existing checkpoint is unreadable; starting a clean checkpoint.", flush=True)
     CHECKPOINT_STORE = {
-        "schema_version": 5,
+        "schema_version": 6,
         "signature": signature,
         "api_requests": 0,
         "estimated_cost_reserved_usd": 0.0,
+        "estimated_tokens_reserved_by_model": {},
+        "pending_requests": {},
+        "uncertain_requests": {},
         "responses": {},
     }
     save_checkpoint()
@@ -290,6 +296,14 @@ def api_call(api_key, model, system, user, max_completion_tokens=900,
         metrics["peak_price_cost_usd_estimate"] += float(cached.get("actual_peak_price_cost_usd", 0.0))
         return cached["content"]
 
+    pending = CHECKPOINT_STORE.setdefault("pending_requests", {})
+    if key in pending:
+        raise ProviderStopError(
+            "A prior generation request was interrupted while in flight; its billing outcome "
+            "is unknown. Refusing to resend. Inspect provider request/billing logs before "
+            "manually resolving this checkpoint."
+        )
+
     estimated_tokens = estimate_request_tokens(system, user, max_completion_tokens)
     estimated_cost = estimate_request_cost_usd(model, system, user, max_completion_tokens)
     def make_request(request_payload):
@@ -322,6 +336,12 @@ def api_call(api_key, model, system, user, max_completion_tokens=900,
         ESTIMATED_COST_RESERVED_USD += estimated_cost
         CHECKPOINT_STORE["api_requests"] = API_REQUEST_COUNT
         CHECKPOINT_STORE["estimated_cost_reserved_usd"] = ESTIMATED_COST_RESERVED_USD
+        pending[key] = {
+            "model": model,
+            "endpoint": api_url,
+            "attempt": attempt + 1,
+            "status": "in_flight",
+        }
         save_checkpoint()
         try:
             with urllib.request.urlopen(request, timeout=240) as response:
@@ -329,6 +349,13 @@ def api_call(api_key, model, system, user, max_completion_tokens=900,
                 response_headers = response.headers
             choices = data.get("choices") or []
             if not choices:
+                pending.pop(key, None)
+                uncertain[key] = {
+                    "model": model, "endpoint": api_url, "attempt": attempt + 1,
+                    "reason": "provider response contained no choices",
+                    "status": "completed_without_usable_content",
+                }
+                save_checkpoint()
                 raise ProviderStopError("Provider response contained no choices; stopping to protect the paid budget.")
             finish_reason = choices[0].get("finish_reason")
             if finish_reason == "length":
@@ -350,8 +377,16 @@ def api_call(api_key, model, system, user, max_completion_tokens=900,
                 metrics["completion_tokens"] += completion_tokens
                 metrics["total_tokens"] += int(usage.get("total_tokens", 0) or 0)
                 metrics["peak_price_cost_usd_estimate"] += truncated_cost
+                pending.pop(key, None)
+                uncertain[key] = {
+                    "model": model, "endpoint": api_url, "attempt": attempt + 1,
+                    "reason": "provider response reached max_tokens limit",
+                    "status": "completed_but_truncated",
+                    "usage": usage,
+                }
+                save_checkpoint()
                 raise ProviderStopError(
-                    f"DeepSeek response reached its max_tokens limit for model {model}; "
+                    f"Provider response reached its max_tokens limit for model {model}; "
                     f"provider usage: {prompt_tokens} input and {completion_tokens} output tokens. "
                     "Increase the per-call output cap or shorten the request before retrying."
                 )
@@ -363,8 +398,15 @@ def api_call(api_key, model, system, user, max_completion_tokens=900,
                     if isinstance(part, dict) and part.get("type") == "text"
                 )
             if not isinstance(result, str) or not result.strip():
+                pending.pop(key, None)
+                uncertain[key] = {
+                    "model": model, "endpoint": api_url, "attempt": attempt + 1,
+                    "reason": "provider returned empty message content",
+                    "status": "completed_without_usable_content",
+                }
+                save_checkpoint()
                 raise ProviderStopError(
-                    "DeepSeek returned empty message content; finish_reason="
+                    "Provider returned empty message content; finish_reason="
                     + str(choices[0].get("finish_reason"))
                     + "; stopping before further paid requests."
                 )
@@ -392,6 +434,7 @@ def api_call(api_key, model, system, user, max_completion_tokens=900,
             remaining = response_headers.get("x-ratelimit-remaining-requests")
             if remaining is not None:
                 metrics["last_reported_remaining_requests"] = remaining
+            pending.pop(key, None)
             CHECKPOINT_STORE.setdefault("responses", {})[key] = {
                 "content": result,
                 "usage": {
@@ -406,6 +449,8 @@ def api_call(api_key, model, system, user, max_completion_tokens=900,
             save_checkpoint()
             return result
         except urllib.error.HTTPError as exc:
+            pending.pop(key, None)
+            save_checkpoint()
             body = exc.read().decode("utf-8", errors="replace")
             message = body[:1200]
             lowered = message.lower()
@@ -424,20 +469,20 @@ def api_call(api_key, model, system, user, max_completion_tokens=900,
                 continue
             if exc.code in (401, 403):
                 raise ProviderStopError(
-                    f"DeepSeek authentication/model-permission error HTTP {exc.code}: {message}"
+                    f"Provider authentication/model-permission error HTTP {exc.code}: {message}"
                 ) from exc
             if exc.code == 402 or any(term in lowered for term in (
                 "insufficient balance", "insufficient quota", "account balance",
             )):
                 raise ProviderStopError(
-                    "DeepSeek paid API balance/quota is unavailable: " + message
+                    "Provider paid API balance/quota is unavailable: " + message
                 ) from exc
             if exc.code == 429:
                 if any(term in lowered for term in (
                     "per day", "daily limit", "tokens per day", "requests per day",
                     "quota exceeded", "insufficient quota", "insufficient balance",
                 )):
-                    raise ProviderStopError("DeepSeek paid API quota is exhausted: " + message) from exc
+                    raise ProviderStopError("Provider paid API quota is exhausted: " + message) from exc
                 if attempt < 2:
                     retry_after = exc.headers.get("retry-after")
                     try:
@@ -457,12 +502,13 @@ def api_call(api_key, model, system, user, max_completion_tokens=900,
                 time.sleep((attempt + 1) * 2)
                 continue
             raise ProviderStopError(
-                f"DeepSeek API HTTP {exc.code}; stopping paid evaluation: {message}"
+                f"Provider API HTTP {exc.code}; stopping paid evaluation: {message}"
             ) from exc
         except (urllib.error.URLError, TimeoutError) as exc:
             # A POST timeout/network disconnect may occur after the provider accepted
             # and billed the request. Without a provider idempotency key, blind retry
             # can duplicate a paid generation. Persist an uncertainty marker and stop.
+            pending.pop(key, None)
             uncertain[key] = {
                 "model": model,
                 "endpoint": api_url,
@@ -476,7 +522,7 @@ def api_call(api_key, model, system, user, max_completion_tokens=900,
                 "it was not retried to avoid duplicate billing. Inspect provider request/"
                 "billing logs before manually resolving the checkpoint."
             ) from exc
-    raise ProviderStopError("DeepSeek API request failed after bounded retries.")
+    raise ProviderStopError("Provider API request failed after bounded retries.")
 
 
 def extract_json(raw):
