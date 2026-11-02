@@ -62,7 +62,11 @@ def main():
         "references/grader-guidelines.md",
         "references/coverage-design-guideline.md",
         "references/source-and-evidence-policy.md",
-        "references/task-planning-and-recovery.md"
+        "references/task-planning-and-recovery.md",
+        "references/business-scenario-model.md",
+        "references/scenario-buckets.md",
+        "references/change-impact-and-repair.md",
+        "references/dataset-manifest-schema.json"
     }
     check(required.issubset(set(included)),
           "正式包清单缺少必需文件：" + ", ".join(sorted(required - set(included))))
@@ -114,9 +118,32 @@ def main():
 
     schema = read_json("references/dataset-schema.json")
     if schema:
-        check(schema.get("type") == "object", "数据集 Schema 根类型必须为 object")
-        check(bool(schema.get("required")), "数据集 Schema 缺少 required 字段")
-        check(bool(schema.get("properties")), "数据集 Schema 缺少 properties")
+        check(schema.get("type") == "object", "用例 Schema 根类型必须为 object")
+        check(bool(schema.get("required")), "用例 Schema 缺少 required 字段")
+        check(bool(schema.get("properties")), "用例 Schema 缺少 properties")
+        case_properties = schema.get("properties", {})
+        for field in ("scenario_bucket", "case_origin", "coverage_tags",
+                      "observable_assertions", "trace_expectations", "change_links"):
+            check(field in case_properties, f"用例 Schema 缺少新规范字段：{field}")
+        bucket = case_properties.get("scenario_bucket", {}).get("enum", [])
+        check({"normal", "boundary", "business_rule", "permission_security",
+               "state_anomaly", "error_recovery", "multi_turn",
+               "tool_interaction", "negative", "adversarial",
+               "data_quality", "integration"}.issubset(set(bucket)),
+              "用例 Schema 的场景桶枚举不完整")
+
+    manifest_schema = read_json("references/dataset-manifest-schema.json")
+    if manifest_schema:
+        check(manifest_schema.get("type") == "object", "数据集清单 Schema 根类型必须为 object")
+        manifest_required = set(manifest_schema.get("required", []))
+        check({"dataset_id", "version", "evaluation_target", "purpose",
+               "scope", "coverage", "case_count", "quality_status",
+               "execution_status"}.issubset(manifest_required),
+              "数据集清单 Schema 缺少必需字段")
+        manifest_properties = manifest_schema.get("properties", {})
+        check("coverage" in manifest_properties and "dimensions" in
+              manifest_properties.get("coverage", {}).get("properties", {}),
+              "数据集清单 Schema 缺少覆盖维度定义")
 
     suite = read_json("tests/self-eval-cases.json")
     if suite:
