@@ -106,16 +106,19 @@ description: 面向 Agent、Skill、API、工作流和其他系统，规划、�
 
 JSONL 文件必须每行包含一个完整且符合 Schema 的 JSON 对象。清单和质量报告应分别交付。清单至少包含用途、评测对象、版本、用例数量、覆盖范围全集、各维度覆盖数量、缺口、评分器与来源引用、假设和状态。
 
-## 10. 质量状态
+## 10. 质量状态与执行状态
+
+质量状态只能使用以下值：
 
 - candidate：已生成，尚未完成适用的验证。
-- validated：已通过适用的检查。
+- validated：已通过适用的质量检查。
 - approved：适用的质量门禁均已通过，且满足预定用途的审批条件。
 - needs_info：权威依据缺失或存在尚未解决的冲突。
 - rejected：无效、不安全、不可测或无法修复。
-- execution_verified：已在真实环境执行，并具有可核验的执行证据。
 
-approved 不代表 execution_verified。不得把设计完成、结构校验通过或人工认可的方案描述为真实执行成功。
+执行状态独立记录，只能使用 DESIGN_ONLY、READY_TO_RUN、EXECUTION_VERIFIED 或 NOT RUN。
+
+approved 不代表 EXECUTION_VERIFIED。不得把设计完成、结构校验通过或人工认可的方案描述为真实执行成功。
 
 ## 11. 最终完整性检查
 
