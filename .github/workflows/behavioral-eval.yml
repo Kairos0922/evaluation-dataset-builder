@@ -48,8 +48,8 @@ jobs:
           fi
           PR_HEAD="$(gh api "repos/$GITHUB_REPOSITORY/pulls/2" --jq '.head.sha')"
           PR_BASE="$(gh api "repos/$GITHUB_REPOSITORY/pulls/2" --jq '.base.ref')"
-          if [ "$PR_HEAD" != "$CANDIDATE_SHA" ] || [ "$PR_BASE" != "main" ]; then
-            echo "Candidate SHA must exactly match open PR #2 head targeting main."
+          if [ "$PR_HEAD" != "$CANDIDATE_SHA" ] || [ "$PR_BASE" != "master" ]; then
+            echo "Candidate SHA must exactly match open PR #2 head targeting master."
             exit 2
           fi
           echo "Verified exact PR #2 candidate SHA."
@@ -61,6 +61,32 @@ jobs:
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: python scripts/deepseek_model_preflight.py
+      - name: Verify independent Judge model metadata before any generation call
+        env:
+          EVAL_JUDGE_BASE_URL: ${{ vars.EVAL_JUDGE_BASE_URL || 'https://api.groq.com/openai/v1' }}
+          EVAL_JUDGE_MODEL: ${{ vars.EVAL_JUDGE_MODEL || 'openai/gpt-oss-120b' }}
+          EVAL_JUDGE_API_KEY: ${{ secrets.EVAL_JUDGE_API_KEY || secrets.GROQ_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$EVAL_JUDGE_API_KEY" ]; then
+            echo "No independent Judge key is available (set EVAL_JUDGE_API_KEY or GROQ_API_KEY). No generation request was sent."
+            exit 2
+          fi
+          BASE_URL="${EVAL_JUDGE_BASE_URL%/}"
+          curl --fail --silent --show-error --max-time 15 \
+            -H "Authorization: Bearer $EVAL_JUDGE_API_KEY" \
+            "$BASE_URL/models" -o /tmp/eval-judge-models.json
+          python - "$EVAL_JUDGE_MODEL" <<'PY'
+          import json, sys
+          model = sys.argv[1]
+          with open("/tmp/eval-judge-models.json", encoding="utf-8") as handle:
+              data = json.load(handle)
+          available = {item.get("id") for item in data.get("data", []) if isinstance(item, dict)}
+          if model not in available:
+              print("Configured independent Judge model is not present in provider GET /models.")
+              raise SystemExit(2)
+          print("Independent Judge metadata preflight passed; no generation request was sent.")
+          PY
       - name: Restore checkpoint from a previous Actions run when requested
         env:
           GH_TOKEN: ${{ github.token }}
@@ -78,15 +104,18 @@ jobs:
       - name: Run repeated behavior, baseline, and trigger evaluations
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          DEEPSEEK_GENERATOR_MODEL: ${{ inputs.generator_model }}
-          EVAL_JUDGE_BASE_URL: ${{ vars.EVAL_JUDGE_BASE_URL }}
-          EVAL_JUDGE_MODEL: ${{ vars.EVAL_JUDGE_MODEL }}
-          EVAL_JUDGE_API_KEY: ${{ secrets.EVAL_JUDGE_API_KEY }}
-          EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION: ${{ vars.EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION }}
-          EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION: ${{ vars.EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION }}
+          DEEPSEEK_GENERATOR_MODEL: ${{ github.event_name == 'workflow_dispatch' && inputs.generator_model || 'deepseek-flash' }}
+          EVAL_JUDGE_BASE_URL: ${{ vars.EVAL_JUDGE_BASE_URL || 'https://api.groq.com/openai/v1' }}
+          EVAL_JUDGE_MODEL: ${{ vars.EVAL_JUDGE_MODEL || 'openai/gpt-oss-120b' }}
+          EVAL_JUDGE_API_KEY: ${{ secrets.EVAL_JUDGE_API_KEY || secrets.GROQ_API_KEY }}
+          EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION: ${{ vars.EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION || '0.15' }}
+          EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION: ${{ vars.EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION || '0.60' }}
           DEEPSEEK_MAX_ESTIMATED_COST_USD: "1.50"
           DEEPSEEK_MAX_API_REQUESTS: "220"
           DEEPSEEK_MAX_TOKENS: "16384"
+          GROQ_JUDGE_RPM: ${{ vars.GROQ_JUDGE_RPM || '30' }}
+          GROQ_JUDGE_TPM: ${{ vars.GROQ_JUDGE_TPM || '8000' }}
+          GROQ_JUDGE_TPD: ${{ vars.GROQ_JUDGE_TPD || '180000' }}
           EVAL_GIT_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.sha }}
         run: |
           if [ -z "$DEEPSEEK_API_KEY" ]; then
