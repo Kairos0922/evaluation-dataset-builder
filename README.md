@@ -27,7 +27,7 @@ Skill 不是独立运行的程序、服务或 Agent。它是一个包含 `SKILL.
 3. 执行到具体环节时，宿主再按指引读取对应的 `references/` 文件。
 4. 实际分析、文件读写、代码执行、网络访问和外部系统操作，均由宿主 Agent 已提供并获授权的能力完成。
 
-因此，Skill 本身不附带工具、权限、接口或独立运行环境。不同宿主的安装目录、工具能力和沙箱限制可能不同；Skill 的目录格式可复用，但安装位置应遵循各宿主自己的说明。
+因此，Skill 本身不附带工具、权限、接口或独立运行环境。同一个 Skill 的目录可以跨支持该开放格式的宿主复用，但它不会自动获得相同的工具权限或执行环境。
 
 ## 安装
 
@@ -75,16 +75,24 @@ cp -R skills/evaluation-dataset-builder .claude/skills/
 
 ### claude.ai
 
-将 Skill 目录打包为 ZIP 后，在 Claude 的 Skills 设置中上传。可在仓库根目录运行：
+先确认 Claude 已启用代码执行和文件创建能力。然后将 Skill 目录打包为 ZIP：
 
 ```bash
 cd skills
 zip -r evaluation-dataset-builder.zip evaluation-dataset-builder
 ```
 
+ZIP 内必须保留最外层的 `evaluation-dataset-builder/` 目录，不能把 `SKILL.md` 直接放在 ZIP 根目录。
+
+在 Claude 中依次进入 `Customize > Skills > + > + Create skill > Upload a skill`，上传生成的 ZIP。上传后在 Skills 列表中启用该 Skill。
+
+### Claude API
+
+API 使用方式与本地目录安装不同：先通过 Skills API 上传 Skill，再在 Messages API 请求中同时启用代码执行工具并传入对应的 Skill ID。Skill 在 API 提供的代码执行容器中访问；该容器的网络和依赖安装能力受 API 运行环境限制。
+
 ### 其他宿主
 
-若使用其他支持 Agent Skills 的产品，请遵循该产品的 Skill 安装目录、上传方式和运行环境说明。不要假设不同产品共享相同目录或工具权限。
+若使用其他支持 Agent Skills 的产品，请遵循该产品的 Skill 安装目录、上传方式和运行环境说明。不要假设不同产品共享相同目录、自动发现规则或工具权限。
 
 ## 使用方法
 
