@@ -1,6 +1,10 @@
-run-name: Behavioral Skill Evaluation — ${{ inputs.candidate_sha }}
+run-name: Behavioral Skill Evaluation — ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.sha }}
 name: Behavioral Skill Evaluation
+# The scoped push trigger runs only when this workflow file is deliberately changed on the candidate branch.
 on:
+  push:
+    branches: ["test-harness/0.0.1-rc1"]
+    paths: [".github/workflows/behavioral-eval.yml"]
   workflow_dispatch:
     inputs:
       candidate_sha:
@@ -28,14 +32,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.candidate_sha }}
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - name: Verify candidate SHA is the exact open PR #2 head
         env:
           GH_TOKEN: ${{ github.token }}
-          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          CANDIDATE_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.sha }}
         run: |
           set -euo pipefail
           if [[ ! "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
@@ -83,7 +87,7 @@ jobs:
           DEEPSEEK_MAX_ESTIMATED_COST_USD: "1.50"
           DEEPSEEK_MAX_API_REQUESTS: "220"
           DEEPSEEK_MAX_TOKENS: "16384"
-          EVAL_GIT_SHA: ${{ inputs.candidate_sha }}
+          EVAL_GIT_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.sha }}
         run: |
           if [ -z "$DEEPSEEK_API_KEY" ]; then
             echo "Repository secret DEEPSEEK_API_KEY is required."
