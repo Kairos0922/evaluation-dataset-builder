@@ -177,6 +177,14 @@ def main():
             check(all(isinstance(v, (int, float)) and 0 < v <= 100 for v in weights.values()),
                   "质量评分权重必须为 0 到 100 之间的正数")
             check(bool(cfg["scoring"]["critical_gates"]), "质量标准缺少关键门禁")
+            dataset_checks = set(cfg.get("checks", {}).get("dataset_level", []))
+            required_dataset_checks = {
+                "business_model_traceability", "gap_priority_coverage",
+                "synthetic_case_labeling", "observable_assertion_coverage",
+                "trace_evidence_coverage", "change_impact_traceability"
+            }
+            check(required_dataset_checks.issubset(dataset_checks),
+                  "机器可读质量标准缺少新数据集级检查项")
         except ImportError:
             WARNINGS.append("未安装 PyYAML，跳过 YAML 语义检查")
         except Exception as exc:
