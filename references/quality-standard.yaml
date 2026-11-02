@@ -26,4 +26,4 @@ checks:
     - {key: G5_safety_compliance, severity: critical, method: policy_review} # 安全与合规
     - {key: G6_feasibility, severity: critical, method: hybrid} # 执行可行性
     - {key: G7_integrity, severity: critical, method: deterministic_and_semantic} # 数据完整性
-  dataset_level: [objective_coverage, capability_coverage, scenario_coverage, risk_coverage, complexity_distribution, provenance_distribution, semantic_duplicate_rate, grader_calibration, execution_readiness, heldout_independence]
+  dataset_level: [business_model_traceability, objective_coverage, capability_coverage, scenario_coverage, gap_priority_coverage, risk_coverage, complexity_distribution, provenance_distribution, synthetic_case_labeling, observable_assertion_coverage, trace_evidence_coverage, semantic_duplicate_rate, grader_calibration, execution_readiness, change_impact_traceability, heldout_independence]
