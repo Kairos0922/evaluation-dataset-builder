@@ -13,7 +13,10 @@
     "expected_behavior",
     "grading",
     "source_refs",
-    "quality_status"
+    "quality_status",
+    "scenario_bucket",
+    "case_origin",
+    "coverage_tags"
   ],
   "properties": {
     "case_id": {
@@ -559,7 +562,8 @@
         },
         "additionalProperties": true
       },
-      "description": "覆盖矩阵中的明确覆盖项标识。"
+      "description": "至少关联一个明确的覆盖项；用于覆盖矩阵与缺口追溯。",
+      "minItems": 1
     },
     "observable_assertions": {
       "type": "array",
