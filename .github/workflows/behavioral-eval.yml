@@ -1,6 +1,6 @@
 run-name: Behavioral Skill Evaluation — ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.sha }}
 name: Behavioral Skill Evaluation
-# Candidate revision: independent Groq Judge, 2400-token evidence output, UTC-day quota checkpointing, and safe in-flight recovery.
+# Candidate revision: exact o200k token accounting, preserved 8K TPM ceiling, and automatic resume of the 21-request checkpoint.
 on:
   push:
     branches: ["test-harness/0.0.1-rc1"]
