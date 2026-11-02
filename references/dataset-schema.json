@@ -274,7 +274,8 @@
           "enum": [
             "DESIGN_ONLY",
             "READY_TO_RUN",
-            "EXECUTION_VERIFIED"
+            "EXECUTION_VERIFIED",
+            "NOT_RUN"
           ],
           "description": "执行状态。枚举值是机器标识，保持原样。"
         },
@@ -470,8 +471,7 @@
         "validated",
         "approved",
         "needs_info",
-        "rejected",
-        "execution_verified"
+        "rejected"
       ],
       "description": "用例质量状态。枚举值是机器标识，保持原样。"
     },
