@@ -1,81 +1,37 @@
-# Evaluation test harness
+# 离线测试与开发验收说明
 
-## Provider and models
+## 测试范围
 
-The evaluator uses DeepSeek's OpenAI-compatible Chat Completions API:
+本目录包含评测数据集构建 Skill 的静态样例、离线单元测试和可选的行为评测程序。
 
-- Base URL: https://api.deepseek.com
-- Generator: `deepseek-flash` (DeepSeek-V4.1-Flash-1017)
-- Judge and Trigger classifier: Groq `openai/gpt-oss-120b` by default (independent of the DeepSeek Generator), or a separately configured OpenAI-compatible endpoint/model
-- Generator secret: `DEEPSEEK_API_KEY`
-- Independent Judge secret: `GROQ_API_KEY` (fallback) or `EVAL_JUDGE_API_KEY`; endpoint/model/pricing can be overridden with repository Actions variables
+本次合入只运行以下不调用模型的检查：
 
-Generation uses non-thinking mode and an 16,384-token output ceiling for both Skill and matched-baseline responses. Trigger classification uses 180 tokens; Judge rubric scoring uses 1,200 tokens. The local estimated total-request guard is 950,000 tokens, below DeepSeek Flash's documented 1M context window; the model's maximum output capacity is not used as the per-call budget. The runner records both endpoints, model IDs, token usage, conservative peak-price cost estimates, and checkpoint cache hits.
+1. 正式包结构与清单验证。
+2. Schema、测试数据和质量标准的静态检查。
+3. 使用模拟响应的离线单元测试。
 
-**Important model-routing constraint (2026-11-02):** DeepSeek announced that requests using `deepseek-v4-pro` are routed to V4.1 Flash from 2026-09-14 until V4.1-Pro is launched. Therefore `deepseek-v4-pro` is not an independent Judge for `deepseek-flash`. The harness detects and rejects this same-backend configuration before making a paid request. The default independent Judge is Groq `openai/gpt-oss-120b` at `https://api.groq.com/openai/v1`, using `GROQ_API_KEY`, and conservative published prices of $0.15/M input and $0.60/M output. Override with `EVAL_JUDGE_BASE_URL`, `EVAL_JUDGE_MODEL`, `EVAL_JUDGE_API_KEY`, `EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION`, and `EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION` when using another provider.
+本次不运行 `tests/run_eval.py`，不启动模型服务，不调用任何模型接口，也不触发 `.github/workflows/behavioral-eval.yml`。
 
-Each evaluation is protected by a USD 1.50 estimated-spend ceiling and a 220-request ceiling. The request count and peak-price cost reservation are persisted before each paid generation/Judge POST attempt, including requests that fail or are truncated. Metadata-only GET /models preflights are separate and do not consume generation tokens. Cost estimates reserve each request at peak-hour cache-miss prices before sending it. The runner stops immediately on insufficient balance/quota, authentication failure, or budget exhaustion. Successful API responses are checkpointed after each call; rerunning with the same commit, models, suite, and run count reuses completed responses. Each repeated run has a distinct cache namespace so stability testing still generates independent samples.
+## 目录说明
 
-The runner retries transient rate-limit/server failures only a bounded number of times. It never converts an account/budget stop into an ordinary score of zero and continues spending.
+- `self-eval-cases.json`：Skill 构建行为的离线评测样例。
+- `trigger-evals.json`：Skill 适用范围的正负触发样例。
+- `test_*.py`：离线单元测试。涉及网络请求的测试使用模拟响应，不访问真实服务。
+- `run_eval.py`：可选的外部行为评测运行器。执行该程序会调用外部模型服务，必须另行获得明确授权，并确认预算、密钥和测试数据范围。
 
-## Automated gates
+## 本地离线检查
 
-- Behavior expected-property pass rate: >= 90% on every complete run.
-- Trigger Precision: >= 95% on every run.
-- Trigger Recall: >= 95% on every run.
-- Behavior suite: 12 scenario-grounded cases with 57 expected properties, including explicit synthetic policies, missing evidence, conflicting source versions, semantic duplicates, side effects, and a rule-version change.
-- Trigger suite: 40 balanced queries (20 positive and 20 negative).
-- Repeated-run stability: at least 2 complete runs on the same commit; spread for behavior, Precision, and Recall must each be <= 5 percentage points.
-- Matched baseline: mandatory; same Generator model, prompts, suite, and Judge criteria without the Skill. The report records per-run and mean uplift for human review.
+Python 3.10 或更高版本：
 
-The runner has no skip flags for baseline or trigger evaluation and rejects a single-run shortcut.
+```bash
+python scripts/validate_skill.py
+python -m unittest discover -s tests -p "test_*.py" -v
+```
 
-## Run locally
+如需执行上述离线测试，不需要配置模型密钥，也不需要访问模型服务。
 
-Python 3.10+; no third-party packages required.
+## 外部行为评测
 
-    export DEEPSEEK_API_KEY="..."
-    export DEEPSEEK_GENERATOR_MODEL="deepseek-flash"
-    export EVAL_JUDGE_BASE_URL="https://your-independent-provider.example/v1"
-    export EVAL_JUDGE_MODEL="your-independent-model"
-    export EVAL_JUDGE_API_KEY="..."
-    export EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION="..."
-    export EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION="..."
-    python scripts/deepseek_model_preflight.py  # metadata GET only; no generation
-    python scripts/validate_skill.py
-    python -m unittest discover -s tests -p "test_*.py"
-    python tests/run_eval.py --runs 2 --output artifacts/eval-report.json
+外部行为评测不是本次合入门禁。只有在另行批准后，才可评估目标环境、评测数据、费用上限、服务凭证、运行次数和停止条件。不得在未经授权时运行 `tests/run_eval.py` 或手动触发行为评测工作流。
 
-Optional controls:
-
-- `DEEPSEEK_MAX_ESTIMATED_COST_USD` (default: 1.50)
-- `DEEPSEEK_MAX_API_REQUESTS` (default: 220)
-- `DEEPSEEK_MAX_TOKENS` (default: 16384)
-- `DEEPSEEK_MAX_ESTIMATED_REQUEST_TOKENS` (default: 950000)
-- `EVAL_JUDGE_BASE_URL`, `EVAL_JUDGE_MODEL`, `EVAL_JUDGE_API_KEY`, `EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION`, and `EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION` (required for an independent Judge endpoint)
-- `--checkpoint` (default: `artifacts/eval-checkpoint.json`); successful responses and conservative provider token reservations are stored after each call. Groq Judge calls use the OpenAI GPT-OSS o200k tokenizer plus framing and a 10% safety margin, then are locally paced to 30 RPM / 8K TPM and capped at 180K reserved tokens per UTC day; the provider's account-specific limits remain authoritative.
-- GitHub Actions manual fallback accepts `resume_run_id` to restore a prior workflow artifact checkpoint. Use the same branch/SHA, models, suite, and run count so the signature matches.
-
-Never commit API keys or reports containing sensitive business prompts/data.
-
-## Read the report
-
-- Behavior pass rate is property-level: passed expected properties divided by all expected-property checks in the suite.
-- Every run must independently meet the behavior and Trigger Precision/Recall thresholds.
-- Trigger results include the confusion matrix and each query's expected/predicted label.
-- Baseline results use the same Generator, prompts, and criteria. Review absolute scores and uplift; a delta is evidence for interpretation, not a substitute for examining outputs.
-- Stability is the max-minus-min spread across repeated runs. The threshold is 0.05 (five percentage points).
-- The report records provider, model IDs, candidate SHA, suite ID, workflow run ID, all outputs, Judge rationale/evidence, baseline deltas, and token usage. A passing Judge result must contain a verbatim evidence quote of at least 6 non-whitespace characters found in the exact candidate output; missing, duplicate, malformed, or unverifiable results fail closed. Any trigger-classifier JSON parse error is also a hard failure. On DeepSeek's specific JSON-mode validation error, the client retries once without the provider's JSON response constraint; the result is still parsed and validated locally. API errors or invalid/missing Judge results are preserved in the report and fail closed.
-
-## Human review is mandatory
-
-An independent reviewer must inspect the report, all failures, Judge evidence, generated samples, the baseline comparison, and critical cases SE03, SE04, SE05, SE08, SE09, SE11, SE12. The reviewer must record an APPROVED GitHub PR review that links the exact workflow run/report and summarizes findings. A successful automated run is not release approval.
-
-This evaluator runs the self-contained SKILL.md entrypoint as the system instruction. The reference files remain packaged for the target Skill runtime but are not duplicated into the evaluation prompt; core operating contracts are summarized in the entrypoint to keep requests within the configured paid-provider budget. This is a portable behavioral proxy, not a full target Skills runtime; validate in the target runtime before broad deployment. LLM-as-judge is not a substitute for critical-case review.
-
-
-## GitHub Actions candidate run
-
-Use **Actions → Behavioral Skill Evaluation** and supply the full current PR #2 head SHA. The workflow verifies the exact SHA before running candidate code, performs metadata-only DeepSeek preflight, and requires the independent Judge endpoint/model/key and explicit input/output prices. It runs two complete rounds under the existing USD 1.50 / 220-request limits and uploads `candidate-evaluation-report-<run_id>`. The first candidate run restores the previously uploaded checkpoint `41369272868` automatically; later resumes must specify the latest completed evaluation run ID and the same candidate SHA.
-
-Set `EVAL_JUDGE_MAX_COMPLETION_TOKENS` (default 2,400) if the judge response is truncated; changing this changes the request cache key, so completed generator outputs remain reusable only when the exact candidate/checkpoint signature matches.
+模型调用结果不能替代独立人工审查，也不能替代目标运行环境验证。未执行的评测必须标记为未运行，不得报告为通过。
