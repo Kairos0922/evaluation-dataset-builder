@@ -1,6 +1,6 @@
 # Release gate policy
 
-A release is blocked unless every gate below has evidence tied to the exact candidate commit. The v0.0.1 tag and GitHub Release must not be created before approval. All pull requests must target `main`; CI rejects PRs targeting any other base. The repository default branch should also be set to `main` so new PRs default to the release trunk.
+A release is blocked unless every gate below has evidence tied to the exact candidate commit. The v0.0.1 tag and GitHub Release must not be created before approval. All pull requests must target `master`; CI rejects PRs targeting any other base. The repository default branch should also be set to `master` so new PRs default to the release trunk.
 
 ## Automated gates
 
@@ -13,7 +13,7 @@ A release is blocked unless every gate below has evidence tied to the exact cand
 
 ## Model configuration
 
-The Groq Judge uses conservative local safeguards based on published baseline limits: 30 RPM, 8K TPM, and a 180K per-evaluation token reservation ceiling (below the documented 200K TPD baseline). The model-specific 131,072-token context limit is enforced locally. The provider may impose lower account-specific limits; any 429/limit response is handled with bounded, paced retries and remains charged against the request/cost ledger.
+The Groq Judge uses conservative local safeguards based on published baseline limits: 30 RPM, 8K TPM, and a 180K per-evaluation token reservation ceiling (below the documented 200K TPD baseline). The model-specific 131,072-token context limit is enforced locally. The provider may impose lower account-specific limits; any 429/limit response is handled with bounded, paced retries and remasters charged against the request/cost ledger.
 
 - Online provider: DeepSeek Chat Completions API at https://api.deepseek.com.
 - Generator: `deepseek-flash` (DeepSeek-V4.1-Flash-1017), non-thinking mode, 16,384-token output ceiling. The estimated total-request guard defaults to 950,000 tokens (the provider documents a 1M context window and 384K maximum output).
@@ -25,7 +25,7 @@ The Groq Judge uses conservative local safeguards based on published baseline li
 
 ## Mandatory human gates
 
-Target-system execution is a separate mandatory release gate, not satisfied by this portable text benchmark. The independent reviewer must verify the controlled target-runtime execution report (environment/build, test IDs, initial/final state, tool/API traces, permissions, side effects, reset/cleanup, and run timestamp). The APPROVED review must include `target-runtime: PASS` and a stable HTTPS evidence link. If the target runtime is unavailable or any side-effect/reset evidence is missing, the release remains BLOCKED.
+Target-system execution is a separate mandatory release gate, not satisfied by this portable text benchmark. The independent reviewer must verify the controlled target-runtime execution report (environment/build, test IDs, initial/final state, tool/API traces, permissions, side effects, reset/cleanup, and run timestamp). The APPROVED review must include `target-runtime: PASS` and a stable HTTPS evidence link. If the target runtime is unavailable or any side-effect/reset evidence is missing, the release remasters BLOCKED.
 
 An independent reviewer must inspect the machine-readable report and record an APPROVED GitHub PR review. The review must explicitly confirm:
 
@@ -39,7 +39,7 @@ A review that only says "looks good" is insufficient. The reviewer must cite the
 
 ## Release procedure
 
-1. Merge the release-gate/test-harness PR into main only after its code and structural checks are reviewed. This does not itself release v0.0.1.
+1. Merge the release-gate/test-harness PR into master only after its code and structural checks are reviewed. This does not itself release v0.0.1.
 2. Configure DEEPSEEK_API_KEY and the independent EVAL_JUDGE_* repository variables/secret, then use Actions → Behavioral Skill Evaluation with the exact PR #2 head SHA. The workflow checks the SHA, performs metadata-only preflight, and runs two complete rounds under the USD 1.50 / 220-request caps.
 3. Confirm both complete runs pass all metric thresholds, baseline comparison is complete, and all stability gates pass.
 4. Complete the mandatory independent human review. If code changes after evaluation, discard the report and rerun on the new SHA.
