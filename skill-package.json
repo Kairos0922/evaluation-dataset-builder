@@ -25,10 +25,12 @@
     "RELEASE-GATE.md",
     "RELEASE.md",
     "CHANGELOG.md",
-    "VERSION"
+    "VERSION",
+    "skill-package.json"
   ],
-  "language_policy": "正式运行包中的自然语言说明默认使用简体中文；字段名、枚举值、稳定标识符、文件路径和必要技术名称保持原样。",
-  "runtime_boundary": "只定义任务规则、输入输出要求和质量标准；实际工具与执行能力由宿主 Agent 提供。",
-  "legal_notice_policy": "LICENSE 保留其正式法律文本，不对法律许可条款进行非正式改写。",
+  "language_policy": "正式运行包中的自然语言说明默认使用简体中文；机器字段、枚举值、稳定标识符、文件路径和必要技术名称保持原样。",
+  "runtime_boundary": "正式运行包只定义任务目标、执行规则、输入输出要求和质量标准。推理、生成、工具调用及执行能力由宿主 Agent 提供。",
+  "model_independence": "正式运行包不得指定、配置或依赖具体模型、模型供应商、模型接口、模型参数、上下文限制或模型密钥。",
+  "legal_notice_policy": "LICENSE 保留正式法律文本，不对法律许可条款进行非正式改写。",
   "description": "面向宿主 Agent 的通用评测数据集构建规范包。"
 }
