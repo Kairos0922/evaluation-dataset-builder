@@ -84,7 +84,7 @@ description: 面向 Agent、Skill、API、工作流和其他系统，规划、�
 
 对于工具、接口或 Agent 执行用例，必须明确初始状态和前置条件、身份和权限、测试数据与外部依赖、隔离环境、允许操作及其顺序、期望终态和可观察断言、禁止副作用、重置、回滚、清理和失败清理步骤，以及成本和频率限制。
 
-执行状态只能使用 DESIGN_ONLY、READY_TO_RUN 或 EXECUTION_VERIFIED。没有真实环境时标记 NOT RUN。不得编造运行 ID、执行轨迹、状态快照或成功证据。
+执行状态只能使用 DESIGN_ONLY、READY_TO_RUN、EXECUTION_VERIFIED 或 NOT_RUN。没有真实执行时标记 NOT_RUN。不得编造运行 ID、执行轨迹、状态快照或成功证据。
 
 ## 7. 增量更新
 
