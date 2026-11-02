@@ -1,31 +1,435 @@
 {
-  "$schema":"https://json-schema.org/draft/2020-12/schema",
-  "title":"Evaluation Dataset Case",
-  "type":"object",
-  "required":["case_id","dataset_id","title","evaluation_target","objective","scenario_type","user_input","expected_behavior","grading","source_refs","quality_status"],
-  "properties":{
-    "case_id":{"type":"string","minLength":1},"dataset_id":{"type":"string","minLength":1},
-    "title":{"type":"string","minLength":1},"evaluation_target":{"type":"string","minLength":1},
-    "objective":{"type":"string","minLength":1},"capability_keys":{"type":"array","items":{"type":"string"},"minItems":1},
-    "scenario_id":{"type":["string","null"]},
-    "scenario_type":{"enum":["normal","boundary","exception","adversarial","safety","multi_turn","tool_use","other"]},
-    "risk_level":{"enum":["low","medium","high","critical","not_applicable"]},
-    "source_refs":{"type":"array","items":{"type":"object"}},
-    "preconditions":{"type":"array","items":{"type":"string"}},
-    "user_input":{"type":["string","object","array"]},
-    "expected_behavior":{"type":["string","array","object"]},
-    "forbidden_behavior":{"type":"array","items":{"type":"string"}},
-    "reference_outcome":{"type":["object","array","string","null"]},
-    "grading":{"type":"object","required":["method","criteria","pass_conditions","fail_conditions","evidence_required"],"properties":{
-      "method":{"enum":["rule_based","reference_match","llm_judge","state_check","trace_check","hybrid","human_review"]},
-      "criteria":{"type":"array","items":{"type":"object"}},
-      "pass_conditions":{"type":"array","items":{"type":"string"}},
-      "fail_conditions":{"type":"array","items":{"type":"string"}},
-      "evidence_required":{"type":"array","items":{"type":"string"}},
-      "uncertainty_policy":{"type":"string"}
-    }},
-    "execution_requirements":{"type":"object"},
-    "quality_status":{"enum":["candidate","validated","approved","needs_info","rejected","execution_verified"]},
-    "quality_review":{"type":"object"},"assumptions":{"type":"array","items":{"type":"string"}},"version":{"type":"string"}
-  },"additionalProperties":true
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Evaluation Dataset Case",
+  "type": "object",
+  "required": [
+    "case_id",
+    "dataset_id",
+    "title",
+    "evaluation_target",
+    "objective",
+    "scenario_type",
+    "user_input",
+    "expected_behavior",
+    "grading",
+    "source_refs",
+    "quality_status"
+  ],
+  "properties": {
+    "case_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dataset_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evaluation_target": {
+      "type": "string",
+      "minLength": 1
+    },
+    "objective": {
+      "type": "string",
+      "minLength": 1
+    },
+    "capability_keys": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "minItems": 1
+    },
+    "scenario_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "scenario_type": {
+      "enum": [
+        "normal",
+        "boundary",
+        "exception",
+        "adversarial",
+        "safety",
+        "multi_turn",
+        "tool_use",
+        "other"
+      ]
+    },
+    "risk_level": {
+      "enum": [
+        "low",
+        "medium",
+        "high",
+        "critical",
+        "not_applicable"
+      ]
+    },
+    "source_refs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "source_type"
+        ],
+        "properties": {
+          "source_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "source_type": {
+            "enum": [
+              "authoritative_policy",
+              "system_documentation",
+              "confirmed_expert_process",
+              "verified_historical_eval",
+              "incident_ticket",
+              "user_feedback",
+              "trace_log",
+              "derived_scenario",
+              "synthetic_scenario",
+              "inference_assumption"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "effective_date": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "authority": {
+            "type": "string"
+          },
+          "locator": {
+            "type": "string"
+          },
+          "quoted_evidence": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "preconditions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "user_input": {
+      "type": [
+        "string",
+        "object",
+        "array"
+      ]
+    },
+    "expected_behavior": {
+      "type": [
+        "string",
+        "array",
+        "object"
+      ]
+    },
+    "forbidden_behavior": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "reference_outcome": {
+      "type": [
+        "object",
+        "array",
+        "string",
+        "null"
+      ]
+    },
+    "grading": {
+      "type": "object",
+      "required": [
+        "method",
+        "criteria",
+        "pass_conditions",
+        "fail_conditions",
+        "evidence_required"
+      ],
+      "properties": {
+        "method": {
+          "enum": [
+            "rule_based",
+            "reference_match",
+            "llm_judge",
+            "state_check",
+            "trace_check",
+            "hybrid",
+            "human_review"
+          ]
+        },
+        "criteria": {
+          "type": "array",
+          "items": {
+            "type": "object"
+          }
+        },
+        "pass_conditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "fail_conditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evidence_required": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "acceptable_variants": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "partial_credit_policy": {
+          "type": "string"
+        },
+        "uncertainty_policy": {
+          "type": "string"
+        },
+        "reference_authority": {
+          "type": "string"
+        },
+        "calibration_cases": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "execution_requirements": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "DESIGN_ONLY",
+            "READY_TO_RUN",
+            "EXECUTION_VERIFIED"
+          ]
+        },
+        "initial_state": {
+          "type": [
+            "object",
+            "array",
+            "string"
+          ]
+        },
+        "required_permissions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "environment": {
+          "type": "object"
+        },
+        "test_data": {
+          "type": "array",
+          "items": {}
+        },
+        "allowed_actions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "expected_end_state": {
+          "type": [
+            "object",
+            "array",
+            "string"
+          ]
+        },
+        "observable_assertions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbidden_side_effects": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "reset_plan": {
+          "type": "string"
+        },
+        "cleanup_plan": {
+          "type": "string"
+        },
+        "failure_cleanup": {
+          "type": "string"
+        },
+        "cost_and_rate_limits": {
+          "type": "object"
+        },
+        "execution_evidence": {
+          "type": "object",
+          "properties": {
+            "run_id": {
+              "type": "string"
+            },
+            "executed_at": {
+              "type": "string"
+            },
+            "candidate_sha": {
+              "type": "string"
+            },
+            "artifact_refs": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "state_before": {
+              "type": [
+                "object",
+                "array",
+                "string"
+              ]
+            },
+            "state_after": {
+              "type": [
+                "object",
+                "array",
+                "string"
+              ]
+            }
+          },
+          "additionalProperties": true
+        }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "enum": [
+                  "READY_TO_RUN",
+                  "EXECUTION_VERIFIED"
+                ]
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "status",
+              "initial_state",
+              "required_permissions",
+              "environment",
+              "test_data",
+              "allowed_actions",
+              "steps",
+              "expected_end_state",
+              "observable_assertions",
+              "forbidden_side_effects",
+              "reset_plan",
+              "cleanup_plan",
+              "failure_cleanup"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "status": {
+                "const": "EXECUTION_VERIFIED"
+              }
+            },
+            "required": [
+              "status"
+            ]
+          },
+          "then": {
+            "required": [
+              "status",
+              "initial_state",
+              "required_permissions",
+              "environment",
+              "test_data",
+              "allowed_actions",
+              "steps",
+              "expected_end_state",
+              "observable_assertions",
+              "forbidden_side_effects",
+              "reset_plan",
+              "cleanup_plan",
+              "failure_cleanup",
+              "execution_evidence"
+            ]
+          }
+        }
+      ],
+      "additionalProperties": true
+    },
+    "quality_status": {
+      "enum": [
+        "candidate",
+        "validated",
+        "approved",
+        "needs_info",
+        "rejected",
+        "execution_verified"
+      ]
+    },
+    "quality_review": {
+      "type": "object"
+    },
+    "assumptions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "version": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
 }

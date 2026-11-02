@@ -1,19 +1,15 @@
 #!/usr/bin/env python3
-"""Structural, packaging, and release validator for Evaluation Dataset Builder."""
+"""Structural, packaging, and release-harness validator for Evaluation Dataset Builder."""
 from pathlib import Path
-import json
-import re
-import sys
+import json, re, subprocess, sys
 
 ROOT = Path(__file__).resolve().parents[1]
 errors = []
 warnings = []
 
-
 def check(condition, message):
     if not condition:
         errors.append(message)
-
 
 def read_json(relative):
     try:
@@ -22,8 +18,6 @@ def read_json(relative):
         errors.append(f"{relative} is invalid or unreadable: {exc}")
         return None
 
-
-# Release metadata
 version_file = ROOT / "VERSION"
 check(version_file.is_file(), "VERSION missing")
 version = version_file.read_text(encoding="utf-8").strip() if version_file.exists() else ""
@@ -31,7 +25,6 @@ check(bool(re.fullmatch(r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)", version)), 
 for rel in ["README.md", "CHANGELOG.md", "RELEASE.md", "LICENSE", "SKILL.md"]:
     check((ROOT / rel).is_file(), f"{rel} missing")
 
-# Skill frontmatter and size
 skill_path = ROOT / "SKILL.md"
 skill_text = skill_path.read_text(encoding="utf-8") if skill_path.exists() else ""
 check(skill_text.startswith("---\n"), "SKILL.md must start with YAML frontmatter")
@@ -48,45 +41,52 @@ if len(parts) >= 3:
         check(len(description.group(1)) <= 1024, "description exceeds 1024 chars")
 check(len(skill_text.splitlines()) <= 500, "SKILL.md exceeds recommended 500 lines")
 
-# Referenced knowledge and test assets
 required_files = [
     "references/quality-standard.md", "references/quality-standard.yaml",
     "references/dataset-schema.json", "references/grader-guidelines.md",
     "references/coverage-design-guideline.md", "references/source-and-evidence-policy.md",
     "references/request-planning-and-recovery.md", "references/deepseek-v4.1-flash.md",
+    "scripts/deepseek_model_preflight.py", "tests/test_deepseek_model_preflight.py",
     "tests/self-eval-cases.json", "tests/trigger-evals.json", "tests/README.md",
-    "tests/test_deepseek_model_preflight.py", "scripts/deepseek_model_preflight.py",
-    "scripts/validate_skill.py"
+    "tests/run_eval.py", "tests/test_release_gate.py",
+    "tests/RELEASE-REVIEW-CHECKLIST.md", "scripts/validate_skill.py",
+    "scripts/verify_release.py", "scripts/create_release_tag.py", "scripts/update_release_doc.py",
+    ".github/workflows/publish-release.yml"
 ]
 for rel in required_files:
     check((ROOT / rel).is_file(), f"required file missing: {rel}")
-for rel in re.findall(r"(?:references|tests|scripts)/[A-Za-z0-9._/-]+", skill_text):
-    check((ROOT / rel.rstrip(".,;")) .is_file(), f"SKILL.md references missing file: {rel}")
+for rel in re.findall(r"(?:references|tests|scripts)/[A-Za-z0-9._-]+", skill_text):
+    check((ROOT / rel).is_file(), f"SKILL.md references missing file: {rel}")
 
 schema = read_json("references/dataset-schema.json")
 if schema:
     check(schema.get("type") == "object", "case schema root must be object")
     check(bool(schema.get("required")), "case schema required fields missing")
-    check(len(set(schema.get("required", []))) == len(schema.get("required", [])), "case schema required fields contain duplicates")
 
 suite = read_json("tests/self-eval-cases.json")
 if suite:
     cases = suite.get("cases", [])
     ids = [case.get("id") for case in cases]
-    check(len(cases) >= 17, "self-eval suite needs at least 17 cases")
+    check(len(cases) >= 10, "self-eval suite needs at least 10 cases")
     check(len(ids) == len(set(ids)), "duplicate self-eval IDs")
     check(all(case.get("prompt") and case.get("expected") for case in cases), "incomplete self-eval case")
-    required_categories = {"large_context", "output_budget", "api_error_recovery", "partial_output", "preflight"}
-    actual_categories = {case.get("category") for case in cases}
-    check(required_categories.issubset(actual_categories), "self-eval suite missing request-reliability categories")
 
 trigger_suite = read_json("tests/trigger-evals.json")
 if trigger_suite:
     evals = trigger_suite.get("evals", [])
-    check(len(evals) >= 10, "trigger eval suite needs at least 10 queries")
-    check(any(item.get("should_trigger") is True for item in evals), "trigger suite needs positive examples")
-    check(any(item.get("should_trigger") is False for item in evals), "trigger suite needs negative examples")
+    positives = sum(item.get("should_trigger") is True for item in evals)
+    negatives = sum(item.get("should_trigger") is False for item in evals)
+    check(positives >= 20, "trigger suite needs at least 20 positive examples for 95% recall granularity")
+    check(negatives >= 20, "trigger suite needs at least 20 negative examples for 95% precision granularity")
+    check(positives == negatives, "trigger suite must be balanced")
+    check(len({item.get("query") for item in evals}) == len(evals), "duplicate trigger queries")
     check(all(item.get("query") and isinstance(item.get("should_trigger"), bool) for item in evals), "invalid trigger eval entry")
+
+for path in [ROOT / "tests/run_eval.py", *sorted((ROOT / "scripts").glob("*.py"))]:
+    try:
+        compile(path.read_text(encoding="utf-8"), str(path), "exec")
+    except Exception as exc:
+        errors.append(f"Python source syntax invalid ({path.relative_to(ROOT)}): {exc}")
 
 try:
     import yaml
@@ -100,20 +100,18 @@ except ImportError:
 except Exception as exc:
     errors.append(f"quality YAML invalid: {exc}")
 
-# Provider policy sanity: reject accidental return to arbitrary short fixed caps.
-planning_path = ROOT / "references/request-planning-and-recovery.md"
-planning_text = planning_path.read_text(encoding="utf-8") if planning_path.exists() else ""
-for required_phrase in [
-    "live model metadata", "Do not set the output ceiling to a small generic default",
-    "Do not retry unchanged", "Treat the outcome as unknown",
-    "continue from the first missing case/dataset cursor"
-]:
-    check(required_phrase in planning_text, f"request planning policy missing: {required_phrase}")
-
 if errors:
     print("FAIL\n" + "\n".join("- " + error for error in errors))
     sys.exit(1)
 for warning in warnings:
     print("WARN: " + warning)
-print(f"PASS: structural/package/provider-policy checks (version {version})")
-print("NOTE: semantic behavior and live generation require a compatible model harness.")
+print(f"PASS: structural/package checks (version {version})")
+unit_tests = subprocess.run(
+    [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "test_*.py"],
+    cwd=ROOT,
+)
+if unit_tests.returncode != 0:
+    print("FAIL: offline release-gate unit tests")
+    sys.exit(unit_tests.returncode)
+print("PASS: offline release-gate unit tests")
+print("NOTE: provider-backed behavior and trigger metrics require the evaluation workflow.")

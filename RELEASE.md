@@ -1,49 +1,51 @@
-# Release 0.0.1
-
-<badge>Release status: BLOCKED — do not publish</badge>
+# Release 0.0.1 — Candidate (not yet published)
 
 ## Scope
 
-General-purpose Agent Skill for evaluation dataset planning, generation, quality review, repair, and packaging. The 0.0.1 release candidate includes model-aware request budgeting and a DeepSeek V4.1 Flash metadata-only preflight helper.
-
-The agreed target version for this release remains **0.0.1**. A change in capability or implementation does not by itself authorize changing the version. Do not create a Git tag or GitHub Release until all required gates pass and release approval is explicit.
+General-purpose Agent Skill for evaluation dataset planning, generation, quality review, repair, and packaging. No domain-specific assumptions are built in.
 
 ## Install
 
-For internal testing, copy the complete repository Skill contents into a directory named `evaluation-dataset-builder` in the target Skill environment. Keep `SKILL.md` and the `references/` directory together. Internal testing is not a public release.
+Copy the complete repository Skill contents into a directory named evaluation-dataset-builder in the target Skill environment. Keep SKILL.md and the references/ directory together; optional tests/scripts are for validation and development.
 
 ## Validate
 
-```bash
-python scripts/validate_skill.py
-python -m unittest discover -s tests -p "test_*.py" -v
-```
+    python scripts/validate_skill.py
+    python -m unittest discover -s tests -p "test_*.py"
+
+## Use
+
+Provide the evaluation target, objectives, capability/business documentation, rules/policies, historical cases/traces, environment constraints, desired dataset split/count, and output format in one request. The Skill will plan datasets, generate cases and graders, review quality, and report assumptions/gaps. Missing authoritative evidence must not be fabricated.
+
+## Evaluation provider configuration
+
+- Generator: `deepseek-flash` (DeepSeek-V4.1-Flash-1017), non-thinking mode.
+- Independent Judge/Trigger: `deepseek-v4-pro`; Judge uses low thinking effort.
+- Per-evaluation budget: USD 1.50 estimated peak-price ceiling and 220-call ceiling.
+- Secret: `DEEPSEEK_API_KEY` (GitHub Actions repository secret).
 
 ## Release gates
 
-| Gate | Required evidence | Current status |
-|---|---|---|
-| Package and entrypoint integrity | Skill, references, schema, manifest, and required files validate | PASS |
-| Deterministic validation | Structural and policy validator passes | PASS |
-| CI and offline tests | GitHub Actions validator and unit-test job pass | PASS |
-| DeepSeek live preflight | Authenticated `GET /models` confirms live model ID and limits in GitHub Actions runner | PASS — run `41362696533`, commit `c4162aa`; secret injected, `deepseek-flash` metadata returned, no generation request sent |
-| Model behavior benchmark | Run the self-evaluation suite with the target Skill/model; report per-case outcomes and critical failures | NOT RUN |
-| Independent quality review | Human review of representative generated outputs, graders, coverage, and evidence traceability | NOT RUN |
-| Target-system execution validation | Execute applicable tool/action cases in a controlled harness; verify end state, side effects, reset, and cleanup | NOT RUN |
+- [x] Trusted-event-only DeepSeek metadata preflight workflow; PR jobs do not receive the DeepSeek secret.
+- [x] Exact-SHA manually dispatched behavior-evaluation workflow with independent Judge configuration and spend caps.
 
-**Release decision: BLOCKED.** The live DeepSeek metadata preflight is now verified in GitHub Actions (run `41362696533`): the runner received the configured secret, authenticated `GET /models`, and returned the `deepseek-flash` model metadata. No generation request was sent. Model behavior benchmarking, independent human quality review, and target-system execution validation remain incomplete. Passing CI and metadata preflight do not satisfy those gates.
 
-## DeepSeek preflight
+- [x] DeepSeek live metadata preflight: authenticated `GET /models` passed in GitHub Actions run `41362696533`; no generation request was sent.
+- [ ] Independent Judge configuration and complete behavior benchmark.
+- [ ] Independent human review and target-runtime execution evidence.
 
-Set `DEEPSEEK_API_KEY` in the target runtime and run:
 
-```bash
-python scripts/deepseek_model_preflight.py
-python scripts/deepseek_model_preflight.py --input-tokens 250000 --estimated-output-tokens 120000
-```
+- [x] Skill entrypoint, reference files, case schema, and quality standards
+- [x] Structural validator and offline release-gate unit tests
+- [x] Behavior evaluation harness with mandatory matched baseline
+- [x] Trigger fixture: 40 balanced queries (20 positive, 20 negative)
+- [x] Repeated-run stability calculation (minimum two full runs)
+- [x] Paid DeepSeek provider with peak-price spend cap and resumable API-response checkpointing
+- [ ] Behavioral pass rate >= 90% on every run
+- [ ] Trigger Precision >= 95% and Recall >= 95% on every run
+- [ ] Baseline comparison reviewed and accepted
+- [ ] Stability spread <= 5 percentage points for all three metrics
+- [ ] Independent human review of critical cases and generated outputs
+- [ ] Target-runtime validation
 
-This reads live model metadata through `GET /models`; it does not send a generation prompt. Supply estimated input/output tokens to validate a specific planned request. A successful preflight is necessary operational evidence, but it does not replace model behavior benchmarking.
-
-## Publication rule
-
-Do not mark this version publishable, create a version tag, or create a GitHub Release until every required gate above has recorded evidence and the release owner approves the result. A green CI run is necessary but not sufficient.
+This is a release candidate only. Do not publish tag v0.0.1 until every automated and human gate in RELEASE-GATE.md has passed on the exact release commit.
