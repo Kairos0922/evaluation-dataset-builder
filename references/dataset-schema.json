@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Evaluation Dataset Case",
+  "title": "评测数据集用例",
   "type": "object",
   "required": [
     "case_id",
