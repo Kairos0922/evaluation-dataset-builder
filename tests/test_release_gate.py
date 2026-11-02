@@ -1140,6 +1140,39 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn("局部修复", change_guideline)
         self.assertIn("稳定 ID", change_guideline)
 
+    def test_runtime_package_is_exactly_scoped_and_model_agnostic(self):
+        package = json.loads((ROOT / "skill-package.json").read_text(encoding="utf-8"))
+        expected_files = {
+            "SKILL.md", "LICENSE",
+            "references/host-agent-capability-adapter.md",
+            "references/terminology.md",
+            "references/quality-standard.md",
+            "references/quality-standard.yaml",
+            "references/dataset-schema.json",
+            "references/grader-guidelines.md",
+            "references/coverage-design-guideline.md",
+            "references/source-and-evidence-policy.md",
+            "references/business-scenario-model.md",
+            "references/scenario-buckets.md",
+            "references/change-impact-and-repair.md",
+            "references/dataset-manifest-schema.json",
+        }
+        self.assertEqual(set(package["included_files"]), expected_files)
+        self.assertNotIn("README.md", package["included_files"])
+        self.assertNotIn("references/chinese-controlled-writing.md", package["included_files"])
+        self.assertNotIn("references/task-planning-and-recovery.md", package["included_files"])
+
+        forbidden_terms = (
+            "DeepSeek", "OpenAI", "Anthropic", "Gemini", "Groq",
+            "Claude", "GPT-", "llm_judge", "LLM",
+        )
+        for relative_path in package["included_files"]:
+            if relative_path == "LICENSE":
+                continue
+            content = (ROOT / relative_path).read_text(encoding="utf-8")
+            for term in forbidden_terms:
+                self.assertNotIn(term.lower(), content.lower(), f"{relative_path} contains {term}")
+
     def test_critical_cases_exist(self):
         fixture = json.loads((ROOT / "tests" / "self-eval-cases.json").read_text(encoding="utf-8"))
         available = {item["id"] for item in fixture["cases"]}
