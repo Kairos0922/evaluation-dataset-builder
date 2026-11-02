@@ -489,6 +489,193 @@
     "version": {
       "type": "string",
       "description": "用例或所属数据集的版本标识。"
+    },
+    "business_rule_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "关联的稳定业务规则标识。"
+    },
+    "workflow_refs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "关联的流程、流程节点或状态转换标识。"
+    },
+    "scenario_bucket": {
+      "enum": [
+        "normal",
+        "boundary",
+        "business_rule",
+        "permission_security",
+        "state_anomaly",
+        "error_recovery",
+        "multi_turn",
+        "tool_interaction",
+        "negative",
+        "adversarial",
+        "data_quality",
+        "integration",
+        "other"
+      ],
+      "description": "用于覆盖检查的场景桶；按适用性选择。"
+    },
+    "case_origin": {
+      "enum": [
+        "business_document",
+        "historical_defect",
+        "user_feedback",
+        "execution_trace",
+        "synthetic_gap_fill",
+        "template_derived",
+        "mixed",
+        "unknown"
+      ],
+      "description": "用例来源类型。合成补缺用例不得冒充真实业务案例。"
+    },
+    "coverage_tags": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "dimension",
+          "value"
+        ],
+        "properties": {
+          "dimension": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          },
+          "coverage_item_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "description": "覆盖矩阵中的明确覆盖项标识。"
+    },
+    "observable_assertions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "assertion_id",
+          "observation",
+          "pass_condition"
+        ],
+        "properties": {
+          "assertion_id": {
+            "type": "string"
+          },
+          "observation": {
+            "type": "string"
+          },
+          "pass_condition": {
+            "type": "string"
+          },
+          "fail_condition": {
+            "type": "string"
+          },
+          "evidence_source": {
+            "type": "string"
+          },
+          "severity": {
+            "enum": [
+              "critical",
+              "high",
+              "medium",
+              "low"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "description": "与评分器关联的外部可观察断言。"
+    },
+    "trace_expectations": {
+      "type": "object",
+      "properties": {
+        "required_tools": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbidden_tools": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tool_sequence": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "parameter_constraints": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "max_steps": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "required_events": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "forbidden_events": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": true,
+      "description": "Agent/Skill/工具流程的轨迹约束；不适用时省略。"
+    },
+    "change_links": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "change_id",
+          "relation"
+        ],
+        "properties": {
+          "change_id": {
+            "type": "string"
+          },
+          "relation": {
+            "enum": [
+              "affected_by",
+              "validates",
+              "supersedes",
+              "derived_from"
+            ]
+          },
+          "note": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      },
+      "description": "关联变更记录，支持影响分析和局部修复。"
     }
   },
   "additionalProperties": true,
