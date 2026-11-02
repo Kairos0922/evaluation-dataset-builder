@@ -1,48 +1,45 @@
-# Release gate policy
+# 0.0.1 发布门禁规范
 
-A release is blocked unless every gate below has evidence tied to the exact candidate commit. The v0.0.1 tag and GitHub Release must not be created before approval. All pull requests must target `master`; CI rejects PRs targeting any other base. The repository default branch should also be set to `master` so new PRs default to the release trunk.
+只有候选提交的所有门禁均有可核验证据时，才允许发布。标签和 GitHub Release 必须绑定到经过审查的同一提交。任何失败、缺失、过期或无法核验的证据均表示暂不发布。
 
-## Automated gates
+## 自动化门禁
 
-1. Structural and offline harness tests pass on the candidate commit. The behavior suite must use concrete, scenario-grounded prompts and independently inspectable expected properties.
-2. Behavior expected-property pass rate is at least 90%. The denominator is the total binary expected-property checks across the complete self-evaluation suite, not the number of whole test cases. Every repeated run must independently meet the threshold.
-3. Trigger Precision and Recall are each at least 95% on every repeated run. The balanced trigger suite must contain at least 20 positive and 20 negative cases. Any classifier JSON parse error on any query is a separate hard failure; it must not be counted as a correct negative prediction.
-4. A matched baseline is mandatory: same Generator model, prompts, cases, and Judge criteria without the Skill. The report must contain complete baseline results and per-run/mean absolute score delta. Any regression or surprising uplift must be examined and explicitly accepted by the human reviewer.
-5. At least 2 complete runs are required on the same commit and model configuration. The max-minus-min spread for behavior pass rate, Trigger Precision, and Trigger Recall must each be <= 5 percentage points. Every run must independently pass gates 2 and 3.
-6. DeepSeek API errors, unavailable models, empty responses, insufficient balance/quota, local budget exhaustion, missing reports, or incomplete baselines fail closed. Billing/quota/budget stop errors immediately halt further paid calls. Successful responses are checkpointed by exact commit/model/suite/run scope so an interrupted run can resume without paying twice for completed calls. No partial run is a passing run.
+1. 正式包结构、引用完整性、Schema 和离线测试通过。
+2. 行为测试使用具体业务场景，并对预期属性进行独立判定。
+3. 行为测试达到项目预先确定的通过阈值；每次完整运行均须单独达标。
+4. 触发测试的准确率和召回率达到预设阈值；正负样本数量、重复项和解析错误均需检查。
+5. 对照测试必须使用相同任务、用例和判定标准，并记录差异及其解释。
+6. 至少完成两次完整运行；波动范围不得超过预设阈值。
+7. 任何不完整运行、缺失报告、预算中断或无法判定的结果均不得视为通过。
 
-## Model configuration
+具体测试工具和运行环境属于开发验收设施，不属于正式 Skill 运行包。不得将某一模型或供应商配置写入 Skill 的运行规范。
 
-The Groq Judge uses conservative local safeguards based on published baseline limits: 30 RPM, 8K TPM, and a 180K per-UTC-day token reservation ceiling (below the documented 200K TPD baseline; cumulative evaluation spend/request caps persist across daily checkpoint resumes). The model-specific 131,072-token context limit is enforced locally. The provider may impose lower account-specific limits; any 429/limit response is handled with bounded, paced retries and remasters charged against the request/cost ledger.
+## 必须进行的人工审查
 
-- Online provider: DeepSeek Chat Completions API at https://api.deepseek.com.
-- Generator: `deepseek-flash` (DeepSeek-V4.1-Flash-1017), non-thinking mode, 16,384-token output ceiling. The estimated total-request guard defaults to 950,000 tokens (the provider documents a 1M context window and 384K maximum output).
-- Judge: Groq `openai/gpt-oss-120b` by default, or another genuinely separate OpenAI-compatible provider/model; non-thinking mode, 2,400-token output ceiling. Trigger classification uses that Judge endpoint with a 180-token output ceiling. Groq GPT-OSS 120B has a 131,072-token context window and supports JSON Object Mode.
-- Generator secret: `DEEPSEEK_API_KEY`. Independent Judge secret: `GROQ_API_KEY` (default) or `EVAL_JUDGE_API_KEY`; the default endpoint/model are `https://api.groq.com/openai/v1` / `openai/gpt-oss-120b`, with conservative prices $0.15/M input and $0.60/M output. Custom providers use the `EVAL_JUDGE_*` variables.
-- **Current DeepSeek routing blocker:** DeepSeek announced that since 2026-09-14, `deepseek-v4-pro` requests are routed to V4.1 Flash until V4.1-Pro launches. As of 2026-11-02 this is not an independent model from `deepseek-flash`. The harness fails before paid calls if both roles resolve to that same deployed model. Do not label the Pro model ID as independent until DeepSeek officially changes the routing.
-- Each full evaluation is capped at USD 1.50 estimated peak-price spend and 220 provider requests. The cost estimate and request count are persisted before each paid call, including failed or truncated calls; a compatible checkpoint restores prior reservations before any further API request.
-- The exact generator and Judge endpoints/model IDs, token usage, estimated peak-price cost, paid generation/Judge POST attempt count (including retries); metadata-only GET /models preflights are separate and do not consume generation tokens, per-model context/rate limits, daily token reservations, and checkpoint cache hits must appear in the report. Every retry attempt is reserved against both the request and estimated-cost caps before the network call.
+独立审查人必须检查：
 
-## Mandatory human gates
+- 关键业务和风险用例。
+- 失败用例、判定理由和证据。
+- 代表性生成结果、来源追溯、假设和冲突处理。
+- 评分器可观察性、执行约束和副作用控制。
+- 对照结果、异常提升或退化。
+- 候选提交、测试集版本、运行记录和报告之间的一致性。
 
-Target-system execution is a separate mandatory release gate, not satisfied by this portable text benchmark. The independent reviewer must verify the controlled target-runtime execution report (environment/build, test IDs, initial/final state, tool/API traces, permissions, side effects, reset/cleanup, and run timestamp). The APPROVED review must include `target-runtime: PASS` and a stable HTTPS evidence link. If the target runtime is unavailable or any side-effect/reset evidence is missing, the release remasters BLOCKED.
+审查意见必须引用具体报告和发现。仅写“已检查”或“看起来正常”不构成充分证据。
 
-An independent reviewer must inspect the machine-readable report and record an APPROVED GitHub PR review. The review must explicitly confirm:
+## 目标环境验证
 
-- Critical cases: SE03, SE04, SE05, SE08, SE09, SE11, SE12.
-- All failed cases and Judge rationales/evidence; every passing Judge result must include a verbatim quote of at least 6 non-whitespace characters that the harness can locate in the exact candidate output; challenge any quote that does not support the stated rationale.
-- Representative generated outputs, including provenance, assumptions, conflict handling, grader observability, side-effect/reset handling, and negative-trigger behavior.
-- Baseline comparison and every negative or surprising uplift/regression.
-- Model IDs, suite ID, candidate SHA, workflow run ID, and at least two repeated-run metrics.
+目标系统执行是独立门禁，不能由文本行为测试替代。验证报告必须记录环境或构建版本、用例 ID、初始与最终状态、工具或接口轨迹、权限、副作用、重置与清理步骤及执行时间。
 
-A review that only says "looks good" is insufficient. The reviewer must cite the evaluation workflow run/report and summarize critical findings. Any unresolved critical safety, fabricated-gold, source-conflict, grader-validity, or side-effect issue blocks release regardless of aggregate score.
+环境不可用、关键副作用证据缺失或清理失败时，发布状态必须为 BLOCKED。
 
-## Release procedure
+## 发布流程
 
-1. Merge the release-gate/test-harness PR into master only after its code and structural checks are reviewed. This does not itself release v0.0.1.
-2. Configure DEEPSEEK_API_KEY and the independent EVAL_JUDGE_* repository variables/secret, then use Actions → Behavioral Skill Evaluation with the exact PR #2 head SHA. The workflow checks the SHA, performs metadata-only preflight, and runs two complete rounds under the USD 1.50 / 220-request caps.
-3. Confirm both complete runs pass all metric thresholds, baseline comparison is complete, and all stability gates pass.
-4. Complete the mandatory independent human review. If code changes after evaluation, discard the report and rerun on the new SHA.
-5. Only after steps 1-4 pass, create tag v0.0.1 at the reviewed commit and publish the GitHub Release with the evaluation report/run link attached.
+1. 在候选分支完成代码与文档审查。
+2. 对精确候选提交运行结构验证、离线测试和行为测试。
+3. 检查所有指标、对照结果和稳定性门禁。
+4. 完成独立人工审查和目标环境验证。
+5. 若候选提交发生变化，重新执行受影响的门禁。
+6. 全部通过后，创建 `v0.0.1` 标签并发布对应版本。
 
-No threshold override, skipped baseline, skipped trigger evaluation, single-run shortcut, or structural-CI-only release is allowed. Failed, missing, stale, or unverifiable evidence means NO RELEASE.
+不得跳过门禁、用单次运行替代重复运行，或仅凭结构验证发布。
