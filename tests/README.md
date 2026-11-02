@@ -53,7 +53,7 @@ Optional controls:
 - `DEEPSEEK_MAX_TOKENS` (default: 16384)
 - `DEEPSEEK_MAX_ESTIMATED_REQUEST_TOKENS` (default: 950000)
 - `EVAL_JUDGE_BASE_URL`, `EVAL_JUDGE_MODEL`, `EVAL_JUDGE_API_KEY`, `EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION`, and `EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION` (required for an independent Judge endpoint)
-- `--checkpoint` (default: `artifacts/eval-checkpoint.json`); successful responses and conservative provider token reservations are stored after each call. Groq Judge calls are locally paced to 30 RPM / 8K TPM and capped at 180K reserved tokens per UTC day; the provider's account-specific limits remain authoritative.
+- `--checkpoint` (default: `artifacts/eval-checkpoint.json`); successful responses and conservative provider token reservations are stored after each call. Groq Judge calls use the OpenAI GPT-OSS o200k tokenizer plus framing and a 10% safety margin, then are locally paced to 30 RPM / 8K TPM and capped at 180K reserved tokens per UTC day; the provider's account-specific limits remain authoritative.
 - GitHub Actions manual fallback accepts `resume_run_id` to restore a prior workflow artifact checkpoint. Use the same branch/SHA, models, suite, and run count so the signature matches.
 
 Never commit API keys or reports containing sensitive business prompts/data.
@@ -76,6 +76,6 @@ This evaluator runs the self-contained SKILL.md entrypoint as the system instruc
 
 ## GitHub Actions candidate run
 
-Use **Actions → Behavioral Skill Evaluation** and supply the full current PR #2 head SHA. The workflow verifies the exact SHA before running candidate code, performs metadata-only DeepSeek preflight, and requires the independent Judge endpoint/model/key and explicit input/output prices. It runs two complete rounds under the existing USD 1.50 / 220-request limits and uploads `candidate-evaluation-report-<run_id>`. Use the same SHA and `resume_run_id` to restore a checkpoint; do not resume against a changed candidate.
+Use **Actions → Behavioral Skill Evaluation** and supply the full current PR #2 head SHA. The workflow verifies the exact SHA before running candidate code, performs metadata-only DeepSeek preflight, and requires the independent Judge endpoint/model/key and explicit input/output prices. It runs two complete rounds under the existing USD 1.50 / 220-request limits and uploads `candidate-evaluation-report-<run_id>`. The first candidate run restores the previously uploaded checkpoint `41369272868` automatically; later resumes must specify the latest completed evaluation run ID and the same candidate SHA.
 
 Set `EVAL_JUDGE_MAX_COMPLETION_TOKENS` (default 2,400) if the judge response is truncated; changing this changes the request cache key, so completed generator outputs remain reusable only when the exact candidate/checkpoint signature matches.
