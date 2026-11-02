@@ -125,6 +125,11 @@ def main():
         for field in ("scenario_bucket", "case_origin", "coverage_tags",
                       "observable_assertions", "trace_expectations", "change_links"):
             check(field in case_properties, f"用例 Schema 缺少新规范字段：{field}")
+        required_case_fields = set(schema.get("required", []))
+        check({"scenario_bucket", "case_origin", "coverage_tags"}.issubset(required_case_fields),
+              "用例 Schema 必须要求场景桶、来源类型和覆盖标签")
+        check(case_properties.get("coverage_tags", {}).get("minItems", 0) >= 1,
+              "用例 Schema 必须要求至少一个覆盖标签")
         bucket = case_properties.get("scenario_bucket", {}).get("enum", [])
         check({"normal", "boundary", "business_rule", "permission_security",
                "state_anomaly", "error_recovery", "multi_turn",
