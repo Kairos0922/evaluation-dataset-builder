@@ -775,33 +775,38 @@ class ReleaseGateUnitTests(unittest.TestCase):
     def test_skill_contains_explicit_operational_response_contract(self):
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
         for required in (
-            "Missing evidence: continue safely",
-            "Conflict handling: record, do not hand-wave",
-            "Deduplication and coverage",
-            "Quality gates and repair plan",
-            "Execution readiness and side effects",
-            "Incremental updates and version changes",
-            "Output contract",
+            "证据缺失只阻断依赖该证据的结论",
+            "记录来源名称或 ID",
+            "语义去重",
+            "质量状态",
+            "执行就绪与副作用控制",
+            "增量更新",
+            "最终报告应包含",
         ):
             self.assertIn(required, skill)
 
     def test_required_artifact_formats_define_jsonl_manifest_coverage_and_completeness(self):
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
         for required in (
-            "one complete JSON object per line",
-            "coverage_universe",
-            "covered/total counts by dimension",
-            "pass/fail conditions",
-            "Final completeness pass",
-            "requested counts and schema",
+            "JSONL 文件必须每行包含一个完整且符合 Schema 的 JSON 对象",
+            "覆盖范围全集",
+            "各维度覆盖数量",
+            "通过与失败条件",
+            "最终完整性检查",
+            "核对数量、Schema",
         ):
             self.assertIn(required, skill)
 
     def test_output_completeness_template_covers_all_required_deliverables(self):
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
         for required in (
-            "plan/coverage", "cases/dedup", "repairs", "graders",
-            "execution", "changes/JSONL", "Never invent",
+            "数据集规划和覆盖情况",
+            "用例及语义去重结果",
+            "缺陷、修复动作",
+            "评分器方法",
+            "执行状态",
+            "变更影响",
+            "不得编造事实或结果",
         ):
             self.assertIn(required, skill)
 
