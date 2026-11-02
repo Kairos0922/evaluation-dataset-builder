@@ -723,7 +723,7 @@ def load_skill():
     portable proxy. Appending every reference verbatim duplicated those rules
     and exceeded the configured local request pacing budget.
     """
-    return (ROOT / "SKILL.md").read_text(encoding="utf-8").strip()
+    return (ROOT / "skills" / "evaluation-dataset-builder" / "SKILL.md").read_text(encoding="utf-8").strip()
 
 def binary_metrics(tp, fp, fn):
     precision = tp / (tp + fp) if tp + fp else 0.0

@@ -1,6 +1,9 @@
 ---
 name: evaluation-dataset-builder
-description: 面向 Agent、Skill、API、工作流和其他系统，规划、生成、审查、修复并交付有证据依据的评测数据集。
+description: 为 Agent、Skill、API、工作流和其他软件系统规划、生成、审查、修复和维护评测数据集。当用户需要设计评测方案、构建业务场景与评测用例、制定评分标准和覆盖矩阵，或更新既有评测数据集时使用。
+license: MIT
+metadata:
+  version: "0.0.1"
 ---
 
 # 评测数据集构建 Skill
@@ -15,8 +18,6 @@ description: 面向 Agent、Skill、API、工作流和其他系统，规划、�
 
 ## 2. 核心规则
 
-- 只使用宿主 Agent 当前实际提供的能力、工具、权限和资料；不得假设某项能力必然可用。
-- 不指定、不配置或依赖特定模型、服务商、外部服务或执行引擎。
 - 不得编造业务规则、真实来源、版本、金标准、执行记录或测试结果。
 - 明确区分事实、推断、假设、合成示例、未经核实的报告和未知信息。
 - 证据缺失只阻断依赖该证据的结论；继续完成有充分依据的独立工作。
@@ -144,17 +145,16 @@ approved 不代表 EXECUTION_VERIFIED。不得把设计完成、结构校验通�
 
 不得遗漏用户要求的交付物，不得编造事实或结果。
 
-## 12. 参考规范
+## 12. 按需加载的参考资料
 
-- references/host-agent-capability-adapter.md
-- references/terminology.md
-- references/quality-standard.md
-- references/quality-standard.yaml
-- references/dataset-schema.json
-- references/grader-guidelines.md
-- references/coverage-design-guideline.md
-- references/source-and-evidence-policy.md
-- references/business-scenario-model.md
-- references/scenario-buckets.md
-- references/change-impact-and-repair.md
-- references/dataset-manifest-schema.json
+只读取与当前任务阶段相关的资料，不必每次加载全部文件。以下路径均相对于本 Skill 目录。
+
+- 建立业务模型、梳理规则/状态/流程：读取 `references/business-scenario-model.md`。
+- 规划场景类型、检查测试场景遗漏：读取 `references/scenario-buckets.md`。
+- 定义覆盖全集、统计覆盖率、排序缺口：读取 `references/coverage-design-guideline.md`。
+- 核实资料权威性、区分真实案例与合成补缺：读取 `references/source-and-evidence-policy.md`。
+- 设计评分器、通过/失败条件和校准方案：读取 `references/grader-guidelines.md`。
+- 执行质量审查、计算质量分或判断验收等级：读取 `references/quality-standard.md`；需要机器可读权重、阈值或门禁配置时，再读取 `references/quality-standard.yaml`。
+- 生成或校验用例、数据集清单：分别读取 `references/dataset-schema.json` 和 `references/dataset-manifest-schema.json`。
+- 需要统一术语、状态或机器字段定义：读取 `references/terminology.md`。
+- 业务规则、来源、目标或评分标准发生变化：读取 `references/change-impact-and-repair.md`。

@@ -7,6 +7,7 @@ from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+SKILL_DIR = ROOT / "skills" / "evaluation-dataset-builder"
 SPEC = importlib.util.spec_from_file_location("run_eval", ROOT / "tests" / "run_eval.py")
 RUN_EVAL = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RUN_EVAL)
@@ -774,7 +775,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertLessEqual(max(combined_estimates), RUN_EVAL.MAX_ESTIMATED_REQUEST_TOKENS)
 
     def test_skill_contains_explicit_operational_response_contract(self):
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        skill = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
         for required in (
             "证据缺失只阻断依赖该证据的结论",
             "记录来源名称或 ID",
@@ -787,7 +788,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
             self.assertIn(required, skill)
 
     def test_required_artifact_formats_define_jsonl_manifest_coverage_and_completeness(self):
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        skill = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
         for required in (
             "JSONL 文件必须每行包含一个完整且符合 Schema 的 JSON 对象",
             "覆盖范围全集",
@@ -799,7 +800,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
             self.assertIn(required, skill)
 
     def test_output_completeness_template_covers_all_required_deliverables(self):
-        skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")
+        skill = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
         for required in (
             "数据集规划和覆盖情况",
             "用例及语义去重结果",
@@ -1064,7 +1065,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
     def test_case_schema_defines_evidence_and_side_effect_execution_fields(self):
         schema = json.loads(
-            (ROOT / "references" / "dataset-schema.json").read_text(encoding="utf-8")
+            (SKILL_DIR / "references" / "dataset-schema.json").read_text(encoding="utf-8")
         )
         grading = schema["properties"]["grading"]["properties"]
         for field in ("acceptable_variants", "uncertainty_policy",
@@ -1101,17 +1102,17 @@ class ReleaseGateUnitTests(unittest.TestCase):
                             for criterion in cases["SE12"]["expected"]))
 
     def test_new_business_coverage_and_manifest_contracts(self):
-        package = json.loads((ROOT / "skill-package.json").read_text(encoding="utf-8"))
         required_refs = {
             "references/business-scenario-model.md",
             "references/scenario-buckets.md",
             "references/change-impact-and-repair.md",
             "references/dataset-manifest-schema.json",
         }
-        self.assertTrue(required_refs.issubset(set(package["included_files"])))
+        for relative_path in required_refs:
+            self.assertTrue((SKILL_DIR / relative_path).is_file(), relative_path)
 
         case_schema = json.loads(
-            (ROOT / "references" / "dataset-schema.json").read_text(encoding="utf-8")
+            (SKILL_DIR / "references" / "dataset-schema.json").read_text(encoding="utf-8")
         )
         case_props = case_schema["properties"]
         for field in ("scenario_bucket", "case_origin", "coverage_tags",
@@ -1132,7 +1133,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertNotIn("llm_judge", case_props["grading"]["properties"]["method"]["enum"])
 
         manifest_schema = json.loads(
-            (ROOT / "references" / "dataset-manifest-schema.json").read_text(encoding="utf-8")
+            (SKILL_DIR / "references" / "dataset-manifest-schema.json").read_text(encoding="utf-8")
         )
         self.assertTrue({
             "dataset_id", "version", "evaluation_target", "purpose", "scope",
@@ -1140,18 +1141,16 @@ class ReleaseGateUnitTests(unittest.TestCase):
         }.issubset(set(manifest_schema["required"])))
         self.assertIn("dimensions", manifest_schema["properties"]["coverage"]["properties"])
 
-        coverage = (ROOT / "references" / "coverage-design-guideline.md").read_text(encoding="utf-8")
+        coverage = (SKILL_DIR / "references" / "coverage-design-guideline.md").read_text(encoding="utf-8")
         self.assertIn("缺口驱动生成", coverage)
         self.assertIn("覆盖率", coverage)
-        change_guideline = (ROOT / "references" / "change-impact-and-repair.md").read_text(encoding="utf-8")
+        change_guideline = (SKILL_DIR / "references" / "change-impact-and-repair.md").read_text(encoding="utf-8")
         self.assertIn("局部修复", change_guideline)
         self.assertIn("稳定 ID", change_guideline)
 
-    def test_runtime_package_is_exactly_scoped_and_model_agnostic(self):
-        package = json.loads((ROOT / "skill-package.json").read_text(encoding="utf-8"))
+    def test_skill_directory_matches_agent_skills_layout_and_contains_only_runtime_assets(self):
         expected_files = {
-            "SKILL.md", "LICENSE",
-            "references/host-agent-capability-adapter.md",
+            "SKILL.md",
             "references/terminology.md",
             "references/quality-standard.md",
             "references/quality-standard.yaml",
@@ -1164,19 +1163,28 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "references/change-impact-and-repair.md",
             "references/dataset-manifest-schema.json",
         }
-        self.assertEqual(set(package["included_files"]), expected_files)
-        self.assertNotIn("README.md", package["included_files"])
-        self.assertNotIn("references/chinese-controlled-writing.md", package["included_files"])
-        self.assertNotIn("references/task-planning-and-recovery.md", package["included_files"])
+        actual_files = {
+            item.relative_to(SKILL_DIR).as_posix()
+            for item in SKILL_DIR.rglob("*") if item.is_file()
+        }
+        self.assertEqual(actual_files, expected_files)
+        self.assertEqual(SKILL_DIR.name, "evaluation-dataset-builder")
+        self.assertTrue((ROOT / "README.md").is_file())
+        self.assertFalse((SKILL_DIR / "README.md").exists())
+        self.assertFalse((ROOT / "SKILL.md").exists())
+        self.assertFalse((ROOT / "skill-package.json").exists())
+
+        skill_text = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
+        self.assertIn("license: MIT", skill_text)
+        self.assertIn('version: "0.0.1"', skill_text)
+        self.assertNotIn("host-agent-capability-adapter", skill_text)
 
         forbidden_terms = (
             "DeepSeek", "OpenAI", "Anthropic", "Gemini", "Groq",
             "Claude", "GPT-", "llm_judge", "LLM",
         )
-        for relative_path in package["included_files"]:
-            if relative_path == "LICENSE":
-                continue
-            content = (ROOT / relative_path).read_text(encoding="utf-8")
+        for relative_path in expected_files:
+            content = (SKILL_DIR / relative_path).read_text(encoding="utf-8")
             for term in forbidden_terms:
                 self.assertNotIn(term.lower(), content.lower(), f"{relative_path} contains {term}")
 
