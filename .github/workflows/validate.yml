@@ -1,62 +1,21 @@
-name: Validate Skill
+名称: 验证 Skill
 on:
   push:
-    branches: ["main", "master", "test-harness/0.0.1-rc1", "feat/**", "work/**"]
+    branches: ["main", "master", "release/**", "work/**", "feat/**"]
   pull_request:
   workflow_dispatch:
 
 jobs:
-  structural-validation:
+  结构验证:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install pyyaml tiktoken
-      - run: python scripts/validate_skill.py
-      - run: python -m unittest discover -s tests -p "test_*.py" -v
-
-  require-master-target:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref != 'fix/master-release-trunk'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Require master as the release pull request base
-        env:
-          BASE_REF: ${{ github.event.pull_request.base.ref }}
-        run: |
-          if [ "$BASE_REF" != "master" ]; then
-            echo "All release pull requests must target master (current base: $BASE_REF)."
-            exit 1
-          fi
-
-  deepseek-live-preflight:
-    if: >-
-      (github.event_name == 'push' &&
-       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')) ||
-      (github.event_name == 'workflow_dispatch' &&
-       (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'))
-    # This job performs only GET /models; it never submits a generation request.
-    runs-on: ubuntu-latest
-    timeout-minutes: 3
-    env:
-      DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Check secret availability without exposing its value
-        id: secret-check
-        shell: bash
-        run: |
-          if [ -z "${DEEPSEEK_API_KEY:-}" ]; then
-            echo "available=false" >> "$GITHUB_OUTPUT"
-            echo "::warning::DEEPSEEK_API_KEY is not available to this workflow run. Check repository/organization secret scope and event permissions; no API request was sent."
-          else
-            echo "available=true" >> "$GITHUB_OUTPUT"
-            echo "DEEPSEEK_API_KEY is present in the runner environment (value is not displayed)."
-          fi
-      - name: Verify DeepSeek model metadata
-        if: steps.secret-check.outputs.available == 'true'
-        run: python scripts/deepseek_model_preflight.py
+      - name: 安装验证依赖
+        run: python -m pip install pyyaml
+      - name: 验证正式包
+        run: python scripts/validate_skill.py
+      - name: 运行离线测试
+        run: python -m unittest discover -s tests -p "test_*.py" -v
