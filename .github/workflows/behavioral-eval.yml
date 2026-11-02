@@ -1,0 +1,100 @@
+name: Behavioral Skill Evaluation
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact current PR #2 head SHA to evaluate
+        required: true
+        type: string
+      generator_model:
+        description: DeepSeek generator model
+        required: true
+        default: deepseek-flash
+      resume_run_id:
+        description: Optional prior Actions run ID containing an evaluation checkpoint
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  behavioral-eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.candidate_sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify candidate SHA is the exact open PR #2 head
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          if [[ ! "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "candidate_sha must be a full 40-character commit SHA."
+            exit 2
+          fi
+          PR_HEAD="$(gh api "repos/$GITHUB_REPOSITORY/pulls/2" --jq '.head.sha')"
+          PR_BASE="$(gh api "repos/$GITHUB_REPOSITORY/pulls/2" --jq '.base.ref')"
+          if [ "$PR_HEAD" != "$CANDIDATE_SHA" ] || [ "$PR_BASE" != "main" ]; then
+            echo "Candidate SHA must exactly match open PR #2 head targeting main."
+            exit 2
+          fi
+          echo "Verified exact PR #2 candidate SHA."
+      - name: Structural validation and offline release-gate tests
+        run: python scripts/validate_skill.py
+      - name: Run offline release-harness unit tests
+        run: python -m unittest discover -s tests -p "test_*.py"
+      - name: Restore checkpoint from a previous Actions run when requested
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RESUME_RUN_ID: ${{ inputs.resume_run_id }}
+        run: |
+          if [ -n "$RESUME_RUN_ID" ]; then
+            mkdir -p artifacts
+            if gh run download "$RESUME_RUN_ID" --name "candidate-evaluation-report-$RESUME_RUN_ID" --dir artifacts; then
+              echo "Restored PR evaluation checkpoint from run $RESUME_RUN_ID."
+            else
+              echo "Could not find a downloadable evaluation artifact for run $RESUME_RUN_ID."
+              exit 1
+            fi
+          fi
+      - name: Run repeated behavior, baseline, and trigger evaluations
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_GENERATOR_MODEL: ${{ inputs.generator_model }}
+          EVAL_JUDGE_BASE_URL: ${{ vars.EVAL_JUDGE_BASE_URL }}
+          EVAL_JUDGE_MODEL: ${{ vars.EVAL_JUDGE_MODEL }}
+          EVAL_JUDGE_API_KEY: ${{ secrets.EVAL_JUDGE_API_KEY }}
+          EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION: ${{ vars.EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION }}
+          EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION: ${{ vars.EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION }}
+          DEEPSEEK_MAX_ESTIMATED_COST_USD: "1.50"
+          DEEPSEEK_MAX_API_REQUESTS: "220"
+          DEEPSEEK_MAX_TOKENS: "16384"
+          EVAL_GIT_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          if [ -z "$DEEPSEEK_API_KEY" ]; then
+            echo "Repository secret DEEPSEEK_API_KEY is required."
+            exit 2
+          fi
+          if [ -z "$EVAL_JUDGE_BASE_URL" ] || [ -z "$EVAL_JUDGE_MODEL" ] || [ -z "$EVAL_JUDGE_API_KEY" ] || [ -z "$EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION" ] || [ -z "$EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION" ]; then
+            echo "An independent Judge endpoint, model, key, and explicit token prices are required. No generation request has been sent."
+            exit 2
+          fi
+          python tests/run_eval.py --runs 2 --output artifacts/eval-report.json
+      - name: Upload complete evaluation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: candidate-evaluation-report-${{ github.run_id }}
+          path: |
+            artifacts/eval-report.json
+            artifacts/eval-checkpoint.json
+          if-no-files-found: warn
+          retention-days: 30
