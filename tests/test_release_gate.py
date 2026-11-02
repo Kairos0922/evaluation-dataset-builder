@@ -221,6 +221,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn("EVAL_JUDGE_BASE_URL", workflow)
         self.assertIn("EVAL_JUDGE_API_KEY", workflow)
         self.assertIn('DEEPSEEK_MAX_TOKENS: "16384"', workflow)
+        self.assertIn("EVAL_JUDGE_MAX_COMPLETION_TOKENS", workflow)
         self.assertIn("candidate-evaluation-report-", workflow)
 
     def test_release_tag_creator_is_present_and_compiles(self):
