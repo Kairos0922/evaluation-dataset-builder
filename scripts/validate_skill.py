@@ -136,7 +136,13 @@ def main():
               "用例 Schema 必须要求场景桶、来源类型和覆盖标签")
         check(case_properties.get("coverage_tags", {}).get("minItems", 0) >= 1,
               "用例 Schema 必须要求至少一个覆盖标签")
-        bucket = case_properties.get("scenario_bucket", {}).get("enum", [])
+        bucket_schema = case_properties.get("scenario_bucket", {})
+        bucket = bucket_schema.get("items", {}).get("enum", [])
+        check("scenario_type" not in case_properties,
+              "用例 Schema 不得保留与 scenario_bucket 重叠的旧分类字段")
+        check(bucket_schema.get("type") == "array" and bucket_schema.get("minItems", 0) >= 1
+              and bucket_schema.get("uniqueItems") is True,
+              "scenario_bucket 必须是至少包含一个且不重复的数组")
         check({"normal", "boundary", "business_rule", "permission_security",
                "state_anomaly", "error_recovery", "multi_turn",
                "tool_interaction", "negative", "adversarial",
