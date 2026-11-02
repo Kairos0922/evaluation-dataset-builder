@@ -217,23 +217,23 @@ class ReleaseGateUnitTests(unittest.TestCase):
         workflow = (ROOT / ".github" / "workflows" / "behavioral-eval.yml").read_text(encoding="utf-8")
         self.assertIn("run-name: Behavioral Skill Evaluation", workflow)
         self.assertIn("candidate_sha:", workflow)
-        self.assertIn("PR_HEAD", workflow)
+        self.assertIn("MAIN_SHA", workflow)
         self.assertIn("EVAL_JUDGE_BASE_URL", workflow)
         self.assertIn("EVAL_JUDGE_API_KEY", workflow)
         self.assertIn('DEEPSEEK_MAX_TOKENS: "16384"', workflow)
         self.assertIn("EVAL_JUDGE_MAX_COMPLETION_TOKENS", workflow)
         self.assertIn("candidate-evaluation-report-", workflow)
 
-    def test_release_scripts_require_master_and_match_run_name_prefix(self):
+    def test_release_scripts_require_main_and_match_run_name_prefix(self):
         creator = (ROOT / "scripts" / "create_release_tag.py").read_text(encoding="utf-8")
         verifier = (ROOT / "scripts" / "verify_release.py").read_text(encoding="utf-8")
         updater = (ROOT / "scripts" / "update_release_doc.py").read_text(encoding="utf-8")
-        self.assertIn('default_branch") == "master"', creator)
-        self.assertIn('default_branch") == "master"', verifier)
-        self.assertIn('default_branch") == "master"', updater)
+        self.assertIn('default_branch") == "main"', creator)
+        self.assertIn('default_branch") == "main"', verifier)
+        self.assertIn('default_branch") == "main"', updater)
         self.assertIn('startswith("Behavioral Skill Evaluation")', creator)
         self.assertIn('startswith("Behavioral Skill Evaluation")', verifier)
-        self.assertIn('contents/RELEASE.md?ref=master', updater)
+        self.assertIn('contents/RELEASE.md?ref=main', updater)
 
     def test_release_tag_creator_is_present_and_compiles(self):
         path = ROOT / "scripts" / "create_release_tag.py"
@@ -1027,11 +1027,11 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertFalse(result["gates"]["trigger_classifier_valid"]["pass"])
         self.assertFalse(result["automated_run_pass"])
 
-    def test_workflow_blocks_release_pull_requests_not_targeting_master(self):
+    def test_workflow_blocks_release_pull_requests_not_targeting_main(self):
         workflow = (ROOT / ".github" / "workflows" / "validate.yml").read_text(encoding="utf-8")
-        self.assertIn("require-master-target:", workflow)
+        self.assertIn("require-main-target:", workflow)
         self.assertIn("github.event.pull_request.base.ref", workflow)
-        self.assertIn('if [ "$BASE_REF" != "master" ]', workflow)
+        self.assertIn('if [ "$BASE_REF" != "main" ]', workflow)
 
     def test_report_declares_provider_completeness_hard_gates(self):
         source = (ROOT / "tests" / "run_eval.py").read_text(encoding="utf-8")

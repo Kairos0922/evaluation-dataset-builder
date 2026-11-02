@@ -69,19 +69,19 @@ def create_release_tag():
             "GITHUB_TOKEN, GITHUB_REPOSITORY, and RELEASE_CANDIDATE_SHA are required.")
 
     repository = api_request(f"/repos/{repo}", token)
-    require(repository.get("default_branch") == "master",
-            "Repository default branch must be master before tagging v0.0.1.")
+    require(repository.get("default_branch") == "main",
+            "Repository default branch must be main before tagging v0.0.1.")
 
     pr = api_request(f"/repos/{repo}/pulls/{pr_number}", token)
     require(pr.get("merged") is True and pr.get("state") == "closed",
             "The release PR must be merged and closed.")
-    require((pr.get("base") or {}).get("ref") == "master",
-            "The release PR must merge into master.")
+    require((pr.get("base") or {}).get("ref") == "main",
+            "The release PR must merge into main.")
     require((pr.get("head") or {}).get("sha") == candidate_sha,
             "Merged PR head SHA does not match the candidate SHA.")
     release_sha = pr.get("merge_commit_sha")
     require(bool(release_sha),
-            "Merged PR does not expose merge_commit_sha; refusing to tag a non-master commit.")
+            "Merged PR does not expose merge_commit_sha; refusing to tag a non-main commit.")
     author = (pr.get("user") or {}).get("login")
     require(bool(author), "Could not identify the release PR author.")
 
@@ -115,7 +115,7 @@ def create_release_tag():
         )
         existing_sha = (tag_ref.get("object") or {}).get("sha")
         require(existing_sha == release_sha,
-                "Existing v0.0.1 tag does not point to the merged master commit.")
+                "Existing v0.0.1 tag does not point to the merged main commit.")
         created = False
     except urllib.error.HTTPError as exc:
         if exc.code != 404:
@@ -137,7 +137,7 @@ def create_release_tag():
     notes = (
         "# Evaluation Dataset Builder v0.0.1\n\n"
         f"- Reviewed PR head SHA: `{candidate_sha}`\n"
-        f"- Merged master commit / tag SHA: `{release_sha}`\n"
+        f"- Merged main commit / tag SHA: `{release_sha}`\n"
         f"- Validation run: {run_url}\n"
         f"- Independent reviewer: {reviewer}\n"
         f"- Generator: `{report['models']['generator']}`; Judge: `{report['models']['judge_and_trigger']}`\n"
