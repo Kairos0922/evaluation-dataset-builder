@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""DeepSeek-backed release-gate evaluator with matched baseline and repeat-run checks."""
+"""Multi-provider release-gate evaluator with matched baseline and repeat-run checks."""
 import argparse
 import json
 import hashlib
@@ -36,6 +36,15 @@ MAX_COMPLETION_TOKENS = int(os.getenv("DEEPSEEK_MAX_TOKENS", "16384"))
 MAX_ESTIMATED_COST_USD = float(os.getenv("DEEPSEEK_MAX_ESTIMATED_COST_USD", "1.50"))
 MAX_API_REQUESTS = int(os.getenv("DEEPSEEK_MAX_API_REQUESTS", "220"))
 MAX_ESTIMATED_REQUEST_TOKENS = int(os.getenv("DEEPSEEK_MAX_ESTIMATED_REQUEST_TOKENS", "950000"))
+MODEL_CONTEXT_LIMITS = {"openai/gpt-oss-120b": 131072}
+MODEL_RATE_LIMITS = {
+    "openai/gpt-oss-120b": {
+        "rpm": int(os.getenv("GROQ_JUDGE_RPM", "30")),
+        "tpm": int(os.getenv("GROQ_JUDGE_TPM", "8000")),
+        "tpd": int(os.getenv("GROQ_JUDGE_TPD", "200000")),
+    }
+}
+MODEL_RATE_HISTORY = {}
 MODEL_PRICING_USD_PER_MILLION = {
     "deepseek-flash": {"input": 0.30, "output": 1.20},
     "deepseek-v4-pro": {"input": 0.30, "output": 1.20},
@@ -46,7 +55,7 @@ ESTIMATED_COST_RESERVED_USD = 0.0
 CACHE_HITS_BY_MODEL = {}
 CURRENT_RUN_INDEX = 0
 CHECKPOINT_PATH = None
-CHECKPOINT_STORE = {"schema_version": 2, "signature": None, "responses": {}}
+CHECKPOINT_STORE = {"schema_version": 5, "signature": None, "responses": {}}
 
 
 def effective_model_identity(base_url, model):
@@ -67,7 +76,8 @@ def evaluation_git_sha():
 
 
 def build_payload(model, system, user, max_completion_tokens=900,
-                  json_mode=False, temperature=0.2, thinking=False):
+                  json_mode=False, temperature=0.2, thinking=False,
+                  deepseek_fields=True):
     """Build a DeepSeek-compatible Chat Completions request body."""
     if not isinstance(max_completion_tokens, int) or not (
         1 <= max_completion_tokens <= MAX_COMPLETION_TOKENS
@@ -82,10 +92,12 @@ def build_payload(model, system, user, max_completion_tokens=900,
             {"role": "user", "content": user},
         ],
         "max_tokens": max_completion_tokens,
-        "thinking": {"type": "enabled" if thinking else "disabled"},
-        "reasoning_effort": "low" if thinking else "none",
     }
-    # DeepSeek ignores temperature in thinking mode.
+    if deepseek_fields:
+        payload["thinking"] = {"type": "enabled" if thinking else "disabled"}
+        payload["reasoning_effort"] = "low" if thinking else "none"
+    # DeepSeek ignores temperature in thinking mode. OpenAI-compatible Judge
+    # providers receive standard Chat Completions fields only.
     if not thinking:
         payload["temperature"] = temperature
     if json_mode:
@@ -106,12 +118,60 @@ def estimate_request_tokens(system, user, max_completion_tokens):
 
 
 def throttle_model(model, estimated_tokens):
-    """Apply a local per-request size guard; API rate limits remain authoritative."""
-    if estimated_tokens > MAX_ESTIMATED_REQUEST_TOKENS:
+    """Apply provider context and conservative rolling-window rate limits."""
+    local_limit = min(
+        MAX_ESTIMATED_REQUEST_TOKENS,
+        MODEL_CONTEXT_LIMITS.get(model, MAX_ESTIMATED_REQUEST_TOKENS),
+    )
+    if estimated_tokens > local_limit:
         raise EvaluationBudgetExceeded(
-            f"Estimated request size {estimated_tokens} exceeds the local safety cap "
-            f"{MAX_ESTIMATED_REQUEST_TOKENS}."
+            f"Estimated request size {estimated_tokens} exceeds the local/provider "
+            f"context safety limit {local_limit} for {model}."
         )
+    limits = MODEL_RATE_LIMITS.get(model)
+    if not limits:
+        return
+    if estimated_tokens > limits["tpm"]:
+        raise EvaluationBudgetExceeded(
+            f"One {model} request is estimated at {estimated_tokens} tokens, above "
+            f"the configured per-minute token allowance {limits['tpm']}."
+        )
+    history = MODEL_RATE_HISTORY.setdefault(model, deque())
+    while True:
+        now = time.monotonic()
+        while history and now - history[0][0] >= 60:
+            history.popleft()
+        used_tokens = sum(item[1] for item in history)
+        wait_seconds = 0.0
+        if len(history) >= limits["rpm"]:
+            wait_seconds = max(wait_seconds, 60 - (now - history[0][0]))
+        if used_tokens + estimated_tokens > limits["tpm"]:
+            running = used_tokens
+            for timestamp, token_count in history:
+                running -= token_count
+                if running + estimated_tokens <= limits["tpm"]:
+                    wait_seconds = max(wait_seconds, 60 - (now - timestamp))
+                    break
+        if wait_seconds <= 0:
+            break
+        time.sleep(wait_seconds + 0.05)
+    history.append((time.monotonic(), estimated_tokens))
+
+
+def reserve_model_daily_tokens(model, estimated_tokens):
+    """Persist conservative per-model daily token reservations before each HTTP attempt."""
+    limits = MODEL_RATE_LIMITS.get(model)
+    if not limits:
+        return
+    reservations = CHECKPOINT_STORE.setdefault("estimated_tokens_reserved_by_model", {})
+    current = int(reservations.get(model, 0) or 0)
+    if current + estimated_tokens > limits["tpd"]:
+        raise EvaluationBudgetExceeded(
+            f"Conservative {model} daily token reservation would exceed "
+            f"{limits['tpd']} tokens; stopping before another provider request."
+        )
+    reservations[model] = current + estimated_tokens
+    save_checkpoint()
 
 
 def estimate_request_cost_usd(model, system, user, max_completion_tokens):
@@ -119,7 +179,7 @@ def estimate_request_cost_usd(model, system, user, max_completion_tokens):
     pricing = MODEL_PRICING_USD_PER_MILLION.get(model)
     if pricing is None:
         raise ProviderStopError(
-            f"No conservative price entry is configured for DeepSeek model {model!r}; refusing an unbudgeted call."
+            f"No conservative price entry is configured for provider model {model!r}; refusing an unbudgeted call."
         )
     prompt_tokens = estimate_request_tokens(system, user, 0)
     return (
@@ -144,7 +204,7 @@ def configure_checkpoint(path, signature):
     if CHECKPOINT_PATH.exists():
         try:
             existing = json.loads(CHECKPOINT_PATH.read_text(encoding="utf-8"))
-            if existing.get("schema_version") == 4 and existing.get("signature") == signature and isinstance(existing.get("responses"), dict):
+            if existing.get("schema_version") == 5 and existing.get("signature") == signature and isinstance(existing.get("responses"), dict):
                 CHECKPOINT_STORE = existing
                 API_REQUEST_COUNT = int(existing.get("api_requests", 0) or 0)
                 ESTIMATED_COST_RESERVED_USD = float(
@@ -159,7 +219,7 @@ def configure_checkpoint(path, signature):
         except (OSError, ValueError):
             print("Existing checkpoint is unreadable; starting a clean checkpoint.", flush=True)
     CHECKPOINT_STORE = {
-        "schema_version": 4,
+        "schema_version": 5,
         "signature": signature,
         "api_requests": 0,
         "estimated_cost_reserved_usd": 0.0,
@@ -192,12 +252,14 @@ def checkpoint_key(payload):
 def api_call(api_key, model, system, user, max_completion_tokens=900,
              json_mode=False, temperature=0.2, thinking=False, api_url=API_URL):
     global API_REQUEST_COUNT, ESTIMATED_COST_RESERVED_USD
+    deepseek_fields = api_url.rstrip("/").startswith(DEEPSEEK_BASE_URL)
     payload = build_payload(
         model, system, user,
         max_completion_tokens=max_completion_tokens,
         json_mode=json_mode,
         temperature=temperature,
         thinking=thinking,
+        deepseek_fields=deepseek_fields,
     )
     key = checkpoint_key({"endpoint": api_url, "payload": payload})
     uncertain = CHECKPOINT_STORE.setdefault("uncertain_requests", {})
@@ -229,7 +291,6 @@ def api_call(api_key, model, system, user, max_completion_tokens=900,
         return cached["content"]
 
     estimated_tokens = estimate_request_tokens(system, user, max_completion_tokens)
-    throttle_model(model, estimated_tokens)
     estimated_cost = estimate_request_cost_usd(model, system, user, max_completion_tokens)
     def make_request(request_payload):
         return urllib.request.Request(
@@ -255,6 +316,8 @@ def api_call(api_key, model, system, user, max_completion_tokens=900,
                 f"Estimated peak-price spend would exceed the configured USD {MAX_ESTIMATED_COST_USD:.2f} run cap; "
                 "stopping before another paid request."
             )
+        throttle_model(model, estimated_tokens)
+        reserve_model_daily_tokens(model, estimated_tokens)
         API_REQUEST_COUNT += 1
         ESTIMATED_COST_RESERVED_USD += estimated_cost
         CHECKPOINT_STORE["api_requests"] = API_REQUEST_COUNT
@@ -355,6 +418,7 @@ def api_call(api_key, model, system, user, max_completion_tokens=900,
                     json_mode=False,
                     temperature=temperature,
                     thinking=thinking,
+                    deepseek_fields=deepseek_fields,
                 )
                 request = make_request(payload)
                 continue
@@ -824,6 +888,7 @@ def main():
     global CURRENT_RUN_INDEX, API_REQUEST_COUNT, ESTIMATED_COST_RESERVED_USD
     USAGE_BY_MODEL.clear()
     CACHE_HITS_BY_MODEL.clear()
+    MODEL_RATE_HISTORY.clear()
     API_REQUEST_COUNT = 0
     ESTIMATED_COST_RESERVED_USD = 0.0
     signature_payload = {
@@ -834,6 +899,8 @@ def main():
         "judge_model": args.judge_model,
         "judge_api_url": judge_api_url,
         "judge_pricing": MODEL_PRICING_USD_PER_MILLION.get(args.judge_model),
+        "model_context_limits": MODEL_CONTEXT_LIMITS,
+        "model_rate_limits": MODEL_RATE_LIMITS,
         "runs": args.runs,
     }
     signature = hashlib.sha256(json.dumps(
@@ -871,6 +938,8 @@ def main():
                     "api_requests": API_REQUEST_COUNT,
                     "checkpoint_cache_hits": CACHE_HITS_BY_MODEL,
                     "checkpoint_path": args.checkpoint,
+            "estimated_tokens_reserved_by_model": CHECKPOINT_STORE.get("estimated_tokens_reserved_by_model", {}),
+                    "estimated_tokens_reserved_by_model": CHECKPOINT_STORE.get("estimated_tokens_reserved_by_model", {}),
                 },
                 "automated_gate_pass": False,
                 "release_approved": False,
