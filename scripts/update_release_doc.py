@@ -94,7 +94,7 @@ def main():
             "GitHub Release v0.0.1 must exist before updating RELEASE.md.")
     repository = api_request(f"/repos/{repo}", token)
     require(repository.get("default_branch") == "master",
-            "Repository default branch must be main.")
+            "Repository default branch must be master.")
     pr = api_request(f"/repos/{repo}/pulls/2", token)
     require(pr.get("merged") is True and (pr.get("base") or {}).get("ref") == "master",
             "PR #2 must be merged into master before RELEASE.md can be updated.")
@@ -110,7 +110,7 @@ def main():
         annotated = api_request(f"/repos/{repo}/git/tags/{tag_sha}", token)
         tag_sha = (annotated.get("object") or {}).get("sha")
     require(tag_sha == release_sha,
-            "v0.0.1 tag does not point to the merged main commit.")
+            "v0.0.1 tag does not point to the merged master commit.")
     reviews = api_request(f"/repos/{repo}/pulls/2/reviews?per_page=100", token)
     reviewer = latest_approved_review(
         reviews, (pr.get("user") or {}).get("login"), candidate_sha,
@@ -118,7 +118,7 @@ def main():
     )
 
     current_file = api_request(
-        f"/repos/{repo}/contents/RELEASE.md?ref=main", token
+        f"/repos/{repo}/contents/RELEASE.md?ref=master", token
     )
     current = base64.b64decode(current_file["content"]).decode("utf-8")
     updated = build_published_release_doc(
