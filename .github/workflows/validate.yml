@@ -6,6 +6,20 @@ on:
   workflow_dispatch:
 
 jobs:
+  require-master-target:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: 检查 PR 目标分支
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          if [ "$BASE_REF" != "master" ]; then
+            echo "发布候选 PR 必须以 master 为目标分支。"
+            exit 1
+          fi
+
   validate:
     runs-on: ubuntu-latest
     steps:
