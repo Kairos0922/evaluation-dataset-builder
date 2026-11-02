@@ -988,6 +988,8 @@ def main():
                     "model_context_limits": MODEL_CONTEXT_LIMITS,
                     "model_rate_limits": MODEL_RATE_LIMITS,
                     "pricing_usd_per_million_tokens": MODEL_PRICING_USD_PER_MILLION,
+                    "pending_requests": len(CHECKPOINT_STORE.get("pending_requests", {})),
+                    "uncertain_requests": len(CHECKPOINT_STORE.get("uncertain_requests", {})),
                 },
                 "automated_gate_pass": False,
                 "release_approved": False,
@@ -1096,6 +1098,8 @@ def main():
             "estimated_tokens_reserved_by_model": CHECKPOINT_STORE.get("estimated_tokens_reserved_by_model", {}),
             "model_context_limits": MODEL_CONTEXT_LIMITS,
             "model_rate_limits": MODEL_RATE_LIMITS,
+            "pending_requests": len(CHECKPOINT_STORE.get("pending_requests", {})),
+            "uncertain_requests": len(CHECKPOINT_STORE.get("uncertain_requests", {})),
         },
     }
     all_runs_pass = all(run["automated_run_pass"] for run in runs)
