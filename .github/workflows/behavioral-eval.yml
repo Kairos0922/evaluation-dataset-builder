@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       candidate_sha:
-        description: Exact current PR #12 head SHA to evaluate
+        description: Exact current PR #13 head SHA to evaluate
         required: true
         type: string
       generator_model:
@@ -38,7 +38,7 @@ jobs:
           python-version: "3.12"
       - name: Install model-aware tokenizer for Groq rate budgeting
         run: python -m pip install --disable-pip-version-check tiktoken
-      - name: Verify candidate SHA is the exact open PR #12 head
+      - name: Verify candidate SHA is the exact open PR #13 head
         env:
           GH_TOKEN: ${{ github.token }}
           CANDIDATE_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.sha }}
@@ -48,13 +48,13 @@ jobs:
             echo "candidate_sha must be a full 40-character commit SHA."
             exit 2
           fi
-          PR_HEAD="$(gh api "repos/$GITHUB_REPOSITORY/pulls/12" --jq '.head.sha')"
-          PR_BASE="$(gh api "repos/$GITHUB_REPOSITORY/pulls/12" --jq '.base.ref')"
+          PR_HEAD="$(gh api "repos/$GITHUB_REPOSITORY/pulls/13" --jq '.head.sha')"
+          PR_BASE="$(gh api "repos/$GITHUB_REPOSITORY/pulls/13" --jq '.base.ref')"
           if [ "$PR_HEAD" != "$CANDIDATE_SHA" ] || [ "$PR_BASE" != "master" ]; then
-            echo "Candidate SHA must exactly match open PR #12 head targeting master."
+            echo "Candidate SHA must exactly match open PR #13 head targeting master."
             exit 2
           fi
-          echo "Verified exact PR #12 candidate SHA."
+          echo "Verified exact PR #13 candidate SHA."
       - name: Structural validation and offline release-gate tests
         run: python scripts/validate_skill.py
       - name: Run offline release-harness unit tests
