@@ -972,7 +972,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertFalse(result["gates"]["trigger_classifier_valid"]["pass"])
         self.assertFalse(result["automated_run_pass"])
 
-    def test_workflow_blocks_pull_requests_not_targeting_main(self):
+    def test_workflow_blocks_release_pull_requests_not_targeting_master(self):
         workflow = (ROOT / ".github" / "workflows" / "validate.yml").read_text(encoding="utf-8")
         self.assertIn("require-master-target:", workflow)
         self.assertIn("github.event.pull_request.base.ref", workflow)
