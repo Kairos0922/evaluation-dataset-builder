@@ -959,9 +959,9 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
     def test_workflow_blocks_pull_requests_not_targeting_main(self):
         workflow = (ROOT / ".github" / "workflows" / "validate.yml").read_text(encoding="utf-8")
-        self.assertIn("require-main-target:", workflow)
+        self.assertIn("require-master-target:", workflow)
         self.assertIn("github.event.pull_request.base.ref", workflow)
-        self.assertIn('if [ "$BASE_REF" != "main" ]', workflow)
+        self.assertIn('if [ "$BASE_REF" != "master" ]', workflow)
 
     def test_report_declares_provider_completeness_hard_gates(self):
         source = (ROOT / "tests" / "run_eval.py").read_text(encoding="utf-8")
