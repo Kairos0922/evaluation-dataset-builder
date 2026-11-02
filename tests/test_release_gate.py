@@ -529,6 +529,44 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertNotIn("thinking", payload)
         self.assertNotIn("reasoning_effort", payload)
 
+    def test_groq_token_estimator_uses_o200k_with_margin_and_output_reservation(self):
+        self.assertIsNotNone(RUN_EVAL.tiktoken)
+        encoding = RUN_EVAL.tiktoken.get_encoding("o200k_base")
+        system = "You are a strict evaluation judge. " * 30
+        user = "Candidate output and grading criteria. " * 140
+        prompt_tokens = (
+            len(encoding.encode(system, disallowed_special=()))
+            + len(encoding.encode(user, disallowed_special=()))
+        )
+        expected = (
+            __import__("math").ceil(prompt_tokens * 1.10)
+            + 32 + 2400
+        )
+        estimated = RUN_EVAL.estimate_request_tokens(
+            system, user, 2400, model="openai/gpt-oss-120b"
+        )
+        self.assertEqual(estimated, expected)
+        self.assertLess(estimated, 8000)
+        self.assertGreaterEqual(estimated, prompt_tokens + 2400)
+
+    def test_groq_token_estimator_falls_back_conservatively_without_tokenizer(self):
+        saved = RUN_EVAL.tiktoken
+        try:
+            RUN_EVAL.tiktoken = None
+            estimate = RUN_EVAL.estimate_request_tokens(
+                "系统" * 500, "候选输出" * 500, 2400,
+                model="openai/gpt-oss-120b",
+            )
+            self.assertEqual(
+                estimate,
+                __import__("math").ceil(
+                    (len(("系统" * 500).encode("utf-8"))
+                     + len(("候选输出" * 500).encode("utf-8"))) / 2
+                ) + 2400,
+            )
+        finally:
+            RUN_EVAL.tiktoken = saved
+
     def test_groq_judge_context_and_rate_budgets_fail_closed(self):
         saved_history = RUN_EVAL.MODEL_RATE_HISTORY
         saved_store = RUN_EVAL.CHECKPOINT_STORE
