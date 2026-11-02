@@ -1,96 +1,137 @@
 ---
 name: evaluation-dataset-builder
-description: Plan, generate, validate, repair, and package evidence-grounded evaluation datasets for agents, skills, models, APIs, and workflows. Use for evaluation cases, benchmarks, graders, coverage plans, and quality audits.
+description: 面向 Agent、Skill、API、工作流和其他系统，规划、生成、审查、修复并交付有证据依据的评测数据集。
 ---
 
-# Evaluation Dataset Builder
+# 评测数据集构建 Skill
 
-Build business-grounded, capability-aligned, representative, measurable, executable (where applicable), traceable, maintainable datasets. More cases do not mean higher quality.
+## 1. 目标与适用范围
 
-## Non-negotiable rules
-- Before large or paid DeepSeek generation, read `references/request-planning-and-recovery.md` and `references/deepseek-v4.1-flash.md`; run `scripts/deepseek_model_preflight.py` when credentials are available. Metadata preflight uses `GET /models` and does not submit a generation request.
-- Budget the complete request (system instructions, history, schemas, tools, sources, expected output, and reasoning where applicable) against live provider limits. Do not impose arbitrary small fixed caps or silently truncate.
-- Never invent business rules, gold outcomes, source identities/versions, or execution evidence.
-- Distinguish facts, inferences, assumptions, synthetic examples, reported conflicts, and unknowns.
-- Check case and dataset quality separately. Critical failures cannot be averaged away.
-- Missing evidence blocks only dependent outcomes; continue supported independent work.
-- A plan is not an executed test; a draft is not validated or approved.
+本 Skill 用于规划、构建、审查、修复和维护评测数据集。评测对象可以是 Agent、Skill、API、工作流、软件系统或明确界定的其他能力。
 
-## Workflow
-1. **Intake:** identify target, objectives, capabilities, rules, scenarios, risks, data, environment, permissions, constraints, and deliverable. List knowns and gaps.
-2. **Knowledge model:** map capabilities, rules, scenarios, risks, source IDs/versions, assumptions, conflicts, and confidence.
-3. **Plan:** define each dataset's purpose, scope/exclusions, audience, coverage universe, distribution, grader, execution needs, and overlap.
-4. **Coverage:** build a matrix before cases; prioritize impact, risk, frequency, known failures, capability gaps, and diagnostic value. Avoid blind Cartesian products; report covered/total and gaps.
-5. **Cases:** use stable IDs; include target, objective, scenario, preconditions, inputs, expected/forbidden behavior, grader/evidence, sources, assumptions, risk, and status.
-6. **Graders:** choose deterministic, trusted-reference, rubric/LLM, state/end-result, trace/tool-call, human, or hybrid methods to match the outcome.
-7. **Review/repair:** check case and dataset gates, duplicates, and execution readiness. Give actionable repairs, rerun affected checks, and package cases, manifest, graders, quality report, source map, limits, and versions.
+交付物必须目标明确、业务依据可追溯、场景具有代表性、结果可以判定、用例可以执行或明确说明不可执行、数据集可以维护。用例数量不代表质量。
 
-## Missing evidence: continue safely
-Split work into supported cases, blocked outcomes, and reusable scaffolding.
-- Generate cases supported by supplied contracts, schemas, or authoritative rules.
-- Mark only dependent outcomes `needs_info` or `UNKNOWN`; name the missing source, owner, and exact question.
-- Label scaffolding `SYNTHETIC` with `ILLUSTRATIVE_ONLY` outcomes. It is not business gold and cannot be production-approved.
-Never guess expected results. Continue unaffected work; do not stop the whole task because one source is missing.
+默认使用简体中文编写说明、计划、用例和报告。用户明确要求其他语言，或被测系统必须使用其他语言时，按任务要求处理。字段名、枚举值、标识符、文件路径和必要技术名称保持原样。
 
-## Conflict handling: record, do not hand-wave
-For each conflict record ID; source title/ID, version/date, exact clause (or `NOT PROVIDED`); authority/scope; competing interpretations; affected cases/capabilities; resolution owner; status; downstream action.
-- Without source artifacts, call it a **reported but unverified conflict** and set identity/version/clause to `NOT PROVIDED`; invent nothing.
-- Do not choose by recency/version unless precedence is explicitly governed.
-- Mark affected gold `needs_info` / `NOT APPROVED`; unaffected cases may proceed.
+## 2. 核心规则
 
-## Deduplication and coverage
-Cluster by intent, capability, preconditions, action, and expected outcome—not wording alone. Report cluster, member IDs, representative, merge rationale, and retained boundary/risk variants. Keep distinct cases when permission, risk, state, tools, policy outcome, or failure mode differs. Without a candidate corpus, disclose that the real audit is pending; label demo clusters synthetic. Never inflate counts with paraphrases.
+- 只使用宿主 Agent 当前实际提供的能力、工具、权限和资料；不得假设某项能力必然可用。
+- 不指定、不配置或依赖特定模型、服务商、外部服务或执行引擎。
+- 不得编造业务规则、真实来源、版本、金标准、执行记录或测试结果。
+- 明确区分事实、推断、假设、合成示例、未经核实的报告和未知信息。
+- 证据缺失只阻断依赖该证据的结论；继续完成有充分依据的独立工作。
+- 分别检查单条用例和整个数据集。关键缺陷不得被平均分抵消。
+- 计划不等于已执行；草稿不等于已验证；已验证不等于已批准。
+- 不声称使用了未实际调用的工具，不声称完成了未实际执行的检查。
 
-## Grader contract
-Each grader defines criterion, method, required evidence, pass/fail, acceptable variants, failure conditions, `UNKNOWN` handling, reference authority/version, and calibration.
-- Use deterministic checks for schemas/constraints/numbers; trusted references only when gold exists; rubric/LLM for open-ended answers; state checks for side effects; trace checks for tool/process constraints.
-- For acting agents inspect actual end state and side effects—not transcript claims.
-- Calibrate on positive, negative, borderline, and adversarial cases. Missing, malformed, ambiguous, or unverified evidence must fail closed or return `UNKNOWN`, never pass.
+## 3. 执行流程
 
-## Quality gates and repair plan
-Case gates: evidence fidelity, objective alignment, expected behavior, grader validity, safety, feasibility, integrity. Dataset gates: objective/capability/scenario/risk coverage, duplicates, grader calibration, execution readiness, provenance, held-out independence.
-For each failure give evidence, impact, exact repair, accountable role, affected IDs, retest scope/gates, required proof, and status (`BLOCKED`, `READY_FOR_RETEST`, `VERIFIED`). Only retest evidence permits `VERIFIED`. Aggregate scores never override critical failures.
+### 第一步：理解任务
 
-## Execution readiness and side effects
-For tool/API/agent cases specify initial state/preconditions; identity/permissions; data/dependencies; sandbox/tenant and allowed actions; ordered inputs/steps; expected end state/assertions; forbidden side effects; reset/rollback; cleanup/teardown; failure cleanup and cost limits.
-Set `DESIGN_ONLY`, `READY_TO_RUN`, or `EXECUTION_VERIFIED`. Without a real environment state `NOT RUN`; never invent run IDs, traces, or success evidence.
+识别评测对象、评测目标、目标能力、业务规则、适用范围、排除范围、用户资料、来源及版本、风险、权限、副作用、执行环境、数据集数量、划分、格式和交付要求。分别列出已知事实、待确认事项和信息缺口。
 
-## Incremental updates and version changes
-Record old/new source version, effective date, exact change, impacted capabilities/scenarios/case IDs, and rationale. Preserve unaffected cases and stable IDs; update only impacted cases/gold supported by the new authority. List gates to rerun (provenance, validity, grader calibration, behavior/regression, risk, trigger, coverage). Record command/run ID, SHA, result, evidence. Anything not run is `RERUN_REQUIRED`, never passed.
+只有缺失信息会改变关键结论或使任务无法安全继续时，才向用户提出必要问题。其他情况下，先完成不受影响的工作，并明确记录假设和缺口。
 
-## Evidence precedence
-1. Authoritative policy/business/safety rule.
-2. Current product/system/API documentation.
-3. Confirmed expert-approved process.
-4. Capability/interface specification.
-5. Verified historical evaluation.
-6. Incident tickets/user feedback (reports, not proof).
-7. Traces/logs (observed behavior, not correctness).
-8. Explicit inference/synthetic assumption.
-Preserve unresolved authoritative conflicts. A trace shows what happened, not what should happen.
+### 第二步：建立业务与证据模型
 
-## Output contract
-Report target/objective and gaps; plan/coverage (`coverage_universe`, covered/total counts by dimension, risk and gaps); cases/dedup (stable IDs, preconditions/input, expected/forbidden behavior, clusters/variants); graders (method, pass/fail conditions, evidence, UNKNOWN, calibration); repairs (defect, fix, owner, retest, proof); execution (state, permissions, steps, assertions, sandbox/reset/cleanup/status); changes/JSONL (versions, impacted/preserved IDs, manifest, source/quality maps); conflict register; provenance, limits, and change log.
+按能力、规则、场景、风险、来源、版本、假设和冲突整理资料。为每项关键结论记录可定位的依据。
 
-## Output completeness
-For JSONL emit one complete JSON object per line, schema-compliant; provide manifest and quality report separately. Manifest: purpose, target, version, case_count, coverage_universe, covered/total counts by dimension, gaps, grader/source refs, assumptions, status. Checklist every requested artifact: plan/coverage, cases/dedup, repairs, graders, execution, changes/JSONL. **Final completeness pass:** map every requested deliverable to a file/section; verify requested counts and schema; no placeholders or claims that unrun checks passed. Never invent facts or results; mark only blocked outcomes `needs_info`.
+将内容区分为已确认事实、合理推断、合成示例、未知事项和冲突事项。不得将推断、合成内容或未经核实的报告描述为事实。
 
-## Quality status
-- `candidate`: generated, not validated
-- `validated`: passed applicable checks
-- `approved`: all required gates passed for intended use
-- `needs_info`: authority missing/conflicting
-- `rejected`: invalid, unsafe, unmeasurable, irreparable
-- `execution_verified`: actually run with evidence
-`approved` does not imply `execution_verified`.
+### 第三步：规划数据集
 
-## References
-- `references/request-planning-and-recovery.md`
-- `references/deepseek-v4.1-flash.md`
-- `scripts/deepseek_model_preflight.py`
-- `references/quality-standard.md`
-- `references/quality-standard.yaml`
-- `references/dataset-schema.json`
-- `references/grader-guidelines.md`
-- `references/coverage-design-guideline.md`
-- `references/source-and-evidence-policy.md`
+在生成用例前，先定义数据集用途、目标用户、覆盖范围全集、排除范围、场景维度、风险分布、评分方法、执行条件和数据集之间的重叠关系。
+
+优先覆盖业务影响高、风险高、发生频率高、历史上出现过缺陷或当前能力存在不确定性的场景。不得盲目生成所有维度的笛卡尔积。报告每个维度的已覆盖数量、总数量和缺口。
+
+### 第四步：设计评测用例
+
+为每条用例分配稳定且唯一的 case_id。根据任务需要，描述评测对象、评测目标、具体场景、前置状态、用户输入、依赖资料、明确且可观察的期望行为、禁止行为、参考结果及其来源、评分器、通过条件、失败条件、所需证据、风险等级、假设和质量状态。
+
+对于真实业务依据不足的用例，标记为 needs_info，或明确标注为合成示例。不得将合成结果当作真实金标准。
+
+### 第五步：设计评分器
+
+根据需要判定的结果选择评分方式：规则评分、参考结果比对、量表评分、状态检查、执行轨迹检查、人工审查或混合评分。
+
+每个评分器都必须说明判定目标、方法、证据、通过条件、失败条件、可接受变体、UNKNOWN 处理方式和校准方法。缺失、格式错误、含糊或无法核验的证据不得判为通过。
+
+### 第六步：审查、修复和打包
+
+分别执行用例级和数据集级质量检查。识别无依据结论、目标偏离、歧义、不可观察的评分条件、重复用例、覆盖缺口和执行障碍。
+
+每项缺陷必须给出缺陷证据和影响、具体修复动作、负责角色、受影响用例 ID、必须重测的范围和门禁、需要提交的验证证据，以及当前状态：BLOCKED、READY_FOR_RETEST 或 VERIFIED。
+
+只有实际重测证据可以将事项标记为 VERIFIED。最终交付用例文件、清单、评分器说明、质量报告、来源映射、冲突记录、限制和变更日志。
+
+## 4. 证据缺失与规则冲突
+
+将工作拆分为有充分依据、可以继续设计的用例；依赖缺失材料、暂时不能确定预期结果的用例；以及可以复用的模板和结构。
+
+对依赖缺失证据的结论，只将受影响部分标记为 needs_info 或 UNKNOWN。说明缺少的来源、需要确认的责任角色和具体问题。合成内容使用 SYNTHETIC 和 ILLUSTRATIVE_ONLY 标识，不得作为真实业务依据或生产验收结果。
+
+发现冲突时，记录来源名称或 ID、版本、生效日期、原文条款、适用范围、冲突解释、具体矛盾点、受影响用例、待裁决责任角色和后续动作。没有原始材料时，只能标记为“已报告但未经核实的冲突”。除非规则明确规定优先级，不得仅凭版本较新选择某一方。受冲突影响的金标准标记为 needs_info 或 NOT APPROVED。
+
+## 5. 覆盖设计与语义去重
+
+语义去重应综合比较用户意图、目标能力、前置状态、执行动作和预期结果，不得只按措辞相似度判断。
+
+去重报告应记录重复簇、成员用例 ID、保留的代表用例、合并理由和保留的边界或风险变体。权限、风险、状态、工具、策略结果或失败模式不同的用例，应在说明理由后保留。
+
+没有真实候选用例集时，不得声称已经完成真实去重审计。演示用例簇必须标记为合成示例。不得通过改写措辞虚增用例数量。
+
+## 6. 执行就绪与副作用控制
+
+对于工具、接口或 Agent 执行用例，必须明确初始状态和前置条件、身份和权限、测试数据与外部依赖、隔离环境、允许操作及其顺序、期望终态和可观察断言、禁止副作用、重置、回滚、清理和失败清理步骤，以及成本和频率限制。
+
+执行状态只能使用 DESIGN_ONLY、READY_TO_RUN 或 EXECUTION_VERIFIED。没有真实环境时标记 NOT RUN。不得编造运行 ID、执行轨迹、状态快照或成功证据。
+
+## 7. 增量更新
+
+规则或来源版本变化时，记录旧版本、新版本、生效日期、精确变化、受影响能力、场景和用例 ID，以及判断理由。
+
+保留不受影响的用例和稳定 ID；只更新受新依据影响的用例及其参考结果。列出需要重新执行的来源核验、有效性检查、评分器校准、行为回归、风险、触发和覆盖门禁。
+
+没有实际执行的检查标记为 RERUN_REQUIRED，不得标记为通过。
+
+## 8. 证据优先级
+
+原则上按以下顺序判断依据的权威性：正式业务规则、政策和安全要求；当前产品、系统和接口文档；已确认并经责任人批准的流程；已核实的历史评测结果；事故工单和用户反馈；执行轨迹和日志；明确标注的推断与合成假设。
+
+执行轨迹只能说明发生了什么，不能单独证明什么是正确行为。工单和用户反馈说明问题曾被报告，不能单独证明正确结果。
+
+## 9. 输出要求
+
+最终报告应包含评测对象、评测目标、范围和信息缺口；数据集规划和覆盖情况；用例及语义去重结果；评分器方法、通过与失败条件、证据要求、UNKNOWN 处理和校准；缺陷、修复动作、责任角色、重测范围和证明材料；执行状态、权限、步骤、断言、隔离环境、重置和清理；变更影响、来源映射、冲突登记、假设、限制和变更日志。
+
+JSONL 文件必须每行包含一个完整且符合 Schema 的 JSON 对象。清单和质量报告应分别交付。清单至少包含用途、评测对象、版本、用例数量、覆盖范围全集、各维度覆盖数量、缺口、评分器与来源引用、假设和状态。
+
+## 10. 质量状态
+
+- candidate：已生成，尚未完成适用的验证。
+- validated：已通过适用的检查。
+- approved：适用的质量门禁均已通过，且满足预定用途的审批条件。
+- needs_info：权威依据缺失或存在尚未解决的冲突。
+- rejected：无效、不安全、不可测或无法修复。
+- execution_verified：已在真实环境执行，并具有可核验的执行证据。
+
+approved 不代表 execution_verified。不得把设计完成、结构校验通过或人工认可的方案描述为真实执行成功。
+
+## 11. 最终完整性检查
+
+交付前逐项核对用户要求的产物。将每项要求对应到具体文件、章节或字段；核对数量、Schema、来源、状态和引用路径；检查是否有占位内容；检查是否将未执行的事项误报为通过。
+
+不得遗漏用户要求的交付物，不得编造事实或结果。
+
+## 12. 参考规范
+
+- references/chinese-controlled-writing.md
+- references/host-agent-capability-adapter.md
+- references/terminology.md
+- references/quality-standard.md
+- references/quality-standard.yaml
+- references/dataset-schema.json
+- references/grader-guidelines.md
+- references/coverage-design-guideline.md
+- references/source-and-evidence-policy.md
+- references/task-planning-and-recovery.md

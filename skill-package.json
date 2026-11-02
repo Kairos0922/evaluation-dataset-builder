@@ -1,0 +1,34 @@
+{
+  "package_name": "evaluation-dataset-builder",
+  "version": "0.0.1",
+  "language": "zh-CN",
+  "entrypoint": "SKILL.md",
+  "included_files": [
+    "SKILL.md",
+    "README.md",
+    "LICENSE",
+    "references/chinese-controlled-writing.md",
+    "references/host-agent-capability-adapter.md",
+    "references/terminology.md",
+    "references/quality-standard.md",
+    "references/quality-standard.yaml",
+    "references/dataset-schema.json",
+    "references/grader-guidelines.md",
+    "references/coverage-design-guideline.md",
+    "references/source-and-evidence-policy.md",
+    "references/task-planning-and-recovery.md"
+  ],
+  "excluded_paths": [
+    ".github/**",
+    "scripts/**",
+    "tests/**",
+    "RELEASE-GATE.md",
+    "RELEASE.md",
+    "CHANGELOG.md",
+    "VERSION"
+  ],
+  "language_policy": "正式运行包中的自然语言说明默认使用简体中文；字段名、枚举值、稳定标识符、文件路径和必要技术名称保持原样。",
+  "runtime_boundary": "只定义任务规则、输入输出要求和质量标准；实际工具与执行能力由宿主 Agent 提供。",
+  "legal_notice_policy": "LICENSE 保留其正式法律文本，不对法律许可条款进行非正式改写。",
+  "description": "面向宿主 Agent 的通用评测数据集构建规范包。"
+}
