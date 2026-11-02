@@ -1117,6 +1117,10 @@ class ReleaseGateUnitTests(unittest.TestCase):
         for field in ("scenario_bucket", "case_origin", "coverage_tags",
                       "observable_assertions", "trace_expectations", "change_links"):
             self.assertIn(field, case_props)
+        self.assertTrue({"scenario_bucket", "case_origin", "coverage_tags"}.issubset(
+            set(case_schema["required"])
+        ))
+        self.assertGreaterEqual(case_props["coverage_tags"]["minItems"], 1)
         self.assertIn("business_rule", case_props["scenario_bucket"]["enum"])
         self.assertIn("integration", case_props["scenario_bucket"]["enum"])
 
