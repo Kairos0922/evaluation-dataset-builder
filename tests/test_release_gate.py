@@ -1100,6 +1100,42 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertTrue(any("unexecuted reruns" in criterion
                             for criterion in cases["SE12"]["expected"]))
 
+    def test_new_business_coverage_and_manifest_contracts(self):
+        package = json.loads((ROOT / "skill-package.json").read_text(encoding="utf-8"))
+        required_refs = {
+            "references/business-scenario-model.md",
+            "references/scenario-buckets.md",
+            "references/change-impact-and-repair.md",
+            "references/dataset-manifest-schema.json",
+        }
+        self.assertTrue(required_refs.issubset(set(package["included_files"])))
+
+        case_schema = json.loads(
+            (ROOT / "references" / "dataset-schema.json").read_text(encoding="utf-8")
+        )
+        case_props = case_schema["properties"]
+        for field in ("scenario_bucket", "case_origin", "coverage_tags",
+                      "observable_assertions", "trace_expectations", "change_links"):
+            self.assertIn(field, case_props)
+        self.assertIn("business_rule", case_props["scenario_bucket"]["enum"])
+        self.assertIn("integration", case_props["scenario_bucket"]["enum"])
+
+        manifest_schema = json.loads(
+            (ROOT / "references" / "dataset-manifest-schema.json").read_text(encoding="utf-8")
+        )
+        self.assertTrue({
+            "dataset_id", "version", "evaluation_target", "purpose", "scope",
+            "coverage", "case_count", "quality_status", "execution_status",
+        }.issubset(set(manifest_schema["required"])))
+        self.assertIn("dimensions", manifest_schema["properties"]["coverage"]["properties"])
+
+        coverage = (ROOT / "references" / "coverage-design-guideline.md").read_text(encoding="utf-8")
+        self.assertIn("缺口驱动生成", coverage)
+        self.assertIn("覆盖率", coverage)
+        change_guideline = (ROOT / "references" / "change-impact-and-repair.md").read_text(encoding="utf-8")
+        self.assertIn("局部修复", change_guideline)
+        self.assertIn("稳定 ID", change_guideline)
+
     def test_critical_cases_exist(self):
         fixture = json.loads((ROOT / "tests" / "self-eval-cases.json").read_text(encoding="utf-8"))
         available = {item["id"] for item in fixture["cases"]}
