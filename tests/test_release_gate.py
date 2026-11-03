@@ -302,12 +302,14 @@ class ReleaseGateUnitTests(unittest.TestCase):
             },
         }
         updated = UPDATE_RELEASE_DOC.build_published_release_doc(
-            current, report, "candidate-sha", "release-merge-sha", "independent-reviewer"
+            current, report, "candidate-sha", "release-merge-sha",
+            "independent-reviewer", "https://example.com/runtime-report/12345"
         )
         self.assertIn("# Release 0.0.1 — Published", updated)
         self.assertIn("- [x] Behavioral pass rate", updated)
         self.assertIn("- [x] Independent human review", updated)
-        self.assertIn("Target-runtime validation remains a deployment follow-up", updated)
+        self.assertIn("- [x] Target-runtime validation", updated)
+        self.assertIn("https://example.com/runtime-report/12345", updated)
         self.assertIn("candidate-sha", updated)
         self.assertIn("release-merge-sha", updated)
         self.assertIn("independent-reviewer", updated)

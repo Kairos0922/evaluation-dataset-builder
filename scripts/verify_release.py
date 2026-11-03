@@ -134,6 +134,15 @@ def verify_report(report, candidate_sha, run_id):
     return report
 
 
+def target_runtime_evidence_url(review):
+    """Return the dedicated HTTPS target-runtime evidence URL from an approved review."""
+    body = review.get("body") or ""
+    match = re.search(r"target-runtime:\s*PASS\s+(https://[^\s)]+)", body, flags=re.IGNORECASE)
+    require(match is not None,
+            "Independent approval must include target-runtime: PASS followed by its HTTPS evidence URL.")
+    return match.group(1)
+
+
 def latest_approved_review(reviews, author, reviewed_head_sha, run_id):
     latest_by_user = {}
     for review in reviews:
@@ -160,9 +169,9 @@ def latest_approved_review(reviews, author, reviewed_head_sha, run_id):
             continue
         if run_url_fragment not in body or "baseline" not in body.lower() or "spread" not in body.lower():
             continue
-        if "target-runtime: PASS" not in body:
-            continue
-        if not re.search(r"https://[^\s)]+", body):
+        try:
+            target_runtime_evidence_url(review)
+        except ValueError:
             continue
         return review
     raise ValueError(
@@ -257,12 +266,14 @@ def main():
     run_url = f"https://github.com/{repo}/actions/runs/{run_id}"
     stability = report["stability"]
     baseline = report["baseline_comparison"]
+    runtime_evidence_url = target_runtime_evidence_url(review)
     notes = (
         "# Evaluation Dataset Builder v0.0.1\n\n"
         f"- Reviewed PR head SHA: `{reviewed_head_sha}`\n"
         f"- Evaluated merge commit / tag SHA: `{release_sha}`\n"
         f"- Validation run: {run_url}\n"
         f"- Independent reviewer: {(review.get('user') or {}).get('login')}\n"
+        f"- Target runtime validation evidence: {runtime_evidence_url}\n"
         f"- Generator: `{report['models']['generator']}`; Judge: `{report['models']['judge_and_trigger']}`\n"
         f"- Complete repeated runs: {report['policy']['actual_runs']}\n"
         f"- Behavior mean / spread: {stability['behavior_pass_rate']['mean']:.1%} / {stability['behavior_pass_rate']['spread']:.1%}\n"
@@ -270,7 +281,7 @@ def main():
         f"- Trigger Recall mean / spread: {stability['trigger_recall']['mean']:.1%} / {stability['trigger_recall']['spread']:.1%}\n"
         f"- Matched baseline mean: {baseline['mean_baseline_behavior_pass_rate']:.1%}; Skill mean: {baseline['mean_skill_behavior_pass_rate']:.1%}; uplift: {baseline['mean_uplift']:+.1%}\n"
         "- Automated behavior, trigger, baseline, and stability gates: PASSED\n"
-        "- Limitation: this is a portable Skill-text behavioral proxy, not a full target Skills runtime test; target-runtime validation remains necessary before production deployment.\n"
+        "- Limitation: automated behavior evaluation is a Skill entrypoint-text proxy; target-runtime validation is a separate mandatory release gate and its evidence is linked above.\n"
         "\nThe attached JSON contains per-case outputs, locally verified Judge evidence, confusion matrices, baseline details, and token usage.\n"
     )
     Path("artifacts/release-notes.md").write_text(notes, encoding="utf-8")

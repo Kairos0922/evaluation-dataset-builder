@@ -14,6 +14,7 @@ from verify_release import (
     api_request,
     latest_approved_review,
     release_pr_binding,
+    target_runtime_evidence_url,
     require,
     verify_report,
 )
@@ -132,6 +133,7 @@ def create_release_tag():
         json.dump(report, handle, ensure_ascii=False, indent=2)
     run_url = f"https://github.com/{repo}/actions/runs/{run_id}"
     reviewer = (review.get("user") or {}).get("login")
+    runtime_evidence_url = target_runtime_evidence_url(review)
     stability = report["stability"]
     baseline = report["baseline_comparison"]
     notes = (
@@ -140,6 +142,7 @@ def create_release_tag():
         f"- Evaluated merge commit / tag SHA: `{release_sha}`\n"
         f"- Validation run: {run_url}\n"
         f"- Independent reviewer: {reviewer}\n"
+        f"- Target runtime validation evidence: {runtime_evidence_url}\n"
         f"- Generator: `{report['models']['generator']}`; Judge: `{report['models']['judge_and_trigger']}`\n"
         f"- Complete repeated runs: {report['policy']['actual_runs']}\n"
         f"- Behavior mean / spread: {stability['behavior_pass_rate']['mean']:.1%} / {stability['behavior_pass_rate']['spread']:.1%}\n"
@@ -147,7 +150,7 @@ def create_release_tag():
         f"- Trigger Recall mean / spread: {stability['trigger_recall']['mean']:.1%} / {stability['trigger_recall']['spread']:.1%}\n"
         f"- Matched baseline mean: {baseline['mean_baseline_behavior_pass_rate']:.1%}; Skill mean: {baseline['mean_skill_behavior_pass_rate']:.1%}; uplift: {baseline['mean_uplift']:+.1%}\n"
         "- Automated behavior, trigger, baseline, and stability gates: PASSED\n"
-        "- Limitation: this is a SKILL.md entrypoint-text proxy; packaged references are not loaded through host resource tools, and it is not a full target Skills runtime test. Target-runtime validation remains necessary before production deployment.\n"
+        "- Limitation: automated behavior evaluation is a SKILL.md entrypoint-text proxy; packaged references are not loaded through host resource tools. Target-runtime validation is a separate mandatory release gate and its evidence is linked above.\n"
         "\nThe attached JSON contains per-case outputs, locally verified Judge evidence, confusion matrices, baseline details, and token usage.\n"
     )
     with open("artifacts/release-notes.md", "w", encoding="utf-8") as handle:
