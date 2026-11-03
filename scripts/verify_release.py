@@ -41,6 +41,21 @@ def require(condition, message):
         raise ValueError(message)
 
 
+def release_pr_binding(pr, candidate_sha):
+    """Bind evaluation to the merged commit while keeping PR review on its head SHA."""
+    require(pr.get("merged") is True and pr.get("state") == "closed",
+            "The release PR must be merged and closed.")
+    require((pr.get("base") or {}).get("ref") == "main",
+            "The release PR must merge into main.")
+    reviewed_head_sha = (pr.get("head") or {}).get("sha")
+    release_sha = pr.get("merge_commit_sha")
+    require(bool(reviewed_head_sha) and bool(release_sha),
+            "The merged PR must expose both its reviewed head SHA and merge_commit_sha.")
+    require(candidate_sha == release_sha,
+            "Evaluation candidate SHA must equal the PR merge_commit_sha; PR head SHA is a separate review identity.")
+    return reviewed_head_sha, release_sha
+
+
 def verify_report(report, candidate_sha, run_id):
     require(report.get("git_sha") == candidate_sha,
             "Evaluation report SHA does not match the release tag.")
@@ -80,12 +95,23 @@ def verify_report(report, candidate_sha, run_id):
                 "Skill and matched-baseline case counts are empty or differ.")
         require(len(trigger_cases) == trigger_count,
                 "A repeated run has missing trigger evaluation cases.")
+        require(float(metrics.get("behavior_evaluability_rate", 0)) == 1.0,
+                "A repeated run contains UNKNOWN or unscorable behavior checks.")
+        require(float(metrics.get("baseline_evaluability_rate", 0)) == 1.0,
+                "A repeated run contains UNKNOWN or unscorable baseline checks.")
         for case in skill_cases + baseline_cases:
             for check in case.get("checks") or []:
-                if check.get("score") == 1:
-                    require(check.get("evidence_validated") is True
+                status = check.get("status")
+                require(status in ("PASS", "FAIL"),
+                        "A behavior or baseline check is UNKNOWN or has no explicit status.")
+                if status == "PASS":
+                    require(check.get("score") == 1
+                            and check.get("evidence_validated") is True
                             and bool(check.get("evidence")),
                             "A passing Judge result lacks verified evidence.")
+                else:
+                    require(check.get("score") == 0,
+                            "A failing Judge result must have score 0.")
         metrics = run.get("metrics") or {}
         require(float(metrics.get("behavior_pass_rate", 0)) >= BEHAVIOR_MIN,
                 "A run is below the behavior pass-rate threshold.")
@@ -106,7 +132,7 @@ def verify_report(report, candidate_sha, run_id):
     return report
 
 
-def latest_approved_review(reviews, author, candidate_sha, run_id):
+def latest_approved_review(reviews, author, reviewed_head_sha, run_id):
     latest_by_user = {}
     for review in reviews:
         user = (review.get("user") or {}).get("login")
@@ -124,7 +150,7 @@ def latest_approved_review(reviews, author, candidate_sha, run_id):
     for user, review in latest_by_user.items():
         if user == author or review.get("state") != "APPROVED":
             continue
-        if review.get("commit_id") != candidate_sha:
+        if review.get("commit_id") != reviewed_head_sha:
             continue
         body = review.get("body") or ""
         missing = [case_id for case_id in CRITICAL_CASES if case_id not in body]
@@ -138,7 +164,7 @@ def latest_approved_review(reviews, author, candidate_sha, run_id):
             continue
         return review
     raise ValueError(
-        "No independent APPROVED review exists on the exact candidate SHA with "
+        "No independent APPROVED review exists on the exact PR head SHA with "
         "critical-case findings, baseline/stability assessment, the Actions run link, "
         "and target-runtime: PASS with an HTTPS evidence link."
     )
@@ -162,10 +188,7 @@ def main():
             "The release PR must be merged and closed.")
     require((pr.get("base") or {}).get("ref") == "main",
             "The release PR must have merged into main.")
-    candidate_sha = (pr.get("head") or {}).get("sha")
-    release_sha = pr.get("merge_commit_sha")
-    require(bool(candidate_sha) and bool(release_sha),
-            "The merged PR must expose both its reviewed head SHA and merge_commit_sha.")
+    reviewed_head_sha, release_sha = release_pr_binding(pr, tag_sha)
 
     tag_ref = api_request(
         f"/repos/{repo}/git/ref/tags/{urllib.parse.quote(tag_name, safe='')}", token
@@ -191,7 +214,7 @@ def main():
         item for item in (runs_response.get("workflow_runs") or [])
         if str(item.get("name") or "").startswith("Behavioral Skill Evaluation")
         and item.get("event") in ("push", "workflow_dispatch")
-        and candidate_sha in str(item.get("display_title") or "")
+        and release_sha in str(item.get("display_title") or "")
         and item.get("status") == "completed"
         and item.get("conclusion") == "success"
     ]
@@ -200,7 +223,7 @@ def main():
     latest_run = max(matching_runs, key=lambda item: int(item.get("run_number", 0)))
     run_id = latest_run["id"]
 
-    review = latest_approved_review(reviews, author, candidate_sha, run_id)
+    review = latest_approved_review(reviews, author, reviewed_head_sha, run_id)
     artifacts = api_request(f"/repos/{repo}/actions/runs/{run_id}/artifacts", token)
     artifact = next((
         item for item in (artifacts.get("artifacts") or [])
@@ -216,7 +239,7 @@ def main():
                             if name.endswith("eval-report.json")), None)
         require(report_name is not None, "The artifact ZIP does not contain eval-report.json.")
         report = json.loads(zf.read(report_name).decode("utf-8"))
-    verify_report(report, candidate_sha, run_id)
+    verify_report(report, release_sha, run_id)
 
     artifact_path = Path("artifacts/eval-report.json")
     artifact_path.parent.mkdir(parents=True, exist_ok=True)
@@ -226,7 +249,8 @@ def main():
     baseline = report["baseline_comparison"]
     notes = (
         "# Evaluation Dataset Builder v0.0.1\n\n"
-        f"- Candidate SHA: `{candidate_sha}`\n"
+        f"- Reviewed PR head SHA: `{reviewed_head_sha}`\n"
+        f"- Evaluated merge commit / tag SHA: `{release_sha}`\n"
         f"- Validation run: {run_url}\n"
         f"- Independent reviewer: {(review.get('user') or {}).get('login')}\n"
         f"- Generator: `{report['models']['generator']}`; Judge: `{report['models']['judge_and_trigger']}`\n"

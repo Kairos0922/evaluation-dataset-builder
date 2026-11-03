@@ -6,7 +6,9 @@ import os
 import sys
 import urllib.request
 
-from verify_release import API, api_request, latest_approved_review, require
+from verify_release import (
+    API, api_request, latest_approved_review, release_pr_binding, require,
+)
 
 
 def build_published_release_doc(current, report, candidate_sha, release_sha, reviewer):
@@ -97,13 +99,7 @@ def main():
     require(repository.get("default_branch") == "main",
             "Repository default branch must be main.")
     pr = api_request(f"/repos/{repo}/pulls/{pr_number}", token)
-    require(pr.get("merged") is True and (pr.get("base") or {}).get("ref") == "main",
-            "configured release PR must be merged into main before RELEASE.md can be updated.")
-    require((pr.get("head") or {}).get("sha") == candidate_sha,
-            "Merged configured release PR head differs from the published candidate.")
-    release_sha = pr.get("merge_commit_sha")
-    require(bool(release_sha),
-            "Merged configured release PR has no merge_commit_sha.")
+    pr_head_sha, release_sha = release_pr_binding(pr, candidate_sha)
     tag_ref = api_request(f"/repos/{repo}/git/ref/tags/v0.0.1", token)
     tag_object = tag_ref.get("object") or {}
     tag_sha = tag_object.get("sha")
@@ -114,7 +110,7 @@ def main():
             "v0.0.1 tag does not point to the merged main commit.")
     reviews = api_request(f"/repos/{repo}/pulls/{pr_number}/reviews?per_page=100", token)
     reviewer = latest_approved_review(
-        reviews, (pr.get("user") or {}).get("login"), candidate_sha,
+        reviews, (pr.get("user") or {}).get("login"), pr_head_sha,
         report.get("workflow_run_id"),
     )
 

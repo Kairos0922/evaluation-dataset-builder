@@ -4,7 +4,8 @@ Use this checklist only after the repeated evaluation workflow has completed on 
 
 ## Evidence
 
-- Candidate commit SHA:
+- PR head SHA (review identity):
+- PR merge commit SHA (evaluation candidate and release tag):
 - Evaluation workflow run ID and URL:
 - Model:
 - Suite ID:

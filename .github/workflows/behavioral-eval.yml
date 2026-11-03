@@ -1,24 +1,27 @@
-run-name: Behavioral Skill Evaluation — ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.sha }}
+run-name: Behavioral Skill Evaluation — ${{ inputs.candidate_sha }}
 name: Behavioral Skill Evaluation
-# Candidate revision: exact o200k token accounting, preserved 8K TPM ceiling, and automatic resume of the 21-request checkpoint.
+
 on:
-  push:
-    branches: ["test-harness/0.0.1-rc1"]
-    paths: [".github/workflows/behavioral-eval.yml"]
   workflow_dispatch:
     inputs:
+      release_pr_number:
+        description: 已合入 main 的发布候选 PR 编号
+        required: true
+        type: string
       candidate_sha:
-        description: Exact current main branch SHA to evaluate
+        description: 该 PR 的精确 merge_commit_sha（评测与最终标签绑定的提交）
         required: true
         type: string
       generator_model:
-        description: DeepSeek generator model
+        description: 行为评测生成端配置（仅开发评测设施使用）
         required: true
         default: deepseek-flash
+        type: string
       resume_run_id:
-        description: Optional prior Actions run ID containing an evaluation checkpoint
+        description: 可选的中断运行 ID；恢复前会校验候选 SHA 与评测签名
         required: false
-        default: "41369272868"
+        default: ""
+        type: string
 
 permissions:
   contents: read
@@ -32,37 +35,47 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.sha }}
+          ref: ${{ inputs.candidate_sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Install model-aware tokenizer for Groq rate budgeting
+      - name: 安装评测预算所需分词器
         run: python -m pip install --disable-pip-version-check tiktoken
-      - name: Verify candidate SHA is the exact main branch head
+      - name: 验证候选提交与已合入 PR 的 merge commit 一致
         env:
           GH_TOKEN: ${{ github.token }}
-          CANDIDATE_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.sha }}
+          RELEASE_PR_NUMBER: ${{ inputs.release_pr_number }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
         run: |
           set -euo pipefail
           if [[ ! "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "candidate_sha must be a full 40-character commit SHA."
+            echo "candidate_sha 必须是完整的 40 位提交 SHA。"
             exit 2
           fi
-          MAIN_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq '.object.sha')"
-          if [ "$MAIN_SHA" != "$CANDIDATE_SHA" ]; then
-            echo "Candidate SHA must exactly match the current main branch head."
+          PR_JSON="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$RELEASE_PR_NUMBER")"
+          PR_MERGED="$(jq -r '.merged' <<<"$PR_JSON")"
+          PR_BASE="$(jq -r '.base.ref' <<<"$PR_JSON")"
+          PR_HEAD_SHA="$(jq -r '.head.sha' <<<"$PR_JSON")"
+          PR_MERGE_SHA="$(jq -r '.merge_commit_sha // empty' <<<"$PR_JSON")"
+          if [ "$PR_MERGED" != "true" ] || [ "$PR_BASE" != "main" ] || [ -z "$PR_MERGE_SHA" ]; then
+            echo "发布候选 PR 必须已合入 main，并具有 merge_commit_sha。"
             exit 2
           fi
-          echo "Verified exact main branch candidate SHA."
-      - name: Structural validation and offline release-gate tests
+          if [ "$PR_MERGE_SHA" != "$CANDIDATE_SHA" ]; then
+            echo "candidate_sha 必须精确等于该 PR 的 merge_commit_sha；PR head SHA 是独立审查标识。"
+            exit 2
+          fi
+          echo "已验证 PR head SHA: $PR_HEAD_SHA"
+          echo "已验证评测候选 merge SHA: $PR_MERGE_SHA"
+      - name: 结构验证与离线发布门禁测试
         run: python scripts/validate_skill.py
-      - name: Run offline release-harness unit tests
-        run: python -m unittest discover -s tests -p "test_*.py"
-      - name: Verify DeepSeek metadata before any generation call
+      - name: 运行离线测试
+        run: python -m unittest discover -s tests -p "test_*.py" -v
+      - name: 调用前验证生成端模型元数据
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: python scripts/deepseek_model_preflight.py
-      - name: Verify independent Judge model metadata before any generation call
+      - name: 调用前验证独立 Judge 服务元数据
         env:
           EVAL_JUDGE_BASE_URL: ${{ vars.EVAL_JUDGE_BASE_URL || 'https://api.groq.com/openai/v1' }}
           EVAL_JUDGE_MODEL: ${{ vars.EVAL_JUDGE_MODEL || 'openai/gpt-oss-120b' }}
@@ -70,7 +83,7 @@ jobs:
         run: |
           set -euo pipefail
           if [ -z "$EVAL_JUDGE_API_KEY" ]; then
-            echo "No independent Judge key is available (set EVAL_JUDGE_API_KEY or GROQ_API_KEY). No generation request was sent."
+            echo "缺少独立 Judge 凭证；没有发送生成请求。"
             exit 2
           fi
           BASE_URL="${EVAL_JUDGE_BASE_URL%/}"
@@ -84,28 +97,29 @@ jobs:
               data = json.load(handle)
           available = {item.get("id") for item in data.get("data", []) if isinstance(item, dict)}
           if model not in available:
-              print("Configured independent Judge model is not present in provider GET /models.")
+              print("配置的独立 Judge 模型不在服务端 GET /models 列表中。")
               raise SystemExit(2)
-          print("Independent Judge metadata preflight passed; no generation request was sent.")
+          print("独立 Judge 元数据预检通过；尚未发送生成请求。")
           PY
-      - name: Restore checkpoint from a previous Actions run when requested
+      - name: 按需恢复匹配的评测检查点
         env:
           GH_TOKEN: ${{ github.token }}
-          RESUME_RUN_ID: ${{ inputs.resume_run_id || '41369272868' }}
+          RESUME_RUN_ID: ${{ inputs.resume_run_id }}
         run: |
-          if [ -n "$RESUME_RUN_ID" ]; then
-            mkdir -p artifacts
-            if gh run download "$RESUME_RUN_ID" --name "candidate-evaluation-report-$RESUME_RUN_ID" --dir artifacts; then
-              echo "Restored PR evaluation checkpoint from run $RESUME_RUN_ID."
-            else
-              echo "Could not find a downloadable evaluation artifact for run $RESUME_RUN_ID."
-              exit 1
-            fi
+          set -euo pipefail
+          if [ -z "$RESUME_RUN_ID" ]; then
+            echo "未指定恢复运行 ID，将从全新检查点开始。"
+            exit 0
           fi
-      - name: Run repeated behavior, baseline, and trigger evaluations
+          mkdir -p artifacts
+          gh run download "$RESUME_RUN_ID" \
+            --name "candidate-evaluation-report-$RESUME_RUN_ID" --dir artifacts
+          test -s artifacts/eval-checkpoint.json
+          echo "检查点已下载；其候选 SHA、Skill 内容、测试集和模型配置将在运行器内再次校验。"
+      - name: 执行重复行为、对照基线和触发评测
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          DEEPSEEK_GENERATOR_MODEL: ${{ github.event_name == 'workflow_dispatch' && inputs.generator_model || 'deepseek-flash' }}
+          DEEPSEEK_GENERATOR_MODEL: ${{ inputs.generator_model }}
           EVAL_JUDGE_BASE_URL: ${{ vars.EVAL_JUDGE_BASE_URL || 'https://api.groq.com/openai/v1' }}
           EVAL_JUDGE_MODEL: ${{ vars.EVAL_JUDGE_MODEL || 'openai/gpt-oss-120b' }}
           EVAL_JUDGE_API_KEY: ${{ secrets.EVAL_JUDGE_API_KEY || secrets.GROQ_API_KEY }}
@@ -118,18 +132,18 @@ jobs:
           GROQ_JUDGE_RPM: ${{ vars.GROQ_JUDGE_RPM || '30' }}
           GROQ_JUDGE_TPM: ${{ vars.GROQ_JUDGE_TPM || '8000' }}
           GROQ_JUDGE_TPD: ${{ vars.GROQ_JUDGE_TPD || '180000' }}
-          EVAL_GIT_SHA: ${{ github.event_name == 'workflow_dispatch' && inputs.candidate_sha || github.sha }}
+          EVAL_GIT_SHA: ${{ inputs.candidate_sha }}
         run: |
-          if [ -z "$DEEPSEEK_API_KEY" ]; then
-            echo "Repository secret DEEPSEEK_API_KEY is required."
-            exit 2
-          fi
-          if [ -z "$EVAL_JUDGE_BASE_URL" ] || [ -z "$EVAL_JUDGE_MODEL" ] || [ -z "$EVAL_JUDGE_API_KEY" ] || [ -z "$EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION" ] || [ -z "$EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION" ]; then
-            echo "An independent Judge endpoint, model, key, and explicit token prices are required. No generation request has been sent."
+          set -euo pipefail
+          if [ -z "$DEEPSEEK_API_KEY" ] || [ -z "$EVAL_JUDGE_BASE_URL" ] || \
+             [ -z "$EVAL_JUDGE_MODEL" ] || [ -z "$EVAL_JUDGE_API_KEY" ] || \
+             [ -z "$EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION" ] || \
+             [ -z "$EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION" ]; then
+            echo "评测凭证、服务配置或 token 单价缺失。"
             exit 2
           fi
           python tests/run_eval.py --runs 2 --output artifacts/eval-report.json
-      - name: Upload complete evaluation report
+      - name: 上传完整评测报告与检查点
         if: always()
         uses: actions/upload-artifact@v4
         with:

@@ -13,6 +13,7 @@ from verify_release import (
     PR_NUMBER,
     api_request,
     latest_approved_review,
+    release_pr_binding,
     require,
     verify_report,
 )
@@ -73,15 +74,7 @@ def create_release_tag():
             "Repository default branch must be main before tagging v0.0.1.")
 
     pr = api_request(f"/repos/{repo}/pulls/{pr_number}", token)
-    require(pr.get("merged") is True and pr.get("state") == "closed",
-            "The release PR must be merged and closed.")
-    require((pr.get("base") or {}).get("ref") == "main",
-            "The release PR must merge into main.")
-    require((pr.get("head") or {}).get("sha") == candidate_sha,
-            "Merged PR head SHA does not match the candidate SHA.")
-    release_sha = pr.get("merge_commit_sha")
-    require(bool(release_sha),
-            "Merged PR does not expose merge_commit_sha; refusing to tag a non-main commit.")
+    pr_head_sha, release_sha = release_pr_binding(pr, candidate_sha)
     author = (pr.get("user") or {}).get("login")
     require(bool(author), "Could not identify the release PR author.")
 
@@ -105,7 +98,7 @@ def create_release_tag():
     latest_run = max(matching_runs, key=lambda item: int(item.get("run_number", 0)))
     run_id = latest_run["id"]
 
-    review = latest_approved_review(reviews, author, candidate_sha, run_id)
+    review = latest_approved_review(reviews, author, pr_head_sha, run_id)
     report, artifact = report_from_run(repo, token, run_id, candidate_sha)
 
     tag_name = "v0.0.1"
@@ -136,8 +129,8 @@ def create_release_tag():
     baseline = report["baseline_comparison"]
     notes = (
         "# Evaluation Dataset Builder v0.0.1\n\n"
-        f"- Reviewed PR head SHA: `{candidate_sha}`\n"
-        f"- Merged main commit / tag SHA: `{release_sha}`\n"
+        f"- Reviewed PR head SHA: `{pr_head_sha}`\n"
+        f"- Evaluated merge commit / tag SHA: `{candidate_sha}`\n"
         f"- Validation run: {run_url}\n"
         f"- Independent reviewer: {reviewer}\n"
         f"- Generator: `{report['models']['generator']}`; Judge: `{report['models']['judge_and_trigger']}`\n"
