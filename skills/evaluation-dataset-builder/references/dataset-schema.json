@@ -15,7 +15,8 @@
     "quality_status",
     "scenario_bucket",
     "case_origin",
-    "coverage_tags"
+    "coverage_tags",
+    "execution_requirements"
   ],
   "properties": {
     "case_id": {
@@ -73,7 +74,8 @@
       "items": {
         "type": "object",
         "required": [
-          "source_type"
+          "source_type",
+          "title"
         ],
         "properties": {
           "source_id": {
@@ -100,6 +102,7 @@
           },
           "title": {
             "type": "string",
+            "minLength": 1,
             "description": "来源标题或名称。"
           },
           "version": {
@@ -123,7 +126,8 @@
           },
           "locator": {
             "type": "string",
-            "description": "可定位到具体内容的位置，例如章节、条款、URL 或文件页码。"
+            "description": "可定位到具体内容的位置，例如章节、条款、URL 或文件页码。",
+            "minLength": 1
           },
           "quoted_evidence": {
             "type": "string",
@@ -197,31 +201,77 @@
         },
         "criteria": {
           "type": "array",
+          "minItems": 1,
           "items": {
-            "type": "object"
+            "type": "object",
+            "required": [
+              "criterion_id",
+              "description",
+              "pass_condition",
+              "fail_condition",
+              "evidence_required"
+            ],
+            "properties": {
+              "criterion_id": {
+                "type": "string",
+                "minLength": 1,
+                "description": "评分项稳定标识。"
+              },
+              "description": {
+                "type": "string",
+                "minLength": 1,
+                "description": "本评分项判定的具体要求。"
+              },
+              "pass_condition": {
+                "type": "string",
+                "minLength": 1,
+                "description": "本项通过的可观察条件。"
+              },
+              "fail_condition": {
+                "type": "string",
+                "minLength": 1,
+                "description": "本项失败的可观察条件。"
+              },
+              "evidence_required": {
+                "type": "array",
+                "minItems": 1,
+                "items": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "description": "本项判定所需证据。"
+              }
+            },
+            "additionalProperties": true
           },
-          "description": "需要分别判定的评分项。"
+          "description": "至少包含一项可独立判定的评分标准。"
         },
         "pass_conditions": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
-          "description": "判为通过必须满足的条件。"
+          "description": "判为通过必须满足的条件。",
+          "minItems": 1
         },
         "fail_conditions": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
-          "description": "判为失败的条件。"
+          "description": "判为失败的条件。",
+          "minItems": 1
         },
         "evidence_required": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
-          "description": "作出判定前必须取得的证据。"
+          "description": "作出判定前必须取得的证据。",
+          "minItems": 1
         },
         "acceptable_variants": {
           "type": "array",
@@ -279,13 +329,16 @@
         "required_permissions": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
-          "description": "执行所需身份和权限。"
+          "description": "执行所需身份和权限。",
+          "minItems": 1
         },
         "environment": {
           "type": "object",
-          "description": "执行环境及隔离要求。"
+          "description": "执行环境及隔离要求。",
+          "minProperties": 1
         },
         "test_data": {
           "type": "array",
@@ -295,16 +348,20 @@
         "allowed_actions": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
-          "description": "本用例允许执行的操作。"
+          "description": "本用例允许执行的操作。",
+          "minItems": 1
         },
         "steps": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
-          "description": "按顺序执行的具体步骤。"
+          "description": "按顺序执行的具体步骤。",
+          "minItems": 1
         },
         "expected_end_state": {
           "type": [
@@ -317,28 +374,35 @@
         "observable_assertions": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
-          "description": "用于验证结果的可观察断言。"
+          "description": "用于验证结果的可观察断言。",
+          "minItems": 1
         },
         "forbidden_side_effects": {
           "type": "array",
           "items": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
-          "description": "不得产生的副作用。"
+          "description": "不得产生的副作用。",
+          "minItems": 1
         },
         "reset_plan": {
           "type": "string",
-          "description": "测试结束后的状态重置或回滚步骤。"
+          "description": "测试结束后的状态重置或回滚步骤。",
+          "minLength": 1
         },
         "cleanup_plan": {
           "type": "string",
-          "description": "正常结束时必须完成的清理步骤。"
+          "description": "正常结束时必须完成的清理步骤。",
+          "minLength": 1
         },
         "failure_cleanup": {
           "type": "string",
-          "description": "执行失败时必须执行的清理步骤。"
+          "description": "执行失败时必须执行的清理步骤。",
+          "minLength": 1
         },
         "cost_and_rate_limits": {
           "type": "object",
@@ -349,22 +413,24 @@
           "properties": {
             "run_id": {
               "type": "string",
-              "description": "真实执行记录的标识。"
+              "description": "真实执行记录的标识。",
+              "minLength": 1
             },
             "executed_at": {
               "type": "string",
-              "description": "真实执行时间。"
+              "format": "date-time"
             },
             "candidate_sha": {
               "type": "string",
-              "description": "实际执行版本的提交标识。"
+              "pattern": "^[0-9a-f]{40}$"
             },
             "artifact_refs": {
               "type": "array",
+              "minItems": 1,
               "items": {
-                "type": "string"
-              },
-              "description": "真实执行产物的引用。"
+                "type": "string",
+                "minLength": 1
+              }
             },
             "state_before": {
               "type": [
@@ -384,7 +450,13 @@
             }
           },
           "additionalProperties": true,
-          "description": "实际执行后形成的证据；未执行时不得填写虚构内容。"
+          "description": "实际执行后形成的证据；未执行时不得填写虚构内容。",
+          "required": [
+            "run_id",
+            "executed_at",
+            "candidate_sha",
+            "artifact_refs"
+          ]
         }
       },
       "allOf": [
@@ -466,7 +538,59 @@
     },
     "quality_review": {
       "type": "object",
-      "description": "质量审查记录、缺陷、结论和证据。"
+      "required": [
+        "review_id",
+        "reviewer",
+        "reviewed_at",
+        "decision",
+        "evidence_refs"
+      ],
+      "properties": {
+        "review_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reviewer": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reviewer_role": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reviewed_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "decision": {
+          "enum": [
+            "PASS",
+            "FAIL"
+          ]
+        },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "findings": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "approval_ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "正式批准记录引用；approved 状态必填。"
+        }
+      },
+      "additionalProperties": true,
+      "description": "独立质量审查记录。validated/approved 状态必须提供；approved 还必须具有审批引用。"
     },
     "assumptions": {
       "type": "array",
@@ -535,20 +659,22 @@
         "type": "object",
         "required": [
           "dimension",
-          "value"
+          "value",
+          "coverage_item_id"
         ],
         "properties": {
           "dimension": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "value": {
-            "type": "string"
+            "type": "string",
+            "minLength": 1
           },
           "coverage_item_id": {
-            "type": [
-              "string",
-              "null"
-            ]
+            "type": "string",
+            "minLength": 1,
+            "description": "覆盖全集中对应覆盖项的稳定标识。"
           }
         },
         "additionalProperties": true
@@ -671,8 +797,286 @@
         "additionalProperties": true
       },
       "description": "关联变更记录，支持影响分析和局部修复。"
+    },
+    "information_gaps": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "gap_id",
+          "description",
+          "affected_claims",
+          "required_evidence",
+          "responsible_role",
+          "status"
+        ],
+        "properties": {
+          "gap_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "affected_claims": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required_evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "responsible_role": {
+            "type": "string",
+            "minLength": 1
+          },
+          "status": {
+            "enum": [
+              "OPEN",
+              "IN_PROGRESS",
+              "RESOLVED"
+            ]
+          }
+        },
+        "additionalProperties": true
+      },
+      "description": "记录缺失或待裁决信息；不能以空来源或虚构来源替代。"
     }
   },
   "additionalProperties": true,
-  "$comment": "字段名、枚举值和机器标识保持原样；字段含义及填写要求使用中文说明。自然语言字段默认使用简体中文。"
+  "$comment": "字段名、枚举值和机器标识保持原样；字段含义及填写要求使用中文说明。自然语言字段默认使用简体中文。",
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "case_origin": {
+            "enum": [
+              "business_document",
+              "historical_defect",
+              "user_feedback",
+              "execution_trace",
+              "mixed",
+              "template_derived"
+            ]
+          }
+        },
+        "required": [
+          "case_origin"
+        ]
+      },
+      "then": {
+        "properties": {
+          "source_refs": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "case_origin": {
+            "const": "synthetic_gap_fill"
+          }
+        },
+        "required": [
+          "case_origin"
+        ]
+      },
+      "then": {
+        "required": [
+          "assumptions"
+        ],
+        "properties": {
+          "assumptions": {
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "source_refs": {
+            "minItems": 1,
+            "contains": {
+              "type": "object",
+              "properties": {
+                "source_type": {
+                  "const": "synthetic_scenario"
+                }
+              },
+              "required": [
+                "source_type"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "quality_status": {
+            "const": "needs_info"
+          }
+        },
+        "required": [
+          "quality_status"
+        ]
+      },
+      "then": {
+        "required": [
+          "information_gaps"
+        ],
+        "properties": {
+          "information_gaps": {
+            "minItems": 1,
+            "contains": {
+              "type": "object",
+              "properties": {
+                "status": {
+                  "enum": [
+                    "OPEN",
+                    "IN_PROGRESS"
+                  ]
+                }
+              },
+              "required": [
+                "status"
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "case_origin": {
+            "const": "unknown"
+          }
+        },
+        "required": [
+          "case_origin"
+        ]
+      },
+      "then": {
+        "required": [
+          "information_gaps"
+        ],
+        "properties": {
+          "quality_status": {
+            "not": {
+              "const": "approved"
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "quality_status": {
+            "enum": [
+              "validated",
+              "approved"
+            ]
+          }
+        },
+        "required": [
+          "quality_status"
+        ]
+      },
+      "then": {
+        "required": [
+          "quality_review"
+        ],
+        "properties": {
+          "quality_review": {
+            "properties": {
+              "decision": {
+                "const": "PASS"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "quality_status": {
+            "const": "approved"
+          }
+        },
+        "required": [
+          "quality_status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "quality_review": {
+            "required": [
+              "approval_ref"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "grading": {
+            "properties": {
+              "method": {
+                "const": "reference_match"
+              }
+            },
+            "required": [
+              "method"
+            ]
+          }
+        },
+        "required": [
+          "grading"
+        ]
+      },
+      "then": {
+        "required": [
+          "reference_outcome",
+          "source_refs"
+        ],
+        "properties": {
+          "reference_outcome": {
+            "not": {
+              "type": "null"
+            }
+          },
+          "source_refs": {
+            "minItems": 1
+          },
+          "grading": {
+            "required": [
+              "reference_authority"
+            ],
+            "properties": {
+              "reference_authority": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }
