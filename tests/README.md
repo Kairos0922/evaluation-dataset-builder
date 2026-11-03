@@ -21,7 +21,12 @@
 
 ## 本地离线检查
 
-Python 3.10 或更高版本：
+Python 3.10 或更高版本。安装离线验证依赖：
+
+```bash
+python -m pip install pyyaml jsonschema
+```
+
 
 ```bash
 python scripts/validate_skill.py
