@@ -41,6 +41,23 @@ def require(condition, message):
         raise ValueError(message)
 
 
+def release_pr_binding(pr, candidate_sha, candidate_tree_sha, release_tree_sha):
+    """Bind evaluation to the PR head and require identical content after merge."""
+    require(pr.get("merged") is True and pr.get("state") == "closed",
+            "The release PR must be merged and closed.")
+    require((pr.get("base") or {}).get("ref") == "main",
+            "The release PR must merge into main.")
+    reviewed_head_sha = (pr.get("head") or {}).get("sha")
+    release_sha = pr.get("merge_commit_sha")
+    require(bool(reviewed_head_sha) and bool(release_sha),
+            "The merged PR must expose both its reviewed head SHA and merge_commit_sha.")
+    require(candidate_sha == reviewed_head_sha,
+            "Evaluation candidate SHA must equal the reviewed PR head SHA.")
+    require(bool(candidate_tree_sha) and candidate_tree_sha == release_tree_sha,
+            "The merged release commit tree differs from the evaluated PR head tree; rerun validation on the final candidate.")
+    return reviewed_head_sha, release_sha
+
+
 def verify_report(report, candidate_sha, run_id):
     require(report.get("git_sha") == candidate_sha,
             "Evaluation report SHA does not match the release tag.")
@@ -80,13 +97,24 @@ def verify_report(report, candidate_sha, run_id):
                 "Skill and matched-baseline case counts are empty or differ.")
         require(len(trigger_cases) == trigger_count,
                 "A repeated run has missing trigger evaluation cases.")
+        metrics = run.get("metrics") or {}
+        require(float(metrics.get("behavior_evaluability_rate", 0)) == 1.0,
+                "A repeated run contains UNKNOWN or unscorable behavior checks.")
+        require(float(metrics.get("baseline_evaluability_rate", 0)) == 1.0,
+                "A repeated run contains UNKNOWN or unscorable baseline checks.")
         for case in skill_cases + baseline_cases:
             for check in case.get("checks") or []:
-                if check.get("score") == 1:
-                    require(check.get("evidence_validated") is True
+                status = check.get("status")
+                require(status in ("PASS", "FAIL"),
+                        "A behavior or baseline check is UNKNOWN or has no explicit status.")
+                if status == "PASS":
+                    require(check.get("score") == 1
+                            and check.get("evidence_validated") is True
                             and bool(check.get("evidence")),
                             "A passing Judge result lacks verified evidence.")
-        metrics = run.get("metrics") or {}
+                else:
+                    require(check.get("score") == 0,
+                            "A failing Judge result must have score 0.")
         require(float(metrics.get("behavior_pass_rate", 0)) >= BEHAVIOR_MIN,
                 "A run is below the behavior pass-rate threshold.")
         require(float(metrics.get("trigger_precision", 0)) >= PRECISION_MIN,
@@ -106,7 +134,16 @@ def verify_report(report, candidate_sha, run_id):
     return report
 
 
-def latest_approved_review(reviews, author, candidate_sha, run_id):
+def target_runtime_evidence_url(review):
+    """Return the dedicated HTTPS target-runtime evidence URL from an approved review."""
+    body = review.get("body") or ""
+    match = re.search(r"target-runtime:\s*PASS\s+(https://[^\s)]+)", body, flags=re.IGNORECASE)
+    require(match is not None,
+            "Independent approval must include target-runtime: PASS followed by its HTTPS evidence URL.")
+    return match.group(1)
+
+
+def latest_approved_review(reviews, author, reviewed_head_sha, run_id):
     latest_by_user = {}
     for review in reviews:
         user = (review.get("user") or {}).get("login")
@@ -124,7 +161,7 @@ def latest_approved_review(reviews, author, candidate_sha, run_id):
     for user, review in latest_by_user.items():
         if user == author or review.get("state") != "APPROVED":
             continue
-        if review.get("commit_id") != candidate_sha:
+        if review.get("commit_id") != reviewed_head_sha:
             continue
         body = review.get("body") or ""
         missing = [case_id for case_id in CRITICAL_CASES if case_id not in body]
@@ -132,13 +169,13 @@ def latest_approved_review(reviews, author, candidate_sha, run_id):
             continue
         if run_url_fragment not in body or "baseline" not in body.lower() or "spread" not in body.lower():
             continue
-        if "target-runtime: PASS" not in body:
-            continue
-        if not re.search(r"https://[^\s)]+", body):
+        try:
+            target_runtime_evidence_url(review)
+        except ValueError:
             continue
         return review
     raise ValueError(
-        "No independent APPROVED review exists on the exact candidate SHA with "
+        "No independent APPROVED review exists on the exact PR head SHA with "
         "critical-case findings, baseline/stability assessment, the Actions run link, "
         "and target-runtime: PASS with an HTTPS evidence link."
     )
@@ -163,9 +200,14 @@ def main():
     require((pr.get("base") or {}).get("ref") == "main",
             "The release PR must have merged into main.")
     candidate_sha = (pr.get("head") or {}).get("sha")
-    release_sha = pr.get("merge_commit_sha")
-    require(bool(candidate_sha) and bool(release_sha),
-            "The merged PR must expose both its reviewed head SHA and merge_commit_sha.")
+    release_sha = (pr.get("merge_commit_sha") or "")
+    candidate_commit = api_request(f"/repos/{repo}/git/commits/{candidate_sha}", token)
+    release_commit = api_request(f"/repos/{repo}/git/commits/{release_sha}", token)
+    reviewed_head_sha, release_sha = release_pr_binding(
+        pr, candidate_sha,
+        (candidate_commit.get("tree") or {}).get("sha"),
+        (release_commit.get("tree") or {}).get("sha"),
+    )
 
     tag_ref = api_request(
         f"/repos/{repo}/git/ref/tags/{urllib.parse.quote(tag_name, safe='')}", token
@@ -200,7 +242,7 @@ def main():
     latest_run = max(matching_runs, key=lambda item: int(item.get("run_number", 0)))
     run_id = latest_run["id"]
 
-    review = latest_approved_review(reviews, author, candidate_sha, run_id)
+    review = latest_approved_review(reviews, author, reviewed_head_sha, run_id)
     artifacts = api_request(f"/repos/{repo}/actions/runs/{run_id}/artifacts", token)
     artifact = next((
         item for item in (artifacts.get("artifacts") or [])
@@ -224,11 +266,14 @@ def main():
     run_url = f"https://github.com/{repo}/actions/runs/{run_id}"
     stability = report["stability"]
     baseline = report["baseline_comparison"]
+    runtime_evidence_url = target_runtime_evidence_url(review)
     notes = (
         "# Evaluation Dataset Builder v0.0.1\n\n"
-        f"- Candidate SHA: `{candidate_sha}`\n"
+        f"- Reviewed PR head SHA: `{reviewed_head_sha}`\n"
+        f"- Evaluated merge commit / tag SHA: `{release_sha}`\n"
         f"- Validation run: {run_url}\n"
         f"- Independent reviewer: {(review.get('user') or {}).get('login')}\n"
+        f"- Target runtime validation evidence: {runtime_evidence_url}\n"
         f"- Generator: `{report['models']['generator']}`; Judge: `{report['models']['judge_and_trigger']}`\n"
         f"- Complete repeated runs: {report['policy']['actual_runs']}\n"
         f"- Behavior mean / spread: {stability['behavior_pass_rate']['mean']:.1%} / {stability['behavior_pass_rate']['spread']:.1%}\n"
@@ -236,7 +281,7 @@ def main():
         f"- Trigger Recall mean / spread: {stability['trigger_recall']['mean']:.1%} / {stability['trigger_recall']['spread']:.1%}\n"
         f"- Matched baseline mean: {baseline['mean_baseline_behavior_pass_rate']:.1%}; Skill mean: {baseline['mean_skill_behavior_pass_rate']:.1%}; uplift: {baseline['mean_uplift']:+.1%}\n"
         "- Automated behavior, trigger, baseline, and stability gates: PASSED\n"
-        "- Limitation: this is a portable Skill-text behavioral proxy, not a full target Skills runtime test; target-runtime validation remains necessary before production deployment.\n"
+        "- Limitation: automated behavior evaluation is a Skill entrypoint-text proxy; target-runtime validation is a separate mandatory release gate and its evidence is linked above.\n"
         "\nThe attached JSON contains per-case outputs, locally verified Judge evidence, confusion matrices, baseline details, and token usage.\n"
     )
     Path("artifacts/release-notes.md").write_text(notes, encoding="utf-8")

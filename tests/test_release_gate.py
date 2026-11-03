@@ -47,15 +47,17 @@ class ReleaseGateUnitTests(unittest.TestCase):
                     "trigger_parse_errors": 0,
                     "skill_cases": [{
                         "id": "SE01",
-                        "checks": [{"score": 1, "evidence_validated": True, "evidence": ["quoted evidence"]}],
+                        "checks": [{"status": "PASS", "score": 1, "evidence_validated": True, "evidence": ["quoted evidence"]}],
                     }],
                     "baseline_cases": [{
                         "id": "SE01",
-                        "checks": [{"score": 1, "evidence_validated": True, "evidence": ["quoted evidence"]}],
+                        "checks": [{"status": "PASS", "score": 1, "evidence_validated": True, "evidence": ["quoted evidence"]}],
                     }],
                     "trigger_cases": [{} for _ in range(40)],
                     "metrics": {
                         "behavior_pass_rate": 0.92,
+                        "behavior_evaluability_rate": 1.0,
+                        "baseline_evaluability_rate": 1.0,
                         "trigger_precision": 0.95,
                         "trigger_recall": 0.96,
                     },
@@ -65,15 +67,17 @@ class ReleaseGateUnitTests(unittest.TestCase):
                     "trigger_parse_errors": 0,
                     "skill_cases": [{
                         "id": "SE01",
-                        "checks": [{"score": 1, "evidence_validated": True, "evidence": ["quoted evidence"]}],
+                        "checks": [{"status": "PASS", "score": 1, "evidence_validated": True, "evidence": ["quoted evidence"]}],
                     }],
                     "baseline_cases": [{
                         "id": "SE01",
-                        "checks": [{"score": 1, "evidence_validated": True, "evidence": ["quoted evidence"]}],
+                        "checks": [{"status": "PASS", "score": 1, "evidence_validated": True, "evidence": ["quoted evidence"]}],
                     }],
                     "trigger_cases": [{} for _ in range(40)],
                     "metrics": {
                         "behavior_pass_rate": 0.91,
+                        "behavior_evaluability_rate": 1.0,
+                        "baseline_evaluability_rate": 1.0,
                         "trigger_precision": 0.96,
                         "trigger_recall": 0.96,
                     },
@@ -134,16 +138,16 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "user": {"login": "independent-reviewer"},
             "state": "APPROVED",
             "submitted_at": "2026-11-01T10:00:00Z",
-            "commit_id": "candidate-sha",
+            "commit_id": "pr-head-sha",
             "body": body,
         }]
         result = VERIFY_RELEASE.latest_approved_review(
-            reviews, "pr-author", "candidate-sha", 12345
+            reviews, "pr-author", "pr-head-sha", 12345
         )
         self.assertEqual(result["user"]["login"], "independent-reviewer")
         with self.assertRaisesRegex(ValueError, "No independent APPROVED review"):
             VERIFY_RELEASE.latest_approved_review(
-                reviews, "pr-author", "different-sha", 12345
+                reviews, "pr-author", "different-pr-head-sha", 12345
             )
 
     def test_release_verifier_requires_independent_judge_endpoint(self):
@@ -162,12 +166,12 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "user": {"login": "independent-reviewer"},
             "state": "APPROVED",
             "submitted_at": "2026-11-01T10:00:00Z",
-            "commit_id": "candidate-sha",
+            "commit_id": "pr-head-sha",
             "body": body,
         }]
         with self.assertRaisesRegex(ValueError, "No independent APPROVED review"):
             VERIFY_RELEASE.latest_approved_review(
-                reviews, "pr-author", "candidate-sha", 12345
+                reviews, "pr-author", "pr-head-sha", 12345
             )
 
     def test_release_verifier_rejects_author_self_approval_and_changes_requested(self):
@@ -179,20 +183,20 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self_approval = [{
             "user": {"login": "pr-author"}, "state": "APPROVED",
             "submitted_at": "2026-11-01T10:00:00Z",
-            "commit_id": "candidate-sha", "body": body,
+            "commit_id": "pr-head-sha", "body": body,
         }]
         with self.assertRaisesRegex(ValueError, "No independent APPROVED review"):
             VERIFY_RELEASE.latest_approved_review(
-                self_approval, "pr-author", "candidate-sha", 12345
+                self_approval, "pr-author", "pr-head-sha", 12345
             )
         blocking = self_approval + [{
             "user": {"login": "independent-reviewer"}, "state": "CHANGES_REQUESTED",
             "submitted_at": "2026-11-01T10:01:00Z",
-            "commit_id": "candidate-sha", "body": "Fix SE04.",
+            "commit_id": "pr-head-sha", "body": "Fix SE04.",
         }]
         with self.assertRaisesRegex(ValueError, "CHANGES_REQUESTED"):
             VERIFY_RELEASE.latest_approved_review(
-                blocking, "pr-author", "candidate-sha", 12345
+                blocking, "pr-author", "pr-head-sha", 12345
             )
 
     def test_tag_workflow_runs_verifier_before_release_creation(self):
@@ -216,25 +220,53 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
     def test_manual_behavior_workflow_is_exact_sha_and_independent_judge_gated(self):
         workflow = (ROOT / ".github" / "workflows" / "behavioral-eval.yml").read_text(encoding="utf-8")
+        source = (ROOT / "tests" / "run_eval.py").read_text(encoding="utf-8")
         self.assertIn("run-name: Behavioral Skill Evaluation", workflow)
         self.assertIn("candidate_sha:", workflow)
-        self.assertIn("MAIN_SHA", workflow)
+        self.assertIn("PR_HEAD_SHA", workflow)
+        self.assertIn("PR_STATE", workflow)
+        self.assertIn("开放 PR", workflow)
+        self.assertIn("RELEASE_PR_NUMBER", workflow)
+        self.assertNotIn("MAIN_SHA", workflow)
+        self.assertNotIn("41369272868", workflow)
+        self.assertIn('"SKILL_ENTRYPOINT_TEXT_PROXY"', source)
+        self.assertIn('"references/*"', source)
         self.assertIn("EVAL_JUDGE_BASE_URL", workflow)
         self.assertIn("EVAL_JUDGE_API_KEY", workflow)
         self.assertIn('DEEPSEEK_MAX_TOKENS: "16384"', workflow)
         self.assertIn("EVAL_JUDGE_MAX_COMPLETION_TOKENS", workflow)
         self.assertIn("candidate-evaluation-report-", workflow)
 
-    def test_release_scripts_require_main_and_match_run_name_prefix(self):
+    def test_release_scripts_require_main_and_bind_report_to_merge_commit(self):
         creator = (ROOT / "scripts" / "create_release_tag.py").read_text(encoding="utf-8")
         verifier = (ROOT / "scripts" / "verify_release.py").read_text(encoding="utf-8")
         updater = (ROOT / "scripts" / "update_release_doc.py").read_text(encoding="utf-8")
         self.assertIn('default_branch") == "main"', creator)
         self.assertIn('default_branch") == "main"', verifier)
         self.assertIn('default_branch") == "main"', updater)
+        self.assertIn("release_pr_binding", creator)
         self.assertIn('startswith("Behavioral Skill Evaluation")', creator)
+        self.assertIn("release_pr_binding", verifier)
         self.assertIn('startswith("Behavioral Skill Evaluation")', verifier)
         self.assertIn('contents/RELEASE.md?ref=main', updater)
+
+    def test_release_pr_binding_separates_review_head_from_release_commit(self):
+        pr = {
+            "merged": True,
+            "state": "closed",
+            "base": {"ref": "main"},
+            "head": {"sha": "pr-head-sha"},
+            "merge_commit_sha": "merge-commit-sha",
+        }
+        head_sha, release_sha = VERIFY_RELEASE.release_pr_binding(
+            pr, "pr-head-sha", "same-tree", "same-tree"
+        )
+        self.assertEqual(head_sha, "pr-head-sha")
+        self.assertEqual(release_sha, "merge-commit-sha")
+        with self.assertRaisesRegex(ValueError, "PR head SHA"):
+            VERIFY_RELEASE.release_pr_binding(pr, "merge-commit-sha", "same-tree", "same-tree")
+        with self.assertRaisesRegex(ValueError, "tree differs"):
+            VERIFY_RELEASE.release_pr_binding(pr, "pr-head-sha", "candidate-tree", "merge-tree")
 
     def test_release_tag_creator_is_present_and_compiles(self):
         path = ROOT / "scripts" / "create_release_tag.py"
@@ -270,16 +302,50 @@ class ReleaseGateUnitTests(unittest.TestCase):
             },
         }
         updated = UPDATE_RELEASE_DOC.build_published_release_doc(
-            current, report, "candidate-sha", "release-merge-sha", "independent-reviewer"
+            current, report, "candidate-sha", "release-merge-sha",
+            "independent-reviewer", "https://example.com/runtime-report/12345"
         )
         self.assertIn("# Release 0.0.1 — Published", updated)
         self.assertIn("- [x] Behavioral pass rate", updated)
         self.assertIn("- [x] Independent human review", updated)
-        self.assertIn("Target-runtime validation remains a deployment follow-up", updated)
+        self.assertIn("- [x] Target-runtime validation", updated)
+        self.assertIn("https://example.com/runtime-report/12345", updated)
         self.assertIn("candidate-sha", updated)
         self.assertIn("release-merge-sha", updated)
         self.assertIn("independent-reviewer", updated)
         self.assertIn("Matched baseline mean uplift: +4.0%", updated)
+
+    def test_judge_missing_pass_evidence_is_unknown_not_behavior_failure(self):
+        response = {
+            "checks": [{
+                "index": 0,
+                "score": 1,
+                "rationale": "Criterion appears satisfied, but evidence was omitted.",
+                "evidence": [],
+                "absence_reason": None,
+            }]
+        }
+        with mock.patch.object(RUN_EVAL, "api_call", return_value=json.dumps(response)):
+            result = RUN_EVAL.judge_case("test-key", "test-judge", ["criterion"], "The criterion is present.")
+        self.assertEqual(result[0]["status"], "UNKNOWN")
+        self.assertIsNone(result[0]["score"])
+        self.assertEqual(result[0]["judge_basis"], "passing_claim_without_verifiable_evidence")
+
+    def test_judge_can_report_failure_by_specific_absence_without_fake_quote(self):
+        response = {
+            "checks": [{
+                "index": 0,
+                "score": 0,
+                "rationale": "The required rule ID is missing.",
+                "evidence": [],
+                "absence_reason": "No source rule ID appears in the generated case.",
+            }]
+        }
+        with mock.patch.object(RUN_EVAL, "api_call", return_value=json.dumps(response)):
+            result = RUN_EVAL.judge_case("test-key", "test-judge", ["records a source rule ID"], "No rule reference is included.")
+        self.assertEqual(result[0]["status"], "FAIL")
+        self.assertEqual(result[0]["score"], 0)
+        self.assertEqual(result[0]["judge_basis"], "reported_absence")
 
     def test_policy_thresholds_are_exact(self):
         self.assertEqual(RUN_EVAL.POLICY["behavior_pass_rate"], 0.90)
@@ -714,7 +780,8 @@ class ReleaseGateUnitTests(unittest.TestCase):
             )
         self.assertEqual(results[0]["score"], 1)
         self.assertTrue(results[0]["evidence_validated"])
-        self.assertEqual(results[1]["score"], 0)
+        self.assertEqual(results[1]["status"], "UNKNOWN")
+        self.assertIsNone(results[1]["score"])
         self.assertFalse(results[1]["evidence_validated"])
 
     def test_judge_prompt_uses_real_section_line_breaks(self):
@@ -742,7 +809,8 @@ class ReleaseGateUnitTests(unittest.TestCase):
             results = RUN_EVAL.judge_case(
                 "key", "judge-model", ["criterion"], "OK"
             )
-        self.assertEqual(results[0]["score"], 0)
+        self.assertEqual(results[0]["status"], "UNKNOWN")
+        self.assertIsNone(results[0]["score"])
         self.assertFalse(results[0]["evidence_validated"])
 
     def test_judge_duplicate_and_missing_indices_fail_closed(self):
@@ -756,7 +824,8 @@ class ReleaseGateUnitTests(unittest.TestCase):
             results = RUN_EVAL.judge_case(
                 "test-key", "judge-model", ["criterion A", "criterion B"], "A"
             )
-        self.assertEqual([item["score"] for item in results], [0, 0])
+        self.assertEqual([item["status"] for item in results], ["UNKNOWN", "UNKNOWN"])
+        self.assertEqual([item["score"] for item in results], [None, None])
 
     def test_skill_and_matched_baseline_fit_free_tier_budget_per_case(self):
         skill = RUN_EVAL.load_skill()
@@ -974,7 +1043,8 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 "key", "judge-model", ["states target and objective"],
                 "Target: Billing Support. Objective: verify monthly totals.",
             )
-        self.assertEqual(results[0]["score"], 0)
+        self.assertEqual(results[0]["status"], "UNKNOWN")
+        self.assertIsNone(results[0]["score"])
         self.assertFalse(results[0]["evidence_validated"])
         self.assertEqual(results[0]["evidence"], [])
 
@@ -989,7 +1059,8 @@ class ReleaseGateUnitTests(unittest.TestCase):
             results = RUN_EVAL.judge_case(
                 "key", "judge-model", ["criterion"], " ".join(quotes)
             )
-        self.assertEqual(results[0]["score"], 0)
+        self.assertEqual(results[0]["status"], "UNKNOWN")
+        self.assertIsNone(results[0]["score"])
         self.assertFalse(results[0]["evidence_validated"])
 
     def test_trigger_provider_error_is_recorded_as_parse_error(self):
@@ -1001,7 +1072,8 @@ class ReleaseGateUnitTests(unittest.TestCase):
     def test_judge_provider_error_fails_each_criterion_closed(self):
         with mock.patch.object(RUN_EVAL, "api_call", side_effect=RuntimeError("provider unavailable")):
             results = RUN_EVAL.judge_case("key", "judge-model", ["criterion A", "criterion B"], "text")
-        self.assertEqual([item["score"] for item in results], [0, 0])
+        self.assertEqual([item["status"] for item in results], ["UNKNOWN", "UNKNOWN"])
+        self.assertEqual([item["score"] for item in results], [None, None])
         self.assertTrue(all(item["judge_api_error"] for item in results))
 
     def test_evaluate_once_records_generator_and_trigger_provider_errors(self):
@@ -1023,7 +1095,10 @@ class ReleaseGateUnitTests(unittest.TestCase):
             )
         self.assertTrue(result["skill_cases"][0]["generation_error"])
         self.assertTrue(result["baseline_cases"][0]["generation_error"])
-        self.assertEqual([x["score"] for x in result["skill_cases"][0]["checks"]], [0, 0])
+        self.assertEqual([x["status"] for x in result["skill_cases"][0]["checks"]], ["UNKNOWN", "UNKNOWN"])
+        self.assertEqual([x["score"] for x in result["skill_cases"][0]["checks"]], [None, None])
+        self.assertEqual(result["metrics"]["behavior_evaluability_rate"], 0.0)
+        self.assertFalse(result["gates"]["behavior_evaluability"]["pass"])
         self.assertEqual(result["trigger_parse_errors"], 1)
         self.assertFalse(result["gates"]["trigger_classifier_valid"]["pass"])
         self.assertFalse(result["automated_run_pass"])

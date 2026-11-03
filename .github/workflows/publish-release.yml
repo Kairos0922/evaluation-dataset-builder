@@ -13,7 +13,7 @@ on:
         required: true
         type: string
       candidate_sha:
-        description: Exact merged release PR head SHA to verify and release
+        description: Exact PR head SHA used by the successful evaluation report and independent approval
         required: true
         type: string
 

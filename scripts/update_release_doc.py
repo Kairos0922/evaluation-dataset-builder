@@ -6,10 +6,13 @@ import os
 import sys
 import urllib.request
 
-from verify_release import API, api_request, latest_approved_review, require
+from verify_release import (
+    API, api_request, latest_approved_review, release_pr_binding,
+    require, target_runtime_evidence_url,
+)
 
 
-def build_published_release_doc(current, report, candidate_sha, release_sha, reviewer):
+def build_published_release_doc(current, report, candidate_sha, release_sha, reviewer, runtime_evidence_url):
     require("# Release 0.0.1 — Candidate (not yet published)" in current
             or "# Release 0.0.1 — Published" in current,
             "RELEASE.md does not contain the expected v0.0.1 heading.")
@@ -28,8 +31,7 @@ def build_published_release_doc(current, report, candidate_sha, release_sha, rev
         text = text.replace(f"- [ ] {gate}", f"- [x] {gate}")
     text = text.replace(
         "- [ ] Target-runtime validation",
-        "Target-runtime validation remains a deployment follow-up; this release "
-        "validates the portable Skill-text proxy, not a full host runtime.",
+        "- [x] Target-runtime validation",
     )
     text = text.replace(
         "This is a release candidate only. Do not publish tag v0.0.1 until every "
@@ -49,8 +51,8 @@ def build_published_release_doc(current, report, candidate_sha, release_sha, rev
         f"- Trigger Recall mean / spread: {report['stability']['trigger_recall']['mean']:.1%} / {report['stability']['trigger_recall']['spread']:.1%}\n"
         f"- Matched baseline mean uplift: {report['baseline_comparison']['mean_uplift']:+.1%}\n"
         f"- Independent reviewer: {reviewer}\n"
-        "\nThe machine-readable evaluation report is attached to the GitHub Release. "
-        "Run target-host validation before production deployment.\n"
+        f"- Target runtime validation evidence: {runtime_evidence_url}\n"
+        "\nThe machine-readable evaluation report and target-runtime evidence are linked to this release.\n"
     )
     if "\n## Release evidence\n" in text:
         text = text.split("\n## Release evidence\n", 1)[0]
@@ -97,13 +99,14 @@ def main():
     require(repository.get("default_branch") == "main",
             "Repository default branch must be main.")
     pr = api_request(f"/repos/{repo}/pulls/{pr_number}", token)
-    require(pr.get("merged") is True and (pr.get("base") or {}).get("ref") == "main",
-            "configured release PR must be merged into main before RELEASE.md can be updated.")
-    require((pr.get("head") or {}).get("sha") == candidate_sha,
-            "Merged configured release PR head differs from the published candidate.")
-    release_sha = pr.get("merge_commit_sha")
-    require(bool(release_sha),
-            "Merged configured release PR has no merge_commit_sha.")
+    candidate_commit = api_request(f"/repos/{repo}/git/commits/{candidate_sha}", token)
+    release_sha = pr.get("merge_commit_sha") or ""
+    release_commit = api_request(f"/repos/{repo}/git/commits/{release_sha}", token)
+    pr_head_sha, release_sha = release_pr_binding(
+        pr, candidate_sha,
+        (candidate_commit.get("tree") or {}).get("sha"),
+        (release_commit.get("tree") or {}).get("sha"),
+    )
     tag_ref = api_request(f"/repos/{repo}/git/ref/tags/v0.0.1", token)
     tag_object = tag_ref.get("object") or {}
     tag_sha = tag_object.get("sha")
@@ -114,7 +117,7 @@ def main():
             "v0.0.1 tag does not point to the merged main commit.")
     reviews = api_request(f"/repos/{repo}/pulls/{pr_number}/reviews?per_page=100", token)
     reviewer = latest_approved_review(
-        reviews, (pr.get("user") or {}).get("login"), candidate_sha,
+        reviews, (pr.get("user") or {}).get("login"), pr_head_sha,
         report.get("workflow_run_id"),
     )
 
@@ -123,7 +126,8 @@ def main():
     )
     current = base64.b64decode(current_file["content"]).decode("utf-8")
     updated = build_published_release_doc(
-        current, report, candidate_sha, release_sha, reviewer["user"]["login"]
+        current, report, pr_head_sha, release_sha, reviewer["user"]["login"],
+        target_runtime_evidence_url(reviewer),
     )
     result = put_file(
         f"/repos/{repo}/contents/RELEASE.md",

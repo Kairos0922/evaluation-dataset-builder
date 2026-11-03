@@ -13,6 +13,8 @@ from verify_release import (
     PR_NUMBER,
     api_request,
     latest_approved_review,
+    release_pr_binding,
+    target_runtime_evidence_url,
     require,
     verify_report,
 )
@@ -73,15 +75,14 @@ def create_release_tag():
             "Repository default branch must be main before tagging v0.0.1.")
 
     pr = api_request(f"/repos/{repo}/pulls/{pr_number}", token)
-    require(pr.get("merged") is True and pr.get("state") == "closed",
-            "The release PR must be merged and closed.")
-    require((pr.get("base") or {}).get("ref") == "main",
-            "The release PR must merge into main.")
-    require((pr.get("head") or {}).get("sha") == candidate_sha,
-            "Merged PR head SHA does not match the candidate SHA.")
-    release_sha = pr.get("merge_commit_sha")
-    require(bool(release_sha),
-            "Merged PR does not expose merge_commit_sha; refusing to tag a non-main commit.")
+    candidate_commit = api_request(f"/repos/{repo}/git/commits/{candidate_sha}", token)
+    release_sha = pr.get("merge_commit_sha") or ""
+    release_commit = api_request(f"/repos/{repo}/git/commits/{release_sha}", token)
+    pr_head_sha, release_sha = release_pr_binding(
+        pr, candidate_sha,
+        (candidate_commit.get("tree") or {}).get("sha"),
+        (release_commit.get("tree") or {}).get("sha"),
+    )
     author = (pr.get("user") or {}).get("login")
     require(bool(author), "Could not identify the release PR author.")
 
@@ -105,7 +106,7 @@ def create_release_tag():
     latest_run = max(matching_runs, key=lambda item: int(item.get("run_number", 0)))
     run_id = latest_run["id"]
 
-    review = latest_approved_review(reviews, author, candidate_sha, run_id)
+    review = latest_approved_review(reviews, author, pr_head_sha, run_id)
     report, artifact = report_from_run(repo, token, run_id, candidate_sha)
 
     tag_name = "v0.0.1"
@@ -132,14 +133,16 @@ def create_release_tag():
         json.dump(report, handle, ensure_ascii=False, indent=2)
     run_url = f"https://github.com/{repo}/actions/runs/{run_id}"
     reviewer = (review.get("user") or {}).get("login")
+    runtime_evidence_url = target_runtime_evidence_url(review)
     stability = report["stability"]
     baseline = report["baseline_comparison"]
     notes = (
         "# Evaluation Dataset Builder v0.0.1\n\n"
-        f"- Reviewed PR head SHA: `{candidate_sha}`\n"
-        f"- Merged main commit / tag SHA: `{release_sha}`\n"
+        f"- Reviewed PR head SHA: `{pr_head_sha}`\n"
+        f"- Evaluated merge commit / tag SHA: `{release_sha}`\n"
         f"- Validation run: {run_url}\n"
         f"- Independent reviewer: {reviewer}\n"
+        f"- Target runtime validation evidence: {runtime_evidence_url}\n"
         f"- Generator: `{report['models']['generator']}`; Judge: `{report['models']['judge_and_trigger']}`\n"
         f"- Complete repeated runs: {report['policy']['actual_runs']}\n"
         f"- Behavior mean / spread: {stability['behavior_pass_rate']['mean']:.1%} / {stability['behavior_pass_rate']['spread']:.1%}\n"
@@ -147,7 +150,7 @@ def create_release_tag():
         f"- Trigger Recall mean / spread: {stability['trigger_recall']['mean']:.1%} / {stability['trigger_recall']['spread']:.1%}\n"
         f"- Matched baseline mean: {baseline['mean_baseline_behavior_pass_rate']:.1%}; Skill mean: {baseline['mean_skill_behavior_pass_rate']:.1%}; uplift: {baseline['mean_uplift']:+.1%}\n"
         "- Automated behavior, trigger, baseline, and stability gates: PASSED\n"
-        "- Limitation: this is a portable Skill-text behavioral proxy, not a full target Skills runtime test; target-runtime validation remains necessary before production deployment.\n"
+        "- Limitation: automated behavior evaluation is a SKILL.md entrypoint-text proxy; packaged references are not loaded through host resource tools. Target-runtime validation is a separate mandatory release gate and its evidence is linked above.\n"
         "\nThe attached JSON contains per-case outputs, locally verified Judge evidence, confusion matrices, baseline details, and token usage.\n"
     )
     with open("artifacts/release-notes.md", "w", encoding="utf-8") as handle:

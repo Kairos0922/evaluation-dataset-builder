@@ -577,15 +577,16 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
         "You are an independent, strict evaluation judge. Evaluate only the "
         "observable content of the candidate output. Do not infer that omitted "
         "steps were completed and do not reward stated intent. A criterion passes "
-        "only when the output itself clearly demonstrates it. For every criterion, "
-        "cite 1-3 short VERBATIM substrings (each 6-120 characters) copied "
-        "exactly from the candidate output; never invent or paraphrase evidence. "
-        "Use the minimum number of quotes needed, and ensure the quotes collectively "
-        "support every material part of the criterion. For a failure, quote the "
-        "closest relevant passage(s) if they exist and explain the missing part in "
-        "a rationale of at most 80 characters. Keep the JSON concise. Return only: "
+        "only when the output itself clearly demonstrates it. For PASS, cite 1-3 "
+        "short VERBATIM substrings (each 6-120 characters) copied exactly from the "
+        "candidate output; never invent or paraphrase evidence. For FAIL, cite "
+        "contradictory or incorrect text when it exists. If the criterion is absent, "
+        "leave evidence empty and provide a precise absence_reason naming the missing "
+        "observable requirement. If evidence is insufficient or ambiguous, return "
+        "score null (UNKNOWN), not a guessed PASS or FAIL. Keep the JSON concise. "
+        "Return only: "
         '{"checks":[{"index":0,"score":0,"rationale":"brief reason",'
-        '"evidence":["exact quote 1","exact quote 2"]}]}. Include every index exactly once.'
+        '"evidence":[],"absence_reason":null}]}. Include every index exactly once.'
     )
     user = (
         "Evaluate the following criteria independently.\n\n"
@@ -603,7 +604,8 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
     except Exception as exc:
         return [{
             "criterion": criterion,
-            "score": 0,
+            "status": "UNKNOWN",
+            "score": None,
             "rationale": "Judge API call failed closed: " + str(exc)[:400],
             "evidence": [],
             "evidence_validated": False,
@@ -627,7 +629,8 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
     except Exception as exc:
         return [{
             "criterion": criterion,
-            "score": 0,
+            "status": "UNKNOWN",
+            "score": None,
             "rationale": "Judge response was invalid JSON: " + str(exc),
             "evidence": [],
             "evidence_validated": False,
@@ -643,15 +646,17 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
         item = by_index.get(index)
         if not item:
             results.append({
-                "criterion": criterion, "score": 0,
+                "criterion": criterion, "status": "UNKNOWN", "score": None,
                 "rationale": "Judge omitted this criterion.",
                 "evidence": [], "evidence_validated": False,
+                "judge_basis": "missing_judge_result",
                 "judge_parse_error": raw[:500],
             })
             continue
         score = item.get("score")
-        score_valid = (type(score) is bool) or (type(score) is int and score in (0, 1))
+        score_valid = score is None or type(score) is bool or (type(score) is int and score in (0, 1))
         rationale = str(item.get("rationale", "")).strip()[:500]
+        absence_reason = str(item.get("absence_reason") or "").strip()[:300]
         evidence = item.get("evidence", [])
         if not isinstance(evidence, list):
             evidence = []
@@ -661,9 +666,6 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
             if 6 <= len(compact(quote)) <= 120
             and compact(quote) in candidate_compact
         ]
-        # Every supplied quotation must be short and locally verifiable. A
-        # passing property may need multiple snippets when it has several
-        # independent sub-requirements (e.g. two source versions and clauses).
         evidence_validated = (
             1 <= len(evidence) <= 3
             and len(valid_evidence) == len(evidence)
@@ -672,22 +674,36 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
         if index in duplicates:
             reasons.append("Judge returned a duplicate result for this criterion.")
         if not score_valid:
-            reasons.append("Judge returned a non-binary score.")
+            reasons.append("Judge returned an invalid score.")
         if not rationale:
             reasons.append("Judge omitted its rationale.")
-        if not evidence_validated:
-            reasons.append("No verbatim evidence could be verified in the candidate output.")
         if reasons:
-            score_value = 0
-            rationale = (rationale + " " if rationale else "") + " ".join(reasons)
+            status, score_value, judge_basis = "UNKNOWN", None, "invalid_judge_result"
+        elif score is None:
+            status, score_value, judge_basis = "UNKNOWN", None, "judge_uncertain"
+        elif score is True or score == 1:
+            if evidence_validated:
+                status, score_value, judge_basis = "PASS", 1, "verbatim_quote"
+            else:
+                status, score_value, judge_basis = "UNKNOWN", None, "passing_claim_without_verifiable_evidence"
+                rationale += " PASS requires locally verifiable verbatim evidence."
         else:
-            score_value = 1 if score is True or score == 1 else 0
+            if evidence_validated:
+                status, score_value, judge_basis = "FAIL", 0, "verbatim_quote"
+            elif not evidence and absence_reason:
+                status, score_value, judge_basis = "FAIL", 0, "reported_absence"
+            else:
+                status, score_value, judge_basis = "UNKNOWN", None, "failing_claim_without_verifiable_basis"
+                rationale += " FAIL requires a verifiable quote or a specific absence_reason."
         results.append({
             "criterion": criterion,
+            "status": status,
             "score": score_value,
             "rationale": rationale[:500],
             "evidence": valid_evidence if evidence_validated else [],
             "evidence_validated": evidence_validated,
+            "judge_basis": judge_basis,
+            "absence_reason": absence_reason if judge_basis == "reported_absence" else None,
         })
     return results
 
@@ -767,7 +783,8 @@ def evaluate_once(index, generator_api_key, judge_api_key, generator_model, judg
         "baseline_cases": [],
         "trigger_cases": [],
     }
-    skill_passed = skill_total = baseline_passed = baseline_total = 0
+    skill_passed = skill_failed = skill_unknown = skill_total = 0
+    baseline_passed = baseline_failed = baseline_unknown = baseline_total = 0
 
     for case in suite["cases"]:
         prompt = case["prompt"] + (
@@ -787,17 +804,25 @@ def evaluate_once(index, generator_api_key, judge_api_key, generator_model, judg
             skill_output = ""
             skill_generation_error = str(exc)[:500]
             skill_checks = [{
-                "criterion": criterion, "score": 0,
+                "criterion": criterion, "status": "UNKNOWN", "score": None,
                 "rationale": "Generator API call failed closed: " + skill_generation_error,
                 "evidence": [], "evidence_validated": False,
                 "generator_api_error": True,
             } for criterion in case["expected"]]
-        skill_passed += sum(item["score"] for item in skill_checks)
+        skill_passed += sum(item["status"] == "PASS" for item in skill_checks)
+        skill_failed += sum(item["status"] == "FAIL" for item in skill_checks)
+        skill_unknown += sum(item["status"] == "UNKNOWN" for item in skill_checks)
         skill_total += len(skill_checks)
+        skill_case_status = (
+            "PASS" if all(item["status"] == "PASS" for item in skill_checks)
+            else "FAIL" if any(item["status"] == "FAIL" for item in skill_checks)
+            else "UNKNOWN"
+        )
         run["skill_cases"].append({
             "id": case["id"],
             "category": case["category"],
-            "pass": all(item["score"] == 1 for item in skill_checks),
+            "status": skill_case_status,
+            "pass": skill_case_status == "PASS",
             "checks": skill_checks,
             "output": skill_output,
             "generation_error": skill_generation_error,
@@ -818,24 +843,33 @@ def evaluate_once(index, generator_api_key, judge_api_key, generator_model, judg
             baseline_output = ""
             baseline_generation_error = str(exc)[:500]
             baseline_checks = [{
-                "criterion": criterion, "score": 0,
+                "criterion": criterion, "status": "UNKNOWN", "score": None,
                 "rationale": "Baseline Generator API call failed closed: " + baseline_generation_error,
                 "evidence": [], "evidence_validated": False,
                 "generator_api_error": True,
             } for criterion in case["expected"]]
-        baseline_passed += sum(item["score"] for item in baseline_checks)
+        baseline_passed += sum(item["status"] == "PASS" for item in baseline_checks)
+        baseline_failed += sum(item["status"] == "FAIL" for item in baseline_checks)
+        baseline_unknown += sum(item["status"] == "UNKNOWN" for item in baseline_checks)
         baseline_total += len(baseline_checks)
+        baseline_case_status = (
+            "PASS" if all(item["status"] == "PASS" for item in baseline_checks)
+            else "FAIL" if any(item["status"] == "FAIL" for item in baseline_checks)
+            else "UNKNOWN"
+        )
         run["baseline_cases"].append({
             "id": case["id"],
-            "pass": all(item["score"] == 1 for item in baseline_checks),
+            "status": baseline_case_status,
+            "pass": baseline_case_status == "PASS",
             "checks": baseline_checks,
             "output": baseline_output,
             "generation_error": baseline_generation_error,
         })
         print(
             f"run {index} behavior {case['id']}: "
-            f"{'PASS' if all(x['score'] == 1 for x in skill_checks) else 'FAIL'} "
-            f"({sum(x['score'] for x in skill_checks)}/{len(skill_checks)})",
+            f"{'PASS' if all(x['status'] == 'PASS' for x in skill_checks) else 'FAIL' if any(x['status'] == 'FAIL' for x in skill_checks) else 'UNKNOWN'} "
+            f"({sum(x['status'] == 'PASS' for x in skill_checks)}/{len(skill_checks)} checks passed; "
+            f"{sum(x['status'] == 'UNKNOWN' for x in skill_checks)} unknown)",
             flush=True,
         )
 
@@ -864,23 +898,43 @@ def evaluate_once(index, generator_api_key, judge_api_key, generator_model, judg
             "parse_error": parse_error,
         })
 
-    behavior_rate = skill_passed / skill_total if skill_total else 0.0
-    baseline_rate = baseline_passed / baseline_total if baseline_total else 0.0
+    skill_scored = skill_passed + skill_failed
+    baseline_scored = baseline_passed + baseline_failed
+    behavior_rate = skill_passed / skill_scored if skill_scored else 0.0
+    baseline_rate = baseline_passed / baseline_scored if baseline_scored else 0.0
+    behavior_evaluability_rate = skill_scored / skill_total if skill_total else 0.0
+    baseline_evaluability_rate = baseline_scored / baseline_total if baseline_total else 0.0
     precision, recall = binary_metrics(tp, fp, fn)
     run["trigger_confusion"] = {"tp": tp, "fp": fp, "fn": fn, "tn": tn}
     run["trigger_parse_errors"] = trigger_parse_errors
     run["metrics"] = {
         "behavior_pass_rate": behavior_rate,
         "behavior_checks_passed": skill_passed,
+        "behavior_checks_failed": skill_failed,
+        "behavior_checks_unknown": skill_unknown,
+        "behavior_checks_scored": skill_scored,
         "behavior_checks_total": skill_total,
+        "behavior_evaluability_rate": behavior_evaluability_rate,
         "baseline_behavior_pass_rate": baseline_rate,
         "baseline_checks_passed": baseline_passed,
+        "baseline_checks_failed": baseline_failed,
+        "baseline_checks_unknown": baseline_unknown,
+        "baseline_checks_scored": baseline_scored,
         "baseline_checks_total": baseline_total,
+        "baseline_evaluability_rate": baseline_evaluability_rate,
         "behavior_uplift_vs_baseline": behavior_rate - baseline_rate,
         "trigger_precision": precision,
         "trigger_recall": recall,
     }
     run["gates"] = gate_metrics(behavior_rate, precision, recall)
+    run["gates"]["behavior_evaluability"] = {
+        "value": behavior_evaluability_rate, "threshold": 1.0,
+        "pass": behavior_evaluability_rate == 1.0,
+    }
+    run["gates"]["baseline_evaluability"] = {
+        "value": baseline_evaluability_rate, "threshold": 1.0,
+        "pass": baseline_evaluability_rate == 1.0,
+    }
     run["gates"]["trigger_classifier_valid"] = {
         "value": trigger_parse_errors, "threshold": 0,
         "pass": trigger_parse_errors == 0,
@@ -979,6 +1033,7 @@ def main():
         "generator_model": args.generator_model,
         "judge_model": args.judge_model,
         "judge_api_url": judge_api_url,
+        "candidate_sha": evaluation_git_sha(),
         "judge_pricing": MODEL_PRICING_USD_PER_MILLION.get(args.judge_model),
         "model_context_limits": MODEL_CONTEXT_LIMITS,
         "model_rate_limits": MODEL_RATE_LIMITS,
@@ -1058,7 +1113,12 @@ def main():
         and all(case.get("generation_error") is None for case in run["baseline_cases"])
         and all(
             not check.get("judge_api_error") and not check.get("judge_parse_error")
+            and check.get("status") in ("PASS", "FAIL")
             for case in run["baseline_cases"] for check in case["checks"]
+        )
+        and all(
+            check.get("status") in ("PASS", "FAIL")
+            for case in run["skill_cases"] for check in case["checks"]
         )
         for run in runs
     )
@@ -1069,6 +1129,7 @@ def main():
     )
     judge_responses_complete = all(
         not check.get("judge_api_error") and not check.get("judge_parse_error")
+        and check.get("status") in ("PASS", "FAIL")
         for run in runs
         for case_type in ("skill_cases", "baseline_cases")
         for case in run[case_type]
@@ -1081,6 +1142,15 @@ def main():
         "api_base_url": DEEPSEEK_BASE_URL,
         "judge_api_base_url": judge_api_base_url,
         "suite_id": suite["suite_id"],
+        "evaluation_scope": {
+            "type": "SKILL_ENTRYPOINT_TEXT_PROXY",
+            "loaded_assets": ["SKILL.md"],
+            "not_loaded_assets": ["references/*"],
+            "limitations": [
+                "本评测只测试入口指令文本，不模拟宿主按需读取 references 的工具行为。",
+                "本评测不能替代目标宿主中的 Skill 加载与真实执行验证。",
+            ],
+        },
         "models": {
             "generator": args.generator_model,
             "judge_and_trigger": args.judge_model,
@@ -1094,6 +1164,7 @@ def main():
         "policy": {
             **POLICY,
             "actual_runs": args.runs,
+            "minimum_behavior_evaluability_rate": 1.0,
             "critical_case_ids_for_human_review": CRITICAL_CASE_IDS,
             "trigger_eval_count": len(trigger_suite["evals"]),
         },
