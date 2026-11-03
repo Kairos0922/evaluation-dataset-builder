@@ -225,7 +225,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn("candidate_sha:", workflow)
         self.assertIn("PR_HEAD_SHA", workflow)
         self.assertIn("PR_STATE", workflow)
-        self.assertIn("open PR", workflow)
+        self.assertIn("开放 PR", workflow)
         self.assertIn("RELEASE_PR_NUMBER", workflow)
         self.assertNotIn("MAIN_SHA", workflow)
         self.assertNotIn("41369272868", workflow)
@@ -780,7 +780,8 @@ class ReleaseGateUnitTests(unittest.TestCase):
             )
         self.assertEqual(results[0]["score"], 1)
         self.assertTrue(results[0]["evidence_validated"])
-        self.assertEqual(results[1]["score"], 0)
+        self.assertEqual(results[1]["status"], "UNKNOWN")
+        self.assertIsNone(results[1]["score"])
         self.assertFalse(results[1]["evidence_validated"])
 
     def test_judge_prompt_uses_real_section_line_breaks(self):
@@ -808,7 +809,8 @@ class ReleaseGateUnitTests(unittest.TestCase):
             results = RUN_EVAL.judge_case(
                 "key", "judge-model", ["criterion"], "OK"
             )
-        self.assertEqual(results[0]["score"], 0)
+        self.assertEqual(results[0]["status"], "UNKNOWN")
+        self.assertIsNone(results[0]["score"])
         self.assertFalse(results[0]["evidence_validated"])
 
     def test_judge_duplicate_and_missing_indices_fail_closed(self):
@@ -822,7 +824,8 @@ class ReleaseGateUnitTests(unittest.TestCase):
             results = RUN_EVAL.judge_case(
                 "test-key", "judge-model", ["criterion A", "criterion B"], "A"
             )
-        self.assertEqual([item["score"] for item in results], [0, 0])
+        self.assertEqual([item["status"] for item in results], ["UNKNOWN", "UNKNOWN"])
+        self.assertEqual([item["score"] for item in results], [None, None])
 
     def test_skill_and_matched_baseline_fit_free_tier_budget_per_case(self):
         skill = RUN_EVAL.load_skill()
@@ -1040,7 +1043,8 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 "key", "judge-model", ["states target and objective"],
                 "Target: Billing Support. Objective: verify monthly totals.",
             )
-        self.assertEqual(results[0]["score"], 0)
+        self.assertEqual(results[0]["status"], "UNKNOWN")
+        self.assertIsNone(results[0]["score"])
         self.assertFalse(results[0]["evidence_validated"])
         self.assertEqual(results[0]["evidence"], [])
 
@@ -1055,7 +1059,8 @@ class ReleaseGateUnitTests(unittest.TestCase):
             results = RUN_EVAL.judge_case(
                 "key", "judge-model", ["criterion"], " ".join(quotes)
             )
-        self.assertEqual(results[0]["score"], 0)
+        self.assertEqual(results[0]["status"], "UNKNOWN")
+        self.assertIsNone(results[0]["score"])
         self.assertFalse(results[0]["evidence_validated"])
 
     def test_trigger_provider_error_is_recorded_as_parse_error(self):
@@ -1067,7 +1072,8 @@ class ReleaseGateUnitTests(unittest.TestCase):
     def test_judge_provider_error_fails_each_criterion_closed(self):
         with mock.patch.object(RUN_EVAL, "api_call", side_effect=RuntimeError("provider unavailable")):
             results = RUN_EVAL.judge_case("key", "judge-model", ["criterion A", "criterion B"], "text")
-        self.assertEqual([item["score"] for item in results], [0, 0])
+        self.assertEqual([item["status"] for item in results], ["UNKNOWN", "UNKNOWN"])
+        self.assertEqual([item["score"] for item in results], [None, None])
         self.assertTrue(all(item["judge_api_error"] for item in results))
 
     def test_evaluate_once_records_generator_and_trigger_provider_errors(self):
@@ -1089,7 +1095,10 @@ class ReleaseGateUnitTests(unittest.TestCase):
             )
         self.assertTrue(result["skill_cases"][0]["generation_error"])
         self.assertTrue(result["baseline_cases"][0]["generation_error"])
-        self.assertEqual([x["score"] for x in result["skill_cases"][0]["checks"]], [0, 0])
+        self.assertEqual([x["status"] for x in result["skill_cases"][0]["checks"]], ["UNKNOWN", "UNKNOWN"])
+        self.assertEqual([x["score"] for x in result["skill_cases"][0]["checks"]], [None, None])
+        self.assertEqual(result["metrics"]["behavior_evaluability_rate"], 0.0)
+        self.assertFalse(result["gates"]["behavior_evaluability"]["pass"])
         self.assertEqual(result["trigger_parse_errors"], 1)
         self.assertFalse(result["gates"]["trigger_classifier_valid"]["pass"])
         self.assertFalse(result["automated_run_pass"])
