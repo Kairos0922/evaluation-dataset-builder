@@ -2,6 +2,7 @@
 import importlib.util
 import io
 import json
+import jsonschema
 import unittest
 from unittest import mock
 from pathlib import Path
@@ -1274,6 +1275,197 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertNotIn("--skip-trigger", source)
         self.assertNotIn("ANTHROPIC_API_KEY", source)
         self.assertIn("DEEPSEEK_API_KEY", source)
+
+
+    def test_json_schemas_are_valid_draft_2020_12_and_case_contracts_are_enforced(self):
+        case_schema = json.loads(
+            (SKILL_DIR / "references" / "dataset-schema.json").read_text(encoding="utf-8")
+        )
+        manifest_schema = json.loads(
+            (SKILL_DIR / "references" / "dataset-manifest-schema.json").read_text(encoding="utf-8")
+        )
+        jsonschema.Draft202012Validator.check_schema(case_schema)
+        jsonschema.Draft202012Validator.check_schema(manifest_schema)
+        checker = jsonschema.FormatChecker()
+        case_validator = jsonschema.Draft202012Validator(case_schema, format_checker=checker)
+
+        base_case = {
+            "case_id": "CASE-001",
+            "dataset_id": "dataset-demo-v1",
+            "title": "缺少账期时要求补充",
+            "evaluation_target": "账单查询 Agent",
+            "objective": "验证未提供账期时不会猜测查询月份",
+            "user_input": "帮我查账单",
+            "expected_behavior": "要求用户补充账期，不返回猜测金额",
+            "grading": {
+                "method": "rule_based",
+                "criteria": [{
+                    "criterion_id": "G-001",
+                    "description": "识别缺失账期",
+                    "pass_condition": "明确询问具体账期",
+                    "fail_condition": "直接猜测月份或返回金额",
+                    "evidence_required": ["助手输出文本"],
+                }],
+                "pass_conditions": ["提出账期澄清问题"],
+                "fail_conditions": ["未询问账期而直接查询"],
+                "evidence_required": ["完整助手回复"],
+            },
+            "source_refs": [{
+                "source_type": "system_documentation",
+                "title": "账单查询接口契约",
+            }],
+            "quality_status": "candidate",
+            "scenario_bucket": ["normal"],
+            "case_origin": "business_document",
+            "coverage_tags": [{
+                "dimension": "capability",
+                "value": "missing_period_clarification",
+                "coverage_item_id": "CAP-BILLING-03",
+            }],
+            "execution_requirements": {"status": "NOT_RUN"},
+        }
+
+        errors = list(case_validator.iter_errors(base_case))
+        self.assertEqual(errors, [], "\\n".join(error.message for error in errors))
+
+        # Evidence gaps remain representable without inventing a source record.
+        needs_info_case = dict(base_case)
+        needs_info_case.update({
+            "case_id": "CASE-NEEDS-INFO",
+            "case_origin": "unknown",
+            "source_refs": [],
+            "quality_status": "needs_info",
+            "information_gaps": [{
+                "gap_id": "GAP-001",
+                "description": "缺少退款资格权威规则",
+                "affected_claims": ["退款是否符合资格"],
+                "required_evidence": ["经批准的退款政策"],
+                "responsible_role": "退款业务规则负责人",
+                "status": "OPEN",
+            }],
+        })
+        self.assertEqual(list(case_validator.iter_errors(needs_info_case)), [])
+
+        # Synthetic gap-fill cases must carry both their origin and explicit assumptions.
+        synthetic_case = dict(base_case)
+        synthetic_case.update({
+            "case_id": "CASE-SYNTHETIC",
+            "case_origin": "synthetic_gap_fill",
+            "source_refs": [{
+                "source_type": "synthetic_scenario",
+                "title": "为覆盖边界缺口构造的合成场景",
+            }],
+            "assumptions": ["仅用于验证边界处理，不代表真实业务规则"],
+        })
+        self.assertEqual(list(case_validator.iter_errors(synthetic_case)), [])
+
+        approved_case = dict(base_case)
+        approved_case.update({
+            "case_id": "CASE-APPROVED",
+            "quality_status": "approved",
+            "quality_review": {
+                "review_id": "REVIEW-001",
+                "reviewer": "reviewer-1",
+                "reviewed_at": "2026-11-03T12:00:00Z",
+                "decision": "PASS",
+                "evidence_refs": ["review-report/REVIEW-001"],
+                "approval_ref": "approval/APPROVAL-001",
+            },
+        })
+        self.assertEqual(list(case_validator.iter_errors(approved_case)), [])
+
+        invalid_cases = []
+        missing_execution = dict(base_case)
+        missing_execution.pop("execution_requirements")
+        invalid_cases.append(missing_execution)
+
+        empty_criteria = dict(base_case)
+        empty_criteria["grading"] = dict(base_case["grading"], criteria=[])
+        invalid_cases.append(empty_criteria)
+
+        source_missing = dict(base_case, source_refs=[])
+        invalid_cases.append(source_missing)
+
+        needs_info_without_gap = dict(needs_info_case)
+        needs_info_without_gap.pop("information_gaps")
+        invalid_cases.append(needs_info_without_gap)
+
+        synthetic_without_source = dict(synthetic_case, source_refs=[{
+            "source_type": "system_documentation",
+            "title": "普通系统文档，不是合成来源",
+        }])
+        invalid_cases.append(synthetic_without_source)
+
+        approved_without_approval = dict(approved_case)
+        approved_without_approval["quality_review"] = {
+            key: value for key, value in approved_case["quality_review"].items()
+            if key != "approval_ref"
+        }
+        invalid_cases.append(approved_without_approval)
+
+        for invalid in invalid_cases:
+            self.assertTrue(
+                list(case_validator.iter_errors(invalid)),
+                f"Invalid case unexpectedly passed: {invalid.get('case_id')}",
+            )
+
+    def test_manifest_optional_splits_and_heldout_independence_contract(self):
+        schema = json.loads(
+            (SKILL_DIR / "references" / "dataset-manifest-schema.json").read_text(encoding="utf-8")
+        )
+        jsonschema.Draft202012Validator.check_schema(schema)
+        validator = jsonschema.Draft202012Validator(
+            schema, format_checker=jsonschema.FormatChecker()
+        )
+        base_manifest = {
+            "dataset_id": "dataset-demo-v1",
+            "version": "1.0.0",
+            "evaluation_target": "账单查询 Agent",
+            "purpose": "验证账单查询与澄清行为",
+            "scope": {"included": ["账单查询"], "excluded": ["账单支付"]},
+            "case_count": 1,
+            "coverage": {
+                "universe_definition": "账单查询能力范围",
+                "dimensions": [{
+                    "dimension": "capability",
+                    "total": 1,
+                    "covered": 1,
+                    "coverage_rate": 1.0,
+                    "uncovered": [],
+                }],
+            },
+            "quality_status": "candidate",
+            "execution_status": "NOT_RUN",
+        }
+        # Data splits are optional; the schema does not force a three-way split.
+        self.assertEqual(list(validator.iter_errors(base_manifest)), [])
+
+        heldout_manifest = dict(base_manifest)
+        heldout_manifest["data_splits"] = [{
+            "split_id": "heldout-v1",
+            "purpose": "heldout",
+            "case_ids": ["CASE-HELDOUT-001"],
+            "tuning_policy": "prohibited",
+        }]
+        heldout_manifest["leakage_check"] = {
+            "status": "PASSED",
+            "checked_at": "2026-11-03T12:00:00Z",
+            "method": "用例 ID、语义相似度和来源交叉核对",
+            "evidence_refs": ["reports/leakage-check-001"],
+        }
+        self.assertEqual(list(validator.iter_errors(heldout_manifest)), [])
+
+        missing_leakage_check = dict(heldout_manifest)
+        missing_leakage_check.pop("leakage_check")
+        self.assertTrue(list(validator.iter_errors(missing_leakage_check)))
+
+        tuning_allowed = dict(heldout_manifest)
+        tuning_allowed["data_splits"] = [dict(heldout_manifest["data_splits"][0], tuning_policy="allowed")]
+        self.assertTrue(list(validator.iter_errors(tuning_allowed)))
+
+        leakage_failed = dict(heldout_manifest)
+        leakage_failed["leakage_check"] = dict(heldout_manifest["leakage_check"], status="FAILED")
+        self.assertTrue(list(validator.iter_errors(leakage_failed)))
 
 
 if __name__ == "__main__":
