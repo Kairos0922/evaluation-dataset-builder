@@ -41,8 +41,8 @@ def require(condition, message):
         raise ValueError(message)
 
 
-def release_pr_binding(pr, candidate_sha):
-    """Bind evaluation to the merged commit while keeping PR review on its head SHA."""
+def release_pr_binding(pr, candidate_sha, candidate_tree_sha, release_tree_sha):
+    """Bind evaluation to the PR head and require identical content after merge."""
     require(pr.get("merged") is True and pr.get("state") == "closed",
             "The release PR must be merged and closed.")
     require((pr.get("base") or {}).get("ref") == "main",
@@ -51,8 +51,10 @@ def release_pr_binding(pr, candidate_sha):
     release_sha = pr.get("merge_commit_sha")
     require(bool(reviewed_head_sha) and bool(release_sha),
             "The merged PR must expose both its reviewed head SHA and merge_commit_sha.")
-    require(candidate_sha == release_sha,
-            "Evaluation candidate SHA must equal the PR merge_commit_sha; PR head SHA is a separate review identity.")
+    require(candidate_sha == reviewed_head_sha,
+            "Evaluation candidate SHA must equal the reviewed PR head SHA.")
+    require(bool(candidate_tree_sha) and candidate_tree_sha == release_tree_sha,
+            "The merged release commit tree differs from the evaluated PR head tree; rerun validation on the final candidate.")
     return reviewed_head_sha, release_sha
 
 
@@ -188,7 +190,15 @@ def main():
             "The release PR must be merged and closed.")
     require((pr.get("base") or {}).get("ref") == "main",
             "The release PR must have merged into main.")
-    reviewed_head_sha, release_sha = release_pr_binding(pr, tag_sha)
+    candidate_sha = (pr.get("head") or {}).get("sha")
+    release_sha = (pr.get("merge_commit_sha") or "")
+    candidate_commit = api_request(f"/repos/{repo}/git/commits/{candidate_sha}", token)
+    release_commit = api_request(f"/repos/{repo}/git/commits/{release_sha}", token)
+    reviewed_head_sha, release_sha = release_pr_binding(
+        pr, candidate_sha,
+        (candidate_commit.get("tree") or {}).get("sha"),
+        (release_commit.get("tree") or {}).get("sha"),
+    )
 
     tag_ref = api_request(
         f"/repos/{repo}/git/ref/tags/{urllib.parse.quote(tag_name, safe='')}", token

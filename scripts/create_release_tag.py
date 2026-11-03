@@ -74,7 +74,14 @@ def create_release_tag():
             "Repository default branch must be main before tagging v0.0.1.")
 
     pr = api_request(f"/repos/{repo}/pulls/{pr_number}", token)
-    pr_head_sha, release_sha = release_pr_binding(pr, candidate_sha)
+    candidate_commit = api_request(f"/repos/{repo}/git/commits/{candidate_sha}", token)
+    release_sha = pr.get("merge_commit_sha") or ""
+    release_commit = api_request(f"/repos/{repo}/git/commits/{release_sha}", token)
+    pr_head_sha, release_sha = release_pr_binding(
+        pr, candidate_sha,
+        (candidate_commit.get("tree") or {}).get("sha"),
+        (release_commit.get("tree") or {}).get("sha"),
+    )
     author = (pr.get("user") or {}).get("login")
     require(bool(author), "Could not identify the release PR author.")
 

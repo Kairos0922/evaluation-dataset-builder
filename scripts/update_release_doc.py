@@ -99,7 +99,14 @@ def main():
     require(repository.get("default_branch") == "main",
             "Repository default branch must be main.")
     pr = api_request(f"/repos/{repo}/pulls/{pr_number}", token)
-    pr_head_sha, release_sha = release_pr_binding(pr, candidate_sha)
+    candidate_commit = api_request(f"/repos/{repo}/git/commits/{candidate_sha}", token)
+    release_sha = pr.get("merge_commit_sha") or ""
+    release_commit = api_request(f"/repos/{repo}/git/commits/{release_sha}", token)
+    pr_head_sha, release_sha = release_pr_binding(
+        pr, candidate_sha,
+        (candidate_commit.get("tree") or {}).get("sha"),
+        (release_commit.get("tree") or {}).get("sha"),
+    )
     tag_ref = api_request(f"/repos/{repo}/git/ref/tags/v0.0.1", token)
     tag_object = tag_ref.get("object") or {}
     tag_sha = tag_object.get("sha")
@@ -119,7 +126,7 @@ def main():
     )
     current = base64.b64decode(current_file["content"]).decode("utf-8")
     updated = build_published_release_doc(
-        current, report, candidate_sha, release_sha, reviewer["user"]["login"]
+        current, report, pr_head_sha, release_sha, reviewer["user"]["login"]
     )
     result = put_file(
         f"/repos/{repo}/contents/RELEASE.md",
