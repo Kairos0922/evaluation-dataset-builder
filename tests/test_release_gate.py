@@ -220,12 +220,15 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
     def test_manual_behavior_workflow_is_exact_sha_and_independent_judge_gated(self):
         workflow = (ROOT / ".github" / "workflows" / "behavioral-eval.yml").read_text(encoding="utf-8")
+        source = (ROOT / "tests" / "run_eval.py").read_text(encoding="utf-8")
         self.assertIn("run-name: Behavioral Skill Evaluation", workflow)
         self.assertIn("candidate_sha:", workflow)
-        self.assertIn("PR_MERGE_SHA", workflow)
+        self.assertIn("PR_HEAD_SHA", workflow)
         self.assertIn("RELEASE_PR_NUMBER", workflow)
         self.assertNotIn("MAIN_SHA", workflow)
         self.assertNotIn("41369272868", workflow)
+        self.assertIn('"SKILL_ENTRYPOINT_TEXT_PROXY"', source)
+        self.assertIn('"references/*"', source)
         self.assertIn("EVAL_JUDGE_BASE_URL", workflow)
         self.assertIn("EVAL_JUDGE_API_KEY", workflow)
         self.assertIn('DEEPSEEK_MAX_TOKENS: "16384"', workflow)
@@ -253,11 +256,15 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "head": {"sha": "pr-head-sha"},
             "merge_commit_sha": "merge-commit-sha",
         }
-        head_sha, release_sha = VERIFY_RELEASE.release_pr_binding(pr, "merge-commit-sha")
+        head_sha, release_sha = VERIFY_RELEASE.release_pr_binding(
+            pr, "pr-head-sha", "same-tree", "same-tree"
+        )
         self.assertEqual(head_sha, "pr-head-sha")
         self.assertEqual(release_sha, "merge-commit-sha")
-        with self.assertRaisesRegex(ValueError, "merge_commit_sha"):
-            VERIFY_RELEASE.release_pr_binding(pr, "pr-head-sha")
+        with self.assertRaisesRegex(ValueError, "PR head SHA"):
+            VERIFY_RELEASE.release_pr_binding(pr, "merge-commit-sha", "same-tree", "same-tree")
+        with self.assertRaisesRegex(ValueError, "tree differs"):
+            VERIFY_RELEASE.release_pr_binding(pr, "pr-head-sha", "candidate-tree", "merge-tree")
 
     def test_release_tag_creator_is_present_and_compiles(self):
         path = ROOT / "scripts" / "create_release_tag.py"

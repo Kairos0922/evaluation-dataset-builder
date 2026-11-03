@@ -137,7 +137,7 @@ def create_release_tag():
     notes = (
         "# Evaluation Dataset Builder v0.0.1\n\n"
         f"- Reviewed PR head SHA: `{pr_head_sha}`\n"
-        f"- Evaluated merge commit / tag SHA: `{candidate_sha}`\n"
+        f"- Evaluated merge commit / tag SHA: `{release_sha}`\n"
         f"- Validation run: {run_url}\n"
         f"- Independent reviewer: {reviewer}\n"
         f"- Generator: `{report['models']['generator']}`; Judge: `{report['models']['judge_and_trigger']}`\n"
@@ -147,7 +147,7 @@ def create_release_tag():
         f"- Trigger Recall mean / spread: {stability['trigger_recall']['mean']:.1%} / {stability['trigger_recall']['spread']:.1%}\n"
         f"- Matched baseline mean: {baseline['mean_baseline_behavior_pass_rate']:.1%}; Skill mean: {baseline['mean_skill_behavior_pass_rate']:.1%}; uplift: {baseline['mean_uplift']:+.1%}\n"
         "- Automated behavior, trigger, baseline, and stability gates: PASSED\n"
-        "- Limitation: this is a portable Skill-text behavioral proxy, not a full target Skills runtime test; target-runtime validation remains necessary before production deployment.\n"
+        "- Limitation: this is a SKILL.md entrypoint-text proxy; packaged references are not loaded through host resource tools, and it is not a full target Skills runtime test. Target-runtime validation remains necessary before production deployment.\n"
         "\nThe attached JSON contains per-case outputs, locally verified Judge evidence, confusion matrices, baseline details, and token usage.\n"
     )
     with open("artifacts/release-notes.md", "w", encoding="utf-8") as handle:

@@ -867,8 +867,9 @@ def evaluate_once(index, generator_api_key, judge_api_key, generator_model, judg
         })
         print(
             f"run {index} behavior {case['id']}: "
-            f"{'PASS' if all(x['score'] == 1 for x in skill_checks) else 'FAIL'} "
-            f"({sum(x['score'] for x in skill_checks)}/{len(skill_checks)})",
+            f"{'PASS' if all(x['status'] == 'PASS' for x in skill_checks) else 'FAIL' if any(x['status'] == 'FAIL' for x in skill_checks) else 'UNKNOWN'} "
+            f"({sum(x['status'] == 'PASS' for x in skill_checks)}/{len(skill_checks)} checks passed; "
+            f"{sum(x['status'] == 'UNKNOWN' for x in skill_checks)} unknown)",
             flush=True,
         )
 
@@ -1128,6 +1129,7 @@ def main():
     )
     judge_responses_complete = all(
         not check.get("judge_api_error") and not check.get("judge_parse_error")
+        and check.get("status") in ("PASS", "FAIL")
         for run in runs
         for case_type in ("skill_cases", "baseline_cases")
         for case in run[case_type]
@@ -1140,6 +1142,15 @@ def main():
         "api_base_url": DEEPSEEK_BASE_URL,
         "judge_api_base_url": judge_api_base_url,
         "suite_id": suite["suite_id"],
+        "evaluation_scope": {
+            "type": "SKILL_ENTRYPOINT_TEXT_PROXY",
+            "loaded_assets": ["SKILL.md"],
+            "not_loaded_assets": ["references/*"],
+            "limitations": [
+                "本评测只测试入口指令文本，不模拟宿主按需读取 references 的工具行为。",
+                "本评测不能替代目标宿主中的 Skill 加载与真实执行验证。",
+            ],
+        },
         "models": {
             "generator": args.generator_model,
             "judge_and_trigger": args.judge_model,
