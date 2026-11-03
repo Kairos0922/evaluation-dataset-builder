@@ -210,10 +210,29 @@ def main():
         for field in ("scenario_bucket", "case_origin", "coverage_tags",
                       "observable_assertions", "trace_expectations", "change_links"):
             check(field in case_properties, f"用例 Schema 缺少字段：{field}")
-        check({"scenario_bucket", "case_origin", "coverage_tags"}.issubset(required_case_fields),
-              "用例 Schema 必须要求场景桶、来源类型和覆盖标签")
+        check({"scenario_bucket", "case_origin", "coverage_tags", "execution_requirements"}.issubset(required_case_fields),
+              "用例 Schema 必须要求场景桶、来源类型、覆盖标签和执行状态")
         check(case_properties.get("coverage_tags", {}).get("minItems", 0) >= 1,
               "用例 Schema 必须要求至少一个覆盖标签")
+        check({"dimension", "value", "coverage_item_id"}.issubset(
+            set(case_properties.get("coverage_tags", {}).get("items", {}).get("required", []))
+        ), "每个覆盖标签必须关联稳定的 coverage_item_id")
+        source_item_required = set(case_properties.get("source_refs", {}).get("items", {}).get("required", []))
+        check({"source_type", "title"}.issubset(source_item_required),
+              "来源记录必须包含来源类型和可识别标题")
+        check(case_properties.get("grading", {}).get("properties", {}).get("criteria", {}).get("minItems", 0) >= 1,
+              "评分器必须至少定义一个评分项")
+        criterion_required = set(
+            case_properties.get("grading", {}).get("properties", {}).get("criteria", {}).get("items", {}).get("required", [])
+        )
+        check({"criterion_id", "description", "pass_condition", "fail_condition", "evidence_required"}.issubset(criterion_required),
+              "评分项必须包含稳定标识、描述、通过/失败条件和证据要求")
+        for grading_field in ("pass_conditions", "fail_conditions", "evidence_required"):
+            check(case_properties.get("grading", {}).get("properties", {}).get(grading_field, {}).get("minItems", 0) >= 1,
+                  f"评分器字段 {grading_field} 必须至少包含一项")
+        check("information_gaps" in case_properties and
+              "quality_review" in case_properties,
+              "用例 Schema 必须支持信息缺口与可追溯质量审查")
         bucket_schema = case_properties.get("scenario_bucket", {})
         bucket = bucket_schema.get("items", {}).get("enum", [])
         check("scenario_type" not in case_properties,
@@ -241,6 +260,8 @@ def main():
         properties = manifest_schema.get("properties", {})
         check("dimensions" in properties.get("coverage", {}).get("properties", {}),
               "数据集清单 Schema 缺少覆盖维度定义")
+        check("data_splits" in properties and "leakage_check" in properties,
+              "数据集清单 Schema 必须支持适用的数据集划分与独立性证据")
 
     if yaml is None:
         fail("缺少 PyYAML；无法验证机器可读质量标准")
