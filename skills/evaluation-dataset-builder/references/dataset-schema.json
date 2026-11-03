@@ -15,7 +15,8 @@
     "quality_status",
     "scenario_bucket",
     "case_origin",
-    "coverage_tags"
+    "coverage_tags",
+    "execution_requirements"
   ],
   "properties": {
     "case_id": {
