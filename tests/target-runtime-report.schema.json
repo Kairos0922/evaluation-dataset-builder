@@ -1,0 +1,577 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Skill 目标宿主运行验证报告",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "candidate_sha",
+    "skill_tree_sha",
+    "suite_id",
+    "created_at",
+    "reviewer",
+    "overall_status",
+    "evidence_url",
+    "evidence_refs",
+    "host_reports"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "candidate_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "skill_tree_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "suite_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewer": {
+      "type": "string",
+      "minLength": 1
+    },
+    "overall_status": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "BLOCKED",
+        "NOT_RUN"
+      ]
+    },
+    "evidence_url": {
+      "type": "string",
+      "format": "uri",
+      "pattern": "^https://"
+    },
+    "evidence_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "host_reports": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "required": [
+          "host_id",
+          "runtime_version",
+          "install_method",
+          "tested_at",
+          "package_sha",
+          "package_tree_sha",
+          "checks",
+          "evidence_refs"
+        ],
+        "properties": {
+          "host_id": {
+            "enum": [
+              "codex",
+              "claude_code",
+              "claude_ai",
+              "claude_api"
+            ]
+          },
+          "runtime_version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "install_method": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tested_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "package_sha": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "package_tree_sha": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "checks": {
+            "type": "object",
+            "required": [
+              "discovery",
+              "positive_trigger",
+              "negative_trigger",
+              "reference_loading",
+              "task_execution"
+            ],
+            "properties": {
+              "discovery": {
+                "type": "object",
+                "required": [
+                  "status",
+                  "evidence_refs"
+                ],
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "PASS",
+                      "FAIL",
+                      "BLOCKED",
+                      "NOT_RUN"
+                    ]
+                  },
+                  "evidence_refs": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              },
+              "positive_trigger": {
+                "type": "object",
+                "required": [
+                  "status",
+                  "evidence_refs",
+                  "test_id"
+                ],
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "PASS",
+                      "FAIL",
+                      "BLOCKED",
+                      "NOT_RUN"
+                    ]
+                  },
+                  "test_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "evidence_refs": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              },
+              "negative_trigger": {
+                "type": "object",
+                "required": [
+                  "status",
+                  "evidence_refs",
+                  "test_id"
+                ],
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "PASS",
+                      "FAIL",
+                      "BLOCKED",
+                      "NOT_RUN"
+                    ]
+                  },
+                  "test_id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "evidence_refs": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              },
+              "reference_loading": {
+                "type": "object",
+                "required": [
+                  "status",
+                  "evidence_refs",
+                  "validated_paths",
+                  "unavailable_paths"
+                ],
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "PASS",
+                      "FAIL",
+                      "BLOCKED",
+                      "NOT_RUN"
+                    ]
+                  },
+                  "validated_paths": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "unavailable_paths": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "evidence_refs": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              },
+              "task_execution": {
+                "type": "object",
+                "required": [
+                  "status",
+                  "case_ids",
+                  "evidence_refs"
+                ],
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "PASS",
+                      "FAIL",
+                      "BLOCKED",
+                      "NOT_RUN"
+                    ]
+                  },
+                  "case_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "evidence_refs": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true
+          },
+          "evidence_refs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "overall_status": {
+            "const": "PASS"
+          }
+        },
+        "required": [
+          "overall_status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "host_reports": {
+            "minItems": 4,
+            "allOf": [
+              {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "host_id": {
+                      "const": "codex"
+                    },
+                    "checks": {
+                      "properties": {
+                        "discovery": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            }
+                          }
+                        },
+                        "positive_trigger": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            }
+                          }
+                        },
+                        "negative_trigger": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            }
+                          }
+                        },
+                        "reference_loading": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            },
+                            "unavailable_paths": {
+                              "maxItems": 0
+                            }
+                          }
+                        },
+                        "task_execution": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "host_id",
+                    "checks"
+                  ]
+                },
+                "minContains": 1
+              },
+              {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "host_id": {
+                      "const": "claude_code"
+                    },
+                    "checks": {
+                      "properties": {
+                        "discovery": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            }
+                          }
+                        },
+                        "positive_trigger": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            }
+                          }
+                        },
+                        "negative_trigger": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            }
+                          }
+                        },
+                        "reference_loading": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            },
+                            "unavailable_paths": {
+                              "maxItems": 0
+                            }
+                          }
+                        },
+                        "task_execution": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "host_id",
+                    "checks"
+                  ]
+                },
+                "minContains": 1
+              },
+              {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "host_id": {
+                      "const": "claude_ai"
+                    },
+                    "checks": {
+                      "properties": {
+                        "discovery": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            }
+                          }
+                        },
+                        "positive_trigger": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            }
+                          }
+                        },
+                        "negative_trigger": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            }
+                          }
+                        },
+                        "reference_loading": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            },
+                            "unavailable_paths": {
+                              "maxItems": 0
+                            }
+                          }
+                        },
+                        "task_execution": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "host_id",
+                    "checks"
+                  ]
+                },
+                "minContains": 1
+              },
+              {
+                "contains": {
+                  "type": "object",
+                  "properties": {
+                    "host_id": {
+                      "const": "claude_api"
+                    },
+                    "checks": {
+                      "properties": {
+                        "discovery": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            }
+                          }
+                        },
+                        "positive_trigger": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            }
+                          }
+                        },
+                        "negative_trigger": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            }
+                          }
+                        },
+                        "reference_loading": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            },
+                            "unavailable_paths": {
+                              "maxItems": 0
+                            }
+                          }
+                        },
+                        "task_execution": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  },
+                  "required": [
+                    "host_id",
+                    "checks"
+                  ]
+                },
+                "minContains": 1
+              }
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": true
+}
