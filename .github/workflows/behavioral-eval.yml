@@ -5,11 +5,11 @@ on:
   workflow_dispatch:
     inputs:
       release_pr_number:
-        description: 已合入 main 的发布候选 PR 编号
+        description: 尚未合入 main、用于本次发布候选的开放 PR 编号
         required: true
         type: string
       candidate_sha:
-        description: 该 PR 的精确 merge_commit_sha（评测与最终标签绑定的提交）
+        description: 该开放 PR 的精确 head SHA（评测与独立审批绑定的提交）
         required: true
         type: string
       generator_model:
@@ -41,7 +41,7 @@ jobs:
           python-version: "3.12"
       - name: 安装评测预算所需分词器
         run: python -m pip install --disable-pip-version-check tiktoken
-      - name: 验证候选提交与已合入 PR 的 merge commit 一致
+      - name: 验证候选提交与开放 PR 的 head SHA 一致
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_PR_NUMBER: ${{ inputs.release_pr_number }}

@@ -97,6 +97,7 @@ def verify_report(report, candidate_sha, run_id):
                 "Skill and matched-baseline case counts are empty or differ.")
         require(len(trigger_cases) == trigger_count,
                 "A repeated run has missing trigger evaluation cases.")
+        metrics = run.get("metrics") or {}
         require(float(metrics.get("behavior_evaluability_rate", 0)) == 1.0,
                 "A repeated run contains UNKNOWN or unscorable behavior checks.")
         require(float(metrics.get("baseline_evaluability_rate", 0)) == 1.0,
@@ -114,7 +115,6 @@ def verify_report(report, candidate_sha, run_id):
                 else:
                     require(check.get("score") == 0,
                             "A failing Judge result must have score 0.")
-        metrics = run.get("metrics") or {}
         require(float(metrics.get("behavior_pass_rate", 0)) >= BEHAVIOR_MIN,
                 "A run is below the behavior pass-rate threshold.")
         require(float(metrics.get("trigger_precision", 0)) >= PRECISION_MIN,
@@ -224,7 +224,7 @@ def main():
         item for item in (runs_response.get("workflow_runs") or [])
         if str(item.get("name") or "").startswith("Behavioral Skill Evaluation")
         and item.get("event") in ("push", "workflow_dispatch")
-        and release_sha in str(item.get("display_title") or "")
+        and candidate_sha in str(item.get("display_title") or "")
         and item.get("status") == "completed"
         and item.get("conclusion") == "success"
     ]
@@ -249,7 +249,7 @@ def main():
                             if name.endswith("eval-report.json")), None)
         require(report_name is not None, "The artifact ZIP does not contain eval-report.json.")
         report = json.loads(zf.read(report_name).decode("utf-8"))
-    verify_report(report, release_sha, run_id)
+    verify_report(report, candidate_sha, run_id)
 
     artifact_path = Path("artifacts/eval-report.json")
     artifact_path.parent.mkdir(parents=True, exist_ok=True)

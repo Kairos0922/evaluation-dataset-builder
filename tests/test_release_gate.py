@@ -224,6 +224,8 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn("run-name: Behavioral Skill Evaluation", workflow)
         self.assertIn("candidate_sha:", workflow)
         self.assertIn("PR_HEAD_SHA", workflow)
+        self.assertIn("PR_STATE", workflow)
+        self.assertIn("open PR", workflow)
         self.assertIn("RELEASE_PR_NUMBER", workflow)
         self.assertNotIn("MAIN_SHA", workflow)
         self.assertNotIn("41369272868", workflow)
