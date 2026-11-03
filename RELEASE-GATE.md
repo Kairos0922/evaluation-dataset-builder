@@ -4,7 +4,7 @@
 
 ## 精确版本与提交绑定
 
-行为评测的 `candidate_sha` 必须等于发布 PR 已合入 `main` 后的 `merge_commit_sha`。PR 的 `head.sha` 是独立审查标识，不得与合并提交混用。独立审批必须绑定 PR head SHA；评测报告、候选提交和最终发布标签必须绑定同一个 merge commit SHA。发布脚本必须分别核验这两个标识及其对应关系。
+行为评测必须在 PR 合入前针对精确的 `head.sha` 执行；评测报告和独立审批均绑定该 head SHA。PR 合入后，发布脚本必须核验报告 SHA 等于 PR head SHA，并比较 PR head 与 `merge_commit_sha` 的 Git tree SHA。只有两者 tree SHA 完全一致，才能证明已评测内容与最终发布内容相同；不一致时必须阻断发布并在最终候选上重新验证。最终标签指向 `merge_commit_sha`。
 
 ## 自动化门禁
 

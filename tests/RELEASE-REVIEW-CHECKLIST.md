@@ -4,8 +4,8 @@ Use this checklist only after the repeated evaluation workflow has completed on 
 
 ## Evidence
 
-- PR head SHA (review identity):
-- PR merge commit SHA (evaluation candidate and release tag):
+- PR head SHA (evaluation and review identity):
+- PR merge commit SHA (release tag target; its tree must match the evaluated head):
 - Evaluation workflow run ID and URL:
 - Model:
 - Suite ID:

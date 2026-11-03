@@ -53,20 +53,19 @@ jobs:
             exit 2
           fi
           PR_JSON="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$RELEASE_PR_NUMBER")"
+          PR_STATE="$(jq -r '.state' <<<"$PR_JSON")"
           PR_MERGED="$(jq -r '.merged' <<<"$PR_JSON")"
           PR_BASE="$(jq -r '.base.ref' <<<"$PR_JSON")"
           PR_HEAD_SHA="$(jq -r '.head.sha' <<<"$PR_JSON")"
-          PR_MERGE_SHA="$(jq -r '.merge_commit_sha // empty' <<<"$PR_JSON")"
-          if [ "$PR_MERGED" != "true" ] || [ "$PR_BASE" != "main" ] || [ -z "$PR_MERGE_SHA" ]; then
-            echo "发布候选 PR 必须已合入 main，并具有 merge_commit_sha。"
+          if [ "$PR_STATE" != "open" ] || [ "$PR_MERGED" != "false" ] || [ "$PR_BASE" != "main" ]; then
+            echo "行为评测必须针对尚未合入 main 的开放 PR 执行。"
             exit 2
           fi
-          if [ "$PR_MERGE_SHA" != "$CANDIDATE_SHA" ]; then
-            echo "candidate_sha 必须精确等于该 PR 的 merge_commit_sha；PR head SHA 是独立审查标识。"
+          if [ "$PR_HEAD_SHA" != "$CANDIDATE_SHA" ]; then
+            echo "candidate_sha 必须精确等于 PR head SHA；评测报告和审批均绑定此提交。"
             exit 2
           fi
-          echo "已验证 PR head SHA: $PR_HEAD_SHA"
-          echo "已验证评测候选 merge SHA: $PR_MERGE_SHA"
+          echo "已验证开放 PR 的候选 head SHA: $PR_HEAD_SHA"
       - name: 结构验证与离线发布门禁测试
         run: python scripts/validate_skill.py
       - name: 运行离线测试
