@@ -34,7 +34,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Verify merged PR, exact SHA, CI report, baseline, stability, and independent approval; create tag
+      - name: Install structured runtime-evidence validator
+        run: python -m pip install --disable-pip-version-check jsonschema
+      - name: Verify merged PR, exact SHA, CI report, baseline, stability, runtime evidence, and independent approval; create tag
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
