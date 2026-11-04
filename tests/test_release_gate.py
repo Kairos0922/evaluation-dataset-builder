@@ -1,24 +1,32 @@
 """Offline unit tests for DeepSeek-backed release-gate logic and fixtures."""
+import base64
+import hashlib
 import importlib.util
 import io
 import json
 import jsonschema
+import sys
+import tempfile
 import unittest
-from unittest import mock
 from pathlib import Path
+from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[1]
 SKILL_DIR = ROOT / "skills" / "evaluation-dataset-builder"
 SPEC = importlib.util.spec_from_file_location("run_eval", ROOT / "tests" / "run_eval.py")
 RUN_EVAL = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RUN_EVAL)
+sys.path.insert(0, str(ROOT / "scripts"))
 VERIFY_SPEC = importlib.util.spec_from_file_location(
     "verify_release", ROOT / "scripts" / "verify_release.py"
 )
 VERIFY_RELEASE = importlib.util.module_from_spec(VERIFY_SPEC)
 VERIFY_SPEC.loader.exec_module(VERIFY_RELEASE)
-import sys
-sys.path.insert(0, str(ROOT / "scripts"))
+TARGET_RUNTIME_SPEC = importlib.util.spec_from_file_location(
+    "validate_target_runtime_report", ROOT / "scripts" / "validate_target_runtime_report.py"
+)
+TARGET_RUNTIME = importlib.util.module_from_spec(TARGET_RUNTIME_SPEC)
+TARGET_RUNTIME_SPEC.loader.exec_module(TARGET_RUNTIME)
 DOC_SPEC = importlib.util.spec_from_file_location(
     "update_release_doc", ROOT / "scripts" / "update_release_doc.py"
 )

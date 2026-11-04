@@ -138,9 +138,9 @@ def verify_report(report, candidate_sha, run_id):
 
 
 TARGET_RUNTIME_URL_PATTERN = re.compile(
-    r"target-runtime:\\s*PASS\\s+"
-    r"(https://github\\.com/([^/\\s]+)/([^/\\s]+)/blob/([0-9a-f]{40})/"
-    r"tests/runtime-evidence/([0-9a-f]{40})\\.json)(?=\\s|$)",
+    r"target-runtime:\s*PASS\s+"
+    r"(https://github\.com/([^/\s]+)/([^/\s]+)/blob/([0-9a-f]{40})/"
+    r"tests/runtime-evidence/([0-9a-f]{40})\.json)(?=\s|$)",
     flags=re.IGNORECASE,
 )
 
