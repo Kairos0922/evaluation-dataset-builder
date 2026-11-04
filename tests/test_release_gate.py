@@ -267,8 +267,11 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 report, report["candidate_sha"], report["skill_tree_sha"]
             )
         report = self._valid_target_runtime_report()
+        cleanup = report["host_reports"][0]["checks"]["task_execution"]["cleanup_check"]
+        cleanup["status"] = "BLOCKED"
+        cleanup["notes"] = "清理检查被阻断。"
         report["host_reports"][0]["status"] = "BLOCKED"
-        report["overall_status"] = "BLOCKED"
+        report["overall_status"] = "PASS"
         with self.assertRaisesRegex(ValueError, "overall_status"):
             TARGET_RUNTIME.validate_report(
                 report, report["candidate_sha"], report["skill_tree_sha"]
@@ -571,13 +574,17 @@ class ReleaseGateUnitTests(unittest.TestCase):
         }
         updated = UPDATE_RELEASE_DOC.build_published_release_doc(
             current, report, "candidate-sha", "release-merge-sha",
-            "independent-reviewer", "https://example.com/runtime-report/12345"
+            "independent-reviewer",
+            "https://github.com/example/repo/blob/" + "c" * 40
+            + "/tests/runtime-evidence/" + "a" * 40 + ".json",
+            {"required_hosts": ["codex", "claude_code", "claude_ai", "claude_api"]},
         )
         self.assertIn("# Release 0.0.1 — Published", updated)
         self.assertIn("- [x] Behavioral pass rate", updated)
         self.assertIn("- [x] Independent human review", updated)
         self.assertIn("- [x] Target-runtime validation", updated)
-        self.assertIn("https://example.com/runtime-report/12345", updated)
+        self.assertIn("https://github.com/example/repo/blob/", updated)
+        self.assertIn("codex, claude_code, claude_ai, claude_api", updated)
         self.assertIn("candidate-sha", updated)
         self.assertIn("release-merge-sha", updated)
         self.assertIn("independent-reviewer", updated)

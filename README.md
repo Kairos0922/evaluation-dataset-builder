@@ -94,6 +94,19 @@ API 使用方式与本地目录安装不同：先通过 Skills API 上传 Skill�
 
 若使用其他支持 Agent Skills 的产品，请遵循该产品的 Skill 安装目录、上传方式和运行环境说明。不要假设不同产品共享相同目录、自动发现规则或工具权限。
 
+## 宿主运行验证状态
+
+README 当前记录的四种安装环境均尚未完成真实运行验证：
+
+| 宿主 | 当前状态 |
+|---|---|
+| Codex | DOCUMENTED_NOT_VERIFIED |
+| Claude Code | DOCUMENTED_NOT_VERIFIED |
+| claude.ai | DOCUMENTED_NOT_VERIFIED |
+| Claude API | DOCUMENTED_NOT_VERIFIED |
+
+安装文档和离线 CI 不构成宿主兼容性证据。验证步骤、证据格式和发布要求见 [目标宿主验证矩阵](tests/target-runtime-matrix.md)。
+
 ## 使用方法
 
 安装后，可以在对话中明确要求使用本 Skill，也可以描述符合其适用范围的任务，让宿主根据 Skill 描述决定是否加载。
@@ -121,8 +134,9 @@ API 使用方式与本地目录安装不同：先通过 Skills API 上传 Skill�
 仓库中的开发、测试和发布设施不属于 Skill 本体。开发者可在 Python 3.10 或更高版本环境中运行：
 
 ```bash
-python -m pip install pyyaml
+python -m pip install pyyaml jsonschema
 python scripts/validate_skill.py
+python scripts/validate_target_runtime_report.py --report tests/target-runtime-report.template.json --candidate-sha 0000000000000000000000000000000000000000 --skill-tree-sha 0000000000000000000000000000000000000000
 python -m unittest discover -s tests -p "test_*.py" -v
 ```
 
