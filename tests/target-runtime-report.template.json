@@ -1,0 +1,266 @@
+{
+  "schema_version": "1.0.0",
+  "candidate_sha": "0000000000000000000000000000000000000000",
+  "skill_tree_sha": "0000000000000000000000000000000000000000",
+  "suite_id": "target-runtime-suite-0.0.1",
+  "created_at": "2026-11-04T00:00:00Z",
+  "reviewer": "待填写：独立验证人",
+  "overall_status": "NOT_RUN",
+  "required_hosts": [
+    "codex",
+    "claude_code",
+    "claude_ai",
+    "claude_api"
+  ],
+  "host_reports": [
+    {
+      "host_id": "codex",
+      "status": "NOT_RUN",
+      "runtime_version": null,
+      "install_method": null,
+      "tested_at": null,
+      "package_sha": "0000000000000000000000000000000000000000",
+      "package_tree_sha": "0000000000000000000000000000000000000000",
+      "checks": {
+        "discovery": {
+          "status": "NOT_RUN",
+          "evidence_refs": [],
+          "notes": "尚未在该宿主执行发现检查。"
+        },
+        "positive_trigger": {
+          "status": "NOT_RUN",
+          "test_ids": [
+            "TR-POS-001"
+          ],
+          "evidence_refs": [],
+          "notes": "尚未执行正向触发检查。"
+        },
+        "negative_trigger": {
+          "status": "NOT_RUN",
+          "test_ids": [
+            "TR-NEG-001"
+          ],
+          "evidence_refs": [],
+          "notes": "尚未执行负向触发检查。"
+        },
+        "reference_loading": {
+          "status": "NOT_RUN",
+          "validated_paths": [],
+          "unavailable_paths": [],
+          "evidence_refs": [],
+          "notes": "尚未验证 references 按需读取。"
+        },
+        "task_execution": {
+          "status": "NOT_RUN",
+          "case_ids": [
+            "TR-EXEC-001"
+          ],
+          "evidence_refs": [],
+          "trace_evidence_refs": [],
+          "initial_state_evidence_refs": [],
+          "final_state_evidence_refs": [],
+          "side_effect_check": {
+            "status": "NOT_RUN",
+            "evidence_refs": [],
+            "notes": "尚未检查副作用。"
+          },
+          "cleanup_check": {
+            "status": "NOT_RUN",
+            "evidence_refs": [],
+            "notes": "尚未检查重置与清理。"
+          },
+          "notes": "尚未在该宿主执行完整任务。"
+        }
+      },
+      "notes": "当前只是报告模板，不代表已安装或验证该宿主。"
+    },
+    {
+      "host_id": "claude_code",
+      "status": "NOT_RUN",
+      "runtime_version": null,
+      "install_method": null,
+      "tested_at": null,
+      "package_sha": "0000000000000000000000000000000000000000",
+      "package_tree_sha": "0000000000000000000000000000000000000000",
+      "checks": {
+        "discovery": {
+          "status": "NOT_RUN",
+          "evidence_refs": [],
+          "notes": "尚未在该宿主执行发现检查。"
+        },
+        "positive_trigger": {
+          "status": "NOT_RUN",
+          "test_ids": [
+            "TR-POS-001"
+          ],
+          "evidence_refs": [],
+          "notes": "尚未执行正向触发检查。"
+        },
+        "negative_trigger": {
+          "status": "NOT_RUN",
+          "test_ids": [
+            "TR-NEG-001"
+          ],
+          "evidence_refs": [],
+          "notes": "尚未执行负向触发检查。"
+        },
+        "reference_loading": {
+          "status": "NOT_RUN",
+          "validated_paths": [],
+          "unavailable_paths": [],
+          "evidence_refs": [],
+          "notes": "尚未验证 references 按需读取。"
+        },
+        "task_execution": {
+          "status": "NOT_RUN",
+          "case_ids": [
+            "TR-EXEC-001"
+          ],
+          "evidence_refs": [],
+          "trace_evidence_refs": [],
+          "initial_state_evidence_refs": [],
+          "final_state_evidence_refs": [],
+          "side_effect_check": {
+            "status": "NOT_RUN",
+            "evidence_refs": [],
+            "notes": "尚未检查副作用。"
+          },
+          "cleanup_check": {
+            "status": "NOT_RUN",
+            "evidence_refs": [],
+            "notes": "尚未检查重置与清理。"
+          },
+          "notes": "尚未在该宿主执行完整任务。"
+        }
+      },
+      "notes": "当前只是报告模板，不代表已安装或验证该宿主。"
+    },
+    {
+      "host_id": "claude_ai",
+      "status": "NOT_RUN",
+      "runtime_version": null,
+      "install_method": null,
+      "tested_at": null,
+      "package_sha": "0000000000000000000000000000000000000000",
+      "package_tree_sha": "0000000000000000000000000000000000000000",
+      "checks": {
+        "discovery": {
+          "status": "NOT_RUN",
+          "evidence_refs": [],
+          "notes": "尚未在该宿主执行发现检查。"
+        },
+        "positive_trigger": {
+          "status": "NOT_RUN",
+          "test_ids": [
+            "TR-POS-001"
+          ],
+          "evidence_refs": [],
+          "notes": "尚未执行正向触发检查。"
+        },
+        "negative_trigger": {
+          "status": "NOT_RUN",
+          "test_ids": [
+            "TR-NEG-001"
+          ],
+          "evidence_refs": [],
+          "notes": "尚未执行负向触发检查。"
+        },
+        "reference_loading": {
+          "status": "NOT_RUN",
+          "validated_paths": [],
+          "unavailable_paths": [],
+          "evidence_refs": [],
+          "notes": "尚未验证 references 按需读取。"
+        },
+        "task_execution": {
+          "status": "NOT_RUN",
+          "case_ids": [
+            "TR-EXEC-001"
+          ],
+          "evidence_refs": [],
+          "trace_evidence_refs": [],
+          "initial_state_evidence_refs": [],
+          "final_state_evidence_refs": [],
+          "side_effect_check": {
+            "status": "NOT_RUN",
+            "evidence_refs": [],
+            "notes": "尚未检查副作用。"
+          },
+          "cleanup_check": {
+            "status": "NOT_RUN",
+            "evidence_refs": [],
+            "notes": "尚未检查重置与清理。"
+          },
+          "notes": "尚未在该宿主执行完整任务。"
+        }
+      },
+      "notes": "当前只是报告模板，不代表已安装或验证该宿主。"
+    },
+    {
+      "host_id": "claude_api",
+      "status": "NOT_RUN",
+      "runtime_version": null,
+      "install_method": null,
+      "tested_at": null,
+      "package_sha": "0000000000000000000000000000000000000000",
+      "package_tree_sha": "0000000000000000000000000000000000000000",
+      "checks": {
+        "discovery": {
+          "status": "NOT_RUN",
+          "evidence_refs": [],
+          "notes": "尚未在该宿主执行发现检查。"
+        },
+        "positive_trigger": {
+          "status": "NOT_RUN",
+          "test_ids": [
+            "TR-POS-001"
+          ],
+          "evidence_refs": [],
+          "notes": "尚未执行正向触发检查。"
+        },
+        "negative_trigger": {
+          "status": "NOT_RUN",
+          "test_ids": [
+            "TR-NEG-001"
+          ],
+          "evidence_refs": [],
+          "notes": "尚未执行负向触发检查。"
+        },
+        "reference_loading": {
+          "status": "NOT_RUN",
+          "validated_paths": [],
+          "unavailable_paths": [],
+          "evidence_refs": [],
+          "notes": "尚未验证 references 按需读取。"
+        },
+        "task_execution": {
+          "status": "NOT_RUN",
+          "case_ids": [
+            "TR-EXEC-001"
+          ],
+          "evidence_refs": [],
+          "trace_evidence_refs": [],
+          "initial_state_evidence_refs": [],
+          "final_state_evidence_refs": [],
+          "side_effect_check": {
+            "status": "NOT_RUN",
+            "evidence_refs": [],
+            "notes": "尚未检查副作用。"
+          },
+          "cleanup_check": {
+            "status": "NOT_RUN",
+            "evidence_refs": [],
+            "notes": "尚未检查重置与清理。"
+          },
+          "notes": "尚未在该宿主执行完整任务。"
+        }
+      },
+      "notes": "当前只是报告模板，不代表已安装或验证该宿主。"
+    }
+  ],
+  "evidence_artifacts": [],
+  "limitations": [
+    "本模板中的所有宿主状态均为 NOT_RUN，不得作为发布证据。",
+    "将真实证据文件另行归档并填写 URL 与 SHA-256；公开仓库中不得包含密钥、个人数据或客户敏感信息。"
+  ]
+}

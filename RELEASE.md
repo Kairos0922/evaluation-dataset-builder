@@ -26,6 +26,19 @@
 
 缺失的权威依据必须明确标记，不得编造。真实执行结论必须有实际执行证据。
 
+## 宿主运行验证状态
+
+README 当前记录的四种安装环境均尚未完成真实运行验证：
+
+| 宿主 | 当前状态 |
+|---|---|
+| Codex | DOCUMENTED_NOT_VERIFIED |
+| Claude Code | DOCUMENTED_NOT_VERIFIED |
+| claude.ai | DOCUMENTED_NOT_VERIFIED |
+| Claude API | DOCUMENTED_NOT_VERIFIED |
+
+安装文档和离线 CI 不构成宿主兼容性证据。验证步骤、证据格式和发布要求见 `tests/target-runtime-matrix.md`。
+
 ## 发布门禁
 
 - [ ] Skill 目录符合 Agent Skills 元数据、命名和结构要求。

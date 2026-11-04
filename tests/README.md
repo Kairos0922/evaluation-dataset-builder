@@ -35,6 +35,21 @@ python -m unittest discover -s tests -p "test_*.py" -v
 
 如需执行上述离线测试，不需要配置模型密钥，也不需要访问模型服务。
 
+## 目标宿主运行验证
+
+目标宿主验证不是模型行为评测。四种安装环境的步骤和当前状态见 `tests/target-runtime-matrix.md`。报告模板为 `tests/target-runtime-report.template.json`，Schema 为 `tests/target-runtime-report.schema.json`。
+
+可对模板进行结构校验（这只证明报告格式合法，不证明宿主通过）：
+
+```bash
+python scripts/validate_target_runtime_report.py \
+  --report tests/target-runtime-report.template.json \
+  --candidate-sha 0000000000000000000000000000000000000000 \
+  --skill-tree-sha 0000000000000000000000000000000000000000
+```
+
+正式发布时必须使用真实报告并传入 `--require-pass`；如已下载证据包，再传入 `--evidence-dir <目录>` 核对文件 SHA-256。
+
 ## 外部行为评测
 
 外部行为评测不是本次合入门禁。只有在另行批准后，才可评估目标环境、评测数据、费用上限、服务凭证、运行次数和停止条件。不得在未经授权时运行 `tests/run_eval.py` 或手动触发行为评测工作流。

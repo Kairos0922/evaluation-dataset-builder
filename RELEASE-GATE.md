@@ -39,9 +39,15 @@
 
 ## 目标环境验证
 
-目标系统执行是独立门禁，不能由文本行为测试替代。验证报告必须记录环境或构建版本、用例 ID、初始与最终状态、工具或接口轨迹、权限、副作用、重置与清理步骤及执行时间。
+目标系统执行是独立门禁，不能由文本行为测试替代。0.0.1 当前在 README 中列出 Codex、Claude Code、claude.ai 和 Claude API 四种安装环境，因此四种环境均属于本次发布验证范围。每种环境均须检查发现、正向触发、负向触发、关键参考资料读取、端到端任务执行、副作用和清理；具体步骤见 `tests/target-runtime-matrix.md`。
 
-环境不可用、关键副作用证据缺失或清理失败时，发布状态必须为 BLOCKED。
+每个检查项必须记录真实测试 ID、宿主版本、安装方式、执行时间和证据引用。PASS、FAIL、BLOCKED 检查必须至少关联一项证据；NOT_RUN 必须说明原因。任务执行 PASS 必须有轨迹、初始/最终状态、副作用检查和清理证据。不得用模型文本评测、README 安装说明或静态验证代替真实宿主运行。
+
+结构化报告按 `tests/target-runtime-report.schema.json` 校验，模板位于 `tests/target-runtime-report.template.json`。报告必须位于 `tests/runtime-evidence/<candidate_sha>.json`，在候选 PR 仍开放时通过独立证据 PR 先行合入 main；证据 PR 只能增加该报告文件。随后在候选 PR 的独立审查意见中引用该报告，再合并候选 PR。合并绑定校验只允许最终 merge commit 比候选 head 多出该指定报告文件及其目录项，任何其他路径变化均要求重新评测。审查意见中的 `target-runtime: PASS` 必须附同一仓库、固定证据提交 SHA 的 GitHub 文件永久链接。发布脚本将从该固定提交读取报告，并核对候选 SHA、Skill 目录树 SHA、四宿主覆盖、状态推导和证据引用。
+
+证据记录须包含 HTTPS URI 和 SHA-256。哈希格式与引用校验本身不能证明证据真实；独立审查人必须打开原始证据核实宿主、时间、候选包和观察内容。可下载证据包可通过 `--evidence-dir` 对本地文件逐项校验 SHA-256。公开归档前必须脱敏，禁止提交密钥、令牌、客户数据或个人信息。
+
+任何宿主未运行、任何必需检查为 FAIL/BLOCKED/NOT_RUN、证据缺失或不可核验，整体发布状态均不得为 PASS，正式发布必须 BLOCKED。
 
 ## 发布流程
 

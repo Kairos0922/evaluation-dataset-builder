@@ -8,11 +8,11 @@ import urllib.request
 
 from verify_release import (
     API, api_request, latest_approved_review, release_pr_binding,
-    require, target_runtime_evidence_url,
+    load_target_runtime_report, require, repository_tree_signature, skill_package_tree_sha,
 )
 
 
-def build_published_release_doc(current, report, candidate_sha, release_sha, reviewer, runtime_evidence_url):
+def build_published_release_doc(current, report, candidate_sha, release_sha, reviewer, runtime_evidence_url, runtime_report):
     require("# Release 0.0.1 — Candidate (not yet published)" in current
             or "# Release 0.0.1 — Published" in current,
             "RELEASE.md does not contain the expected v0.0.1 heading.")
@@ -52,6 +52,7 @@ def build_published_release_doc(current, report, candidate_sha, release_sha, rev
         f"- Matched baseline mean uplift: {report['baseline_comparison']['mean_uplift']:+.1%}\n"
         f"- Independent reviewer: {reviewer}\n"
         f"- Target runtime validation evidence: {runtime_evidence_url}\n"
+        f"- Verified hosts: {', '.join(sorted(runtime_report['required_hosts']))}\n"
         "\nThe machine-readable evaluation report and target-runtime evidence are linked to this release.\n"
     )
     if "\n## Release evidence\n" in text:
@@ -99,13 +100,11 @@ def main():
     require(repository.get("default_branch") == "main",
             "Repository default branch must be main.")
     pr = api_request(f"/repos/{repo}/pulls/{pr_number}", token)
-    candidate_commit = api_request(f"/repos/{repo}/git/commits/{candidate_sha}", token)
     release_sha = pr.get("merge_commit_sha") or ""
-    release_commit = api_request(f"/repos/{repo}/git/commits/{release_sha}", token)
+    candidate_tree_signature = repository_tree_signature(repo, candidate_sha, candidate_sha, token)
+    release_tree_signature = repository_tree_signature(repo, release_sha, candidate_sha, token)
     pr_head_sha, release_sha = release_pr_binding(
-        pr, candidate_sha,
-        (candidate_commit.get("tree") or {}).get("sha"),
-        (release_commit.get("tree") or {}).get("sha"),
+        pr, candidate_sha, candidate_tree_signature, release_tree_signature,
     )
     tag_ref = api_request(f"/repos/{repo}/git/ref/tags/v0.0.1", token)
     tag_object = tag_ref.get("object") or {}
@@ -120,6 +119,10 @@ def main():
         reviews, (pr.get("user") or {}).get("login"), pr_head_sha,
         report.get("workflow_run_id"),
     )
+    package_tree_sha = skill_package_tree_sha(repo, candidate_sha, token)
+    runtime_report, runtime_report_url, runtime_report_commit = load_target_runtime_report(
+        reviewer, repo, token, candidate_sha, package_tree_sha
+    )
 
     current_file = api_request(
         f"/repos/{repo}/contents/RELEASE.md?ref=main", token
@@ -127,7 +130,7 @@ def main():
     current = base64.b64decode(current_file["content"]).decode("utf-8")
     updated = build_published_release_doc(
         current, report, pr_head_sha, release_sha, reviewer["user"]["login"],
-        target_runtime_evidence_url(reviewer),
+        runtime_report_url, runtime_report,
     )
     result = put_file(
         f"/repos/{repo}/contents/RELEASE.md",

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Fail-closed verifier for publishing the v0.0.1 GitHub Release."""
+import base64
 import io
 import json
 import os
@@ -10,6 +11,8 @@ import urllib.parse
 import urllib.request
 import zipfile
 from pathlib import Path
+
+from validate_target_runtime_report import REQUIRED_HOSTS, validate_report as validate_target_runtime_report
 
 API = "https://api.github.com"
 PR_NUMBER = int(os.getenv("RELEASE_PR_NUMBER", "0"))
@@ -41,8 +44,25 @@ def require(condition, message):
         raise ValueError(message)
 
 
-def release_pr_binding(pr, candidate_sha, candidate_tree_sha, release_tree_sha):
-    """Bind evaluation to the PR head and require identical content after merge."""
+def repository_tree_signature(repo, commit_sha, candidate_sha, token):
+    """Return a recursive tree signature excluding only the matching runtime report file and directory entries."""
+    commit = api_request(f"/repos/{repo}/git/commits/{commit_sha}", token)
+    root_tree_sha = (commit.get("tree") or {}).get("sha")
+    require(bool(root_tree_sha), f"Commit {commit_sha} does not expose a Git tree.")
+    tree = api_request(f"/repos/{repo}/git/trees/{root_tree_sha}?recursive=1", token)
+    require(tree.get("truncated") is False,
+            "Repository tree response was truncated; exact merge comparison is unavailable.")
+    report_path = f"tests/runtime-evidence/{candidate_sha}.json"
+    ignored_paths = {"tests", "tests/runtime-evidence", report_path}
+    return {
+        item["path"]: (item.get("mode"), item.get("type"), item.get("sha"))
+        for item in tree.get("tree") or []
+        if item.get("path") not in ignored_paths
+    }
+
+
+def release_pr_binding(pr, candidate_sha, candidate_tree_signature, release_tree_signature):
+    """Bind evaluation to the PR head; allow only its separately merged runtime report file to be added."""
     require(pr.get("merged") is True and pr.get("state") == "closed",
             "The release PR must be merged and closed.")
     require((pr.get("base") or {}).get("ref") == "main",
@@ -53,8 +73,11 @@ def release_pr_binding(pr, candidate_sha, candidate_tree_sha, release_tree_sha):
             "The merged PR must expose both its reviewed head SHA and merge_commit_sha.")
     require(candidate_sha == reviewed_head_sha,
             "Evaluation candidate SHA must equal the reviewed PR head SHA.")
-    require(bool(candidate_tree_sha) and candidate_tree_sha == release_tree_sha,
-            "The merged release commit tree differs from the evaluated PR head tree; rerun validation on the final candidate.")
+    require(
+        isinstance(candidate_tree_signature, dict)
+        and candidate_tree_signature == release_tree_signature,
+        "The merged release tree contains changes outside the separately committed target-runtime report; reevaluate the final candidate.",
+    )
     return reviewed_head_sha, release_sha
 
 
@@ -134,13 +157,80 @@ def verify_report(report, candidate_sha, run_id):
     return report
 
 
-def target_runtime_evidence_url(review):
-    """Return the dedicated HTTPS target-runtime evidence URL from an approved review."""
+TARGET_RUNTIME_URL_PATTERN = re.compile(
+    r"^https://github\.com/([^/\s]+)/([^/\s]+)/blob/([0-9a-f]{40})/"
+    r"tests/runtime-evidence/([0-9a-f]{40})\.json$",
+    flags=re.IGNORECASE,
+)
+TARGET_RUNTIME_REVIEW_PATTERN = re.compile(
+    r"target-runtime:\s*PASS\s+"
+    r"(https://github\.com/([^/\s]+)/([^/\s]+)/blob/([0-9a-f]{40})/"
+    r"tests/runtime-evidence/([0-9a-f]{40})\.json)(?=\s|$)",
+    flags=re.IGNORECASE,
+)
+
+
+def target_runtime_evidence_url(review, repo=None, candidate_sha=None):
+    """Accept only an immutable report permalink in this repository."""
     body = review.get("body") or ""
-    match = re.search(r"target-runtime:\s*PASS\s+(https://[^\s)]+)", body, flags=re.IGNORECASE)
+    match = TARGET_RUNTIME_REVIEW_PATTERN.search(body)
     require(match is not None,
-            "Independent approval must include target-runtime: PASS followed by its HTTPS evidence URL.")
+            "Independent approval must include target-runtime: PASS followed by an immutable GitHub report permalink.")
+    owner_repo = f"{match.group(2)}/{match.group(3)}"
+    if repo:
+        require(owner_repo.lower() == repo.lower(),
+                "Target-runtime report must be stored in the release repository.")
+    if candidate_sha:
+        require(match.group(5) == candidate_sha,
+                "Target-runtime report filename must equal the evaluated candidate SHA.")
     return match.group(1)
+
+
+def load_target_runtime_report(review, repo, token, candidate_sha, skill_tree_sha):
+    """Fetch a commit-pinned report from this repository and enforce release PASS."""
+    url = target_runtime_evidence_url(review, repo=repo, candidate_sha=candidate_sha)
+    match = TARGET_RUNTIME_URL_PATTERN.fullmatch(url)
+    require(match is not None, "Target-runtime report URL is malformed.")
+    evidence_commit_sha = match.group(3)
+    report_path = f"tests/runtime-evidence/{candidate_sha}.json"
+    comparison = api_request(f"/repos/{repo}/compare/{evidence_commit_sha}...main", token)
+    require(comparison.get("status") in ("ahead", "identical"),
+            "Target-runtime evidence report commit must already be merged into main.")
+    payload = api_request(
+        f"/repos/{repo}/contents/{urllib.parse.quote(report_path, safe='/')}?ref={evidence_commit_sha}",
+        token,
+    )
+    require(payload.get("type") == "file" and payload.get("encoding") == "base64",
+            "Target-runtime report permalink does not resolve to a repository file.")
+    require(payload.get("path") == report_path,
+            "Target-runtime report file path does not match the candidate SHA.")
+    try:
+        raw = base64.b64decode("".join((payload.get("content") or "").split()), validate=True)
+        report = json.loads(raw.decode("utf-8"))
+    except Exception as exc:
+        raise ValueError(f"Target-runtime report could not be decoded: {exc}") from exc
+    validate_target_runtime_report(
+        report, candidate_sha, skill_tree_sha, require_pass=True
+    )
+    return report, url, evidence_commit_sha
+
+
+def skill_package_tree_sha(repo, commit_sha, token):
+    """Resolve the exact Git tree SHA of the installable Skill directory."""
+    commit = api_request(f"/repos/{repo}/git/commits/{commit_sha}", token)
+    root_tree_sha = (commit.get("tree") or {}).get("sha")
+    require(bool(root_tree_sha), "Candidate commit does not expose a Git tree.")
+    tree = api_request(f"/repos/{repo}/git/trees/{root_tree_sha}?recursive=1", token)
+    require(tree.get("truncated") is False,
+            "Repository tree response was truncated; cannot verify Skill package SHA.")
+    matches = [
+        item for item in tree.get("tree") or []
+        if item.get("path") == "skills/evaluation-dataset-builder"
+        and item.get("type") == "tree"
+    ]
+    require(len(matches) == 1 and bool(matches[0].get("sha")),
+            "Could not resolve a unique Skill package tree SHA.")
+    return matches[0]["sha"]
 
 
 def latest_approved_review(reviews, author, reviewed_head_sha, run_id):
@@ -201,12 +291,10 @@ def main():
             "The release PR must have merged into main.")
     candidate_sha = (pr.get("head") or {}).get("sha")
     release_sha = (pr.get("merge_commit_sha") or "")
-    candidate_commit = api_request(f"/repos/{repo}/git/commits/{candidate_sha}", token)
-    release_commit = api_request(f"/repos/{repo}/git/commits/{release_sha}", token)
+    candidate_tree_signature = repository_tree_signature(repo, candidate_sha, candidate_sha, token)
+    release_tree_signature = repository_tree_signature(repo, release_sha, candidate_sha, token)
     reviewed_head_sha, release_sha = release_pr_binding(
-        pr, candidate_sha,
-        (candidate_commit.get("tree") or {}).get("sha"),
-        (release_commit.get("tree") or {}).get("sha"),
+        pr, candidate_sha, candidate_tree_signature, release_tree_signature,
     )
 
     tag_ref = api_request(
@@ -243,6 +331,10 @@ def main():
     run_id = latest_run["id"]
 
     review = latest_approved_review(reviews, author, reviewed_head_sha, run_id)
+    package_tree_sha = skill_package_tree_sha(repo, candidate_sha, token)
+    runtime_report, runtime_report_url, runtime_report_commit = load_target_runtime_report(
+        review, repo, token, candidate_sha, package_tree_sha
+    )
     artifacts = api_request(f"/repos/{repo}/actions/runs/{run_id}/artifacts", token)
     artifact = next((
         item for item in (artifacts.get("artifacts") or [])
@@ -266,7 +358,7 @@ def main():
     run_url = f"https://github.com/{repo}/actions/runs/{run_id}"
     stability = report["stability"]
     baseline = report["baseline_comparison"]
-    runtime_evidence_url = target_runtime_evidence_url(review)
+    runtime_evidence_url = runtime_report_url
     notes = (
         "# Evaluation Dataset Builder v0.0.1\n\n"
         f"- Reviewed PR head SHA: `{reviewed_head_sha}`\n"
@@ -274,6 +366,8 @@ def main():
         f"- Validation run: {run_url}\n"
         f"- Independent reviewer: {(review.get('user') or {}).get('login')}\n"
         f"- Target runtime validation evidence: {runtime_evidence_url}\n"
+        f"- Target runtime evidence commit: `{runtime_report_commit}`\n"
+        f"- Verified hosts: {', '.join(sorted(runtime_report['required_hosts']))}\n"
         f"- Generator: `{report['models']['generator']}`; Judge: `{report['models']['judge_and_trigger']}`\n"
         f"- Complete repeated runs: {report['policy']['actual_runs']}\n"
         f"- Behavior mean / spread: {stability['behavior_pass_rate']['mean']:.1%} / {stability['behavior_pass_rate']['spread']:.1%}\n"

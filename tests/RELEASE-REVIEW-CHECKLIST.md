@@ -73,8 +73,27 @@ Also inspect every failed case, judge rationale/evidence, representative generat
 The reviewer must submit an APPROVED GitHub PR review with this information and link the workflow run/report. Do not create tag v0.0.1 unless automated gates pass and independent review is approved.
 
 
-## Target-runtime execution gate
-- [ ] Target runtime/build and isolated environment are identified.
-- [ ] Critical executable cases have real run IDs, traces, initial/final state assertions, and side-effect checks.
-- [ ] Permissions, test data, rollback/reset, cleanup, and failure cleanup are evidenced.
-- [ ] Reviewer records `target-runtime: PASS` with a stable HTTPS evidence link; otherwise release remains BLOCKED.
+## 目标宿主运行证据门禁
+
+- 目标候选 PR head SHA：
+- Skill 目录树 SHA：
+- 证据报告文件路径：`tests/runtime-evidence/<candidate_sha>.json`
+- 固定报告永久链接（必须使用证据提交的完整 SHA）：
+- 证据报告提交 SHA：
+- 报告 Schema 校验结果：
+- 本地证据包 SHA-256 校验结果（如提供证据包）：
+
+| 宿主 | 发现 | 正向触发 | 负向触发 | 参考资料读取 | 任务执行 | 副作用 | 清理 | 综合状态 |
+|---|---|---|---|---|---|---|---|---|
+| Codex | | | | | | | | |
+| Claude Code | | | | | | | | |
+| claude.ai | | | | | | | | |
+| Claude API | | | | | | | | |
+
+每项 PASS、FAIL 或 BLOCKED 必须填写 evidence_id；NOT_RUN 必须填写原因。确认四种宿主的运行版本、安装方式、包 SHA、Skill tree SHA 与候选一致。审核人必须实际检查证据原件，并确认未暴露密钥、令牌、客户数据或个人信息。
+
+仅当机器校验报告的 `overall_status=PASS`、四种宿主所有检查均通过，且报告链接为同仓库固定提交 SHA 的永久链接时，才能在独立 PR 审查正文中记录：
+
+`target-runtime: PASS https://github.com/<owner>/<repo>/blob/<evidence_commit_sha>/tests/runtime-evidence/<candidate_sha>.json`
+
+否则发布状态必须为 BLOCKED。

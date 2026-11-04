@@ -1,0 +1,1120 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Skill 目标宿主运行验证报告",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "candidate_sha",
+    "skill_tree_sha",
+    "suite_id",
+    "created_at",
+    "reviewer",
+    "overall_status",
+    "required_hosts",
+    "host_reports",
+    "evidence_artifacts",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "candidate_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "skill_tree_sha": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "suite_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewer": {
+      "type": "string",
+      "minLength": 1
+    },
+    "overall_status": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "BLOCKED",
+        "NOT_RUN"
+      ]
+    },
+    "required_hosts": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "codex",
+          "claude_code",
+          "claude_ai",
+          "claude_api"
+        ]
+      }
+    },
+    "host_reports": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "required": [
+          "host_id",
+          "status",
+          "runtime_version",
+          "install_method",
+          "tested_at",
+          "package_sha",
+          "package_tree_sha",
+          "checks"
+        ],
+        "properties": {
+          "host_id": {
+            "enum": [
+              "codex",
+              "claude_code",
+              "claude_ai",
+              "claude_api"
+            ]
+          },
+          "status": {
+            "enum": [
+              "PASS",
+              "FAIL",
+              "BLOCKED",
+              "NOT_RUN"
+            ]
+          },
+          "runtime_version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "install_method": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tested_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "package_sha": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "package_tree_sha": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{40}$"
+          },
+          "checks": {
+            "type": "object",
+            "required": [
+              "discovery",
+              "positive_trigger",
+              "negative_trigger",
+              "reference_loading",
+              "task_execution"
+            ],
+            "properties": {
+              "discovery": {
+                "type": "object",
+                "required": [
+                  "status",
+                  "evidence_refs",
+                  "notes"
+                ],
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "PASS",
+                      "FAIL",
+                      "BLOCKED",
+                      "NOT_RUN"
+                    ]
+                  },
+                  "evidence_refs": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "PASS"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "evidence_refs": {
+                          "minItems": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "enum": [
+                            "FAIL",
+                            "BLOCKED"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "evidence_refs": {
+                          "minItems": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "NOT_RUN"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  }
+                ],
+                "additionalProperties": true
+              },
+              "positive_trigger": {
+                "type": "object",
+                "required": [
+                  "status",
+                  "evidence_refs",
+                  "notes",
+                  "test_ids"
+                ],
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "PASS",
+                      "FAIL",
+                      "BLOCKED",
+                      "NOT_RUN"
+                    ]
+                  },
+                  "evidence_refs": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
+                  "test_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "PASS"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "evidence_refs": {
+                          "minItems": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "enum": [
+                            "FAIL",
+                            "BLOCKED"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "evidence_refs": {
+                          "minItems": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "NOT_RUN"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  }
+                ],
+                "additionalProperties": true
+              },
+              "negative_trigger": {
+                "type": "object",
+                "required": [
+                  "status",
+                  "evidence_refs",
+                  "notes",
+                  "test_ids"
+                ],
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "PASS",
+                      "FAIL",
+                      "BLOCKED",
+                      "NOT_RUN"
+                    ]
+                  },
+                  "evidence_refs": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
+                  "test_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "PASS"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "evidence_refs": {
+                          "minItems": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "enum": [
+                            "FAIL",
+                            "BLOCKED"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "evidence_refs": {
+                          "minItems": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "NOT_RUN"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  }
+                ],
+                "additionalProperties": true
+              },
+              "reference_loading": {
+                "type": "object",
+                "required": [
+                  "status",
+                  "evidence_refs",
+                  "notes",
+                  "validated_paths",
+                  "unavailable_paths"
+                ],
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "PASS",
+                      "FAIL",
+                      "BLOCKED",
+                      "NOT_RUN"
+                    ]
+                  },
+                  "evidence_refs": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
+                  "validated_paths": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "unavailable_paths": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  }
+                },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "PASS"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "evidence_refs": {
+                          "minItems": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "enum": [
+                            "FAIL",
+                            "BLOCKED"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "evidence_refs": {
+                          "minItems": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "NOT_RUN"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "PASS"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "validated_paths": {
+                          "minItems": 1
+                        },
+                        "unavailable_paths": {
+                          "maxItems": 0
+                        }
+                      }
+                    }
+                  }
+                ],
+                "additionalProperties": true
+              },
+              "task_execution": {
+                "type": "object",
+                "required": [
+                  "status",
+                  "evidence_refs",
+                  "notes",
+                  "case_ids",
+                  "trace_evidence_refs",
+                  "initial_state_evidence_refs",
+                  "final_state_evidence_refs",
+                  "side_effect_check",
+                  "cleanup_check"
+                ],
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "PASS",
+                      "FAIL",
+                      "BLOCKED",
+                      "NOT_RUN"
+                    ]
+                  },
+                  "evidence_refs": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
+                  "case_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "trace_evidence_refs": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "initial_state_evidence_refs": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "final_state_evidence_refs": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "side_effect_check": {
+                    "type": "object",
+                    "required": [
+                      "status",
+                      "evidence_refs",
+                      "notes"
+                    ],
+                    "properties": {
+                      "status": {
+                        "enum": [
+                          "PASS",
+                          "FAIL",
+                          "BLOCKED",
+                          "NOT_RUN"
+                        ]
+                      },
+                      "evidence_refs": {
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "notes": {
+                        "type": "string"
+                      }
+                    },
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            }
+                          },
+                          "required": [
+                            "status"
+                          ]
+                        },
+                        "then": {
+                          "properties": {
+                            "evidence_refs": {
+                              "minItems": 1
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "if": {
+                          "properties": {
+                            "status": {
+                              "enum": [
+                                "FAIL",
+                                "BLOCKED"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "status"
+                          ]
+                        },
+                        "then": {
+                          "required": [
+                            "notes"
+                          ],
+                          "properties": {
+                            "notes": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "evidence_refs": {
+                              "minItems": 1
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "if": {
+                          "properties": {
+                            "status": {
+                              "const": "NOT_RUN"
+                            }
+                          },
+                          "required": [
+                            "status"
+                          ]
+                        },
+                        "then": {
+                          "required": [
+                            "notes"
+                          ],
+                          "properties": {
+                            "notes": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "additionalProperties": true
+                  },
+                  "cleanup_check": {
+                    "type": "object",
+                    "required": [
+                      "status",
+                      "evidence_refs",
+                      "notes"
+                    ],
+                    "properties": {
+                      "status": {
+                        "enum": [
+                          "PASS",
+                          "FAIL",
+                          "BLOCKED",
+                          "NOT_RUN"
+                        ]
+                      },
+                      "evidence_refs": {
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "notes": {
+                        "type": "string"
+                      }
+                    },
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            }
+                          },
+                          "required": [
+                            "status"
+                          ]
+                        },
+                        "then": {
+                          "properties": {
+                            "evidence_refs": {
+                              "minItems": 1
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "if": {
+                          "properties": {
+                            "status": {
+                              "enum": [
+                                "FAIL",
+                                "BLOCKED"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "status"
+                          ]
+                        },
+                        "then": {
+                          "required": [
+                            "notes"
+                          ],
+                          "properties": {
+                            "notes": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "evidence_refs": {
+                              "minItems": 1
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "if": {
+                          "properties": {
+                            "status": {
+                              "const": "NOT_RUN"
+                            }
+                          },
+                          "required": [
+                            "status"
+                          ]
+                        },
+                        "then": {
+                          "required": [
+                            "notes"
+                          ],
+                          "properties": {
+                            "notes": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "additionalProperties": true
+                  }
+                },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "PASS"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "evidence_refs": {
+                          "minItems": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "enum": [
+                            "FAIL",
+                            "BLOCKED"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "evidence_refs": {
+                          "minItems": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "NOT_RUN"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "PASS"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "trace_evidence_refs": {
+                          "minItems": 1
+                        },
+                        "initial_state_evidence_refs": {
+                          "minItems": 1
+                        },
+                        "final_state_evidence_refs": {
+                          "minItems": 1
+                        },
+                        "side_effect_check": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            },
+                            "evidence_refs": {
+                              "minItems": 1
+                            }
+                          }
+                        },
+                        "cleanup_check": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            },
+                            "evidence_refs": {
+                              "minItems": 1
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ],
+                "additionalProperties": true
+              }
+            },
+            "additionalProperties": true
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "PASS",
+                    "FAIL",
+                    "BLOCKED"
+                  ]
+                }
+              },
+              "required": [
+                "status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "runtime_version": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "install_method": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "tested_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        ],
+        "additionalProperties": true
+      }
+    },
+    "evidence_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "evidence_id",
+          "host_id",
+          "check_id",
+          "uri",
+          "sha256",
+          "file_name",
+          "media_type",
+          "captured_at",
+          "description"
+        ],
+        "properties": {
+          "evidence_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "host_id": {
+            "enum": [
+              "codex",
+              "claude_code",
+              "claude_ai",
+              "claude_api"
+            ]
+          },
+          "check_id": {
+            "enum": [
+              "discovery",
+              "positive_trigger",
+              "negative_trigger",
+              "reference_loading",
+              "task_execution",
+              "task_execution.side_effect_check",
+              "task_execution.cleanup_check"
+            ]
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "file_name": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/)(?!.*\\.\\.)(?!.*\\\\\\\\)[A-Za-z0-9._/-]+$"
+          },
+          "media_type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "captured_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  },
+  "additionalProperties": true
+}
