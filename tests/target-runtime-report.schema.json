@@ -1007,31 +1007,6 @@
             "if": {
               "properties": {
                 "status": {
-                  "const": "NOT_RUN"
-                }
-              },
-              "required": [
-                "status"
-              ]
-            },
-            "then": {
-              "properties": {
-                "runtime_version": {
-                  "type": "null"
-                },
-                "install_method": {
-                  "type": "null"
-                },
-                "tested_at": {
-                  "type": "null"
-                }
-              }
-            }
-          },
-          {
-            "if": {
-              "properties": {
-                "status": {
                   "enum": [
                     "PASS",
                     "FAIL",

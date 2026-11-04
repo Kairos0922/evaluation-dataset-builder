@@ -258,18 +258,18 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
     def test_target_runtime_report_recomputes_declared_statuses(self):
         report = self._valid_target_runtime_report()
-        cleanup = report["host_reports"][0]["checks"]["task_execution"]["cleanup_check"]
-        cleanup["status"] = "BLOCKED"
-        cleanup["notes"] = "清理证据不完整。"
+        discovery = report["host_reports"][0]["checks"]["discovery"]
+        discovery["status"] = "BLOCKED"
+        discovery["notes"] = "宿主发现被阻断。"
         report["host_reports"][0]["status"] = "PASS"
         with self.assertRaisesRegex(ValueError, "声明状态"):
             TARGET_RUNTIME.validate_report(
                 report, report["candidate_sha"], report["skill_tree_sha"]
             )
         report = self._valid_target_runtime_report()
-        cleanup = report["host_reports"][0]["checks"]["task_execution"]["cleanup_check"]
-        cleanup["status"] = "BLOCKED"
-        cleanup["notes"] = "清理检查被阻断。"
+        discovery = report["host_reports"][0]["checks"]["discovery"]
+        discovery["status"] = "BLOCKED"
+        discovery["notes"] = "宿主发现被阻断。"
         report["host_reports"][0]["status"] = "BLOCKED"
         report["overall_status"] = "PASS"
         with self.assertRaisesRegex(ValueError, "overall_status"):
@@ -337,7 +337,10 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 json.dumps(report).encode("utf-8")
             ).decode("ascii"),
         }
-        with mock.patch.object(VERIFY_RELEASE, "api_request", return_value=payload) as api:
+        with mock.patch.object(
+            VERIFY_RELEASE, "api_request",
+            side_effect=[{"status": "ahead"}, payload],
+        ) as api:
             result, result_url, commit_sha = VERIFY_RELEASE.load_target_runtime_report(
                 review, "Kairos0922/evaluation-dataset-builder", "token",
                 candidate_sha, report["skill_tree_sha"],
@@ -345,7 +348,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertEqual(result["overall_status"], "PASS")
         self.assertEqual(result_url, url)
         self.assertEqual(commit_sha, evidence_commit)
-        self.assertIn(report_path, api.call_args.args[0])
+        self.assertIn(report_path, api.call_args_list[1].args[0])
 
     def test_skill_package_tree_sha_resolves_only_the_exact_directory_tree(self):
         with mock.patch.object(
@@ -399,11 +402,15 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
     def test_release_verifier_requires_independent_approval_on_exact_sha(self):
         critical = "SE03 SE04 SE05 SE08 SE09 SE11 SE12"
+        report_url = (
+            "https://github.com/example/repo/blob/" + "c" * 40
+            + "/tests/runtime-evidence/" + "a" * 40 + ".json"
+        )
         body = (
             "Reviewed " + critical
             + " baseline comparison and spread assessment: acceptable. "
             + "https://github.com/example/repo/actions/runs/12345 "
-            + "target-runtime: PASS https://example.com/runtime-report/12345"
+            + "target-runtime: PASS " + report_url
         )
         reviews = [{
             "user": {"login": "independent-reviewer"},
@@ -587,7 +594,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn("- [x] Independent human review", updated)
         self.assertIn("- [x] Target-runtime validation", updated)
         self.assertIn("https://github.com/example/repo/blob/", updated)
-        self.assertIn("codex, claude_code, claude_ai, claude_api", updated)
+        self.assertIn("claude_ai, claude_api, claude_code, codex", updated)
         self.assertIn("candidate-sha", updated)
         self.assertIn("release-merge-sha", updated)
         self.assertIn("independent-reviewer", updated)

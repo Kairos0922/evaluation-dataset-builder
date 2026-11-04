@@ -139,6 +139,22 @@ def validate_report(report, candidate_sha, skill_tree_sha,
             raise ValueError(f"{host['host_id']} 的 package_sha 与候选提交不一致。")
         if host["package_tree_sha"] != skill_tree_sha:
             raise ValueError(f"{host['host_id']} 的 package_tree_sha 与 Skill 目录树不一致。")
+        checks = host["checks"]
+        task = checks["task_execution"]
+        statuses = [checks[name]["status"] for name in CHECK_IDS]
+        statuses.extend([task["side_effect_check"]["status"], task["cleanup_check"]["status"]])
+        has_execution_evidence = any(status != "NOT_RUN" for status in statuses)
+        runtime_fields = (
+            host.get("runtime_version"), host.get("install_method"), host.get("tested_at")
+        )
+        if has_execution_evidence and any(value in (None, "") for value in runtime_fields):
+            raise ValueError(
+                f"{host['host_id']} 已执行部分检查，但缺少运行版本、安装方式或测试时间。"
+            )
+        if not has_execution_evidence and any(value is not None for value in runtime_fields):
+            raise ValueError(
+                f"{host['host_id']} 尚未执行任何检查，运行版本、安装方式和测试时间应为 null。"
+            )
         derived = host_status(host)
         if host["status"] != derived:
             raise ValueError(

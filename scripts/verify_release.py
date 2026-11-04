@@ -158,6 +158,11 @@ def verify_report(report, candidate_sha, run_id):
 
 
 TARGET_RUNTIME_URL_PATTERN = re.compile(
+    r"^https://github\.com/([^/\s]+)/([^/\s]+)/blob/([0-9a-f]{40})/"
+    r"tests/runtime-evidence/([0-9a-f]{40})\.json$",
+    flags=re.IGNORECASE,
+)
+TARGET_RUNTIME_REVIEW_PATTERN = re.compile(
     r"target-runtime:\s*PASS\s+"
     r"(https://github\.com/([^/\s]+)/([^/\s]+)/blob/([0-9a-f]{40})/"
     r"tests/runtime-evidence/([0-9a-f]{40})\.json)(?=\s|$)",
@@ -168,7 +173,7 @@ TARGET_RUNTIME_URL_PATTERN = re.compile(
 def target_runtime_evidence_url(review, repo=None, candidate_sha=None):
     """Accept only an immutable report permalink in this repository."""
     body = review.get("body") or ""
-    match = TARGET_RUNTIME_URL_PATTERN.search(body)
+    match = TARGET_RUNTIME_REVIEW_PATTERN.search(body)
     require(match is not None,
             "Independent approval must include target-runtime: PASS followed by an immutable GitHub report permalink.")
     owner_repo = f"{match.group(2)}/{match.group(3)}"
@@ -184,8 +189,9 @@ def target_runtime_evidence_url(review, repo=None, candidate_sha=None):
 def load_target_runtime_report(review, repo, token, candidate_sha, skill_tree_sha):
     """Fetch a commit-pinned report from this repository and enforce release PASS."""
     url = target_runtime_evidence_url(review, repo=repo, candidate_sha=candidate_sha)
-    match = TARGET_RUNTIME_URL_PATTERN.search(url)
-    evidence_commit_sha = match.group(4)
+    match = TARGET_RUNTIME_URL_PATTERN.fullmatch(url)
+    require(match is not None, "Target-runtime report URL is malformed.")
+    evidence_commit_sha = match.group(3)
     report_path = f"tests/runtime-evidence/{candidate_sha}.json"
     comparison = api_request(f"/repos/{repo}/compare/{evidence_commit_sha}...main", token)
     require(comparison.get("status") in ("ahead", "identical"),
