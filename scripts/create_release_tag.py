@@ -17,6 +17,7 @@ from verify_release import (
     load_target_runtime_report,
     require,
     skill_package_tree_sha,
+    repository_tree_signature,
     verify_report,
 )
 
@@ -76,13 +77,11 @@ def create_release_tag():
             "Repository default branch must be main before tagging v0.0.1.")
 
     pr = api_request(f"/repos/{repo}/pulls/{pr_number}", token)
-    candidate_commit = api_request(f"/repos/{repo}/git/commits/{candidate_sha}", token)
     release_sha = pr.get("merge_commit_sha") or ""
-    release_commit = api_request(f"/repos/{repo}/git/commits/{release_sha}", token)
+    candidate_tree_signature = repository_tree_signature(repo, candidate_sha, candidate_sha, token)
+    release_tree_signature = repository_tree_signature(repo, release_sha, candidate_sha, token)
     pr_head_sha, release_sha = release_pr_binding(
-        pr, candidate_sha,
-        (candidate_commit.get("tree") or {}).get("sha"),
-        (release_commit.get("tree") or {}).get("sha"),
+        pr, candidate_sha, candidate_tree_signature, release_tree_signature,
     )
     author = (pr.get("user") or {}).get("login")
     require(bool(author), "Could not identify the release PR author.")

@@ -8,7 +8,7 @@ import urllib.request
 
 from verify_release import (
     API, api_request, latest_approved_review, release_pr_binding,
-    load_target_runtime_report, require, skill_package_tree_sha,
+    load_target_runtime_report, require, repository_tree_signature, skill_package_tree_sha,
 )
 
 
@@ -100,13 +100,11 @@ def main():
     require(repository.get("default_branch") == "main",
             "Repository default branch must be main.")
     pr = api_request(f"/repos/{repo}/pulls/{pr_number}", token)
-    candidate_commit = api_request(f"/repos/{repo}/git/commits/{candidate_sha}", token)
     release_sha = pr.get("merge_commit_sha") or ""
-    release_commit = api_request(f"/repos/{repo}/git/commits/{release_sha}", token)
+    candidate_tree_signature = repository_tree_signature(repo, candidate_sha, candidate_sha, token)
+    release_tree_signature = repository_tree_signature(repo, release_sha, candidate_sha, token)
     pr_head_sha, release_sha = release_pr_binding(
-        pr, candidate_sha,
-        (candidate_commit.get("tree") or {}).get("sha"),
-        (release_commit.get("tree") or {}).get("sha"),
+        pr, candidate_sha, candidate_tree_signature, release_tree_signature,
     )
     tag_ref = api_request(f"/repos/{repo}/git/ref/tags/v0.0.1", token)
     tag_object = tag_ref.get("object") or {}

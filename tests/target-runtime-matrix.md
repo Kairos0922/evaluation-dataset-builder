@@ -34,7 +34,7 @@ README 已提供以下四种环境的安装或启用说明。这表示仓库提�
 
 ## 报告文件与发布绑定
 
-验证报告必须作为独立证据提交，不能与它所验证的候选提交形成自引用。建议路径：
+验证报告必须作为独立证据 PR 提交，不能与它所验证的候选提交形成自引用。请在候选 PR 仍开放时先合并证据 PR，再在候选 PR 的独立审查意见中引用该报告，最后合并候选 PR。证据 PR 只能新增对应的 `tests/runtime-evidence/<candidate_sha>.json` 报告文件；发布绑定检查会忽略该报告文件及其目录项，但要求候选 PR head 与最终 merge commit 的其他所有仓库路径完全一致。建议路径：
 
 `tests/runtime-evidence/<candidate_sha>.json`
 

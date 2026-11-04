@@ -529,15 +529,18 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "head": {"sha": "pr-head-sha"},
             "merge_commit_sha": "merge-commit-sha",
         }
+        tree_signature = {"README.md": ("100644", "blob", "same-content")}
         head_sha, release_sha = VERIFY_RELEASE.release_pr_binding(
-            pr, "pr-head-sha", "same-tree", "same-tree"
+            pr, "pr-head-sha", tree_signature, dict(tree_signature)
         )
         self.assertEqual(head_sha, "pr-head-sha")
         self.assertEqual(release_sha, "merge-commit-sha")
         with self.assertRaisesRegex(ValueError, "PR head SHA"):
-            VERIFY_RELEASE.release_pr_binding(pr, "merge-commit-sha", "same-tree", "same-tree")
-        with self.assertRaisesRegex(ValueError, "tree differs"):
-            VERIFY_RELEASE.release_pr_binding(pr, "pr-head-sha", "candidate-tree", "merge-tree")
+            VERIFY_RELEASE.release_pr_binding(pr, "merge-commit-sha", tree_signature, tree_signature)
+        with self.assertRaisesRegex(ValueError, "outside the separately committed"):
+            VERIFY_RELEASE.release_pr_binding(
+                pr, "pr-head-sha", tree_signature, {"README.md": ("100644", "blob", "changed")}
+            )
 
     def test_release_tag_creator_is_present_and_compiles(self):
         path = ROOT / "scripts" / "create_release_tag.py"
