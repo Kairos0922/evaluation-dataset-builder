@@ -10,9 +10,10 @@
     "created_at",
     "reviewer",
     "overall_status",
-    "evidence_url",
-    "evidence_refs",
-    "host_reports"
+    "required_hosts",
+    "host_reports",
+    "evidence_artifacts",
+    "limitations"
   ],
   "properties": {
     "schema_version": {
@@ -46,40 +47,34 @@
         "NOT_RUN"
       ]
     },
-    "evidence_url": {
-      "type": "string",
-      "format": "uri",
-      "pattern": "^https://"
-    },
-    "evidence_refs": {
+    "required_hosts": {
       "type": "array",
       "minItems": 1,
+      "uniqueItems": true,
       "items": {
-        "type": "string",
-        "minLength": 1
-      }
-    },
-    "limitations": {
-      "type": "array",
-      "items": {
-        "type": "string",
-        "minLength": 1
+        "enum": [
+          "codex",
+          "claude_code",
+          "claude_ai",
+          "claude_api"
+        ]
       }
     },
     "host_reports": {
       "type": "array",
       "minItems": 4,
+      "maxItems": 4,
       "items": {
         "type": "object",
         "required": [
           "host_id",
+          "status",
           "runtime_version",
           "install_method",
           "tested_at",
           "package_sha",
           "package_tree_sha",
-          "checks",
-          "evidence_refs"
+          "checks"
         ],
         "properties": {
           "host_id": {
@@ -90,16 +85,31 @@
               "claude_api"
             ]
           },
+          "status": {
+            "enum": [
+              "PASS",
+              "FAIL",
+              "BLOCKED",
+              "NOT_RUN"
+            ]
+          },
           "runtime_version": {
-            "type": "string",
-            "minLength": 1
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "install_method": {
-            "type": "string",
-            "minLength": 1
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "tested_at": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "format": "date-time"
           },
           "package_sha": {
@@ -124,7 +134,8 @@
                 "type": "object",
                 "required": [
                   "status",
-                  "evidence_refs"
+                  "evidence_refs",
+                  "notes"
                 ],
                 "properties": {
                   "status": {
@@ -137,7 +148,7 @@
                   },
                   "evidence_refs": {
                     "type": "array",
-                    "minItems": 1,
+                    "uniqueItems": true,
                     "items": {
                       "type": "string",
                       "minLength": 1
@@ -147,6 +158,79 @@
                     "type": "string"
                   }
                 },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "PASS"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "evidence_refs": {
+                          "minItems": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "enum": [
+                            "FAIL",
+                            "BLOCKED"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "evidence_refs": {
+                          "minItems": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "NOT_RUN"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  }
+                ],
                 "additionalProperties": true
               },
               "positive_trigger": {
@@ -154,7 +238,8 @@
                 "required": [
                   "status",
                   "evidence_refs",
-                  "test_id"
+                  "notes",
+                  "test_ids"
                 ],
                 "properties": {
                   "status": {
@@ -165,13 +250,9 @@
                       "NOT_RUN"
                     ]
                   },
-                  "test_id": {
-                    "type": "string",
-                    "minLength": 1
-                  },
                   "evidence_refs": {
                     "type": "array",
-                    "minItems": 1,
+                    "uniqueItems": true,
                     "items": {
                       "type": "string",
                       "minLength": 1
@@ -179,8 +260,90 @@
                   },
                   "notes": {
                     "type": "string"
+                  },
+                  "test_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
                   }
                 },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "PASS"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "evidence_refs": {
+                          "minItems": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "enum": [
+                            "FAIL",
+                            "BLOCKED"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "evidence_refs": {
+                          "minItems": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "NOT_RUN"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  }
+                ],
                 "additionalProperties": true
               },
               "negative_trigger": {
@@ -188,7 +351,8 @@
                 "required": [
                   "status",
                   "evidence_refs",
-                  "test_id"
+                  "notes",
+                  "test_ids"
                 ],
                 "properties": {
                   "status": {
@@ -199,13 +363,9 @@
                       "NOT_RUN"
                     ]
                   },
-                  "test_id": {
-                    "type": "string",
-                    "minLength": 1
-                  },
                   "evidence_refs": {
                     "type": "array",
-                    "minItems": 1,
+                    "uniqueItems": true,
                     "items": {
                       "type": "string",
                       "minLength": 1
@@ -213,8 +373,90 @@
                   },
                   "notes": {
                     "type": "string"
+                  },
+                  "test_ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
                   }
                 },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "PASS"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "evidence_refs": {
+                          "minItems": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "enum": [
+                            "FAIL",
+                            "BLOCKED"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "evidence_refs": {
+                          "minItems": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "NOT_RUN"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  }
+                ],
                 "additionalProperties": true
               },
               "reference_loading": {
@@ -222,6 +464,7 @@
                 "required": [
                   "status",
                   "evidence_refs",
+                  "notes",
                   "validated_paths",
                   "unavailable_paths"
                 ],
@@ -234,9 +477,19 @@
                       "NOT_RUN"
                     ]
                   },
+                  "evidence_refs": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
                   "validated_paths": {
                     "type": "array",
-                    "minItems": 1,
                     "uniqueItems": true,
                     "items": {
                       "type": "string",
@@ -245,31 +498,122 @@
                   },
                   "unavailable_paths": {
                     "type": "array",
+                    "uniqueItems": true,
                     "items": {
                       "type": "string",
                       "minLength": 1
                     }
-                  },
-                  "evidence_refs": {
-                    "type": "array",
-                    "minItems": 1,
-                    "items": {
-                      "type": "string",
-                      "minLength": 1
-                    }
-                  },
-                  "notes": {
-                    "type": "string"
                   }
                 },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "PASS"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "evidence_refs": {
+                          "minItems": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "enum": [
+                            "FAIL",
+                            "BLOCKED"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "evidence_refs": {
+                          "minItems": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "NOT_RUN"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "PASS"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "validated_paths": {
+                          "minItems": 1
+                        },
+                        "unavailable_paths": {
+                          "maxItems": 0
+                        }
+                      }
+                    }
+                  }
+                ],
                 "additionalProperties": true
               },
               "task_execution": {
                 "type": "object",
                 "required": [
                   "status",
+                  "evidence_refs",
+                  "notes",
                   "case_ids",
-                  "evidence_refs"
+                  "trace_evidence_refs",
+                  "initial_state_evidence_refs",
+                  "final_state_evidence_refs",
+                  "side_effect_check",
+                  "cleanup_check"
                 ],
                 "properties": {
                   "status": {
@@ -280,6 +624,17 @@
                       "NOT_RUN"
                     ]
                   },
+                  "evidence_refs": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "notes": {
+                    "type": "string"
+                  },
                   "case_ids": {
                     "type": "array",
                     "minItems": 1,
@@ -289,289 +644,502 @@
                       "minLength": 1
                     }
                   },
-                  "evidence_refs": {
+                  "trace_evidence_refs": {
                     "type": "array",
-                    "minItems": 1,
+                    "uniqueItems": true,
                     "items": {
                       "type": "string",
                       "minLength": 1
                     }
                   },
-                  "notes": {
-                    "type": "string"
+                  "initial_state_evidence_refs": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "final_state_evidence_refs": {
+                    "type": "array",
+                    "uniqueItems": true,
+                    "items": {
+                      "type": "string",
+                      "minLength": 1
+                    }
+                  },
+                  "side_effect_check": {
+                    "type": "object",
+                    "required": [
+                      "status",
+                      "evidence_refs",
+                      "notes"
+                    ],
+                    "properties": {
+                      "status": {
+                        "enum": [
+                          "PASS",
+                          "FAIL",
+                          "BLOCKED",
+                          "NOT_RUN"
+                        ]
+                      },
+                      "evidence_refs": {
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "notes": {
+                        "type": "string"
+                      }
+                    },
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            }
+                          },
+                          "required": [
+                            "status"
+                          ]
+                        },
+                        "then": {
+                          "properties": {
+                            "evidence_refs": {
+                              "minItems": 1
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "if": {
+                          "properties": {
+                            "status": {
+                              "enum": [
+                                "FAIL",
+                                "BLOCKED"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "status"
+                          ]
+                        },
+                        "then": {
+                          "required": [
+                            "notes"
+                          ],
+                          "properties": {
+                            "notes": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "evidence_refs": {
+                              "minItems": 1
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "if": {
+                          "properties": {
+                            "status": {
+                              "const": "NOT_RUN"
+                            }
+                          },
+                          "required": [
+                            "status"
+                          ]
+                        },
+                        "then": {
+                          "required": [
+                            "notes"
+                          ],
+                          "properties": {
+                            "notes": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "additionalProperties": true
+                  },
+                  "cleanup_check": {
+                    "type": "object",
+                    "required": [
+                      "status",
+                      "evidence_refs",
+                      "notes"
+                    ],
+                    "properties": {
+                      "status": {
+                        "enum": [
+                          "PASS",
+                          "FAIL",
+                          "BLOCKED",
+                          "NOT_RUN"
+                        ]
+                      },
+                      "evidence_refs": {
+                        "type": "array",
+                        "uniqueItems": true,
+                        "items": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      },
+                      "notes": {
+                        "type": "string"
+                      }
+                    },
+                    "allOf": [
+                      {
+                        "if": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            }
+                          },
+                          "required": [
+                            "status"
+                          ]
+                        },
+                        "then": {
+                          "properties": {
+                            "evidence_refs": {
+                              "minItems": 1
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "if": {
+                          "properties": {
+                            "status": {
+                              "enum": [
+                                "FAIL",
+                                "BLOCKED"
+                              ]
+                            }
+                          },
+                          "required": [
+                            "status"
+                          ]
+                        },
+                        "then": {
+                          "required": [
+                            "notes"
+                          ],
+                          "properties": {
+                            "notes": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "evidence_refs": {
+                              "minItems": 1
+                            }
+                          }
+                        }
+                      },
+                      {
+                        "if": {
+                          "properties": {
+                            "status": {
+                              "const": "NOT_RUN"
+                            }
+                          },
+                          "required": [
+                            "status"
+                          ]
+                        },
+                        "then": {
+                          "required": [
+                            "notes"
+                          ],
+                          "properties": {
+                            "notes": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    "additionalProperties": true
                   }
                 },
+                "allOf": [
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "PASS"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "evidence_refs": {
+                          "minItems": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "enum": [
+                            "FAIL",
+                            "BLOCKED"
+                          ]
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "string",
+                          "minLength": 1
+                        },
+                        "evidence_refs": {
+                          "minItems": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "NOT_RUN"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "required": [
+                        "notes"
+                      ],
+                      "properties": {
+                        "notes": {
+                          "type": "string",
+                          "minLength": 1
+                        }
+                      }
+                    }
+                  },
+                  {
+                    "if": {
+                      "properties": {
+                        "status": {
+                          "const": "PASS"
+                        }
+                      },
+                      "required": [
+                        "status"
+                      ]
+                    },
+                    "then": {
+                      "properties": {
+                        "trace_evidence_refs": {
+                          "minItems": 1
+                        },
+                        "initial_state_evidence_refs": {
+                          "minItems": 1
+                        },
+                        "final_state_evidence_refs": {
+                          "minItems": 1
+                        },
+                        "side_effect_check": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            },
+                            "evidence_refs": {
+                              "minItems": 1
+                            }
+                          }
+                        },
+                        "cleanup_check": {
+                          "properties": {
+                            "status": {
+                              "const": "PASS"
+                            },
+                            "evidence_refs": {
+                              "minItems": 1
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                ],
                 "additionalProperties": true
               }
             },
             "additionalProperties": true
           },
-          "evidence_refs": {
-            "type": "array",
-            "minItems": 1,
-            "items": {
-              "type": "string",
-              "minLength": 1
-            }
-          },
           "notes": {
             "type": "string"
           }
         },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "const": "NOT_RUN"
+                }
+              },
+              "required": [
+                "status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "runtime_version": {
+                  "type": "null"
+                },
+                "install_method": {
+                  "type": "null"
+                },
+                "tested_at": {
+                  "type": "null"
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "status": {
+                  "enum": [
+                    "PASS",
+                    "FAIL",
+                    "BLOCKED"
+                  ]
+                }
+              },
+              "required": [
+                "status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "runtime_version": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "install_method": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "tested_at": {
+                  "type": "string",
+                  "format": "date-time"
+                }
+              }
+            }
+          }
+        ],
         "additionalProperties": true
+      }
+    },
+    "evidence_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "evidence_id",
+          "host_id",
+          "check_id",
+          "uri",
+          "sha256",
+          "file_name",
+          "media_type",
+          "captured_at",
+          "description"
+        ],
+        "properties": {
+          "evidence_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "host_id": {
+            "enum": [
+              "codex",
+              "claude_code",
+              "claude_ai",
+              "claude_api"
+            ]
+          },
+          "check_id": {
+            "enum": [
+              "discovery",
+              "positive_trigger",
+              "negative_trigger",
+              "reference_loading",
+              "task_execution",
+              "task_execution.side_effect_check",
+              "task_execution.cleanup_check"
+            ]
+          },
+          "uri": {
+            "type": "string",
+            "format": "uri",
+            "pattern": "^https://"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "file_name": {
+            "type": "string",
+            "minLength": 1,
+            "pattern": "^(?!/)(?!.*\\.\\.)(?!.*\\\\\\\\)[A-Za-z0-9._/-]+$"
+          },
+          "media_type": {
+            "type": "string",
+            "minLength": 1
+          },
+          "captured_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
       }
     }
   },
-  "allOf": [
-    {
-      "if": {
-        "properties": {
-          "overall_status": {
-            "const": "PASS"
-          }
-        },
-        "required": [
-          "overall_status"
-        ]
-      },
-      "then": {
-        "properties": {
-          "host_reports": {
-            "minItems": 4,
-            "allOf": [
-              {
-                "contains": {
-                  "type": "object",
-                  "properties": {
-                    "host_id": {
-                      "const": "codex"
-                    },
-                    "checks": {
-                      "properties": {
-                        "discovery": {
-                          "properties": {
-                            "status": {
-                              "const": "PASS"
-                            }
-                          }
-                        },
-                        "positive_trigger": {
-                          "properties": {
-                            "status": {
-                              "const": "PASS"
-                            }
-                          }
-                        },
-                        "negative_trigger": {
-                          "properties": {
-                            "status": {
-                              "const": "PASS"
-                            }
-                          }
-                        },
-                        "reference_loading": {
-                          "properties": {
-                            "status": {
-                              "const": "PASS"
-                            },
-                            "unavailable_paths": {
-                              "maxItems": 0
-                            }
-                          }
-                        },
-                        "task_execution": {
-                          "properties": {
-                            "status": {
-                              "const": "PASS"
-                            }
-                          }
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "host_id",
-                    "checks"
-                  ]
-                },
-                "minContains": 1
-              },
-              {
-                "contains": {
-                  "type": "object",
-                  "properties": {
-                    "host_id": {
-                      "const": "claude_code"
-                    },
-                    "checks": {
-                      "properties": {
-                        "discovery": {
-                          "properties": {
-                            "status": {
-                              "const": "PASS"
-                            }
-                          }
-                        },
-                        "positive_trigger": {
-                          "properties": {
-                            "status": {
-                              "const": "PASS"
-                            }
-                          }
-                        },
-                        "negative_trigger": {
-                          "properties": {
-                            "status": {
-                              "const": "PASS"
-                            }
-                          }
-                        },
-                        "reference_loading": {
-                          "properties": {
-                            "status": {
-                              "const": "PASS"
-                            },
-                            "unavailable_paths": {
-                              "maxItems": 0
-                            }
-                          }
-                        },
-                        "task_execution": {
-                          "properties": {
-                            "status": {
-                              "const": "PASS"
-                            }
-                          }
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "host_id",
-                    "checks"
-                  ]
-                },
-                "minContains": 1
-              },
-              {
-                "contains": {
-                  "type": "object",
-                  "properties": {
-                    "host_id": {
-                      "const": "claude_ai"
-                    },
-                    "checks": {
-                      "properties": {
-                        "discovery": {
-                          "properties": {
-                            "status": {
-                              "const": "PASS"
-                            }
-                          }
-                        },
-                        "positive_trigger": {
-                          "properties": {
-                            "status": {
-                              "const": "PASS"
-                            }
-                          }
-                        },
-                        "negative_trigger": {
-                          "properties": {
-                            "status": {
-                              "const": "PASS"
-                            }
-                          }
-                        },
-                        "reference_loading": {
-                          "properties": {
-                            "status": {
-                              "const": "PASS"
-                            },
-                            "unavailable_paths": {
-                              "maxItems": 0
-                            }
-                          }
-                        },
-                        "task_execution": {
-                          "properties": {
-                            "status": {
-                              "const": "PASS"
-                            }
-                          }
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "host_id",
-                    "checks"
-                  ]
-                },
-                "minContains": 1
-              },
-              {
-                "contains": {
-                  "type": "object",
-                  "properties": {
-                    "host_id": {
-                      "const": "claude_api"
-                    },
-                    "checks": {
-                      "properties": {
-                        "discovery": {
-                          "properties": {
-                            "status": {
-                              "const": "PASS"
-                            }
-                          }
-                        },
-                        "positive_trigger": {
-                          "properties": {
-                            "status": {
-                              "const": "PASS"
-                            }
-                          }
-                        },
-                        "negative_trigger": {
-                          "properties": {
-                            "status": {
-                              "const": "PASS"
-                            }
-                          }
-                        },
-                        "reference_loading": {
-                          "properties": {
-                            "status": {
-                              "const": "PASS"
-                            },
-                            "unavailable_paths": {
-                              "maxItems": 0
-                            }
-                          }
-                        },
-                        "task_execution": {
-                          "properties": {
-                            "status": {
-                              "const": "PASS"
-                            }
-                          }
-                        }
-                      }
-                    }
-                  },
-                  "required": [
-                    "host_id",
-                    "checks"
-                  ]
-                },
-                "minContains": 1
-              }
-            ]
-          }
-        }
-      }
-    }
-  ],
   "additionalProperties": true
 }
