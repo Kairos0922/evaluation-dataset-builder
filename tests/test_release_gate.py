@@ -100,6 +100,265 @@ class ReleaseGateUnitTests(unittest.TestCase):
             },
         }
 
+
+    def _valid_target_runtime_report(self):
+        candidate_sha = "a" * 40
+        skill_tree_sha = "b" * 40
+        evidence_artifacts = []
+
+        def add_evidence(host_id, check_id, evidence_id):
+            evidence_artifacts.append({
+                "evidence_id": evidence_id,
+                "host_id": host_id,
+                "check_id": check_id,
+                "uri": f"https://example.com/runtime-evidence/{evidence_id}",
+                "sha256": hashlib.sha256(b"runtime evidence").hexdigest(),
+                "file_name": f"{host_id}/{evidence_id}.txt",
+                "media_type": "text/plain",
+                "captured_at": "2026-11-04T01:00:00Z",
+                "description": f"{host_id}/{check_id} 的运行证据",
+            })
+            return evidence_id
+
+        host_reports = []
+        hosts = ("codex", "claude_code", "claude_ai", "claude_api")
+        paths = [
+            "references/terminology.md",
+            "references/quality-standard.md",
+            "references/quality-standard.yaml",
+            "references/dataset-schema.json",
+            "references/grader-guidelines.md",
+            "references/coverage-design-guideline.md",
+            "references/source-and-evidence-policy.md",
+            "references/business-scenario-model.md",
+            "references/scenario-buckets.md",
+            "references/change-impact-and-repair.md",
+            "references/dataset-manifest-schema.json",
+        ]
+        for host_id in hosts:
+            discovery = add_evidence(host_id, "discovery", f"{host_id}-discovery")
+            positive = add_evidence(host_id, "positive_trigger", f"{host_id}-positive")
+            negative = add_evidence(host_id, "negative_trigger", f"{host_id}-negative")
+            references = add_evidence(host_id, "reference_loading", f"{host_id}-references")
+            trace = add_evidence(host_id, "task_execution", f"{host_id}-trace")
+            before = add_evidence(host_id, "task_execution", f"{host_id}-before")
+            after = add_evidence(host_id, "task_execution", f"{host_id}-after")
+            side_effect = add_evidence(
+                host_id, "task_execution.side_effect_check", f"{host_id}-side-effects"
+            )
+            cleanup = add_evidence(
+                host_id, "task_execution.cleanup_check", f"{host_id}-cleanup"
+            )
+            pass_check = lambda ref: {
+                "status": "PASS", "evidence_refs": [ref], "notes": "检查通过。"
+            }
+            host_reports.append({
+                "host_id": host_id,
+                "status": "PASS",
+                "runtime_version": "test-runtime-1.0",
+                "install_method": "按 README 对应方式安装",
+                "tested_at": "2026-11-04T01:00:00Z",
+                "package_sha": candidate_sha,
+                "package_tree_sha": skill_tree_sha,
+                "checks": {
+                    "discovery": pass_check(discovery),
+                    "positive_trigger": dict(pass_check(positive), test_ids=["TR-POS-001"]),
+                    "negative_trigger": dict(pass_check(negative), test_ids=["TR-NEG-001"]),
+                    "reference_loading": {
+                        "status": "PASS", "evidence_refs": [references],
+                        "validated_paths": paths, "unavailable_paths": [],
+                        "notes": "关键参考资料均已读取。",
+                    },
+                    "task_execution": {
+                        "status": "PASS", "evidence_refs": [trace],
+                        "case_ids": ["TR-EXEC-001"],
+                        "trace_evidence_refs": [trace],
+                        "initial_state_evidence_refs": [before],
+                        "final_state_evidence_refs": [after],
+                        "side_effect_check": pass_check(side_effect),
+                        "cleanup_check": pass_check(cleanup),
+                        "notes": "端到端任务完成。",
+                    },
+                },
+            })
+        return {
+            "schema_version": "1.0.0",
+            "candidate_sha": candidate_sha,
+            "skill_tree_sha": skill_tree_sha,
+            "suite_id": "target-runtime-suite-0.0.1",
+            "created_at": "2026-11-04T01:00:00Z",
+            "reviewer": "independent-runtime-reviewer",
+            "overall_status": "PASS",
+            "required_hosts": list(hosts),
+            "host_reports": host_reports,
+            "evidence_artifacts": evidence_artifacts,
+            "limitations": [],
+        }
+
+    def test_target_runtime_report_accepts_all_hosts_only_with_complete_evidence(self):
+        report = self._valid_target_runtime_report()
+        result = TARGET_RUNTIME.validate_report(
+            report, report["candidate_sha"], report["skill_tree_sha"], require_pass=True
+        )
+        self.assertEqual(result["overall_status"], "PASS")
+        self.assertEqual(len(result["host_reports"]), 4)
+
+    def test_target_runtime_template_is_valid_but_not_release_eligible(self):
+        template = json.loads(
+            (ROOT / "tests" / "target-runtime-report.template.json").read_text(encoding="utf-8")
+        )
+        result = TARGET_RUNTIME.validate_report(
+            template, template["candidate_sha"], template["skill_tree_sha"]
+        )
+        self.assertEqual(result["overall_status"], "NOT_RUN")
+        with self.assertRaisesRegex(ValueError, "正式发布要求四种宿主全部 PASS"):
+            TARGET_RUNTIME.validate_report(
+                template, template["candidate_sha"], template["skill_tree_sha"],
+                require_pass=True,
+            )
+
+    def test_target_runtime_report_rejects_candidate_package_and_host_coverage_mismatch(self):
+        report = self._valid_target_runtime_report()
+        with self.assertRaisesRegex(ValueError, "candidate_sha"):
+            TARGET_RUNTIME.validate_report(report, "c" * 40, report["skill_tree_sha"])
+        report = self._valid_target_runtime_report()
+        report["host_reports"][0]["package_tree_sha"] = "d" * 40
+        with self.assertRaisesRegex(ValueError, "package_tree_sha"):
+            TARGET_RUNTIME.validate_report(
+                report, report["candidate_sha"], report["skill_tree_sha"]
+            )
+        report = self._valid_target_runtime_report()
+        report["host_reports"].pop()
+        with self.assertRaises(Exception):
+            TARGET_RUNTIME.validate_report(
+                report, report["candidate_sha"], report["skill_tree_sha"]
+            )
+
+    def test_target_runtime_report_rejects_orphan_duplicate_and_cross_host_evidence(self):
+        report = self._valid_target_runtime_report()
+        report["host_reports"][0]["checks"]["discovery"]["evidence_refs"] = ["missing-id"]
+        with self.assertRaisesRegex(ValueError, "证据引用不存在"):
+            TARGET_RUNTIME.validate_report(
+                report, report["candidate_sha"], report["skill_tree_sha"]
+            )
+        report = self._valid_target_runtime_report()
+        report["evidence_artifacts"].append(dict(report["evidence_artifacts"][0]))
+        with self.assertRaisesRegex(ValueError, "重复 evidence_id"):
+            TARGET_RUNTIME.validate_report(
+                report, report["candidate_sha"], report["skill_tree_sha"]
+            )
+        report = self._valid_target_runtime_report()
+        report["host_reports"][0]["checks"]["discovery"]["evidence_refs"] = [
+            report["evidence_artifacts"][9]["evidence_id"]
+        ]
+        with self.assertRaisesRegex(ValueError, "范围不匹配"):
+            TARGET_RUNTIME.validate_report(
+                report, report["candidate_sha"], report["skill_tree_sha"]
+            )
+
+    def test_target_runtime_report_recomputes_declared_statuses(self):
+        report = self._valid_target_runtime_report()
+        cleanup = report["host_reports"][0]["checks"]["task_execution"]["cleanup_check"]
+        cleanup["status"] = "BLOCKED"
+        cleanup["notes"] = "清理证据不完整。"
+        report["host_reports"][0]["status"] = "PASS"
+        with self.assertRaisesRegex(ValueError, "声明状态"):
+            TARGET_RUNTIME.validate_report(
+                report, report["candidate_sha"], report["skill_tree_sha"]
+            )
+        report = self._valid_target_runtime_report()
+        report["host_reports"][0]["status"] = "BLOCKED"
+        report["overall_status"] = "BLOCKED"
+        with self.assertRaisesRegex(ValueError, "overall_status"):
+            TARGET_RUNTIME.validate_report(
+                report, report["candidate_sha"], report["skill_tree_sha"]
+            )
+
+    def test_target_runtime_report_checks_local_artifact_sha256(self):
+        report = self._valid_target_runtime_report()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for artifact in report["evidence_artifacts"]:
+                path = root / artifact["file_name"]
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"runtime evidence")
+            TARGET_RUNTIME.validate_report(
+                report, report["candidate_sha"], report["skill_tree_sha"],
+                require_pass=True, evidence_dir=directory,
+            )
+            first = root / report["evidence_artifacts"][0]["file_name"]
+            first.write_bytes(b"tampered")
+            with self.assertRaisesRegex(ValueError, "SHA-256 不匹配"):
+                TARGET_RUNTIME.validate_report(
+                    report, report["candidate_sha"], report["skill_tree_sha"],
+                    evidence_dir=directory,
+                )
+
+    def test_target_runtime_review_requires_immutable_same_repository_report(self):
+        candidate_sha = "a" * 40
+        evidence_commit = "c" * 40
+        report_url = (
+            "https://github.com/Kairos0922/evaluation-dataset-builder/blob/"
+            f"{evidence_commit}/tests/runtime-evidence/{candidate_sha}.json"
+        )
+        review = {"body": "target-runtime: PASS " + report_url}
+        self.assertEqual(
+            VERIFY_RELEASE.target_runtime_evidence_url(
+                review, repo="Kairos0922/evaluation-dataset-builder",
+                candidate_sha=candidate_sha,
+            ),
+            report_url,
+        )
+        with self.assertRaisesRegex(ValueError, "immutable GitHub report permalink"):
+            VERIFY_RELEASE.target_runtime_evidence_url({
+                "body": "target-runtime: PASS https://example.com/runtime-report.json"
+            })
+        with self.assertRaisesRegex(ValueError, "release repository"):
+            VERIFY_RELEASE.target_runtime_evidence_url(
+                review, repo="another/repository", candidate_sha=candidate_sha
+            )
+
+    def test_target_runtime_report_is_fetched_from_the_pinned_repository_commit(self):
+        report = self._valid_target_runtime_report()
+        candidate_sha = report["candidate_sha"]
+        evidence_commit = "c" * 40
+        report_path = f"tests/runtime-evidence/{candidate_sha}.json"
+        url = (
+            "https://github.com/Kairos0922/evaluation-dataset-builder/blob/"
+            f"{evidence_commit}/{report_path}"
+        )
+        review = {"body": "target-runtime: PASS " + url}
+        payload = {
+            "type": "file", "encoding": "base64", "path": report_path,
+            "content": base64.b64encode(
+                json.dumps(report).encode("utf-8")
+            ).decode("ascii"),
+        }
+        with mock.patch.object(VERIFY_RELEASE, "api_request", return_value=payload) as api:
+            result, result_url, commit_sha = VERIFY_RELEASE.load_target_runtime_report(
+                review, "Kairos0922/evaluation-dataset-builder", "token",
+                candidate_sha, report["skill_tree_sha"],
+            )
+        self.assertEqual(result["overall_status"], "PASS")
+        self.assertEqual(result_url, url)
+        self.assertEqual(commit_sha, evidence_commit)
+        self.assertIn(report_path, api.call_args.args[0])
+
+    def test_skill_package_tree_sha_resolves_only_the_exact_directory_tree(self):
+        with mock.patch.object(
+            VERIFY_RELEASE, "api_request",
+            side_effect=[
+                {"tree": {"sha": "root-tree"}},
+                {"truncated": False, "tree": [
+                    {"path": "skills/evaluation-dataset-builder", "type": "tree", "sha": "skill-tree"}
+                ]},
+            ],
+        ):
+            self.assertEqual(
+                VERIFY_RELEASE.skill_package_tree_sha("owner/repo", "a" * 40, "token"),
+                "skill-tree",
+            )
+
     def test_release_verifier_accepts_complete_exact_sha_report(self):
         report = self._valid_release_report()
         result = VERIFY_RELEASE.verify_report(report, "candidate-sha", 12345)
