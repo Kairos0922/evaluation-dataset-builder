@@ -40,7 +40,7 @@
     {
       "id": "JC06",
       "criterion": "当用户未提供城市时，助手明确询问用户补充城市。",
-      "candidate": "【响应日志已截断】缺少城市时，我会先询问",
+      "candidate": "CAPTURE_STATUS=TRUNCATED; OUTPUT_INCOMPLETE. Partial captured text only: When city is missing, I will ask",
       "expected_status": "UNKNOWN",
       "risk": "truncated_output_insufficient_evidence"
     }
