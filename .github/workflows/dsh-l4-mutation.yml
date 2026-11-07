@@ -120,6 +120,8 @@ jobs:
           print("Independent Judge model preflight passed.")
           PY
       - name: 执行 L4 对照组与缺陷注入评测
+        env:
+          L3_RUN_ID: ${{ steps.l3.outputs.run_id }}
         run: |
           set -euo pipefail
           python tests/benchmark/run_l4_mutation.py \
