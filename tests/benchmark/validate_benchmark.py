@@ -134,6 +134,9 @@ def validate_package(package):
     capability_ids, rule_ids = set(capability_index), set(rule_index)
     risk_ids, scenario_ids, workflow_ids = set(risk_index), set(scenario_index), set(workflow_index)
     manifest_ids = set(manifest_index)
+    expected_dataset_count = _object(task.get("expected_scope")).get("expected_dataset_count")
+    if expected_dataset_count is not None and expected_dataset_count != len(manifest_index):
+        errors.append(f"EXPECTED_DATASET_COUNT_MISMATCH:expected={expected_dataset_count}:actual={len(manifest_index)}")
     scope = _object(task.get("expected_scope"))
     for field, known in [("capability_refs", capability_ids), ("rule_refs", rule_ids),
                          ("risk_refs", risk_ids), ("scenario_refs", scenario_ids)]:
