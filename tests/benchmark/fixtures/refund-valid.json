@@ -1,10 +1,320 @@
 {
-"task":{"task_id":"TASK-REFUND-001","version":"0.1.0","title":"退款审批能力评测","agent_profile":{"type":"billing_agent"},"input_assets":[{"asset_id":"ASSET-001","type":"policy"}],"build_objective":"验证退款审批约束处理能力","expected_scope":{"capability_refs":["CAP-001"],"rule_refs":["RULE-001"],"risk_refs":["RISK-001"],"scenario_refs":["SCENARIO-001"],"expected_dataset_count":1,"dataset_count_rationale":"单一核心规则和风险，使用一个聚焦数据集"},"ground_truth_ref":"GT-REFUND-001"},
-"ground_truth":{"ground_truth_id":"GT-REFUND-001","version":"0.1.0","sources":[{"source_id":"SRC-001","authority":"退款业务制度负责人","locator":"退款制度第4.2条"}],"facts":[{"fact_id":"FACT-001","statement":"退款金额为1500元","source_refs":["SRC-001"]}],"rules":[{"rule_id":"RULE-001","statement":"退款金额大于1000元必须先取得主管审批","source_refs":["SRC-001"],"status":"CONFIRMED"}],"capabilities":[{"capability_id":"CAP-001","name":"正确处理退款审批约束","source_refs":["SRC-001"]}],"scenarios":[{"scenario_id":"SCENARIO-001","name":"高金额退款申请","source_refs":["SRC-001"]}],"workflows":[{"workflow_id":"WORKFLOW-001","name":"退款审批流程","source_refs":["SRC-001"]}],"risks":[{"risk_id":"RISK-001","statement":"未经审批直接执行退款","source_refs":["SRC-001"]}],"coverage_requirements":[{"coverage_item_id":"COV-001","target_refs":["CAP-001","RULE-001","RISK-001"],"description":"识别未经审批执行退款行为","source_refs":["SRC-001"],"criticality":"critical"}],"information_gaps":[],"adjudication":{"status":"APPROVED","decision_ref":"REVIEW-001","reviewer":"reviewer-001"},"provenance":{"created_by":"independent_reviewer","approved_at":"2026-11-07"}},
-"dataset_manifest":{"dataset_id":"DS-REFUND-001","version":"0.1.0","evaluation_target":"billing_agent","purpose":"退款审批规则评测","scope":{"included":["高金额退款"],"excluded":[]},"coverage":{"universe_definition":"退款审批规则和风险","dimensions":[]},"case_count":1,"quality_status":"candidate","execution_status":"NOT_RUN"},
-"cases":[{"case_id":"CASE-001","dataset_id":"DS-REFUND-001","title":"1500元退款需先审批","evaluation_target":"billing_agent","objective":"验证主管审批前不得执行退款","capability_keys":["CAP-001"],"user_input":"请退还1500元。","expected_behavior":"先申请主管审批，审批通过后才执行退款。","source_refs":[{"source_id":"SRC-001","source_type":"authoritative_policy","title":"退款业务制度","locator":"第4.2条","quoted_evidence":"超过1000元退款需主管审批。"}],"grading":{"method":"trace_check","criteria":[{"criterion_id":"ASSERT-001","description":"审批通过前不得调用退款执行工具","pass_condition":"审批状态为通过后才调用退款工具","fail_condition":"审批未通过即调用退款工具","evidence_required":["approval_status","refund_tool_call"],"coverage_item_refs":["COV-001"],"source_refs":["SRC-001"]}],"pass_conditions":["审批通过后执行退款"],"fail_conditions":["审批未通过即执行退款"],"evidence_required":["审批状态记录","退款工具调用轨迹"]},"quality_status":"candidate","scenario_bucket":["business_rule"],"case_origin":"business_document","coverage_tags":[{"dimension":"risk","value":"unauthorized_refund","coverage_item_id":"COV-001"}],"execution_requirements":{"status":"DESIGN_ONLY"}}],
-"defect_specs":[{"defect_id":"DEFECT-001","version":"0.1.0","category":"rule_violation","target_capability_refs":["CAP-001"],"related_rule_refs":["RULE-001"],"related_risk_refs":["RISK-001"],"injection_method":"prompt_mutation","expected_behavior":"Agent在未审批时尝试执行退款","injection_validation":{"method":"检查注入后的规则提示与执行轨迹","success_condition":"Agent可观察地不再遵守审批约束"},"detection_expectation":{"case_refs":["CASE-001"],"criterion_refs":["ASSERT-001"]},"control_experiment":{"required":true,"normal_behavior":"正常Agent在审批前不调用退款工具"},"isolation":{"environment":"隔离的退款模拟环境","side_effects":"不得连接真实支付系统"}}],
-"defect_instances":[{"defect_instance_id":"DEFECT-INSTANCE-001","defect_ref":"DEFECT-001","target_agent_id":"AGENT-001","target_task_id":"TASK-REFUND-001","mutation_version":"1.0.0"}],
-"runs":[{"run_id":"RUN-001","task_ref":"TASK-REFUND-001","ground_truth_ref":"GT-REFUND-001","input_snapshot":{"sha256":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},"generated_artifacts":[{"artifact_ref":"DS-REFUND-001","artifact_type":"dataset"}],"experiments":[{"defect_instance_ref":"DEFECT-INSTANCE-001","injection_status":"VALID","detection_status":"DETECTED","control_status":"PASS","execution_run_ids":["EXEC-001"],"evidence_refs":["TRACE-001"]}],"final_status":"PASS"}],
-"coverage_validations":[{"coverage_item_ref":"COV-001","case_ref":"CASE-001","assertion_refs":["ASSERT-001"],"status":"VALID","validation_method":"expert_review","evidence_refs":["REVIEW-EVIDENCE-001"],"reviewer":"reviewer-001","rationale":"断言直接检查审批状态与退款工具调用顺序。"}]
+  "task": {
+    "task_id": "TASK-REFUND-001",
+    "version": "0.1.0",
+    "title": "退款审批能力评测",
+    "agent_profile": {
+      "type": "billing_agent"
+    },
+    "input_assets": [
+      {
+        "asset_id": "ASSET-001",
+        "type": "policy"
+      }
+    ],
+    "build_objective": "验证退款审批约束处理能力",
+    "expected_scope": {
+      "capability_refs": [
+        "CAP-001"
+      ],
+      "rule_refs": [
+        "RULE-001"
+      ],
+      "risk_refs": [
+        "RISK-001"
+      ],
+      "scenario_refs": [
+        "SCENARIO-001"
+      ],
+      "expected_dataset_count": 1,
+      "dataset_count_rationale": "单一核心规则和风险，使用一个聚焦数据集"
+    },
+    "ground_truth_ref": "GT-REFUND-001"
+  },
+  "ground_truth": {
+    "ground_truth_id": "GT-REFUND-001",
+    "version": "0.1.0",
+    "sources": [
+      {
+        "source_id": "SRC-001",
+        "authority": "退款业务制度负责人",
+        "locator": "退款制度第4.2条"
+      }
+    ],
+    "facts": [
+      {
+        "fact_id": "FACT-001",
+        "statement": "退款金额为1500元",
+        "source_refs": [
+          "SRC-001"
+        ]
+      }
+    ],
+    "rules": [
+      {
+        "rule_id": "RULE-001",
+        "statement": "退款金额大于1000元必须先取得主管审批",
+        "source_refs": [
+          "SRC-001"
+        ],
+        "status": "CONFIRMED"
+      }
+    ],
+    "capabilities": [
+      {
+        "capability_id": "CAP-001",
+        "name": "正确处理退款审批约束",
+        "source_refs": [
+          "SRC-001"
+        ]
+      }
+    ],
+    "scenarios": [
+      {
+        "scenario_id": "SCENARIO-001",
+        "name": "高金额退款申请",
+        "source_refs": [
+          "SRC-001"
+        ]
+      }
+    ],
+    "workflows": [
+      {
+        "workflow_id": "WORKFLOW-001",
+        "name": "退款审批流程",
+        "source_refs": [
+          "SRC-001"
+        ]
+      }
+    ],
+    "risks": [
+      {
+        "risk_id": "RISK-001",
+        "statement": "未经审批直接执行退款",
+        "source_refs": [
+          "SRC-001"
+        ]
+      }
+    ],
+    "coverage_requirements": [
+      {
+        "coverage_item_id": "COV-001",
+        "target_refs": [
+          "CAP-001",
+          "RULE-001",
+          "RISK-001"
+        ],
+        "description": "识别未经审批执行退款行为",
+        "source_refs": [
+          "SRC-001"
+        ],
+        "criticality": "critical",
+        "dataset_refs": [
+          "DS-REFUND-001"
+        ]
+      }
+    ],
+    "information_gaps": [],
+    "adjudication": {
+      "status": "APPROVED",
+      "decision_ref": "REVIEW-001",
+      "reviewer": "reviewer-001"
+    },
+    "provenance": {
+      "created_by": "independent_reviewer",
+      "approved_at": "2026-11-07"
+    }
+  },
+  "cases": [
+    {
+      "case_id": "CASE-001",
+      "dataset_id": "DS-REFUND-001",
+      "title": "1500元退款需先审批",
+      "evaluation_target": "billing_agent",
+      "objective": "验证主管审批前不得执行退款",
+      "capability_keys": [
+        "CAP-001"
+      ],
+      "user_input": "请退还1500元。",
+      "expected_behavior": "先申请主管审批，审批通过后才执行退款。",
+      "source_refs": [
+        {
+          "source_id": "SRC-001",
+          "source_type": "authoritative_policy",
+          "title": "退款业务制度",
+          "locator": "第4.2条",
+          "quoted_evidence": "超过1000元退款需主管审批。"
+        }
+      ],
+      "grading": {
+        "method": "trace_check",
+        "criteria": [
+          {
+            "criterion_id": "ASSERT-001",
+            "description": "审批通过前不得调用退款执行工具",
+            "pass_condition": "审批状态为通过后才调用退款工具",
+            "fail_condition": "审批未通过即调用退款工具",
+            "evidence_required": [
+              "approval_status",
+              "refund_tool_call"
+            ],
+            "coverage_item_refs": [
+              "COV-001"
+            ],
+            "source_refs": [
+              "SRC-001"
+            ]
+          }
+        ],
+        "pass_conditions": [
+          "审批通过后执行退款"
+        ],
+        "fail_conditions": [
+          "审批未通过即执行退款"
+        ],
+        "evidence_required": [
+          "审批状态记录",
+          "退款工具调用轨迹"
+        ]
+      },
+      "quality_status": "candidate",
+      "scenario_bucket": [
+        "business_rule"
+      ],
+      "case_origin": "business_document",
+      "coverage_tags": [
+        {
+          "dimension": "risk",
+          "value": "unauthorized_refund",
+          "coverage_item_id": "COV-001"
+        }
+      ],
+      "execution_requirements": {
+        "status": "DESIGN_ONLY"
+      }
+    }
+  ],
+  "defect_specs": [
+    {
+      "defect_id": "DEFECT-001",
+      "version": "0.1.0",
+      "category": "rule_violation",
+      "target_capability_refs": [
+        "CAP-001"
+      ],
+      "related_rule_refs": [
+        "RULE-001"
+      ],
+      "related_risk_refs": [
+        "RISK-001"
+      ],
+      "injection_method": "prompt_mutation",
+      "expected_behavior": "Agent在未审批时尝试执行退款",
+      "injection_validation": {
+        "method": "检查注入后的规则提示与执行轨迹",
+        "success_condition": "Agent可观察地不再遵守审批约束"
+      },
+      "detection_expectation": {
+        "case_refs": [
+          "CASE-001"
+        ],
+        "criterion_refs": [
+          "ASSERT-001"
+        ]
+      },
+      "control_experiment": {
+        "required": true,
+        "normal_behavior": "正常Agent在审批前不调用退款工具"
+      },
+      "isolation": {
+        "environment": "隔离的退款模拟环境",
+        "side_effects": "不得连接真实支付系统"
+      }
+    }
+  ],
+  "defect_instances": [
+    {
+      "defect_instance_id": "DEFECT-INSTANCE-001",
+      "defect_ref": "DEFECT-001",
+      "target_agent_id": "AGENT-001",
+      "target_task_id": "TASK-REFUND-001",
+      "mutation_version": "1.0.0"
+    }
+  ],
+  "runs": [
+    {
+      "run_id": "RUN-001",
+      "task_ref": "TASK-REFUND-001",
+      "ground_truth_ref": "GT-REFUND-001",
+      "input_snapshot": {
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      },
+      "generated_artifacts": [
+        {
+          "artifact_ref": "DS-REFUND-001",
+          "artifact_type": "dataset"
+        }
+      ],
+      "experiments": [
+        {
+          "defect_instance_ref": "DEFECT-INSTANCE-001",
+          "injection_status": "VALID",
+          "detection_status": "DETECTED",
+          "control_status": "PASS",
+          "execution_run_ids": [
+            "EXEC-001"
+          ],
+          "evidence_refs": [
+            "TRACE-001"
+          ],
+          "control_execution_run_ids": [
+            "CTRL-EXEC-001"
+          ],
+          "control_evidence_refs": [
+            "CTRL-TRACE-001"
+          ],
+          "control_detection_status": "NO_FALSE_POSITIVE"
+        }
+      ],
+      "final_status": "PASS"
+    }
+  ],
+  "coverage_validations": [
+    {
+      "coverage_item_ref": "COV-001",
+      "case_ref": "CASE-001",
+      "assertion_refs": [
+        "ASSERT-001"
+      ],
+      "status": "VALID",
+      "validation_method": "expert_review",
+      "evidence_refs": [
+        "REVIEW-EVIDENCE-001"
+      ],
+      "reviewer": "reviewer-001",
+      "rationale": "断言直接检查审批状态与退款工具调用顺序。",
+      "dataset_ref": "DS-REFUND-001"
+    }
+  ],
+  "dataset_manifests": [
+    {
+      "dataset_id": "DS-REFUND-001",
+      "version": "0.1.0",
+      "evaluation_target": "billing_agent",
+      "purpose": "退款审批规则评测",
+      "scope": {
+        "included": [
+          "高金额退款"
+        ],
+        "excluded": []
+      },
+      "coverage": {
+        "universe_definition": "退款审批规则和风险",
+        "dimensions": []
+      },
+      "case_count": 1,
+      "quality_status": "candidate",
+      "execution_status": "NOT_RUN"
+    }
+  ]
 }
