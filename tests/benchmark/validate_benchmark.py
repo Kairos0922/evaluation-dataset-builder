@@ -363,6 +363,8 @@ def validate_package(package):
     run_ids = set()
     injection_execution_ids = set()
     control_execution_ids = set()
+    duplicate_injection_execution_ids = set()
+    duplicate_control_execution_ids = set()
     for run in runs:
         run_id = run.get("run_id")
         if run_id in run_ids:
@@ -389,10 +391,12 @@ def validate_package(package):
             for execution_id in _array(experiment.get("execution_run_ids")):
                 if execution_id in injection_execution_ids:
                     errors.append(f"DUPLICATE_INJECTION_EXECUTION_ID:{execution_id}")
+                    duplicate_injection_execution_ids.add(execution_id)
                 injection_execution_ids.add(execution_id)
             for control_id in _array(experiment.get("control_execution_run_ids")):
                 if control_id in control_execution_ids:
                     errors.append(f"DUPLICATE_CONTROL_EXECUTION_ID:{control_id}")
+                    duplicate_control_execution_ids.add(control_id)
                 control_execution_ids.add(control_id)
             if experiment.get("injection_status") == "VALID" and not _array(experiment.get("evidence_refs")):
                 errors.append(f"MISSING_INJECTION_EXECUTION_EVIDENCE:{run_id}:{ref}")
@@ -417,7 +421,8 @@ def validate_package(package):
                     errors.append(f"INCONCLUSIVE:CONTROL_FALSE_POSITIVE_STATUS_MISSING:{run_id}:{ref}")
             observations[ref].append(experiment)
 
-    for shared_id in injection_execution_ids & control_execution_ids:
+    shared_execution_ids = injection_execution_ids & control_execution_ids
+    for shared_id in shared_execution_ids:
         errors.append(f"CONTROL_EXECUTION_REUSED_AS_INJECTION:{shared_id}")
 
     valid_instances, detected_any, detected_all = set(), set(), set()
@@ -437,6 +442,8 @@ def validate_package(package):
                     and _array(item.get("control_evidence_refs"))
                     and _array(item.get("evidence_refs"))
                     and not (set(_array(item.get("control_execution_run_ids"))) & set(_array(item.get("execution_run_ids"))))
+                    and not (set(_array(item.get("control_execution_run_ids"))) & duplicate_control_execution_ids)
+                    and not (set(_array(item.get("execution_run_ids")) & duplicate_injection_execution_ids)
                     and item.get("control_detection_status") in {"FALSE_POSITIVE", "NO_FALSE_POSITIVE"}]
         excluded_observations += len(records) - len(eligible)
         k = len(eligible)
@@ -457,6 +464,9 @@ def validate_package(package):
                 and _array(item.get("control_execution_run_ids"))
                 and _array(item.get("control_evidence_refs"))
                 and not (set(_array(item.get("control_execution_run_ids"))) & set(_array(item.get("execution_run_ids"))))
+                and not (set(_array(item.get("control_execution_run_ids"))) & duplicate_control_execution_ids)
+                and not (set(_array(item.get("execution_run_ids"))) & duplicate_injection_execution_ids)
+                and not (set(_array(item.get("control_execution_run_ids"))) & shared_execution_ids)
                 and item.get("control_detection_status") in {"FALSE_POSITIVE", "NO_FALSE_POSITIVE"}
             )
             if independent_control:
