@@ -1074,6 +1074,22 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIsNone(results[1]["score"])
         self.assertFalse(results[1]["evidence_validated"])
 
+    def test_judge_prompt_treats_explicitly_truncated_output_as_unknown(self):
+        response = {"checks": [{
+            "index": 0, "score": None,
+            "rationale": "The captured output is incomplete.",
+            "evidence": [], "absence_reason": "The response was truncated before the required behavior could be observed.",
+        }]}
+        with mock.patch.object(RUN_EVAL, "api_call", return_value=json.dumps(response)) as api:
+            result = RUN_EVAL.judge_case(
+                "key", "judge-model", ["asks the user to provide the missing city"],
+                "[OUTPUT CAPTURE INCOMPLETE: response truncated] When city is missing, I will ask",
+            )
+        self.assertEqual(result[0]["status"], "UNKNOWN")
+        system_prompt = api.call_args.args[2]
+        self.assertIn("marks its output or trace as truncated", system_prompt)
+        self.assertIn("return UNKNOWN", system_prompt)
+
     def test_judge_prompt_uses_real_section_line_breaks(self):
         response = {
             "checks": [{
