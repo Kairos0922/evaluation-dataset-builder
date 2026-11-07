@@ -222,8 +222,8 @@ class BenchmarkValidationTests(unittest.TestCase):
         experiment["execution_run_ids"].append("EXEC-EXTRA")
         experiment["control_execution_run_ids"].append("CTRL-EXEC-EXTRA")
         result = VALIDATOR.validate_package(self.package)
-        self.assertTrue(any("execution_run_ids" in e and "maxItems" in e for e in result["errors"]))
-        self.assertTrue(any("control_execution_run_ids" in e and "maxItems" in e for e in result["errors"]))
+        self.assertTrue(any("execution_run_ids" in e and "too long" in e for e in result["errors"]))
+        self.assertTrue(any("control_execution_run_ids" in e and "too long" in e for e in result["errors"]))
 
     def test_generated_dataset_artifact_must_resolve_to_a_manifest(self):
         self.package["runs"][0]["generated_artifacts"][0]["artifact_ref"] = "DS-MISSING"
