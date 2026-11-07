@@ -1400,6 +1400,8 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn("format('pr-{0}', github.event.pull_request.number)", workflow)
         self.assertIn("format('run-{0}', github.run_id)", workflow)
         self.assertIn('branches: ["main"]', workflow)
+        self.assertIn('if [ "$EVENT_NAME" != "pull_request" ]; then', workflow)
+        self.assertIn("main push / 手动触发：执行完整验证。", workflow)
 
     def test_docs_only_changes_keep_required_check_without_running_tests(self):
         workflow = (ROOT / ".github" / "workflows" / "validate.yml").read_text(encoding="utf-8")
