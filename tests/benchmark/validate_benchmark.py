@@ -388,6 +388,10 @@ def validate_package(package):
                 errors.append(f"MISSING_INJECTION_EXECUTION_EVIDENCE:{run_id}:{ref}")
             if experiment.get("injection_status") == "FAILED":
                 errors.append(f"INCONCLUSIVE:INJECTION_FAILED:{run_id}:{ref}")
+            elif experiment.get("injection_status") == "INCONCLUSIVE":
+                errors.append(f"INCONCLUSIVE:INJECTION_NOT_VERIFIED:{run_id}:{ref}")
+            if experiment.get("detection_status") not in {"DETECTED", "MISSED"}:
+                errors.append(f"INCONCLUSIVE:DETECTION_NOT_COMPLETED:{run_id}:{ref}")
             if experiment.get("control_status") == "FAIL":
                 errors.append(f"INCONCLUSIVE:CONTROL_EXPERIMENT_FAILED:{run_id}:{ref}")
             elif experiment.get("control_status") != "PASS":
