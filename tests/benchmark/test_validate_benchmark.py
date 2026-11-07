@@ -88,6 +88,16 @@ class BenchmarkValidationTests(unittest.TestCase):
         result = VALIDATOR.validate_package(self.package)
         self.assertTrue(any(e.startswith("DUPLICATE_ID:source:SRC-001") for e in result["errors"]))
 
+    def test_approved_ground_truth_requires_independent_approval_identity(self):
+        self.package["ground_truth"]["adjudication"]["reviewer"] = self.package["ground_truth"]["provenance"]["created_by"]
+        result = VALIDATOR.validate_package(self.package)
+        self.assertTrue(any(e == "NON_INDEPENDENT_GROUND_TRUTH_APPROVAL" for e in result["errors"]))
+
+    def test_duplicate_fact_id_fails(self):
+        self.package["ground_truth"]["facts"].append(copy.deepcopy(self.package["ground_truth"]["facts"][0]))
+        result = VALIDATOR.validate_package(self.package)
+        self.assertTrue(any(e.startswith("DUPLICATE_ID:fact:FACT-001") for e in result["errors"]))
+
     def test_approved_ground_truth_rejects_provisional_rule(self):
         self.package["ground_truth"]["rules"][0]["status"] = "PROVISIONAL"
         result = VALIDATOR.validate_package(self.package)
