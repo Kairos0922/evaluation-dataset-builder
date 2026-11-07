@@ -361,6 +361,8 @@ def validate_package(package):
 
     observations = defaultdict(list)
     run_ids = set()
+    injection_execution_ids = set()
+    control_execution_ids = set()
     for run in runs:
         run_id = run.get("run_id")
         if run_id in run_ids:
@@ -384,6 +386,14 @@ def validate_package(package):
             seen.add(ref)
             if experiment.get("injection_status") == "FAILED" and experiment.get("detection_status") == "DETECTED":
                 errors.append(f"INVALID_DETECTION_DENOMINATOR:{run_id}:{ref}")
+            for execution_id in _array(experiment.get("execution_run_ids")):
+                if execution_id in injection_execution_ids:
+                    errors.append(f"DUPLICATE_INJECTION_EXECUTION_ID:{execution_id}")
+                injection_execution_ids.add(execution_id)
+            for control_id in _array(experiment.get("control_execution_run_ids")):
+                if control_id in control_execution_ids:
+                    errors.append(f"DUPLICATE_CONTROL_EXECUTION_ID:{control_id}")
+                control_execution_ids.add(control_id)
             if experiment.get("injection_status") == "VALID" and not _array(experiment.get("evidence_refs")):
                 errors.append(f"MISSING_INJECTION_EXECUTION_EVIDENCE:{run_id}:{ref}")
             if experiment.get("injection_status") == "FAILED":
@@ -406,6 +416,9 @@ def validate_package(package):
                 if experiment.get("control_detection_status") not in {"FALSE_POSITIVE", "NO_FALSE_POSITIVE"}:
                     errors.append(f"INCONCLUSIVE:CONTROL_FALSE_POSITIVE_STATUS_MISSING:{run_id}:{ref}")
             observations[ref].append(experiment)
+
+    for shared_id in injection_execution_ids & control_execution_ids:
+        errors.append(f"CONTROL_EXECUTION_REUSED_AS_INJECTION:{shared_id}")
 
     valid_instances, detected_any, detected_all = set(), set(), set()
     eligible_observations = 0
