@@ -98,9 +98,22 @@ def validate_package(package):
     adjudication = gt.get("adjudication", {}).get("status")
     if adjudication == "CONFLICTED" or (adjudication == "APPROVED" and any(x.get("status") == "CONFLICTED" for x in gt.get("rules", []))):
         errors.append("UNRESOLVED_RULE_CONFLICT:ground_truth.adjudication")
+    elif adjudication != "APPROVED":
+        errors.append("INCONCLUSIVE:ground_truth_not_approved")
+    for rule in gt.get("rules", []):
+        for source_ref in rule.get("source_refs", []):
+            if source_ref not in source_ids:
+                errors.append(f"UNRESOLVED_REFERENCE:ground_truth_rule:{rule.get('rule_id')}:source:{source_ref}")
+    for item in coverage.values():
+        known_targets = capability_ids | rule_ids | risk_ids | scenario_ids
+        for target_ref in item.get("target_refs", []):
+            if target_ref not in known_targets:
+                errors.append(f"UNRESOLVED_REFERENCE:coverage:{item.get('coverage_item_id')}:target:{target_ref}")
 
     if not manifest.get("dataset_id"):
         errors.append("MISSING_ID:dataset_manifest.dataset_id")
+    if manifest.get("case_count") != len(cases):
+        errors.append("DATASET_CASE_COUNT_MISMATCH")
 
     for case_id, case in case_index.items():
         if case.get("dataset_id") != manifest.get("dataset_id"):
@@ -139,8 +152,10 @@ def validate_package(package):
             if ref in coverage and not linked[(case_id, ref)]:
                 errors.append(f"COVERAGE_WITHOUT_ASSERTION:{case_id}:{ref}")
 
+    validated_pairs = set()
     for record in coverage_records:
         cov_ref, case_ref = record.get("coverage_item_ref"), record.get("case_ref")
+        validated_pairs.add((case_ref, cov_ref))
         if cov_ref not in coverage:
             errors.append(f"UNRESOLVED_REFERENCE:coverage_validation:{cov_ref}")
         if case_ref not in case_index:
@@ -152,6 +167,16 @@ def validate_package(package):
             errors.append(f"MISSING_COVERAGE_EVIDENCE:{cov_ref}:{case_ref}")
         if record.get("status") == "INVALID":
             errors.append(f"INVALID_COVERAGE_CLAIM:{cov_ref}:{case_ref}")
+        if record.get("status") == "INCONCLUSIVE":
+            errors.append(f"INCONCLUSIVE:COVERAGE:{cov_ref}:{case_ref}")
+        if record.get("status") == "NOT_APPLICABLE" and not record.get("rationale"):
+            errors.append(f"MISSING_NOT_APPLICABLE_RATIONALE:{cov_ref}:{case_ref}")
+
+    for case_id, case in case_index.items():
+        for tag in case.get("coverage_tags", []):
+            pair = (case_id, tag.get("coverage_item_id"))
+            if pair not in validated_pairs:
+                errors.append(f"INCONCLUSIVE:COVERAGE_VALIDATION_MISSING:{pair[0]}:{pair[1]}")
 
     for defect_id, defect in defect_index.items():
         for field, known in [("target_capability_refs", capability_ids), ("related_rule_refs", rule_ids), ("related_risk_refs", risk_ids)]:
@@ -161,9 +186,12 @@ def validate_package(package):
         for ref in defect.get("detection_expectation", {}).get("case_refs", []):
             if ref not in case_index:
                 errors.append(f"UNRESOLVED_REFERENCE:defect:{defect_id}:case:{ref}")
+        expected_cases = set(defect.get("detection_expectation", {}).get("case_refs", []))
         for ref in defect.get("detection_expectation", {}).get("criterion_refs", []):
             if ref not in criteria:
                 errors.append(f"UNRESOLVED_REFERENCE:defect:{defect_id}:criterion:{ref}")
+            elif criteria[ref][0] not in expected_cases:
+                errors.append(f"DEFECT_CRITERION_CASE_MISMATCH:{defect_id}:{ref}")
 
     for instance_id, instance in instance_index.items():
         if instance.get("defect_ref") not in defect_index:
@@ -209,7 +237,9 @@ def validate_package(package):
         "run_count": len(runs),
         "experiment_observation_count": sum(len(x) for x in observations.values())
     }
-    return {"status": "PASS" if not errors else "FAIL", "errors": errors, "statistics": stats}
+    has_failure = any(not item.startswith("INCONCLUSIVE:") for item in errors)
+    status = "FAIL" if has_failure else ("INCONCLUSIVE" if errors else "PASS")
+    return {"status": status, "errors": errors, "statistics": stats}
 
 
 def main():

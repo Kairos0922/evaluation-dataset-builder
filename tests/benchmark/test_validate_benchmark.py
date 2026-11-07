@@ -72,6 +72,12 @@ class BenchmarkValidationTests(unittest.TestCase):
         result = VALIDATOR.validate_package(self.package)
         self.assertTrue(any(e.startswith("INVALID_COVERAGE_CLAIM") for e in result["errors"]))
 
+    def test_missing_independent_coverage_review_is_inconclusive(self):
+        self.package["coverage_validations"] = []
+        result = VALIDATOR.validate_package(self.package)
+        self.assertEqual(result["status"], "INCONCLUSIVE")
+        self.assertTrue(any(e.startswith("INCONCLUSIVE:COVERAGE_VALIDATION_MISSING") for e in result["errors"]))
+
     def test_valid_coverage_requires_independent_evidence(self):
         self.package["coverage_validations"][0]["evidence_refs"] = []
         result = VALIDATOR.validate_package(self.package)
