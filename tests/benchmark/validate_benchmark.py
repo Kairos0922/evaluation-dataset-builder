@@ -134,6 +134,8 @@ def validate_package(package):
     capability_ids, rule_ids = set(capability_index), set(rule_index)
     risk_ids, scenario_ids, workflow_ids = set(risk_index), set(scenario_index), set(workflow_index)
     manifest_ids = set(manifest_index)
+    if not manifest_index:
+        errors.append("MISSING_DATASET_MANIFEST")
     expected_dataset_count = _object(task.get("expected_scope")).get("expected_dataset_count")
     if expected_dataset_count is not None and expected_dataset_count != len(manifest_index):
         errors.append(f"EXPECTED_DATASET_COUNT_MISMATCH:expected={expected_dataset_count}:actual={len(manifest_index)}")
@@ -382,9 +384,17 @@ def validate_package(package):
             seen.add(ref)
             if experiment.get("injection_status") == "FAILED" and experiment.get("detection_status") == "DETECTED":
                 errors.append(f"INVALID_DETECTION_DENOMINATOR:{run_id}:{ref}")
+            if experiment.get("injection_status") == "VALID" and not _array(experiment.get("evidence_refs")):
+                errors.append(f"MISSING_INJECTION_EXECUTION_EVIDENCE:{run_id}:{ref}")
             if experiment.get("control_status") == "PASS":
-                if not _array(experiment.get("control_execution_run_ids")) or not _array(experiment.get("control_evidence_refs")):
+                control_ids = set(_array(experiment.get("control_execution_run_ids")))
+                injected_ids = set(_array(experiment.get("execution_run_ids")))
+                if not control_ids or not _array(experiment.get("control_evidence_refs")):
                     errors.append(f"MISSING_CONTROL_EXECUTION_EVIDENCE:{run_id}:{ref}")
+                if control_ids & injected_ids:
+                    errors.append(f"CONTROL_EXECUTION_NOT_INDEPENDENT:{run_id}:{ref}")
+                if experiment.get("control_detection_status") not in {"FALSE_POSITIVE", "NO_FALSE_POSITIVE"}:
+                    errors.append(f"INCONCLUSIVE:CONTROL_FALSE_POSITIVE_STATUS_MISSING:{run_id}:{ref}")
             observations[ref].append(experiment)
 
     valid_instances, detected_any, detected_all = set(), set(), set()
@@ -401,7 +411,9 @@ def validate_package(package):
                     and item.get("control_status") == "PASS"
                     and item.get("detection_status") in {"DETECTED", "MISSED"}
                     and _array(item.get("control_execution_run_ids"))
-                    and _array(item.get("control_evidence_refs"))]
+                    and _array(item.get("control_evidence_refs"))
+                    and _array(item.get("evidence_refs"))
+                    and item.get("control_detection_status") in {"FALSE_POSITIVE", "NO_FALSE_POSITIVE"}]
         excluded_observations += len(records) - len(eligible)
         k = len(eligible)
         if k:
@@ -447,6 +459,19 @@ def validate_package(package):
                     for coverage_id, item in coverage_index.items()
                     if dataset_id in _array(item.get("dataset_refs", list(manifest_ids)))
                 ),
+                "coverage_rate": (
+                    sum(any(record.get("status") == "VALID" for record in dispositions.get((dataset_id, coverage_id), []))
+                        for coverage_id, item in coverage_index.items()
+                        if dataset_id in _array(item.get("dataset_refs", list(manifest_ids))))
+                    / sum(dataset_id in _array(item.get("dataset_refs", list(manifest_ids))) for item in coverage_index.values())
+                    if sum(dataset_id in _array(item.get("dataset_refs", list(manifest_ids))) for item in coverage_index.values()) else None
+                ),
+                "critical_coverage_gaps": [
+                    coverage_id for coverage_id, item in coverage_index.items()
+                    if item.get("criticality") == "critical"
+                    and dataset_id in _array(item.get("dataset_refs", list(manifest_ids)))
+                    and not any(record.get("status") == "VALID" for record in dispositions.get((dataset_id, coverage_id), []))
+                ],
                 "coverage_gaps": [
                     coverage_id for coverage_id, item in coverage_index.items()
                     if dataset_id in _array(item.get("dataset_refs", list(manifest_ids)))
