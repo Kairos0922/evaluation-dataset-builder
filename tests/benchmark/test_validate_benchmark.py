@@ -51,14 +51,27 @@ class BenchmarkValidationTests(unittest.TestCase):
 
     def test_not_applicable_is_an_explicit_disposition(self):
         self.package["ground_truth"]["coverage_requirements"][0]["dataset_refs"] = ["DS-REFUND-001"]
-        self.package["cases"][0]["coverage_tags"] = []
-        self.package["cases"][0]["grading"]["criteria"][0]["coverage_item_refs"] = []
+        self.package["ground_truth"]["coverage_requirements"].append({
+            "coverage_item_id": "COV-002", "target_refs": ["CAP-001"],
+            "description": "验证保留的能力点", "source_refs": ["SRC-001"],
+            "criticality": "medium", "dataset_refs": ["DS-REFUND-001"]
+        })
+        self.package["cases"][0]["coverage_tags"] = [{
+            "dimension": "capability", "value": "retained", "coverage_item_id": "COV-002"
+        }]
+        self.package["cases"][0]["grading"]["criteria"][0]["coverage_item_refs"] = ["COV-002"]
         record = self.package["coverage_validations"][0]
         record["status"] = "NOT_APPLICABLE"
         record.pop("case_ref")
         record.pop("assertion_refs")
         record.pop("evidence_refs")
         record["rationale"] = "该数据集的范围不包含此项能力。"
+        self.package["coverage_validations"].append({
+            "coverage_item_ref": "COV-002", "dataset_ref": "DS-REFUND-001",
+            "case_ref": "CASE-001", "assertion_refs": ["ASSERT-001"],
+            "status": "VALID", "validation_method": "expert_review",
+            "evidence_refs": ["REVIEW-EVIDENCE-002"], "reviewer": "reviewer-002"
+        })
         result = VALIDATOR.validate_package(self.package)
         self.assertEqual(result["status"], "PASS", result["errors"])
 
