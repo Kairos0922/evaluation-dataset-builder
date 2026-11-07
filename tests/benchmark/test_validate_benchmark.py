@@ -51,7 +51,7 @@ class BenchmarkValidationTests(unittest.TestCase):
         self.package["runs"][0]["experiments"][0]["control_status"] = "FAIL"
         result = VALIDATOR.validate_package(self.package)
         self.assertTrue(any(e.startswith("CONTROL_EXPERIMENT_FAILED") for e in result["errors"]))
-        self.assertEqual(result["statistics"]["detected_defect_instance_count"], 0)
+        self.assertEqual(result["statistics"]["detected_any_run_instance_count"], 0)
 
     def test_n06_repeated_runs_do_not_inflate_defect_instance_count(self):
         repeated = copy.deepcopy(self.package["runs"][0])
