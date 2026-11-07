@@ -36,6 +36,22 @@ jobs:
             echo "::error::缺少 EVAL_JUDGE_API_KEY 或 GROQ_API_KEY；未发送模型请求。"
             exit 2
           fi
+      - name: 预检 Judge 模型元数据
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 15 \
+            -H "Authorization: Bearer $EVAL_JUDGE_API_KEY" \
+            "$EVAL_JUDGE_BASE_URL/models" -o /tmp/judge-models.json
+          python - "$EVAL_JUDGE_MODEL" <<'PY'
+          import json, sys
+          with open("/tmp/judge-models.json", encoding="utf-8") as handle:
+              data = json.load(handle)
+          available = {item.get("id") for item in data.get("data", []) if isinstance(item, dict)}
+          if sys.argv[1] not in available:
+              print("配置的 Judge 模型不在服务端 GET /models 列表中；未发送校准请求。")
+              raise SystemExit(2)
+          print("Judge 模型元数据预检通过；尚未发送校准请求。")
+          PY
       - name: 执行合成 Judge 校准
         run: python tests/calibrate_judge.py --output artifacts/judge-calibration.json
       - name: 保存校准报告
