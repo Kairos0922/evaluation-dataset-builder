@@ -5,19 +5,19 @@
     {
       "id": "SE01",
       "category": "grounded_generation",
-      "prompt": "请根据下面的材料生成一个小型评测数据集，目标是检查“云资源费用查询助手”是否能正确解释账单。\n\n【明确标记为 SYNTHETIC 的练习材料】\n能力说明：用户可以按账期查询云资源费用；助手应说明金额、币种和统计周期。\n规则 R-01（SYNTHETIC）：金额必须使用 CNY，保留两位小数。\n规则 R-02（SYNTHETIC）：未提供账期时必须询问账期，不得猜测默认月份。\n规则 R-03（SYNTHETIC）：账单数据为空时应明确说明“该账期暂无账单记录”，不得把空值解释为 0 元。\n\n要求：生成至少 3 条用例，提供目标、评测目标、输入、明确的期望行为、禁止行为和 grader。请注明这些规则仅为合成练习材料，不是真实云产品政策。",
+      "prompt": "请根据下面的材料生成一个小型评测数据集，目标是检查“云资源费用查询助手”是否能正确解释账单。\n\n【明确标记为 SYNTHETIC 的练习材料】\n能力说明：用户可以按账期查询云资源费用；助手应说明金额、币种和统计周期。\n规则 R-01（SYNTHETIC）：金额必须使用 CNY，保留两位小数。\n规则 R-02（SYNTHETIC）：未提供账期时必须询问账期，不得猜测默认月份。\n规则 R-03（SYNTHETIC）：账单数据为空时应明确说明“该账期暂无账单记录”，不得把空值解释为 0 元。\n\n要求：生成至少 3 条用例，提供目标、评测目标、输入、明确的期望行为、禁止行为和 case-level grading contract。请注明这些规则仅为合成练习材料，不是真实云产品政策。",
       "expected": [
         "states the evaluation target and a measurable objective",
         "labels the supplied rules and resulting cases as synthetic rather than real product policy",
         "each case has an input and explicit expected and forbidden behavior",
-        "grader defines observable pass and fail evidence",
+        "case-level grading contract defines observable pass and fail evidence",
         "records source rule IDs and provenance for each expected outcome"
       ]
     },
     {
       "id": "SE02",
       "category": "multi_dataset_planning",
-      "prompt": "为一个云平台智能运维 Agent 规划三套评测集：核心功能集、安全权限集、版本回归集。\n\n【能力范围】\nA. 查询云主机状态；B. 启停云主机；C. 查询账单；D. 创建对象存储桶；E. 修改访问策略。\n【风险说明】\n启停和策略修改会产生真实副作用；账单查询涉及租户数据隔离。\n【历史问题】\n曾出现跨租户读取、无确认执行启停、策略误设为公开。\n请先给出数据集规划，不要直接做所有能力与场景的笛卡尔积。定义每套数据集的目的、覆盖范围、排除范围、维度、风险分布、grader 方案，并说明共享场景时如何避免重复计数。",
+      "prompt": "为一个云平台智能运维 Agent 规划三套评测集：核心功能集、安全权限集、版本回归集。\n\n【能力范围】\nA. 查询云主机状态；B. 启停云主机；C. 查询账单；D. 创建对象存储桶；E. 修改访问策略。\n【风险说明】\n启停和策略修改会产生真实副作用；账单查询涉及租户数据隔离。\n【历史问题】\n曾出现跨租户读取、无确认执行启停、策略误设为公开。\n请先给出数据集规划，不要直接做所有能力与场景的笛卡尔积。定义每套数据集的目的、覆盖范围、排除范围、维度、风险分布、case-level grading contract 方案，并说明共享场景时如何避免重复计数。",
       "expected": [
         "defines three distinct dataset purposes and boundaries",
         "plans coverage dimensions before generating cases",
@@ -59,7 +59,7 @@
         "uses state or end-result assertions for the VM state change",
         "includes trace or tool-call constraints only because the side-effecting task requires them",
         "defines observable evidence, pass/fail conditions, acceptable variants, and UNKNOWN handling within each case",
-        "does not require a standalone grader product or a default calibration suite"
+        "does not require a standalone case-level grading contract product or a default case coverage examples suite"
       ]
     },
     {
@@ -117,7 +117,7 @@
       "expected": [
         "uses stable case and dataset identifiers and includes the required schema fields",
         "provides a manifest with purpose, version, case count, and coverage",
-        "includes case-level grading contracts with observable pass/fail evidence rather than standalone grader definitions",
+        "includes case-level grading contracts with observable pass/fail evidence rather than standalone case-level grading contract definitions",
         "provides source mapping and quality report without fabricated sources or business outcomes",
         "labels unsupported cases needs_info or synthetic rather than approved"
       ]
@@ -134,13 +134,13 @@
     {
       "id": "SE12",
       "category": "incremental_update",
-      "prompt": "请根据规则版本变化更新现有运维评测集。\n\n【旧规则 SLA-v1】\nP1 工单首次响应时限为 4 小时；P3 工单首次响应时限为 72 小时。\n\n【新规则 SLA-v2】\n仅将 P1 首次响应时限从 4 小时调整为 2 小时；P3 仍为 72 小时。新规则的来源标识为 OPS-POLICY v2.0，生效日为 2026-10-01。\n\n【现有用例】\nC01：普通账号密码重置流程，不涉及 SLA。\nC02：P1 工单 3 小时仍未首次响应，旧期望为“未超时”。\nC03：P3 工单 60 小时首次响应，旧期望为“未超时”。\nC04：P1 工单 3 小时首次响应后触发 SLA 超时告警。\n\n请做变更影响分析：指出哪些用例保留不变、哪些必须更新，说明原因；列出需要重跑的 grader/回归门禁及其证据。不要无差别重生成整个数据集，也不要把未实际执行的重跑标成通过。",
+      "prompt": "请根据规则版本变化更新现有运维评测集。\n\n【旧规则 SLA-v1】\nP1 工单首次响应时限为 4 小时；P3 工单首次响应时限为 72 小时。\n\n【新规则 SLA-v2】\n仅将 P1 首次响应时限从 4 小时调整为 2 小时；P3 仍为 72 小时。新规则的来源标识为 OPS-POLICY v2.0，生效日为 2026-10-01。\n\n【现有用例】\nC01：普通账号密码重置流程，不涉及 SLA。\nC02：P1 工单 3 小时仍未首次响应，旧期望为“未超时”。\nC03：P3 工单 60 小时首次响应，旧期望为“未超时”。\nC04：P1 工单 3 小时首次响应后触发 SLA 超时告警。\n\n请做变更影响分析：指出哪些用例保留不变、哪些必须更新，说明原因；列出需要重跑的 case-level grading contract/回归门禁及其证据。不要无差别重生成整个数据集，也不要把未实际执行的重跑标成通过。",
       "expected": [
         "records old and new SLA versions, the exact P1 change, unchanged P3 rule, source ID, and effective date",
         "identifies C02 and C04 as impacted while C01 and C03 remain unchanged",
         "preserves unaffected cases and stable IDs instead of regenerating the full dataset",
         "updates affected expected outcomes only according to the new authoritative rule",
-        "lists affected regression/grader gates and marks unexecuted reruns as required rather than passed"
+        "lists affected regression/case-level grading contract gates and marks unexecuted reruns as required rather than passed"
       ]
     }
   ]

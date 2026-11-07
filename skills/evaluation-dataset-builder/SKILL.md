@@ -119,7 +119,7 @@ metadata:
 
 最终报告应包含评测对象、评测目标、范围和信息缺口；数据集规划和覆盖情况；用例及语义去重结果；判定方法、通过与失败条件、证据要求及 UNKNOWN 处理；缺陷、修复动作、责任角色、重测范围和证明材料；执行状态、权限、步骤、断言、隔离环境、重置和清理；变更影响、来源映射、冲突登记、假设、限制和变更日志。
 
-JSONL 文件必须每行包含一个完整且符合 Schema 的 JSON 对象。清单和质量报告应分别交付。清单至少包含用途、评测对象、版本、用例数量、覆盖范围全集、各维度覆盖数量、缺口、评分器与来源引用、假设和状态。
+JSONL 文件必须每行包含一个完整且符合 Schema 的 JSON 对象。清单和质量报告应分别交付。清单至少包含用途、评测对象、版本、用例数量、覆盖范围全集、各维度覆盖数量、缺口、判定契约与来源引用、假设和状态。
 
 ## 10. 质量状态与执行状态
 
@@ -153,4 +153,4 @@ approved 不代表 EXECUTION_VERIFIED。不得把设计完成、结构校验通�
 - 执行质量审查、计算质量分或判断验收等级：读取 `references/quality-standard.md`；需要机器可读权重、阈值或门禁配置时，再读取 `references/quality-standard.yaml`。
 - 生成或校验用例、数据集清单：分别读取 `references/dataset-schema.json` 和 `references/dataset-manifest-schema.json`。
 - 需要统一术语、状态或机器字段定义：读取 `references/terminology.md`。
-- 业务规则、来源、目标或评分标准发生变化：读取 `references/change-impact-and-repair.md`。
+- 业务规则、来源、目标或判定标准发生变化：读取 `references/change-impact-and-repair.md`。

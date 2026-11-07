@@ -221,7 +221,7 @@ def main():
         check({"source_type", "title"}.issubset(source_item_required),
               "来源记录必须包含来源类型和可识别标题")
         check(case_properties.get("grading", {}).get("properties", {}).get("criteria", {}).get("minItems", 0) >= 1,
-              "评分器必须至少定义一个评分项")
+              "每条用例的判定契约必须至少定义一个判定项")
         criterion_required = set(
             case_properties.get("grading", {}).get("properties", {}).get("criteria", {}).get("items", {}).get("required", [])
         )
@@ -229,7 +229,7 @@ def main():
               "评分项必须包含稳定标识、描述、通过/失败条件和证据要求")
         for grading_field in ("pass_conditions", "fail_conditions", "evidence_required"):
             check(case_properties.get("grading", {}).get("properties", {}).get(grading_field, {}).get("minItems", 0) >= 1,
-                  f"评分器字段 {grading_field} 必须至少包含一项")
+                  f"判定契约字段 {grading_field} 必须至少包含一项")
         check("information_gaps" in case_properties and
               "quality_review" in case_properties,
               "用例 Schema 必须支持信息缺口与可追溯质量审查")
@@ -247,7 +247,7 @@ def main():
               "用例 Schema 的场景桶枚举不完整")
         methods = case_properties.get("grading", {}).get("properties", {}).get("method", {}).get("enum", [])
         check("rubric_based" in methods and "llm_judge" not in methods,
-              "评分器枚举必须保持实现无关")
+              "判定方法枚举必须保持实现无关")
 
     manifest_schema = read_skill_json("references/dataset-manifest-schema.json")
     if isinstance(manifest_schema, dict):

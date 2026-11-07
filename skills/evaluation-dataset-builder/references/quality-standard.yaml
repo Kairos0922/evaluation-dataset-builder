@@ -22,7 +22,7 @@ checks:
     - {key: G1_evidence_fidelity, severity: critical, method: hybrid} # 证据与业务依据
     - {key: G2_objective_alignment, severity: critical, method: semantic_review} # 目标对齐
     - {key: G3_expected_behavior, severity: critical, method: hybrid} # 预期行为
-    - {key: G4_grader_validity, severity: critical, method: hybrid} # 判定契约有效性
+    - {key: G4_grading_contract_validity, severity: critical, method: hybrid} # 判定契约有效性
     - {key: G5_safety_compliance, severity: critical, method: policy_review} # 安全与合规
     - {key: G6_feasibility, severity: critical, method: hybrid} # 执行可行性
     - {key: G7_integrity, severity: critical, method: deterministic_and_semantic} # 数据完整性

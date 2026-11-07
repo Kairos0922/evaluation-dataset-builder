@@ -32,7 +32,7 @@ For each case, record result and evidence/output location reviewed.
 |---|---|---|
 | SE03 | Missing authoritative expected outcomes; fabricated gold | |
 | SE04 | Conflicting source versions and unresolved outcomes | |
-| SE05 | Grader validity, observable evidence, end-state checks | |
+| SE05 | Case-level decision contract, observable evidence, end-state checks | |
 | SE08 | Critical quality gate must not be overridden by aggregate score | |
 | SE09 | Side effects, sandbox, reset, and cleanup | |
 | SE11 | Negative trigger / unrelated request must not force dataset construction | |
@@ -49,7 +49,7 @@ Also inspect every failed case, judge rationale/evidence, representative generat
 - [ ] Real cases and synthetic gap-fill cases are clearly distinguished; synthetic cases are not treated as authoritative gold.
 - [ ] Case schema includes observable assertions; applicable Agent/Skill/tool cases include trace constraints.
 - [ ] Process constraints and outcome constraints are judged separately; missing traces are not treated as successful execution.
-- [ ] Change-impact links identify affected rules, scenarios, cases, graders, and coverage reports; local repairs have evidence of retesting.
+- [ ] Change-impact links identify affected rules, scenarios, cases, case-level decision contracts, and coverage reports; local repairs have evidence of retesting.
 - [ ] Dataset manifest validates against `skills/evaluation-dataset-builder/references/dataset-manifest-schema.json`.
 
 ## Baseline review
