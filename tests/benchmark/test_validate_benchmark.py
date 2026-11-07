@@ -20,7 +20,8 @@ class BenchmarkValidationTests(unittest.TestCase):
         result = VALIDATOR.validate_package(self.package)
         self.assertEqual(result["status"], "PASS", result["errors"])
         self.assertEqual(result["statistics"]["defect_instance_count"], 1)
-        self.assertEqual(result["statistics"]["detection_rate"], 1.0)
+        self.assertEqual(result["statistics"]["detection_rate_any_run"], 1.0)
+        self.assertEqual(result["statistics"]["detection_rate_all_runs"], 1.0)
 
     def test_n01_unknown_capability_reference_fails(self):
         self.package["cases"][0]["capability_keys"] = ["CAP-DOES-NOT-EXIST"]
@@ -43,7 +44,8 @@ class BenchmarkValidationTests(unittest.TestCase):
         result = VALIDATOR.validate_package(self.package)
         self.assertTrue(any(e.startswith("INVALID_DETECTION_DENOMINATOR") for e in result["errors"]))
         self.assertEqual(result["statistics"]["defect_instance_count"], 0)
-        self.assertIsNone(result["statistics"]["detection_rate"])
+        self.assertIsNone(result["statistics"]["detection_rate_any_run"])
+        self.assertIsNone(result["statistics"]["detection_rate_all_runs"])
 
     def test_n05_failed_control_blocks_valid_detection_claim(self):
         self.package["runs"][0]["experiments"][0]["control_status"] = "FAIL"
@@ -61,6 +63,20 @@ class BenchmarkValidationTests(unittest.TestCase):
         self.assertEqual(result["statistics"]["run_count"], 2)
         self.assertEqual(result["statistics"]["experiment_observation_count"], 2)
         self.assertEqual(result["statistics"]["defect_instance_count"], 1)
+        self.assertEqual(result["statistics"]["detection_rate_any_run"], 1.0)
+        self.assertEqual(result["statistics"]["detection_rate_all_runs"], 1.0)
+
+    def test_repeated_runs_report_pass_at_k_and_pass_all_runs_separately(self):
+        repeated = copy.deepcopy(self.package["runs"][0])
+        repeated["run_id"] = "RUN-002"
+        repeated["experiments"][0]["detection_status"] = "MISSED"
+        repeated["experiments"][0]["execution_run_ids"] = ["EXEC-002"]
+        self.package["runs"].append(repeated)
+        result = VALIDATOR.validate_package(self.package)
+        self.assertEqual(result["status"], "PASS", result["errors"])
+        self.assertEqual(result["statistics"]["defect_instance_count"], 1)
+        self.assertEqual(result["statistics"]["detection_rate_any_run"], 1.0)
+        self.assertEqual(result["statistics"]["detection_rate_all_runs"], 0.0)
 
     def test_n07_conflicted_ground_truth_cannot_be_approved(self):
         self.package["ground_truth"]["adjudication"]["status"] = "CONFLICTED"

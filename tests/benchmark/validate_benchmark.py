@@ -251,16 +251,29 @@ def validate_package(package):
                 errors.append(f"CONTROL_EXPERIMENT_FAILED:{run_id}:{ref}")
             observations[ref].append(experiment)
 
-    valid, detected = set(), set()
+    valid, detected_any, detected_all = set(), set(), set()
+    eligible_observation_count = 0
     for ref, records in observations.items():
-        if any(x.get("injection_status") == "VALID" for x in records):
+        eligible = [
+            item for item in records
+            if item.get("injection_status") == "VALID"
+            and item.get("control_status") == "PASS"
+            and item.get("detection_status") in {"DETECTED", "MISSED"}
+        ]
+        if eligible:
             valid.add(ref)
-            if any(x.get("injection_status") == "VALID" and x.get("detection_status") == "DETECTED" and x.get("control_status") == "PASS" for x in records):
-                detected.add(ref)
+            eligible_observation_count += len(eligible)
+            if any(item.get("detection_status") == "DETECTED" for item in eligible):
+                detected_any.add(ref)
+            if all(item.get("detection_status") == "DETECTED" for item in eligible):
+                detected_all.add(ref)
     stats = {
         "defect_instance_count": len(valid),
-        "detected_defect_instance_count": len(detected),
-        "detection_rate": len(detected) / len(valid) if valid else None,
+        "detected_any_run_instance_count": len(detected_any),
+        "detected_all_runs_instance_count": len(detected_all),
+        "detection_rate_any_run": len(detected_any) / len(valid) if valid else None,
+        "detection_rate_all_runs": len(detected_all) / len(valid) if valid else None,
+        "eligible_experiment_observation_count": eligible_observation_count,
         "run_count": len(runs),
         "experiment_observation_count": sum(len(x) for x in observations.values())
     }
