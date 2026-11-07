@@ -1,6 +1,12 @@
 name: Judge Calibration
 
 'on':
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/judge-calibration.yml"
+      - "tests/calibrate_judge.py"
+      - "tests/judge-calibration-cases.json"
   workflow_dispatch:
 
 permissions:
