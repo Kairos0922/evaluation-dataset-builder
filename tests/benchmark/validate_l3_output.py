@@ -38,13 +38,14 @@ def main():
             jsonschema.validate(case, CASE_SCHEMA)
             if case["case_id"] in all_ids:
                 raise SystemExit("case_id 重复：" + case["case_id"])
+            cases.append(case)
             all_ids.add(case["case_id"])
             if case["quality_status"] not in ("candidate", "needs_info"):
                 raise SystemExit("用例质量状态不能越过独立审查：" + case["case_id"])
             for tag in case.get("coverage_tags", []):
                 coverage.add(tag["coverage_item_id"])
             datasets.setdefault(case["dataset_id"], []).append(case)
-        if not cases and not datasets:
+        if not cases:
             raise SystemExit(filename + " 未生成任何用例")
 
     manifests = [
@@ -68,6 +69,9 @@ def main():
     case_count = len(all_ids)
     if not 6 <= case_count <= 8:
         raise SystemExit(f"用例数量应为 6–8，实际为 {case_count}")
+    multi_turn_count = sum("multi_turn" in case.get("scenario_bucket", []) for group in datasets.values() for case in group)
+    if not 1 <= multi_turn_count <= 2:
+        raise SystemExit(f"应仅为缺少服务名称的上下文补充设计 1–2 条多轮用例，实际为 {multi_turn_count}")
     missing_coverage = EXPECTED_COVERAGE - coverage
     if missing_coverage:
         raise SystemExit("Ground Truth 覆盖项缺失：" + ", ".join(sorted(missing_coverage)))
@@ -78,6 +82,7 @@ def main():
         "dataset_count": len(manifests),
         "case_count": case_count,
         "coverage_items": sorted(coverage),
+        "multi_turn_cases": multi_turn_count,
         "schema_errors": 0,
         "execution_claims": "NOT_RUN/DESIGN_ONLY only",
     }, ensure_ascii=False, indent=2))
