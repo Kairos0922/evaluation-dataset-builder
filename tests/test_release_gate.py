@@ -1388,11 +1388,10 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertFalse(result["gates"]["trigger_classifier_valid"]["pass"])
         self.assertFalse(result["automated_run_pass"])
 
-    def test_workflow_blocks_release_pull_requests_not_targeting_main(self):
+    def test_workflow_only_runs_pull_requests_targeting_main(self):
         workflow = (ROOT / ".github" / "workflows" / "validate.yml").read_text(encoding="utf-8")
-        self.assertIn("require-main-target:", workflow)
-        self.assertIn("github.event.pull_request.base.ref", workflow)
-        self.assertIn('if [ "$BASE_REF" != "main" ]', workflow)
+        self.assertIn('  pull_request:\n    branches: ["main"]', workflow)
+        self.assertNotIn("require-main-target:", workflow)
 
     def test_workflow_cancels_only_superseded_pr_runs_and_preserves_main_runs(self):
         workflow = (ROOT / ".github" / "workflows" / "validate.yml").read_text(encoding="utf-8")
