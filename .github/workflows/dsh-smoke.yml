@@ -1,6 +1,6 @@
 name: DSH Skill Smoke Test
 
-on:
+'on':
   push:
     branches: [main]
     paths:
