@@ -217,6 +217,19 @@ class BenchmarkValidationTests(unittest.TestCase):
         self.assertTrue(any(e.startswith("TYPE:source[") for e in result["errors"]))
         self.assertTrue(any(e.startswith("TYPE:coverage[") for e in result["errors"]))
 
+    def test_each_experiment_binds_one_injection_and_one_control_run(self):
+        experiment = self.package["runs"][0]["experiments"][0]
+        experiment["execution_run_ids"].append("EXEC-EXTRA")
+        experiment["control_execution_run_ids"].append("CTRL-EXEC-EXTRA")
+        result = VALIDATOR.validate_package(self.package)
+        self.assertTrue(any("execution_run_ids" in e and "maxItems" in e for e in result["errors"]))
+        self.assertTrue(any("control_execution_run_ids" in e and "maxItems" in e for e in result["errors"]))
+
+    def test_generated_dataset_artifact_must_resolve_to_a_manifest(self):
+        self.package["runs"][0]["generated_artifacts"][0]["artifact_ref"] = "DS-MISSING"
+        result = VALIDATOR.validate_package(self.package)
+        self.assertTrue(any("dataset_artifact:DS-MISSING" in e for e in result["errors"]))
+
     def test_control_execution_must_be_independent_of_injected_execution(self):
         experiment = self.package["runs"][0]["experiments"][0]
         experiment["control_execution_run_ids"] = experiment["execution_run_ids"][:]
