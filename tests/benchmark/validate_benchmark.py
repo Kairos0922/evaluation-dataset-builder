@@ -51,8 +51,12 @@ def validate_package(package):
     task, gt, manifest = package["task"], package["ground_truth"], package["dataset_manifest"]
     cases, defects = package["cases"], package["defect_specs"]
     instances, runs, coverage_records = package["defect_instances"], package["runs"], package["coverage_validations"]
-    for value, name, label in [(task, "task.schema.json", "task"), (gt, "ground-truth.schema.json", "ground_truth")]:
-        _validate_schema(value, SCHEMA_DIR / name, label, errors)
+    for value, name, label in [
+        (task, "task.schema.json", "task"),
+        (gt, "ground-truth.schema.json", "ground_truth"),
+        (manifest, ROOT / "skills/evaluation-dataset-builder/references/dataset-manifest-schema.json", "dataset_manifest")
+    ]:
+        _validate_schema(value, SCHEMA_DIR / name if name.endswith(".schema.json") else name, label, errors)
     for label, values, schema_name in [
         ("defect", defects, "defect.schema.json"),
         ("defect_instance", instances, "defect-instance.schema.json"),
@@ -84,6 +88,7 @@ def validate_package(package):
     rule_ids = {x.get("rule_id") for x in gt.get("rules", [])}
     risk_ids = {x.get("risk_id") for x in gt.get("risks", [])}
     scenario_ids = {x.get("scenario_id") for x in gt.get("scenarios", [])}
+    workflow_ids = {x.get("workflow_id") for x in gt.get("workflows", [])}
     coverage = _index(gt.get("coverage_requirements", []), "coverage_item_id", "coverage", errors)
     case_index = _index(cases, "case_id", "case", errors)
     defect_index = _index(defects, "defect_id", "defect", errors)
@@ -105,10 +110,23 @@ def validate_package(package):
             if source_ref not in source_ids:
                 errors.append(f"UNRESOLVED_REFERENCE:ground_truth_rule:{rule.get('rule_id')}:source:{source_ref}")
     for item in coverage.values():
-        known_targets = capability_ids | rule_ids | risk_ids | scenario_ids
+        known_targets = capability_ids | rule_ids | risk_ids | scenario_ids | workflow_ids
         for target_ref in item.get("target_refs", []):
             if target_ref not in known_targets:
                 errors.append(f"UNRESOLVED_REFERENCE:coverage:{item.get('coverage_item_id')}:target:{target_ref}")
+        for source_ref in item.get("source_refs", []):
+            if source_ref not in source_ids:
+                errors.append(f"UNRESOLVED_REFERENCE:coverage:{item.get('coverage_item_id')}:source:{source_ref}")
+    for collection_name, collection in [
+        ("fact", gt.get("facts", [])), ("capability", gt.get("capabilities", [])),
+        ("scenario", gt.get("scenarios", [])), ("workflow", gt.get("workflows", [])),
+        ("risk", gt.get("risks", []))
+    ]:
+        id_key = {"fact":"fact_id","capability":"capability_id","scenario":"scenario_id","workflow":"workflow_id","risk":"risk_id"}[collection_name]
+        for item in collection:
+            for source_ref in item.get("source_refs", []):
+                if source_ref not in source_ids:
+                    errors.append(f"UNRESOLVED_REFERENCE:ground_truth_{collection_name}:{item.get(id_key)}:source:{source_ref}")
 
     if not manifest.get("dataset_id"):
         errors.append("MISSING_ID:dataset_manifest.dataset_id")
@@ -121,6 +139,14 @@ def validate_package(package):
         for ref in case.get("capability_keys", []):
             if ref not in capability_ids:
                 errors.append(f"UNRESOLVED_REFERENCE:case:{case_id}:capability:{ref}")
+        for ref in case.get("business_rule_refs", []):
+            if ref not in rule_ids:
+                errors.append(f"UNRESOLVED_REFERENCE:case:{case_id}:business_rule:{ref}")
+        for ref in case.get("workflow_refs", []):
+            if ref not in workflow_ids:
+                errors.append(f"UNRESOLVED_REFERENCE:case:{case_id}:workflow:{ref}")
+        if case.get("scenario_id") and case.get("scenario_id") not in scenario_ids:
+            errors.append(f"UNRESOLVED_REFERENCE:case:{case_id}:scenario:{case.get('scenario_id')}")
         for source in case.get("source_refs", []):
             ref = source.get("source_id")
             if ref and ref not in source_ids:
