@@ -514,6 +514,11 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn('DEEPSEEK_MAX_TOKENS: "16384"', workflow)
         self.assertIn("EVAL_JUDGE_MAX_COMPLETION_TOKENS", workflow)
         self.assertIn("candidate-evaluation-report-", workflow)
+        self.assertIn("actions/runs?head_sha=$CANDIDATE_SHA", workflow)
+        self.assertIn("验证 Benchmark 贯通样例", workflow)
+        self.assertIn("运行离线测试", workflow)
+        self.assertNotIn("python scripts/validate_skill.py", workflow)
+        self.assertNotIn("python -m unittest discover", workflow)
 
     def test_release_scripts_require_main_and_bind_report_to_merge_commit(self):
         creator = (ROOT / "scripts" / "create_release_tag.py").read_text(encoding="utf-8")
