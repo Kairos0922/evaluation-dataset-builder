@@ -131,6 +131,20 @@ class BenchmarkValidationTests(unittest.TestCase):
         self.assertEqual(stats["instance_detection_any_rate"], 1.0)
         self.assertEqual(stats["instance_detection_all_valid_runs_rate"], 0.5)
 
+    def test_injection_valid_without_trace_evidence_is_rejected(self):
+        experiment = self.package["runs"][0]["experiments"][0]
+        experiment["evidence_refs"] = []
+        result = VALIDATOR.validate_package(self.package)
+        self.assertTrue(any("MISSING_INJECTION_EXECUTION_EVIDENCE" in e for e in result["errors"]))
+        self.assertEqual(result["statistics"]["defect_instance_count"], 0)
+
+    def test_failed_normal_control_is_inconclusive_not_a_valid_observation(self):
+        self.package["runs"][0]["experiments"][0]["control_status"] = "FAIL"
+        result = VALIDATOR.validate_package(self.package)
+        self.assertEqual(result["status"], "INCONCLUSIVE")
+        self.assertEqual(result["statistics"]["defect_instance_count"], 0)
+        self.assertEqual(result["statistics"]["control_observation_count"], 0)
+
     def test_control_false_positive_rate_is_separately_reported(self):
         repeated = copy.deepcopy(self.package["runs"][0])
         repeated["run_id"] = "RUN-002"
