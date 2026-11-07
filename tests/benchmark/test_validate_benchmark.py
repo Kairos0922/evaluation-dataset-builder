@@ -117,10 +117,14 @@ class BenchmarkValidationTests(unittest.TestCase):
         repeated["run_id"] = "RUN-002"
         repeated["experiments"][0]["detection_status"] = "MISSED"
         repeated["experiments"][0]["execution_run_ids"] = ["EXEC-002"]
+        repeated["experiments"][0]["control_execution_run_ids"] = ["CTRL-EXEC-002"]
+        repeated["experiments"][0]["control_evidence_refs"] = ["CTRL-TRACE-002"]
         second = copy.deepcopy(repeated["experiments"][0])
         second["defect_instance_ref"] = "DEFECT-INSTANCE-002"
         second["detection_status"] = "DETECTED"
         second["execution_run_ids"] = ["EXEC-003"]
+        second["control_execution_run_ids"] = ["CTRL-EXEC-003"]
+        second["control_evidence_refs"] = ["CTRL-TRACE-003"]
         repeated["experiments"].append(second)
         self.package["runs"].append(repeated)
         result = VALIDATOR.validate_package(self.package)
@@ -210,6 +214,16 @@ class BenchmarkValidationTests(unittest.TestCase):
         self.assertTrue(any("CONTROL_EXECUTION_NOT_INDEPENDENT" in e for e in result["errors"]))
         self.assertEqual(result["statistics"]["control_observation_count"], 0)
         self.assertEqual(result["statistics"]["defect_instance_count"], 0)
+
+    def test_normal_control_execution_cannot_be_reused_across_observations(self):
+        repeated = copy.deepcopy(self.package["runs"][0])
+        repeated["run_id"] = "RUN-002"
+        repeated["experiments"][0]["execution_run_ids"] = ["EXEC-002"]
+        repeated["experiments"][0]["evidence_refs"] = ["TRACE-002"]
+        self.package["runs"].append(repeated)
+        result = VALIDATOR.validate_package(self.package)
+        self.assertTrue(any("DUPLICATE_CONTROL_EXECUTION_ID" in e for e in result["errors"]))
+        self.assertEqual(result["statistics"]["control_observation_count"], 0)
 
     def test_missing_independent_coverage_review_is_inconclusive(self):
         self.package["coverage_validations"] = []
