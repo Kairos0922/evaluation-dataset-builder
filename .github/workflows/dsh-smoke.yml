@@ -1,6 +1,11 @@
 name: DSH Skill Smoke Test
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/dsh-smoke.yml"
+      - "skills/evaluation-dataset-builder/**"
   workflow_dispatch:
 
 permissions:
@@ -66,8 +71,12 @@ jobs:
           marker = "id: session-log-deepseek"
           if marker not in text:
               raise SystemExit("DSH composed config 中未找到 session-log-deepseek")
-          section = text.split(marker, 1)[1].split("\n    - id:", 1)[0]
-          if "enabled: false" not in section:
+          tail = text.split(marker, 1)[1]
+          # Stop at the next Cordis component regardless of YAML indentation.
+          import re
+          next_component = re.search(r"\n\s*- id:", tail)
+          section = tail[:next_component.start()] if next_component else tail
+          if not re.search(r"\benabled:\s*false\b", section):
               raise SystemExit("Session Log 上传未被证明已关闭；拒绝发送任何模型请求")
           print("Session Log upload: disabled (verified from composed DSH config)")
           print("OTel upload: disabled by DSH_TELEMETRY_MODE=DISABLED and DSH_TELEMETRY_DISABLED=1")
