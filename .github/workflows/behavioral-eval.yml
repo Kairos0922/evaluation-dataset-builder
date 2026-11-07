@@ -39,6 +39,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: .github/workflows/behavioral-eval.yml
       - name: 安装评测预算所需分词器
         run: python -m pip install --disable-pip-version-check tiktoken
       - name: 验证候选提交与开放 PR 的 head SHA 一致

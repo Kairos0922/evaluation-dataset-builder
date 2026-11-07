@@ -1,37 +1,102 @@
 name: 验证 Skill
 on:
   push:
-    branches: ["main", "release/**", "work/**", "feat/**"]
+    branches: ["main"]
   pull_request:
+    branches: ["main"]
   workflow_dispatch:
 
-jobs:
-  require-main-target:
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    steps:
-      - name: 检查 PR 目标分支
-        env:
-          BASE_REF: ${{ github.event.pull_request.base.ref }}
-        run: |
-          set -euo pipefail
-          if [ "$BASE_REF" != "main" ]; then
-            echo "所有 PR 必须以 main 为目标分支。"
-            exit 1
-          fi
+permissions:
+  contents: read
 
+# PR 更新时只保留最新一次；main 每个 push 使用独立 group，不会互相取消或替换 pending run。
+concurrency:
+  group: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # 不使用 workflow 级 paths-ignore：否则被跳过的 required check 可能让 PR 永远处于 Pending。
+      # 保留 validate job 本身，让 README/docs-only PR 仍有一个成功的 required check。
+      - name: 判断是否需要执行完整验证
+        id: scope
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "run_validation=true" >> "$GITHUB_OUTPUT"
+            echo "手动触发：执行完整验证。"
+            exit 0
+          fi
+
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            base_sha="$PR_BASE_SHA"
+          else
+            base_sha="$PUSH_BEFORE_SHA"
+          fi
+
+          # 首次推送没有可比较的 before SHA，必须完整验证。
+          if [[ -z "$base_sha" || "$base_sha" =~ ^0+$ ]]; then
+            echo "run_validation=true" >> "$GITHUB_OUTPUT"
+            echo "没有有效的基准提交：执行完整验证。"
+            exit 0
+          fi
+
+          git fetch --no-tags --depth=1 origin "$base_sha"
+          mapfile -d '' -t changed_files < <(git diff --name-only -z "$base_sha" "$GITHUB_SHA")
+
+          if (("${#changed_files[@]}" == 0)); then
+            echo "run_validation=true" >> "$GITHUB_OUTPUT"
+            echo "未检测到文件差异：按安全策略执行完整验证。"
+            exit 0
+          fi
+
+          docs_only=true
+          for file in "${changed_files[@]}"; do
+            case "$file" in
+              README*|*/README*|docs/*|*/docs/*) ;;
+              *) docs_only=false; break ;;
+            esac
+          done
+
+          if [ "$docs_only" = true ]; then
+            echo "run_validation=false" >> "$GITHUB_OUTPUT"
+            echo "本次仅修改 README/docs 文档；保留 validate 检查，但跳过 Python 环境和测试。"
+          else
+            echo "run_validation=true" >> "$GITHUB_OUTPUT"
+            echo "检测到代码、Skill、测试或配置变更：执行完整验证。"
+          fi
+
       - uses: actions/setup-python@v5
+        if: steps.scope.outputs.run_validation == 'true'
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: .github/workflows/validate.yml
+
       - name: 安装验证依赖
-        run: python -m pip install pyyaml jsonschema
+        if: steps.scope.outputs.run_validation == 'true'
+        run: python -m pip install --disable-pip-version-check pyyaml jsonschema
+
       - name: 验证正式包
+        if: steps.scope.outputs.run_validation == 'true'
         run: python scripts/validate_skill.py
+
       - name: 验证 Benchmark 贯通样例
+        if: steps.scope.outputs.run_validation == 'true'
         run: python tests/benchmark/validate_benchmark.py tests/benchmark/fixtures/refund-valid.json --strict
+
       - name: 运行离线测试
+        if: steps.scope.outputs.run_validation == 'true'
         run: python -m unittest discover -s tests -p "test_*.py" -v
