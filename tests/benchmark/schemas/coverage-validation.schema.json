@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Coverage Validation Record",
+  "type": "object",
+  "required": [
+    "coverage_item_ref",
+    "dataset_ref",
+    "status",
+    "validation_method",
+    "reviewer"
+  ],
+  "properties": {
+    "coverage_item_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dataset_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "case_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "assertion_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "status": {
+      "enum": [
+        "VALID",
+        "INVALID",
+        "INCONCLUSIVE",
+        "NOT_APPLICABLE"
+      ]
+    },
+    "validation_method": {
+      "enum": [
+        "expert_review",
+        "rule_check",
+        "defect_experiment",
+        "mixed"
+      ]
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "reviewer": {
+      "type": "string",
+      "minLength": 1
+    },
+    "rationale": {
+      "type": "string"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "VALID"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "case_ref",
+          "assertion_refs",
+          "evidence_refs"
+        ],
+        "properties": {
+          "assertion_refs": {
+            "minItems": 1
+          },
+          "evidence_refs": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "enum": [
+              "INVALID",
+              "INCONCLUSIVE",
+              "NOT_APPLICABLE"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "required": [
+          "rationale"
+        ],
+        "properties": {
+          "rationale": {
+            "minLength": 1
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": true
+}

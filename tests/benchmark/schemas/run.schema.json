@@ -1,0 +1,239 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Benchmark Run",
+  "type": "object",
+  "required": [
+    "run_id",
+    "task_ref",
+    "ground_truth_ref",
+    "input_snapshot",
+    "generated_artifacts",
+    "experiments",
+    "final_status"
+  ],
+  "properties": {
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "task_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "ground_truth_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "input_snapshot": {
+      "type": "object",
+      "required": [
+        "sha256"
+      ],
+      "properties": {
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "refs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "generated_artifacts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "artifact_ref",
+          "artifact_type"
+        ],
+        "properties": {
+          "artifact_ref": {
+            "type": "string"
+          },
+          "artifact_type": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "experiments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "defect_instance_ref",
+          "injection_status",
+          "detection_status",
+          "control_status",
+          "execution_run_ids",
+          "control_detection_status"
+        ],
+        "properties": {
+          "defect_instance_ref": {
+            "type": "string",
+            "minLength": 1
+          },
+          "injection_status": {
+            "enum": [
+              "VALID",
+              "FAILED",
+              "INCONCLUSIVE"
+            ]
+          },
+          "detection_status": {
+            "enum": [
+              "DETECTED",
+              "MISSED",
+              "INCONCLUSIVE",
+              "NOT_RUN"
+            ]
+          },
+          "control_status": {
+            "enum": [
+              "PASS",
+              "FAIL",
+              "INCONCLUSIVE",
+              "NOT_RUN"
+            ]
+          },
+          "execution_run_ids": {
+            "type": "array",
+            "minItems": 1,
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1
+          },
+          "evidence_refs": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "control_execution_run_ids": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 1
+          },
+          "control_evidence_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "control_detection_status": {
+            "enum": [
+              "FALSE_POSITIVE",
+              "NO_FALSE_POSITIVE",
+              "INCONCLUSIVE",
+              "NOT_RUN"
+            ]
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "control_status": {
+                  "const": "PASS"
+                }
+              },
+              "required": [
+                "control_status"
+              ]
+            },
+            "then": {
+              "required": [
+                "control_execution_run_ids",
+                "control_evidence_refs"
+              ],
+              "properties": {
+                "control_execution_run_ids": {
+                  "minItems": 1
+                },
+                "control_evidence_refs": {
+                  "minItems": 1
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "injection_status": {
+                  "const": "VALID"
+                }
+              },
+              "required": [
+                "injection_status"
+              ]
+            },
+            "then": {
+              "required": [
+                "evidence_refs"
+              ],
+              "properties": {
+                "evidence_refs": {
+                  "minItems": 1
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "control_status": {
+                  "const": "PASS"
+                }
+              },
+              "required": [
+                "control_status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "control_detection_status": {
+                  "enum": [
+                    "FALSE_POSITIVE",
+                    "NO_FALSE_POSITIVE"
+                  ]
+                }
+              }
+            }
+          }
+        ]
+      }
+    },
+    "statistics": {
+      "type": "object"
+    },
+    "final_status": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "INCONCLUSIVE",
+        "ERROR"
+      ]
+    },
+    "failure_analysis": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      }
+    },
+    "timestamps": {
+      "type": "object"
+    }
+  },
+  "additionalProperties": true
+}
