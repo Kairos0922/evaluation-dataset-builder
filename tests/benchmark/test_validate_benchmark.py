@@ -33,6 +33,20 @@ class BenchmarkValidationTests(unittest.TestCase):
         result = VALIDATOR.validate_package(self.package)
         self.assertTrue(any(e.startswith("COVERAGE_WITHOUT_ASSERTION:CASE-001:COV-001") for e in result["errors"]))
 
+    def test_coverage_validation_must_point_to_assertion_that_claims_coverage(self):
+        extra = copy.deepcopy(self.package["cases"][0]["grading"]["criteria"][0])
+        extra["criterion_id"] = "ASSERT-002"
+        extra["coverage_item_refs"] = []
+        self.package["cases"][0]["grading"]["criteria"].append(extra)
+        self.package["coverage_validations"][0]["assertion_refs"] = ["ASSERT-002"]
+        result = VALIDATOR.validate_package(self.package)
+        self.assertTrue(any(e.startswith("COVERAGE_ASSERTION_MISMATCH:COV-001:ASSERT-002") for e in result["errors"]))
+
+    def test_duplicate_ground_truth_source_id_fails(self):
+        self.package["ground_truth"]["sources"].append(copy.deepcopy(self.package["ground_truth"]["sources"][0]))
+        result = VALIDATOR.validate_package(self.package)
+        self.assertTrue(any(e.startswith("DUPLICATE_ID:source:SRC-001") for e in result["errors"]))
+
     def test_n03_assertion_without_evidence_fails_schema(self):
         self.package["cases"][0]["grading"]["criteria"][0]["evidence_required"] = []
         result = VALIDATOR.validate_package(self.package)

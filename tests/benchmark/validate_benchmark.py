@@ -84,12 +84,19 @@ def validate_package(package):
     if task.get("ground_truth_ref") != gt_id:
         errors.append("UNRESOLVED_REFERENCE:task.ground_truth_ref")
 
-    source_ids = {x.get("source_id") for x in gt.get("sources", [])}
-    capability_ids = {x.get("capability_id") for x in gt.get("capabilities", [])}
-    rule_ids = {x.get("rule_id") for x in gt.get("rules", [])}
-    risk_ids = {x.get("risk_id") for x in gt.get("risks", [])}
-    scenario_ids = {x.get("scenario_id") for x in gt.get("scenarios", [])}
-    workflow_ids = {x.get("workflow_id") for x in gt.get("workflows", [])}
+    source_index = _index(gt.get("sources", []), "source_id", "source", errors)
+    fact_index = _index(gt.get("facts", []), "fact_id", "fact", errors)
+    capability_index = _index(gt.get("capabilities", []), "capability_id", "capability", errors)
+    rule_index = _index(gt.get("rules", []), "rule_id", "rule", errors)
+    risk_index = _index(gt.get("risks", []), "risk_id", "risk", errors)
+    scenario_index = _index(gt.get("scenarios", []), "scenario_id", "scenario", errors)
+    workflow_index = _index(gt.get("workflows", []), "workflow_id", "workflow", errors)
+    source_ids = set(source_index)
+    capability_ids = set(capability_index)
+    rule_ids = set(rule_index)
+    risk_ids = set(risk_index)
+    scenario_ids = set(scenario_index)
+    workflow_ids = set(workflow_index)
     coverage = _index(gt.get("coverage_requirements", []), "coverage_item_id", "coverage", errors)
     case_index = _index(cases, "case_id", "case", errors)
     defect_index = _index(defects, "defect_id", "defect", errors)
@@ -190,20 +197,33 @@ def validate_package(package):
         for assertion_ref in record.get("assertion_refs", []):
             if assertion_ref not in criteria or criteria[assertion_ref][0] != case_ref:
                 errors.append(f"UNRESOLVED_REFERENCE:coverage_validation_assertion:{assertion_ref}")
+            elif cov_ref not in criteria[assertion_ref][1].get("coverage_item_refs", []):
+                errors.append(f"COVERAGE_ASSERTION_MISMATCH:{cov_ref}:{assertion_ref}")
         if record.get("status") == "VALID" and not record.get("evidence_refs"):
             errors.append(f"MISSING_COVERAGE_EVIDENCE:{cov_ref}:{case_ref}")
         if record.get("status") == "INVALID":
             errors.append(f"INVALID_COVERAGE_CLAIM:{cov_ref}:{case_ref}")
         if record.get("status") == "INCONCLUSIVE":
             errors.append(f"INCONCLUSIVE:COVERAGE:{cov_ref}:{case_ref}")
-        if record.get("status") == "NOT_APPLICABLE" and not record.get("rationale"):
-            errors.append(f"MISSING_NOT_APPLICABLE_RATIONALE:{cov_ref}:{case_ref}")
+        if record.get("status") == "NOT_APPLICABLE":
+            if not record.get("rationale"):
+                errors.append(f"MISSING_NOT_APPLICABLE_RATIONALE:{cov_ref}:{case_ref}")
+            if (case_ref, cov_ref) in linked:
+                errors.append(f"NOT_APPLICABLE_HAS_COVERAGE_ASSERTION:{cov_ref}:{case_ref}")
 
     for case_id, case in case_index.items():
         for tag in case.get("coverage_tags", []):
             pair = (case_id, tag.get("coverage_item_id"))
             if pair not in validated_pairs:
                 errors.append(f"INCONCLUSIVE:COVERAGE_VALIDATION_MISSING:{pair[0]}:{pair[1]}")
+
+    for source_ref in manifest.get("source_refs", []):
+        if source_ref not in source_ids:
+            errors.append(f"UNRESOLVED_REFERENCE:dataset_manifest:source:{source_ref}")
+    for split in manifest.get("data_splits", []):
+        for case_ref in split.get("case_ids", []):
+            if case_ref not in case_index:
+                errors.append(f"UNRESOLVED_REFERENCE:dataset_manifest_split:{split.get('split_id')}:case:{case_ref}")
 
     for defect_id, defect in defect_index.items():
         for field, known in [("target_capability_refs", capability_ids), ("related_rule_refs", rule_ids), ("related_risk_refs", risk_ids)]:
@@ -217,6 +237,8 @@ def validate_package(package):
         for ref in defect.get("detection_expectation", {}).get("criterion_refs", []):
             if ref not in criteria:
                 errors.append(f"UNRESOLVED_REFERENCE:defect:{defect_id}:criterion:{ref}")
+            elif criteria[ref][0] not in set(defect.get("detection_expectation", {}).get("case_refs", [])):
+                errors.append(f"DEFECT_CRITERION_CASE_MISMATCH:{defect_id}:{ref}")
             elif criteria[ref][0] not in expected_cases:
                 errors.append(f"DEFECT_CRITERION_CASE_MISMATCH:{defect_id}:{ref}")
 
