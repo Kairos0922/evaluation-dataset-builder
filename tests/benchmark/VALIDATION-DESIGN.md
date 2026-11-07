@@ -40,7 +40,7 @@
 
 VALID 记录必须闭合到同一数据集中的 Case、Case coverage_tag、grading criterion、证据和独立审查者。NOT_APPLICABLE 必须有理由，且不允许引用 Case/断言。INVALID、INCONCLUSIVE、缺失记录均不得计为覆盖。重复或互相矛盾的处置记录属于错误。
 
-Manifest 中已有 coverage 字段继续作为描述性报告字段；验证器不将其自报数字作为权威覆盖率。验证器根据 Ground Truth 和审查记录重算覆盖统计。
+Manifest 中已有 coverage 字段继续作为描述性报告字段；验证器不将其自报数字作为权威覆盖率。验证器根据 Ground Truth 和审查记录重算覆盖统计。验证器只能检查证据引用非空、审查者标识与创建者标识不同，不能证明真实身份或底层证据真实性；L3/L4 必须检查原始证据、执行记录和审查权限。
 
 ## 统计定义
 
