@@ -386,6 +386,12 @@ def validate_package(package):
                 errors.append(f"INVALID_DETECTION_DENOMINATOR:{run_id}:{ref}")
             if experiment.get("injection_status") == "VALID" and not _array(experiment.get("evidence_refs")):
                 errors.append(f"MISSING_INJECTION_EXECUTION_EVIDENCE:{run_id}:{ref}")
+            if experiment.get("injection_status") == "FAILED":
+                errors.append(f"INCONCLUSIVE:INJECTION_FAILED:{run_id}:{ref}")
+            if experiment.get("control_status") == "FAIL":
+                errors.append(f"INCONCLUSIVE:CONTROL_EXPERIMENT_FAILED:{run_id}:{ref}")
+            elif experiment.get("control_status") != "PASS":
+                errors.append(f"INCONCLUSIVE:CONTROL_EXPERIMENT_NOT_VERIFIED:{run_id}:{ref}")
             if experiment.get("control_status") == "PASS":
                 control_ids = set(_array(experiment.get("control_execution_run_ids")))
                 injected_ids = set(_array(experiment.get("execution_run_ids")))
@@ -413,6 +419,7 @@ def validate_package(package):
                     and _array(item.get("control_execution_run_ids"))
                     and _array(item.get("control_evidence_refs"))
                     and _array(item.get("evidence_refs"))
+                    and not (set(_array(item.get("control_execution_run_ids"))) & set(_array(item.get("execution_run_ids"))))
                     and item.get("control_detection_status") in {"FALSE_POSITIVE", "NO_FALSE_POSITIVE"}]
         excluded_observations += len(records) - len(eligible)
         k = len(eligible)
@@ -428,7 +435,14 @@ def validate_package(package):
                 detected_all.add(ref)
             instance_details[ref] = {"valid_repeats": k, "detected_repeats": detected}
         for item in records:
-            if item.get("control_status") == "PASS" and item.get("control_detection_status") in {"FALSE_POSITIVE", "NO_FALSE_POSITIVE"}:
+            independent_control = (
+                item.get("control_status") == "PASS"
+                and _array(item.get("control_execution_run_ids"))
+                and _array(item.get("control_evidence_refs"))
+                and not (set(_array(item.get("control_execution_run_ids"))) & set(_array(item.get("execution_run_ids"))))
+                and item.get("control_detection_status") in {"FALSE_POSITIVE", "NO_FALSE_POSITIVE"}
+            )
+            if independent_control:
                 control_observations += 1
                 if item.get("control_detection_status") == "FALSE_POSITIVE":
                     false_positive_controls += 1
@@ -459,23 +473,36 @@ def validate_package(package):
                     for coverage_id, item in coverage_index.items()
                     if dataset_id in _array(item.get("dataset_refs", list(manifest_ids)))
                 ),
+                "not_applicable_count": sum(
+                    any(record.get("status") == "NOT_APPLICABLE" for record in dispositions.get((dataset_id, coverage_id), []))
+                    for coverage_id, item in coverage_index.items()
+                    if dataset_id in _array(item.get("dataset_refs", list(manifest_ids)))
+                ),
                 "coverage_rate": (
                     sum(any(record.get("status") == "VALID" for record in dispositions.get((dataset_id, coverage_id), []))
                         for coverage_id, item in coverage_index.items()
                         if dataset_id in _array(item.get("dataset_refs", list(manifest_ids))))
-                    / sum(dataset_id in _array(item.get("dataset_refs", list(manifest_ids))) for item in coverage_index.values())
-                    if sum(dataset_id in _array(item.get("dataset_refs", list(manifest_ids))) for item in coverage_index.values()) else None
+                    / sum(
+                        dataset_id in _array(item.get("dataset_refs", list(manifest_ids)))
+                        and not any(record.get("status") == "NOT_APPLICABLE" for record in dispositions.get((dataset_id, coverage_id), []))
+                        for coverage_id, item in coverage_index.items()
+                    )
+                    if sum(
+                        dataset_id in _array(item.get("dataset_refs", list(manifest_ids)))
+                        and not any(record.get("status") == "NOT_APPLICABLE" for record in dispositions.get((dataset_id, coverage_id), []))
+                        for coverage_id, item in coverage_index.items()
+                    ) else None
                 ),
                 "critical_coverage_gaps": [
                     coverage_id for coverage_id, item in coverage_index.items()
                     if item.get("criticality") == "critical"
                     and dataset_id in _array(item.get("dataset_refs", list(manifest_ids)))
-                    and not any(record.get("status") == "VALID" for record in dispositions.get((dataset_id, coverage_id), []))
+                    and not any(record.get("status") in {"VALID", "NOT_APPLICABLE"} for record in dispositions.get((dataset_id, coverage_id), []))
                 ],
                 "coverage_gaps": [
                     coverage_id for coverage_id, item in coverage_index.items()
                     if dataset_id in _array(item.get("dataset_refs", list(manifest_ids)))
-                    and not any(record.get("status") == "VALID" for record in dispositions.get((dataset_id, coverage_id), []))
+                    and not any(record.get("status") in {"VALID", "NOT_APPLICABLE"} for record in dispositions.get((dataset_id, coverage_id), []))
                 ]
             } for dataset_id in manifest_index
         }
