@@ -70,8 +70,7 @@
           "detection_status",
           "control_status",
           "execution_run_ids",
-          "control_detection_status",
-          "evidence_refs"
+          "control_detection_status"
         ],
         "properties": {
           "defect_instance_ref": {
