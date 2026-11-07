@@ -1,0 +1,137 @@
+name: DSH L4 Mutation Discrimination
+
+'on':
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/dsh-l4-mutation.yml"
+      - "tests/benchmark/run_l4_mutation.py"
+  workflow_run:
+    workflows: ["DSH L3 Asset-to-Dataset Evaluation"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      l3_run_id:
+        description: "Successful DSH L3 workflow run ID; leave empty to select the latest successful main run"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: dsh-l4-mutation-\${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  l4-mutation:
+    if: github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: \${{ github.token }}
+      EVAL_JUDGE_BASE_URL: \${{ vars.EVAL_JUDGE_BASE_URL || 'https://api.groq.com/openai/v1' }}
+      EVAL_JUDGE_MODEL: \${{ vars.EVAL_JUDGE_MODEL || 'openai/gpt-oss-120b' }}
+      EVAL_JUDGE_API_KEY: \${{ secrets.EVAL_JUDGE_API_KEY || secrets.GROQ_API_KEY }}
+      EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION: \${{ vars.EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION || '0.15' }}
+      EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION: \${{ vars.EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION || '0.60' }}
+      EVAL_JUDGE_MAX_COMPLETION_TOKENS: "900"
+      GROQ_JUDGE_RPM: "30"
+      GROQ_JUDGE_TPM: "8000"
+      GROQ_JUDGE_TPD: "200000"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 选择成功的 L3 运行
+        id: l3
+        run: |
+          set -euo pipefail
+          if [ "$GITHUB_EVENT_NAME" = "workflow_run" ]; then
+            L3_RUN_ID="$(python -c 'import json,os; print(json.loads(os.environ["EVENT"])["workflow_run"]["id"])')"
+          elif [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ] && [ -n "\${{ inputs.l3_run_id }}" ]; then
+            L3_RUN_ID="\${{ inputs.l3_run_id }}"
+          else
+            gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=main&status=success&per_page=100" > /tmp/runs.json
+            L3_RUN_ID="$(python - <<'PY'
+          import json
+          data=json.load(open("/tmp/runs.json", encoding="utf-8"))
+          matches=[
+              run for run in data.get("workflow_runs", [])
+              if run.get("name") == "DSH L3 Asset-to-Dataset Evaluation"
+              and run.get("head_branch") == "main"
+              and run.get("conclusion") == "success"
+          ]
+          if not matches:
+              raise SystemExit("没有找到成功的 main 分支 L3 运行")
+          print(max(matches, key=lambda item: item["created_at"])["id"])
+          PY
+          )"
+          fi
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$L3_RUN_ID" > /tmp/l3-run.json
+          python - <<'PY'
+          import json
+          d=json.load(open("/tmp/l3-run.json", encoding="utf-8"))
+          if d.get("name") != "DSH L3 Asset-to-Dataset Evaluation" or d.get("head_branch") != "main" or d.get("conclusion") != "success":
+              raise SystemExit("指定的 L3 run 不属于成功的 main 分支 DSH L3 工作流")
+          print("L3 run:", d["id"], d["head_sha"], d["html_url"])
+          with open("/tmp/l3-run-id", "w") as f:
+              f.write(str(d["id"]))
+          PY
+          echo "run_id=$(cat /tmp/l3-run-id)" >> "$GITHUB_OUTPUT"
+        env:
+          EVENT: \${{ toJson(github.event) }}
+      - name: 下载 L3 原始产物
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/l3-source
+          gh run download "\${{ steps.l3.outputs.run_id }}" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "dsh-l3-evaluation-\${{ steps.l3.outputs.run_id }}" \
+            --dir artifacts/l3-source
+          test -s artifacts/l3-source/l3-output/dataset-core.jsonl
+          test -s artifacts/l3-source/l3-output/dataset-sla-regression.jsonl
+      - name: 预检 L4 fixtures 与 case-level contracts
+        run: |
+          set -euo pipefail
+          python -m py_compile tests/benchmark/run_l4_mutation.py
+          python tests/benchmark/run_l4_mutation.py \
+            --artifact-dir artifacts/l3-source \
+            --validate-only
+      - name: 检查独立 Judge 凭证与模型
+        run: |
+          set -euo pipefail
+          test -n "$EVAL_JUDGE_API_KEY" || {
+            echo "::error::缺少 EVAL_JUDGE_API_KEY 或 GROQ_API_KEY；未发送 Judge 请求。"
+            exit 2
+          }
+          curl --fail --silent --show-error --max-time 15 \
+            -H "Authorization: Bearer $EVAL_JUDGE_API_KEY" \
+            "$EVAL_JUDGE_BASE_URL/models" -o /tmp/judge-models.json
+          python - "$EVAL_JUDGE_MODEL" <<'PY'
+          import json,sys
+          data=json.load(open("/tmp/judge-models.json",encoding="utf-8"))
+          models={x.get("id") for x in data.get("data",[]) if isinstance(x,dict)}
+          if sys.argv[1] not in models:
+              raise SystemExit("Judge 模型不在服务端模型列表中；未发送评测请求")
+          print("Independent Judge model preflight passed.")
+          PY
+      - name: 执行 L4 对照组与缺陷注入评测
+        run: |
+          set -euo pipefail
+          python tests/benchmark/run_l4_mutation.py \
+            --artifact-dir artifacts/l3-source \
+            --output artifacts/l4-mutation-report.json
+      - name: 保存 L3 输入、L4 结果与原始 Judge 证据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsh-l4-mutation-\${{ github.run_id }}
+          path: |
+            artifacts/l3-source/l3-output/
+            artifacts/l4-mutation-report.json
+          if-no-files-found: warn
+          retention-days: 14
