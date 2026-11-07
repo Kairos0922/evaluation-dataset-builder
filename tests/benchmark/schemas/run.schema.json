@@ -70,7 +70,8 @@
           "detection_status",
           "control_status",
           "execution_run_ids",
-          "control_detection_status"
+          "control_detection_status",
+          "evidence_refs"
         ],
         "properties": {
           "defect_instance_ref": {
@@ -110,8 +111,10 @@
           },
           "evidence_refs": {
             "type": "array",
+            "minItems": 1,
             "items": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1
             }
           },
           "control_execution_run_ids": {
@@ -159,6 +162,50 @@
                 },
                 "control_evidence_refs": {
                   "minItems": 1
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "injection_status": {
+                  "const": "VALID"
+                }
+              },
+              "required": [
+                "injection_status"
+              ]
+            },
+            "then": {
+              "required": [
+                "evidence_refs"
+              ],
+              "properties": {
+                "evidence_refs": {
+                  "minItems": 1
+                }
+              }
+            }
+          },
+          {
+            "if": {
+              "properties": {
+                "control_status": {
+                  "const": "PASS"
+                }
+              },
+              "required": [
+                "control_status"
+              ]
+            },
+            "then": {
+              "properties": {
+                "control_detection_status": {
+                  "enum": [
+                    "FALSE_POSITIVE",
+                    "NO_FALSE_POSITIVE"
+                  ]
                 }
               }
             }
