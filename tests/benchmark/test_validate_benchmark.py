@@ -191,6 +191,26 @@ class BenchmarkValidationTests(unittest.TestCase):
         self.assertEqual(result["status"], "FAIL")
         self.assertTrue(any(e.startswith("TYPE:cases[1]") for e in result["errors"]))
 
+    def test_malformed_members_across_collections_do_not_crash(self):
+        self.package["ground_truth"]["sources"].append("bad-source")
+        self.package["ground_truth"]["coverage_requirements"].append(None)
+        self.package["defect_specs"].append("bad-defect")
+        self.package["defect_instances"].append(None)
+        self.package["runs"].append("bad-run")
+        self.package["coverage_validations"].append("bad-coverage-record")
+        result = VALIDATOR.validate_package(self.package)
+        self.assertEqual(result["status"], "FAIL")
+        self.assertTrue(any(e.startswith("TYPE:source[") for e in result["errors"]))
+        self.assertTrue(any(e.startswith("TYPE:coverage[") for e in result["errors"]))
+
+    def test_control_execution_must_be_independent_of_injected_execution(self):
+        experiment = self.package["runs"][0]["experiments"][0]
+        experiment["control_execution_run_ids"] = experiment["execution_run_ids"][:]
+        result = VALIDATOR.validate_package(self.package)
+        self.assertTrue(any("CONTROL_EXECUTION_NOT_INDEPENDENT" in e for e in result["errors"]))
+        self.assertEqual(result["statistics"]["control_observation_count"], 0)
+        self.assertEqual(result["statistics"]["defect_instance_count"], 0)
+
     def test_missing_independent_coverage_review_is_inconclusive(self):
         self.package["coverage_validations"] = []
         result = VALIDATOR.validate_package(self.package)
