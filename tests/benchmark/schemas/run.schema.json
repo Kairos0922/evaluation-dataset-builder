@@ -106,7 +106,8 @@
             "uniqueItems": true,
             "items": {
               "type": "string"
-            }
+            },
+            "maxItems": 1
           },
           "evidence_refs": {
             "type": "array",
@@ -121,7 +122,8 @@
             "uniqueItems": true,
             "items": {
               "type": "string"
-            }
+            },
+            "maxItems": 1
           },
           "control_evidence_refs": {
             "type": "array",
