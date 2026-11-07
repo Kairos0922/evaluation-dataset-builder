@@ -1,0 +1,23 @@
+{
+  "synthetic_tickets": [
+    {
+      "ticket_id": "SYN-T-101",
+      "priority": "P1",
+      "created_at": "2026-10-05T09:00:00Z",
+      "first_response_at": "2026-10-05T12:10:00Z",
+      "note": "该观察样本显示首次响应间隔为 3 小时 10 分钟。"
+    },
+    {
+      "ticket_id": "SYN-T-202",
+      "priority": "P3",
+      "created_at": "2026-10-05T09:00:00Z",
+      "first_response_at": "2026-10-08T08:00:00Z",
+      "note": "该观察样本显示首次响应间隔为 71 小时。"
+    }
+  ],
+  "synthetic_trace": [
+    {"step": 1, "tool": "update_priority", "result": "success"},
+    {"step": 2, "tool": "get_ticket", "result": "priority=P1"}
+  ],
+  "evidence_limit": "这些记录仅描述观察到的事件；不得单独将 Trace 当作业务政策来源或通用正确性依据。"
+}
