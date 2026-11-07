@@ -202,7 +202,7 @@ def main():
     }
     runner.MAX_API_REQUESTS = 20
     runner.MAX_ESTIMATED_COST_USD = 0.10
-    runner.MAX_COMPLETION_TOKENS = 900
+    runner.MAX_COMPLETION_TOKENS = 1800
     runner.API_REQUEST_COUNT = 0
     runner.ESTIMATED_COST_RESERVED_USD = 0.0
     runner.USAGE_BY_MODEL = {}
