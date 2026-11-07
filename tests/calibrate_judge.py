@@ -38,8 +38,8 @@ def main():
     exact = sum(x["match"] for x in results)
     false_passes = [x["case_id"] for x in results if x["expected_status"]!="PASS" and x["actual_status"]=="PASS"]
     accuracy = exact / len(results) if results else 0.0
-    passed = accuracy >= 0.80 and not false_passes and len(results)==len(fixture["cases"])
-    report = {"schema_version":"1.0","suite_id":fixture["suite_id"],"purpose":fixture["purpose"],"judge":{"base_url":base_url,"model":model},"candidate_sha":os.getenv("GITHUB_SHA","local"),"results":results,"summary":{"case_count":len(results),"exact_matches":exact,"accuracy":accuracy,"false_passes":false_passes,"minimum_accuracy":0.80,"pass":passed},"cost_control":{"max_requests":runner.MAX_API_REQUESTS,"actual_requests":runner.API_REQUEST_COUNT,"max_estimated_cost_usd":runner.MAX_ESTIMATED_COST_USD,"estimated_cost_reserved_usd":round(runner.ESTIMATED_COST_RESERVED_USD,6),"usage_by_model":runner.USAGE_BY_MODEL},"limitations":["该小型合成校准集只检查基础判定行为，不证明 Judge 对复杂业务语义具有充分可靠性。","通过校准不替代人工审查，也不代表 Skill 的 L3 或 L4 验证通过。"]}
+    passed = accuracy >= 1.0 and not false_passes and len(results)==len(fixture["cases"])
+    report = {"schema_version":"1.0","suite_id":fixture["suite_id"],"purpose":fixture["purpose"],"judge":{"base_url":base_url,"model":model},"candidate_sha":os.getenv("GITHUB_SHA","local"),"results":results,"summary":{"case_count":len(results),"exact_matches":exact,"accuracy":accuracy,"false_passes":false_passes,"minimum_accuracy":1.0,"pass":passed},"cost_control":{"max_requests":runner.MAX_API_REQUESTS,"actual_requests":runner.API_REQUEST_COUNT,"max_estimated_cost_usd":runner.MAX_ESTIMATED_COST_USD,"estimated_cost_reserved_usd":round(runner.ESTIMATED_COST_RESERVED_USD,6),"usage_by_model":runner.USAGE_BY_MODEL},"limitations":["该小型合成校准集只检查基础判定行为，不证明 Judge 对复杂业务语义具有充分可靠性。","通过校准不替代人工审查，也不代表 Skill 的 L3 或 L4 验证通过。"]}
     output = ROOT / args.output
     output.parent.mkdir(parents=True,exist_ok=True)
     output.write_text(json.dumps(report,ensure_ascii=False,indent=2),encoding="utf-8")
