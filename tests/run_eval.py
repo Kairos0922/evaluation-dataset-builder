@@ -583,7 +583,10 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
         "contradictory or incorrect text when it exists. If the criterion is absent, "
         "leave evidence empty and provide a precise absence_reason naming the missing "
         "observable requirement. If evidence is insufficient or ambiguous, return "
-        "score null (UNKNOWN), not a guessed PASS or FAIL. Keep the JSON concise. "
+        "score null (UNKNOWN), not a guessed PASS or FAIL. If the candidate explicitly "
+        "marks its output or trace as truncated, incomplete, or not fully captured, do "
+        "not treat missing later content as absent; return UNKNOWN unless the visible "
+        "portion itself conclusively satisfies or violates the criterion. Keep the JSON concise. "
         "Return only: "
         '{"checks":[{"index":0,"score":0,"rationale":"brief reason",'
         '"evidence":[],"absence_reason":null}]}. Include every index exactly once.'
