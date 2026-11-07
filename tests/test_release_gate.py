@@ -514,6 +514,11 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn('DEEPSEEK_MAX_TOKENS: "16384"', workflow)
         self.assertIn("EVAL_JUDGE_MAX_COMPLETION_TOKENS", workflow)
         self.assertIn("candidate-evaluation-report-", workflow)
+        self.assertIn("actions/runs?head_sha=$CANDIDATE_SHA", workflow)
+        self.assertIn("验证 Benchmark 贯通样例", workflow)
+        self.assertIn("运行离线测试", workflow)
+        self.assertNotIn("python scripts/validate_skill.py", workflow)
+        self.assertNotIn("python -m unittest discover", workflow)
 
     def test_release_scripts_require_main_and_bind_report_to_merge_commit(self):
         creator = (ROOT / "scripts" / "create_release_tag.py").read_text(encoding="utf-8")
@@ -1388,11 +1393,29 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertFalse(result["gates"]["trigger_classifier_valid"]["pass"])
         self.assertFalse(result["automated_run_pass"])
 
-    def test_workflow_blocks_release_pull_requests_not_targeting_main(self):
+    def test_workflow_only_runs_pull_requests_targeting_main(self):
         workflow = (ROOT / ".github" / "workflows" / "validate.yml").read_text(encoding="utf-8")
+        self.assertIn('  pull_request:\n    branches: ["main"]', workflow)
         self.assertIn("require-main-target:", workflow)
         self.assertIn("github.event.pull_request.base.ref", workflow)
-        self.assertIn('if [ "$BASE_REF" != "main" ]', workflow)
+
+    def test_workflow_cancels_only_superseded_pr_runs_and_preserves_main_runs(self):
+        workflow = (ROOT / ".github" / "workflows" / "validate.yml").read_text(encoding="utf-8")
+        self.assertIn("cancel-in-progress: ${{ github.event_name == 'pull_request' }}", workflow)
+        self.assertIn("format('pr-{0}', github.event.pull_request.number)", workflow)
+        self.assertIn("format('run-{0}', github.run_id)", workflow)
+        self.assertIn('branches: ["main"]', workflow)
+        self.assertIn('if [ "$EVENT_NAME" != "pull_request" ]; then', workflow)
+        self.assertIn("main push / 手动触发：执行完整验证。", workflow)
+        self.assertIn("cache: pip", workflow)
+        self.assertIn("cache-dependency-path: .github/requirements-ci.txt", workflow)
+
+    def test_docs_only_changes_keep_required_check_without_running_tests(self):
+        workflow = (ROOT / ".github" / "workflows" / "validate.yml").read_text(encoding="utf-8")
+        self.assertIn("README*|*/README*|docs/*|*/docs/*", workflow)
+        self.assertIn("run_validation=false", workflow)
+        self.assertIn("run_validation=true", workflow)
+        self.assertNotIn("paths-ignore:", workflow)
 
     def test_report_declares_provider_completeness_hard_gates(self):
         source = (ROOT / "tests" / "run_eval.py").read_text(encoding="utf-8")
