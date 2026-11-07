@@ -1391,7 +1391,8 @@ class ReleaseGateUnitTests(unittest.TestCase):
     def test_workflow_only_runs_pull_requests_targeting_main(self):
         workflow = (ROOT / ".github" / "workflows" / "validate.yml").read_text(encoding="utf-8")
         self.assertIn('  pull_request:\n    branches: ["main"]', workflow)
-        self.assertNotIn("require-main-target:", workflow)
+        self.assertIn("require-main-target:", workflow)
+        self.assertIn("github.event.pull_request.base.ref", workflow)
 
     def test_workflow_cancels_only_superseded_pr_runs_and_preserves_main_runs(self):
         workflow = (ROOT / ".github" / "workflows" / "validate.yml").read_text(encoding="utf-8")
