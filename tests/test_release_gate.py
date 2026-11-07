@@ -1402,6 +1402,8 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn('branches: ["main"]', workflow)
         self.assertIn('if [ "$EVENT_NAME" != "pull_request" ]; then', workflow)
         self.assertIn("main push / 手动触发：执行完整验证。", workflow)
+        self.assertIn("cache: pip", workflow)
+        self.assertIn("cache-dependency-path: .github/requirements-ci.txt", workflow)
 
     def test_docs_only_changes_keep_required_check_without_running_tests(self):
         workflow = (ROOT / ".github" / "workflows" / "validate.yml").read_text(encoding="utf-8")
