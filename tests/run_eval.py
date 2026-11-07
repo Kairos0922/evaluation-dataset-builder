@@ -711,7 +711,7 @@ def classify_trigger(api_key, model, query, api_url=JUDGE_API_URL):
     system = (
         "Classify whether a user request should invoke the Evaluation Dataset "
         "Builder Skill. Trigger only when the user asks to create, plan, evaluate, "
-        "audit, repair, or update evaluation datasets, benchmarks, or graders. "
+        "audit, repair, or update evaluation datasets, evaluation cases, coverage plans, or case-level grading criteria. "
         "Do not trigger for general explanations, ordinary software tests, "
         "summaries, translation, or unrelated work. Return JSON only: "
         '{"should_trigger":true} or {"should_trigger":false}.'

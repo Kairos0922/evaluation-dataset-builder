@@ -174,7 +174,8 @@
       "type": "array",
       "items": {
         "type": "string"
-      }
+      },
+      "description": "历史兼容字段。已弃用；新数据集不应生成独立评分器引用，判定规则应保存在各用例 grading 字段中。"
     },
     "quality_status": {
       "enum": [

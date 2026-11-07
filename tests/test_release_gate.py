@@ -1429,8 +1429,9 @@ class ReleaseGateUnitTests(unittest.TestCase):
         )
         grading = schema["properties"]["grading"]["properties"]
         for field in ("acceptable_variants", "uncertainty_policy",
-                      "reference_authority", "calibration_cases"):
+                      "reference_authority"):
             self.assertIn(field, grading)
+        self.assertNotIn("calibration_cases", grading)
         execution = schema["properties"]["execution_requirements"]
         props = execution["properties"]
         for field in ("status", "initial_state", "required_permissions", "environment",

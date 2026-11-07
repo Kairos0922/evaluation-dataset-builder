@@ -52,14 +52,14 @@
     },
     {
       "id": "SE05",
-      "category": "grader_design",
-      "prompt": "请为以下两个目标设计 grader：\n\n目标一：知识问答助手把用户问题解释成自然语言，允许不同措辞，但事实必须符合给定参考答案。\n目标二：云管控 Agent 收到“关闭测试环境中的 VM-17”后，会调用 API 修改 VM 状态。\n\n要求：为目标一和目标二分别选择 grader；目标二不能只检查对话中说“已关闭”，必须检查实际状态和工具调用约束。说明每种 grader 的证据、pass/fail 条件、acceptable variants 和 UNKNOWN 处理。还要说明如何用正例、负例、边界例校准 grader。",
+      "category": "case_decidability",
+      "prompt": "请为以下两个评测目标分别设计用例内部的判定契约：\\n\\n目标一：知识问答助手用自然语言回答问题，允许不同措辞，但事实必须符合给定参考依据。\\n目标二：云管控 Agent 收到“关闭测试环境中的 VM-17”后，会调用 API 修改 VM 状态。\\n\\n请分别选择适合的判定方法，说明判定目标、可观察证据、通过/失败条件、可接受变体和 UNKNOWN 处理。目标二必须检查实际状态和适用的工具调用约束，不能只检查对话中声称已关闭。不要设计独立评分器产品或默认校准系统。",
       "expected": [
-        "uses a rubric or reference-based grader for semantically equivalent natural-language answers",
-        "uses state or end-result checks for the VM state change",
-        "includes trace or tool-call constraints for the side-effecting agent",
-        "defines observable evidence and pass/fail conditions with acceptable variants",
-        "defines UNKNOWN handling and a positive, negative, and borderline calibration plan"
+        "selects a reference-based or rubric-based case-level contract for semantically equivalent natural-language answers",
+        "uses state or end-result assertions for the VM state change",
+        "includes trace or tool-call constraints only because the side-effecting task requires them",
+        "defines observable evidence, pass/fail conditions, acceptable variants, and UNKNOWN handling within each case",
+        "does not require a standalone grader product or a default calibration suite"
       ]
     },
     {
@@ -113,11 +113,11 @@
     {
       "id": "SE10",
       "category": "packaging",
-      "prompt": "请将以下评测目标打包为 JSONL 交付规范：云账单查询助手必须在用户给出账期后返回 CNY 金额、账期和数据来源；缺少账期时必须追问。\n\n交付必须包含：\n- 每条用例的 case_id、dataset_id、title、evaluation_target、objective、scenario_type、user_input、expected_behavior、grading、source_refs、quality_status、version；\n- manifest，说明数据集用途、版本、用例数量和覆盖范围；\n- grader 说明；\n- source map 和质量报告。\n没有提供真实账单规则或业务文档时，不得编造来源或金额结果。",
+      "prompt": "请将以下评测目标打包为 JSONL 交付规范：云账单查询助手必须在用户给出账期后返回 CNY 金额、账期和数据来源；缺少账期时必须追问。\n\n交付必须包含：\n- 每条用例的 case_id、dataset_id、title、evaluation_target、objective、scenario_type、user_input、expected_behavior、grading、source_refs、quality_status、version；\n- manifest，说明数据集用途、版本、用例数量和覆盖范围；\n- 每条用例内部的判定契约说明；\n- source map 和质量报告。\n没有提供真实账单规则或业务文档时，不得编造来源或金额结果。",
       "expected": [
         "uses stable case and dataset identifiers and includes the required schema fields",
         "provides a manifest with purpose, version, case count, and coverage",
-        "provides grader definitions with observable pass/fail evidence",
+        "includes case-level grading contracts with observable pass/fail evidence rather than standalone grader definitions",
         "provides source mapping and quality report without fabricated sources or business outcomes",
         "labels unsupported cases needs_info or synthetic rather than approved"
       ]

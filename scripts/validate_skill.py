@@ -274,7 +274,7 @@ def main():
                   "质量评分权重必须为 0 到 100 之间的正数")
             check(bool(config["scoring"]["critical_gates"]), "质量标准缺少关键门禁")
             required_dataset_checks = {
-                "business_model_traceability", "gap_priority_coverage",
+                "business_model_traceability", "gap_priority_coverage", "grading_contract_consistency",
                 "synthetic_case_labeling", "observable_assertion_coverage",
                 "trace_evidence_coverage", "change_impact_traceability"
             }
@@ -291,6 +291,17 @@ def main():
             yaml_weights = {k: float(v) for k, v in weights.items()}
             check(markdown_weights == yaml_weights,
                   "quality-standard.md 的权重必须与 quality-standard.yaml 完全一致")
+            case_gate_keys = {
+                item.get("key") for item in config.get("checks", {}).get("case_level", [])
+                if isinstance(item, dict)
+            }
+            configured_gates = set(config.get("scoring", {}).get("critical_gates", []))
+            check(case_gate_keys == configured_gates,
+                  "critical_gates 必须与 case_level 检查项完全一致")
+            check(len(configured_gates) == len(config.get("scoring", {}).get("critical_gates", [])),
+                  "critical_gates 不得包含重复项")
+            check(len(dataset_checks) == len(config.get("checks", {}).get("dataset_level", [])),
+                  "dataset_level 检查项不得重复")
         except Exception as exc:
             fail(f"质量标准配置无效：{exc}")
 

@@ -292,16 +292,9 @@
           "type": "string",
           "description": "参考依据的来源和权威性。"
         },
-        "calibration_cases": {
-          "type": "array",
-          "items": {
-            "type": "string"
-          },
-          "description": "用于校准评分器的用例 ID。"
-        }
       },
       "additionalProperties": true,
-      "description": "评分器的判定方法、标准、证据和校准要求。"
+      "description": "本用例的判定方法、标准、证据和不确定性处理规则；不代表独立评分器产品。"
     },
     "execution_requirements": {
       "type": "object",
