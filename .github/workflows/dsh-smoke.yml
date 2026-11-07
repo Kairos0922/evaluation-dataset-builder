@@ -1,0 +1,168 @@
+name: DSH Skill Smoke Test
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dsh-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  dsh-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DSH_HOME: ${{ runner.temp }}/dsh-home
+      DSH_TELEMETRY_MODE: DISABLED
+      DSH_TELEMETRY_DISABLED: "1"
+      DSH_VERSION: "0.2.2-rc.1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 检查模型凭证
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DEEPSEEK_API_KEY" ]; then
+            echo "::error::请先在 Repository Settings → Secrets and variables → Actions 中配置 DEEPSEEK_API_KEY。"
+            exit 2
+          fi
+
+      - name: 安装 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22.19.0"
+
+      - name: 安装固定版本 DSH CLI
+        run: |
+          set -euo pipefail
+          npm install --global --no-audit --no-fund "@deepseek-ai/dsh@$DSH_VERSION"
+          dsh --version
+
+      - name: 准备隔离的 DSH 配置并关闭遥测上传
+        run: |
+          set -euo pipefail
+          mkdir -p "$DSH_HOME"
+          cat > "$DSH_HOME/cordis.patch.yml" <<'YAML'
+          - id: session-log-deepseek
+            config:
+              enabled: false
+          YAML
+
+          # 复制到 DSH 官方 filesystem skill provider 默认扫描的项目级目录。
+          mkdir -p .dsh/skills
+          cp -R skills/evaluation-dataset-builder .dsh/skills/evaluation-dataset-builder
+          test -s .dsh/skills/evaluation-dataset-builder/SKILL.md
+
+          # 输出合成配置快照，并验证 Session Log 上传确实关闭。
+          dsh --profile headless --dump-config > artifacts-dsh-config.txt
+          python - <<'PY'
+          from pathlib import Path
+          text = Path("artifacts-dsh-config.txt").read_text(encoding="utf-8")
+          marker = "id: session-log-deepseek"
+          if marker not in text:
+              raise SystemExit("DSH composed config 中未找到 session-log-deepseek")
+          section = text.split(marker, 1)[1].split("\n    - id:", 1)[0]
+          if "enabled: false" not in section:
+              raise SystemExit("Session Log 上传未被证明已关闭；拒绝发送任何模型请求")
+          print("Session Log upload: disabled (verified from composed DSH config)")
+          print("OTel upload: disabled by DSH_TELEMETRY_MODE=DISABLED and DSH_TELEMETRY_DISABLED=1")
+          PY
+
+      - name: 准备合成 smoke test 输入
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          cat > artifacts/dsh-smoke-task.md <<'TASK'
+          请使用 evaluation-dataset-builder Skill 处理以下任务，并将结果写入 artifacts/dsh-smoke-output.md。
+
+          任务：为一个“天气查询助手”生成一个最小评测数据集，包含 2 条用例和简短 manifest。
+
+          以下均为合成练习规则，不代表任何真实天气服务：
+          - 用户未提供城市时，必须询问城市，不得猜测用户位置。
+          - 温度输出必须明确单位；不得把摄氏度和华氏度混为一谈。
+
+          要求：
+          1. 先识别评测目标与合成来源。
+          2. 两条用例分别覆盖缺少城市和温度单位。
+          3. 每条用例包含输入、可观察的期望行为、禁止行为和 case-level grading contract。
+          4. 不得虚构真实服务、真实数据或执行结果。
+          5. 只需完成这个最小样例，不要扩展为大型评测方案。
+          TASK
+
+      - name: 在真实 DSH Headless 环境中调用 Skill
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          set -euo pipefail
+          dsh --profile headless --json --permission-mode workspace-write - \
+            < artifacts/dsh-smoke-task.md \
+            > artifacts/dsh-events.jsonl \
+            2> artifacts/dsh-stderr.log
+
+      - name: 验证 Skill 发现、调用和输出
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          events_path = Path("artifacts/dsh-events.jsonl")
+          output_path = Path("artifacts/dsh-smoke-output.md")
+          events = []
+          for line_no, line in enumerate(events_path.read_text(encoding="utf-8").splitlines(), 1):
+              if not line.strip():
+                  continue
+              try:
+                  events.append(json.loads(line))
+              except json.JSONDecodeError as exc:
+                  raise SystemExit(f"NDJSON 第 {line_no} 行无效：{exc}")
+
+          calls = [
+              event for event in events
+              if event.get("type") == "tool_call"
+              and event.get("tool") == "skill"
+              and (event.get("input") or {}).get("name") == "evaluation-dataset-builder"
+          ]
+          if not calls:
+              raise SystemExit("没有观察到 DSH 的 skill 工具调用；不能证明 Skill 已被加载")
+
+          call_ids = {event.get("callId") for event in calls}
+          results = [
+              event for event in events
+              if event.get("type") == "tool_result"
+              and event.get("callId") in call_ids
+          ]
+          if not results:
+              raise SystemExit("观察到 Skill 调用，但没有对应 tool_result")
+
+          final_events = [event for event in events if event.get("type") == "final"]
+          if not final_events or (final_events[-1].get("reason") or {}).get("kind") != "completed":
+              raise SystemExit("DSH 最终 turn 未以 completed 结束")
+
+          if not output_path.is_file() or output_path.stat().st_size == 0:
+              raise SystemExit("Skill 未生成预期的 artifacts/dsh-smoke-output.md")
+
+          print(f"Skill invocation verified: {len(calls)} call(s)")
+          print(f"Skill tool result observed: {len(results)} result(s)")
+          print("DSH final turn: completed")
+          print(f"Output created: {output_path} ({output_path.stat().st_size} bytes)")
+          PY
+
+      - name: 保存 smoke test 证据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dsh-skill-smoke-${{ github.run_id }}
+          path: |
+            artifacts/dsh-smoke-task.md
+            artifacts/dsh-smoke-output.md
+            artifacts/dsh-events.jsonl
+            artifacts/dsh-stderr.log
+            artifacts-dsh-config.txt
+          if-no-files-found: warn
+          retention-days: 7
