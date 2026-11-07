@@ -1087,7 +1087,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
             )
         self.assertEqual(result[0]["status"], "UNKNOWN")
         system_prompt = api.call_args.args[2]
-        self.assertIn("marks its output or trace as truncated", system_prompt)
+        self.assertIn("CAPTURE_STATUS=TRUNCATED", system_prompt)
         self.assertIn("return UNKNOWN", system_prompt)
 
     def test_judge_prompt_uses_real_section_line_breaks(self):
