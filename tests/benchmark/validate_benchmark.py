@@ -51,12 +51,13 @@ def validate_package(package):
     task, gt, manifest = package["task"], package["ground_truth"], package["dataset_manifest"]
     cases, defects = package["cases"], package["defect_specs"]
     instances, runs, coverage_records = package["defect_instances"], package["runs"], package["coverage_validations"]
-    for value, name, label in [
-        (task, "task.schema.json", "task"),
-        (gt, "ground-truth.schema.json", "ground_truth"),
+    schema_checks = [
+        (task, SCHEMA_DIR / "task.schema.json", "task"),
+        (gt, SCHEMA_DIR / "ground-truth.schema.json", "ground_truth"),
         (manifest, ROOT / "skills/evaluation-dataset-builder/references/dataset-manifest-schema.json", "dataset_manifest")
-    ]:
-        _validate_schema(value, SCHEMA_DIR / name if name.endswith(".schema.json") else name, label, errors)
+    ]
+    for value, schema_path, label in schema_checks:
+        _validate_schema(value, schema_path, label, errors)
     for label, values, schema_name in [
         ("defect", defects, "defect.schema.json"),
         ("defect_instance", instances, "defect-instance.schema.json"),
