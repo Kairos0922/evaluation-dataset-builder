@@ -22,7 +22,7 @@
 - VALID 必须引用同一数据集中的 Case、该 Case 的 coverage_tag、关联 grading criterion、证据和独立审查者。
 - NOT_APPLICABLE 必须提供理由，且不能引用 Case 或断言。
 - INVALID、INCONCLUSIVE 或缺少处置记录不能计为覆盖。关键覆盖缺口不能被其他覆盖项抵消。
-- 报告中的覆盖总数、有效覆盖数和缺口由 Ground Truth 与处置记录重算，不信任 Manifest 中自行填写的覆盖率数字。
+- 报告中的覆盖总数、有效覆盖数和缺口由 Ground Truth 与处置记录重算，不信任 Manifest 中自行填写的覆盖率数字。验证器只校验引用字段存在及声明的审查者 ID 与创建者 ID 不同；它不能单靠字符串证明审查者身份、证据真实性或审查过程独立，必须在 L3/L4 审计中核验原始证据与人员权限。
 
 ## 运行
 
