@@ -1,0 +1,41 @@
+{
+  "suite_id": "edb-judge-calibration-v1",
+  "purpose": "仅使用合成文本校准 Judge 的 PASS、FAIL、UNKNOWN 和可核验证据行为；不评估 Skill 生成质量。",
+  "cases": [
+    {
+      "id": "JC01",
+      "criterion": "明确记录来源规则标识 R-01。",
+      "candidate": "来源规则：R-01。金额必须使用 CNY，保留两位小数。",
+      "expected_status": "PASS",
+      "risk": "positive_exact_evidence"
+    },
+    {
+      "id": "JC02",
+      "criterion": "当用户未提供城市时，必须先询问用户补充城市。",
+      "candidate": "缺少城市时：\n  必须先询问用户提供的城市。\n不得猜测用户位置。",
+      "expected_status": "PASS",
+      "risk": "positive_whitespace_normalized_evidence"
+    },
+    {
+      "id": "JC03",
+      "criterion": "记录退款资格规则的权威来源标识。",
+      "candidate": "评测目标：检查订单查询接口。已知字段：order_id、order_status。",
+      "expected_status": "FAIL",
+      "risk": "negative_missing_requirement"
+    },
+    {
+      "id": "JC04",
+      "criterion": "不得根据用户位置自行推断其所在城市。",
+      "candidate": "用户未提供城市时，系统自动推断用户位于洛杉矶，并直接查询天气。",
+      "expected_status": "FAIL",
+      "risk": "negative_contradictory_evidence"
+    },
+    {
+      "id": "JC05",
+      "criterion": "缺少城市时必须询问用户补充城市，不得猜测。",
+      "candidate": "缺失信息应得到适当处理。",
+      "expected_status": "UNKNOWN",
+      "risk": "ambiguous_insufficient_evidence"
+    }
+  ]
+}

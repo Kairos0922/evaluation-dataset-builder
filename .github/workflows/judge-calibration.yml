@@ -1,0 +1,66 @@
+name: Judge Calibration
+
+'on':
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: judge-calibration-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  calibrate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      EVAL_JUDGE_BASE_URL: ${{ vars.EVAL_JUDGE_BASE_URL || 'https://api.groq.com/openai/v1' }}
+      EVAL_JUDGE_MODEL: ${{ vars.EVAL_JUDGE_MODEL || 'openai/gpt-oss-120b' }}
+      EVAL_JUDGE_API_KEY: ${{ secrets.EVAL_JUDGE_API_KEY || secrets.GROQ_API_KEY }}
+      EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION: ${{ vars.EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION || '0.15' }}
+      EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION: ${{ vars.EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION || '0.60' }}
+      JUDGE_CALIBRATION_MAX_COST_USD: "0.10"
+      JUDGE_CALIBRATION_MAX_COMPLETION_TOKENS: "500"
+      EVAL_JUDGE_MAX_COMPLETION_TOKENS: "500"
+      DEEPSEEK_MAX_TOKENS: "500"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: 检查独立 Judge 凭证
+        run: |
+          set -euo pipefail
+          if [ -z "$EVAL_JUDGE_API_KEY" ]; then
+            echo "::error::缺少 EVAL_JUDGE_API_KEY 或 GROQ_API_KEY；未发送模型请求。"
+            exit 2
+          fi
+      - name: 预检 Judge 模型元数据
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 15 \
+            -H "Authorization: Bearer $EVAL_JUDGE_API_KEY" \
+            "$EVAL_JUDGE_BASE_URL/models" -o /tmp/judge-models.json
+          python - "$EVAL_JUDGE_MODEL" <<'PY'
+          import json, sys
+          with open("/tmp/judge-models.json", encoding="utf-8") as handle:
+              data = json.load(handle)
+          available = {item.get("id") for item in data.get("data", []) if isinstance(item, dict)}
+          if sys.argv[1] not in available:
+              print("配置的 Judge 模型不在服务端 GET /models 列表中；未发送校准请求。")
+              raise SystemExit(2)
+          print("Judge 模型元数据预检通过；尚未发送校准请求。")
+          PY
+      - name: 执行合成 Judge 校准
+        run: python tests/calibrate_judge.py --output artifacts/judge-calibration.json
+      - name: 保存校准报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: judge-calibration-${{ github.run_id }}
+          path: |
+            artifacts/judge-calibration.json
+            artifacts/judge-calibration-checkpoint.json
+          if-no-files-found: warn
+          retention-days: 14
