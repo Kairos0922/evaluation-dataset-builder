@@ -540,7 +540,7 @@ def validate_package(package):
                     )
                     if sum(
                         dataset_id in _array(item.get("dataset_refs", list(manifest_ids)))
-                        and not any(record.get("status") == "NOT_APPLICABLE" for record in dispositions.get((dataset_id, coverage_id), []))
+                        and not coverage_not_applicable(dataset_id, coverage_id)
                         for coverage_id, item in coverage_index.items()
                     ) else None
                 ),
