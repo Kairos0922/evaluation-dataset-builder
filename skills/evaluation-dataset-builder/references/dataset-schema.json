@@ -291,7 +291,7 @@
         "reference_authority": {
           "type": "string",
           "description": "参考依据的来源和权威性。"
-        },
+        }
       },
       "additionalProperties": true,
       "description": "本用例的判定方法、标准、证据和不确定性处理规则；不代表独立评分器产品。"
