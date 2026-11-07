@@ -515,7 +515,7 @@ def validate_package(package):
                 "coverage_requirement_count": sum(dataset_id in _array(item.get("dataset_refs", list(manifest_ids)))
                                                   for item in coverage_index.values()),
                 "valid_coverage_count": sum(
-                    any(record.get("status") == "VALID" for record in dispositions.get((dataset_id, coverage_id), []))
+                    coverage_valid(dataset_id, coverage_id)
                     for coverage_id, item in coverage_index.items()
                     if dataset_id in _array(item.get("dataset_refs", list(manifest_ids)))
                 ),
@@ -535,7 +535,7 @@ def validate_package(package):
                         if dataset_id in _array(item.get("dataset_refs", list(manifest_ids))))
                     / sum(
                         dataset_id in _array(item.get("dataset_refs", list(manifest_ids)))
-                        and not any(record.get("status") == "NOT_APPLICABLE" for record in dispositions.get((dataset_id, coverage_id), []))
+                        and not coverage_not_applicable(dataset_id, coverage_id)
                         for coverage_id, item in coverage_index.items()
                     )
                     if sum(
@@ -554,7 +554,8 @@ def validate_package(package):
                 "coverage_gaps": [
                     coverage_id for coverage_id, item in coverage_index.items()
                     if dataset_id in _array(item.get("dataset_refs", list(manifest_ids)))
-                    and not any(record.get("status") in {"VALID", "NOT_APPLICABLE"} for record in dispositions.get((dataset_id, coverage_id), []))
+                    and not coverage_valid(dataset_id, coverage_id)
+                    and not coverage_not_applicable(dataset_id, coverage_id)
                 ]
             } for dataset_id in manifest_index
         }
