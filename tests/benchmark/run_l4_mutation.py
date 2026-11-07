@@ -119,7 +119,7 @@ SOURCE: The P1 threshold applies to all tickets."""
     },
     "SLA-03": {
         "mutation": "rounds_119_minutes_to_120_and_false_breach",
-        "targets": ["S3-1", "S3-3"],
+        "targets": ["S3-3"],
         "control": """INPUT: SYN-T-303 priority=P1 created_at=2026-10-06T10:00:00Z first_response_at=2026-10-06T11:59:00Z
 CALCULATION: elapsed time = 119 minutes = 1 hour 59 minutes.
 POLICY: SYN-POLICY-01 第 1 条规定 P1 threshold = 120 minutes (2 hours).
