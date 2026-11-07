@@ -119,6 +119,7 @@ def validate_package(package):
         errors.append("UNRESOLVED_REFERENCE:task.ground_truth_ref")
 
     source_index = _index(gt.get("sources", []), "source_id", "source", errors)
+    fact_index = _index(gt.get("facts", []), "fact_id", "fact", errors)
     capability_index = _index(gt.get("capabilities", []), "capability_id", "capability", errors)
     rule_index = _index(gt.get("rules", []), "rule_id", "rule", errors)
     risk_index = _index(gt.get("risks", []), "risk_id", "risk", errors)
@@ -131,6 +132,7 @@ def validate_package(package):
     instance_index = _index(instances, "defect_instance_id", "defect_instance", errors)
 
     source_ids = set(source_index)
+    fact_ids = set(fact_index)
     capability_ids, rule_ids = set(capability_index), set(rule_index)
     risk_ids, scenario_ids, workflow_ids = set(risk_index), set(scenario_index), set(workflow_index)
     manifest_ids = set(manifest_index)
@@ -153,6 +155,10 @@ def validate_package(package):
     elif adjudication != "APPROVED":
         errors.append("INCONCLUSIVE:ground_truth_not_approved")
     if adjudication == "APPROVED":
+        provenance_creator = _object(gt.get("provenance")).get("created_by")
+        adjudication_reviewer = _object(gt.get("adjudication")).get("reviewer")
+        if not adjudication_reviewer or adjudication_reviewer == provenance_creator:
+            errors.append("NON_INDEPENDENT_GROUND_TRUTH_APPROVAL")
         for rule in rules:
             if rule.get("status") != "CONFIRMED":
                 errors.append(f"UNCONFIRMED_RULE_IN_APPROVED_GROUND_TRUTH:{rule.get('rule_id')}:{rule.get('status')}")
@@ -173,7 +179,7 @@ def validate_package(package):
                 if source_ref not in source_ids:
                     errors.append(f"UNRESOLVED_REFERENCE:ground_truth_{label}:{item.get(id_key)}:source:{source_ref}")
 
-    known_targets = capability_ids | rule_ids | risk_ids | scenario_ids | workflow_ids
+    known_targets = fact_ids | capability_ids | rule_ids | risk_ids | scenario_ids | workflow_ids
     for coverage_id, item in coverage_index.items():
         for target_ref in _array(item.get("target_refs")):
             if target_ref not in known_targets:
@@ -433,6 +439,16 @@ def validate_package(package):
     excluded_observations = 0
     k_distribution = Counter()
     instance_details = {}
+
+    def coverage_statuses(dataset_id, coverage_id):
+        return {record.get("status") for record in dispositions.get((dataset_id, coverage_id), [])}
+
+    def coverage_valid(dataset_id, coverage_id):
+        return coverage_statuses(dataset_id, coverage_id) == {"VALID"}
+
+    def coverage_not_applicable(dataset_id, coverage_id):
+        return coverage_statuses(dataset_id, coverage_id) == {"NOT_APPLICABLE"}
+
     for ref, records in observations.items():
         eligible = [item for item in records
                     if item.get("injection_status") == "VALID"
@@ -504,12 +520,17 @@ def validate_package(package):
                     if dataset_id in _array(item.get("dataset_refs", list(manifest_ids)))
                 ),
                 "not_applicable_count": sum(
-                    any(record.get("status") == "NOT_APPLICABLE" for record in dispositions.get((dataset_id, coverage_id), []))
+                    coverage_not_applicable(dataset_id, coverage_id)
+                    for coverage_id, item in coverage_index.items()
+                    if dataset_id in _array(item.get("dataset_refs", list(manifest_ids)))
+                ),
+                "applicable_coverage_count": sum(
+                    not coverage_not_applicable(dataset_id, coverage_id)
                     for coverage_id, item in coverage_index.items()
                     if dataset_id in _array(item.get("dataset_refs", list(manifest_ids)))
                 ),
                 "coverage_rate": (
-                    sum(any(record.get("status") == "VALID" for record in dispositions.get((dataset_id, coverage_id), []))
+                    sum(coverage_valid(dataset_id, coverage_id)
                         for coverage_id, item in coverage_index.items()
                         if dataset_id in _array(item.get("dataset_refs", list(manifest_ids))))
                     / sum(
@@ -527,7 +548,8 @@ def validate_package(package):
                     coverage_id for coverage_id, item in coverage_index.items()
                     if item.get("criticality") == "critical"
                     and dataset_id in _array(item.get("dataset_refs", list(manifest_ids)))
-                    and not any(record.get("status") in {"VALID", "NOT_APPLICABLE"} for record in dispositions.get((dataset_id, coverage_id), []))
+                    and not coverage_valid(dataset_id, coverage_id)
+                    and not coverage_not_applicable(dataset_id, coverage_id)
                 ],
                 "coverage_gaps": [
                     coverage_id for coverage_id, item in coverage_index.items()
