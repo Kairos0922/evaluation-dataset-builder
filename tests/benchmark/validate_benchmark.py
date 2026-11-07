@@ -444,6 +444,7 @@ def validate_package(package):
                     and not (set(_array(item.get("control_execution_run_ids"))) & set(_array(item.get("execution_run_ids"))))
                     and not (set(_array(item.get("control_execution_run_ids"))) & duplicate_control_execution_ids)
                     and not (set(_array(item.get("control_execution_run_ids"))) & shared_execution_ids)
+                    and not (set(_array(item.get("execution_run_ids"))) & shared_execution_ids)
                     and not (set(_array(item.get("execution_run_ids"))) & duplicate_injection_execution_ids)
                     and item.get("control_detection_status") in {"FALSE_POSITIVE", "NO_FALSE_POSITIVE"}]
         excluded_observations += len(records) - len(eligible)
@@ -468,6 +469,7 @@ def validate_package(package):
                 and not (set(_array(item.get("control_execution_run_ids"))) & duplicate_control_execution_ids)
                 and not (set(_array(item.get("execution_run_ids"))) & duplicate_injection_execution_ids)
                 and not (set(_array(item.get("control_execution_run_ids"))) & shared_execution_ids)
+                and not (set(_array(item.get("execution_run_ids"))) & shared_execution_ids)
                 and item.get("control_detection_status") in {"FALSE_POSITIVE", "NO_FALSE_POSITIVE"}
             )
             if independent_control:
