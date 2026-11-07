@@ -70,6 +70,11 @@ jobs:
               raise SystemExit("Session Log 上传未被证明关闭；拒绝发送模型请求")
           print("Session Log upload disabled; OTel upload disabled by environment.")
           PY
+      - name: 预检 L3 验证器与依赖
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check jsonschema
+          python -m py_compile tests/benchmark/validate_l3_output.py
       - name: 执行 L3 资产解析与评测套件生成
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
@@ -82,7 +87,6 @@ jobs:
       - name: 验证 Skill 调用、最终状态、Schema 与 Ground Truth 覆盖
         run: |
           set -euo pipefail
-          python -m pip install --disable-pip-version-check jsonschema
           python - <<'PY'
           import json
           from pathlib import Path
