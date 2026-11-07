@@ -282,6 +282,9 @@ def validate_package(package):
         seen_records[pair_key] = status
         dispositions[(dataset_ref, coverage_ref)].append(record)
 
+        creator = _object(gt.get("provenance")).get("created_by")
+        if not record.get("reviewer") or record.get("reviewer") == creator:
+            errors.append(f"NON_INDEPENDENT_COVERAGE_REVIEW:{dataset_ref}:{coverage_ref}:{case_ref}")
         assertion_refs = _array(record.get("assertion_refs"))
         if status == "VALID":
             if not case_ref or case_ref not in case_index:
@@ -302,10 +305,6 @@ def validate_package(package):
                     errors.append(f"COVERAGE_ASSERTION_MISMATCH:{coverage_ref}:{assertion_ref}")
             if not _array(record.get("evidence_refs")):
                 errors.append(f"MISSING_COVERAGE_EVIDENCE:{coverage_ref}:{case_ref}")
-            creator = _object(gt.get("provenance")).get("created_by")
-            reviewer = record.get("reviewer")
-            if not reviewer or reviewer == creator:
-                errors.append(f"NON_INDEPENDENT_COVERAGE_REVIEW:{coverage_ref}:{case_ref}")
         elif status == "NOT_APPLICABLE":
             if not record.get("rationale"):
                 errors.append(f"MISSING_NOT_APPLICABLE_RATIONALE:{coverage_ref}:{dataset_ref}")
@@ -380,6 +379,12 @@ def validate_package(package):
             errors.append(f"UNRESOLVED_REFERENCE:run:{run_id}:task")
         if run.get("ground_truth_ref") != gt_id:
             errors.append(f"UNRESOLVED_REFERENCE:run:{run_id}:ground_truth")
+        for artifact in _array(run.get("generated_artifacts")):
+            if not isinstance(artifact, dict):
+                errors.append(f"TYPE:generated_artifact:{run_id}:expected object")
+                continue
+            if artifact.get("artifact_type") == "dataset" and artifact.get("artifact_ref") not in manifest_ids:
+                errors.append(f"UNRESOLVED_REFERENCE:run:{run_id}:dataset_artifact:{artifact.get('artifact_ref')}")
         seen = set()
         for experiment in _array(run.get("experiments")):
             if not isinstance(experiment, dict):
