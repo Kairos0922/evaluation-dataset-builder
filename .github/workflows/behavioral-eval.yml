@@ -68,10 +68,50 @@ jobs:
             exit 2
           fi
           echo "已验证开放 PR 的候选 head SHA: $PR_HEAD_SHA"
-      - name: 结构验证与离线发布门禁测试
-        run: python scripts/validate_skill.py
-      - name: 运行离线测试
-        run: python -m unittest discover -s tests -p "test_*.py" -v
+      - name: 验证候选 SHA 的 CI 已完整通过
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+
+          RUNS_JSON="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$CANDIDATE_SHA&per_page=100")"
+          CI_RUN_ID="$(jq -r --arg sha "$CANDIDATE_SHA" '
+            [.workflow_runs[]
+             | select(.path == ".github/workflows/validate.yml")
+             | select(.event == "pull_request")
+             | select(.head_sha == $sha)]
+            | sort_by(.created_at)
+            | last
+            | .id // empty
+          ' <<< "$RUNS_JSON")"
+
+          if [ -z "$CI_RUN_ID" ]; then
+            echo "没有找到该候选 SHA 对应的 PR 验证运行；拒绝重复执行测试或调用模型。"
+            exit 2
+          fi
+
+          CI_CONCLUSION="$(jq -r --argjson id "$CI_RUN_ID" '
+            .workflow_runs[] | select(.id == $id) | .conclusion // "unknown"
+          ' <<< "$RUNS_JSON")"
+          if [ "$CI_CONCLUSION" != "success" ]; then
+            echo "候选 SHA 的最新 CI 结果不是 success：$CI_CONCLUSION"
+            exit 2
+          fi
+
+          JOBS_JSON="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$CI_RUN_ID/jobs?per_page=100")"
+          jq -e '
+            any(.jobs[];
+              .name == "validate"
+              and .conclusion == "success"
+              and any(.steps[]?; .name == "验证正式包" and .conclusion == "success")
+              and any(.steps[]?; .name == "验证 Benchmark 贯通样例" and .conclusion == "success")
+              and any(.steps[]?; .name == "运行离线测试" and .conclusion == "success")
+            )
+            and any(.jobs[]; .name == "require-main-target" and .conclusion == "success")
+          ' <<< "$JOBS_JSON" >/dev/null
+
+          echo "候选 SHA $CANDIDATE_SHA 的完整 CI 已通过（run $CI_RUN_ID）；复用该结果，不重复安装依赖和运行离线测试。"
       - name: 调用前验证生成端模型元数据
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
