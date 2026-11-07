@@ -1394,6 +1394,20 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn("github.event.pull_request.base.ref", workflow)
         self.assertIn('if [ "$BASE_REF" != "main" ]', workflow)
 
+    def test_workflow_cancels_only_superseded_pr_runs_and_preserves_main_runs(self):
+        workflow = (ROOT / ".github" / "workflows" / "validate.yml").read_text(encoding="utf-8")
+        self.assertIn("cancel-in-progress: ${{ github.event_name == 'pull_request' }}", workflow)
+        self.assertIn("format('pr-{0}', github.event.pull_request.number)", workflow)
+        self.assertIn("format('run-{0}', github.run_id)", workflow)
+        self.assertIn('branches: ["main"]', workflow)
+
+    def test_docs_only_changes_keep_required_check_without_running_tests(self):
+        workflow = (ROOT / ".github" / "workflows" / "validate.yml").read_text(encoding="utf-8")
+        self.assertIn("README*|*/README*|docs/*|*/docs/*", workflow)
+        self.assertIn("run_validation=false", workflow)
+        self.assertIn("run_validation=true", workflow)
+        self.assertNotIn("paths-ignore:", workflow)
+
     def test_report_declares_provider_completeness_hard_gates(self):
         source = (ROOT / "tests" / "run_eval.py").read_text(encoding="utf-8")
         self.assertIn('"generation_calls_complete"', source)
