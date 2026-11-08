@@ -23,6 +23,13 @@ TRACE turn=1 tool_calls=[]
 TURN 2 USER: 是邮件服务。
 TRACE turn=2 tool_call create_ticket(service_name="邮件服务", description="邮箱收不到外部邮件") -> {"ticket_id":"SYN-T-606","status":"success"}
 TRACE turn=2 tool_call get_ticket(ticket_id="SYN-T-606") -> {"ticket_id":"SYN-T-606","status":"open"}
+MOCK AUDIT: complete_trace=true; turns=2
+MOCK AUDIT: turn2.user_message="是邮件服务。"
+MOCK AUDIT: turn2.create_ticket.service_name="邮件服务"
+MOCK AUDIT: turn2.create_ticket.description="邮箱收不到外部邮件"
+MOCK AUDIT: turn2.create_ticket.returned.ticket_id="SYN-T-606"
+MOCK AUDIT: turn2.event_order=create_ticket_called_after_turn2_user_message
+MOCK INITIAL STATE: {"tickets":[],"ticket_count":0}
 MOCK FINAL STATE: {"ticket_id":"SYN-T-606","status":"open"}
 FINAL: 沙箱模拟工单 SYN-T-606 已创建。最终查询状态为 open。""",
         "mutant": """SESSION role=requester permissions=[]
@@ -46,7 +53,10 @@ MOCK AUDIT: create_ticket.service_name="VPN 接入"
 MOCK AUDIT: create_ticket.description="我无法连接公司 VPN，客户端报错 691"
 MOCK AUDIT: create_ticket.returned.ticket_id="SYN-T-505"
 MOCK AUDIT: get_ticket.argument.ticket_id="SYN-T-505"
+MOCK AUDIT: pre_create_ticket_id_mentions=[]
+MOCK AUDIT: ticket_id_source=get_ticket_argument_equals_create_ticket_returned_value
 MOCK AUDIT: event_order=create_ticket_returned_before_get_ticket_called
+MOCK AUDIT: complete_trace=true
 MOCK WRITE LOG: operation_count=1; operations=["create_ticket"]; duplicate_create_count=0; update_priority_count=0; existing_ticket_write_count=0
 FINAL: 沙箱模拟工单 SYN-T-505 已创建。get_ticket 核验到最终 status=open。""",
         "mutant": """SESSION role=requester permissions=[]
