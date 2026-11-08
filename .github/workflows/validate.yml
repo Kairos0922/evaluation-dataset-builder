@@ -268,7 +268,8 @@ jobs:
           set -euo pipefail
           python -m py_compile \
             benchmarks/webapp-testing/fixtures/workboard/server.py \
-            benchmarks/webapp-testing/scripts/validate_workboard_fixture.py
+            benchmarks/webapp-testing/scripts/validate_workboard_fixture.py \
+            benchmarks/webapp-testing/scripts/prepare_builder_input.py
 
       - name: Validate clean Workboard profile
         run: |
@@ -335,6 +336,25 @@ jobs:
                       raise SystemExit(1)
           raise SystemExit("Could not verify mutant server cleanup")
           PY
+
+      - name: Prepare the public Builder input bundle
+        env:
+          BUILDER_INPUT_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/prepare_builder_input.py \
+            --repo-dir . \
+            --upstream-repo-dir .audit/upstream-skills \
+            --output artifacts/webapp-testing-builder-input \
+            --repo-revision "$BUILDER_INPUT_REVISION"
+
+      - name: Archive the public Builder input bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-builder-input
+          path: artifacts/webapp-testing-builder-input/
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Verify the helper released its server port
         if: always()
