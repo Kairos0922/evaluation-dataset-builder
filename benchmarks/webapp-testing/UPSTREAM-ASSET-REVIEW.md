@@ -3,7 +3,7 @@
 **审查对象：** `anthropics/skills/skills/webapp-testing`  
 **冻结 Commit：** `2c5958ecac7cee2b583967a2c4981d0f4a75c579`  
 **资产清单状态：** COMPLETE，完整目录清单已冻结  
-**运行状态：** DESIGN_ONLY，尚未执行 DSH/Playwright 运行时验证  
+**运行状态：** RUNTIME_PREFLIGHT_PASS；尚未通过 DSH 调用被测 Skill  
 **用途：** 为 Evaluation Dataset Builder 的公开输入资产包提供可追溯来源。本文件不是评测用例。
 
 ## 1. 完整性核验结果
@@ -27,11 +27,11 @@
 
 `ca5f067e6fc69cd9b6286df33517fd7e0b45fb6fa9d643b23309865b7e47ab88`
 
-该 SHA-256 的输入为按路径排序的文件记录，字段为 `path`、`mode`、`type`、`blob_sha`、`size`。先将记录序列化为 UTF-8 JSON，使用 `sort_keys=true`、`ensure_ascii=false` 和紧凑分隔符 `(',', ':'))，再计算 SHA-256。Git tree SHA-1 用于核验上游 Git 目录对象；清单 SHA-256 用于核验规范化文件记录。两者用途不同。
+该 SHA-256 的输入为按路径排序的文件记录，字段为 `path`、`mode`、`type`、`blob_sha`、`size`。先将记录序列化为 UTF-8 JSON，使用 `sort_keys=true`、`ensure_ascii=false` 和紧凑分隔符 `(',', ':')`，再计算 SHA-256。Git tree SHA-1 用于核验上游 Git 目录对象；清单 SHA-256 用于核验规范化文件记录。两者用途不同。
 
 机器可读清单：`upstream-asset-manifest.json`。  
 复现脚本：`scripts/audit_upstream_assets.py`。  
-自动审计：`.github/workflows/webapp-testing-asset-audit.yml`。
+自动审计：`.github/workflows/validate.yml` 中的 `audit-upstream-assets` job。
 
 ## 2. Skill 能力与执行约束
 
@@ -94,7 +94,39 @@ Skill 将 `networkidle` 作为推荐流程，但持续轮询、WebSocket 或长�
 
 已核验 `LICENSE.txt` 内容为 Apache License 2.0。复制或分发该上游 Skill 时，应保留许可证；对修改文件作显著修改声明；保留适用的版权、专利、商标和归属声明。完整目录清单中未发现独立 NOTICE 文件。
 
-## 5. 资产冻结与实验边界
+## 5. GitHub Actions 运行时预检
+
+**运行：** [42481994066](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/42481994066)  
+**结果：** `runtime-preflight` job 通过。  
+**证据包：** artifact `13617733280`，保留至 2026-11-22。
+
+固定环境：
+- DSH CLI：`0.2.2-rc.1`
+- Node.js：`24.9.0`
+- Python：`3.12`
+- Playwright：`1.64.1`
+- Chromium headless shell：`156.0.8078.4`
+
+验证结果：
+- DSH 组合配置确认 `session-log-deepseek` 已禁用；同时设置 `DSH_TELEMETRY_MODE=DISABLED` 和 `DSH_TELEMETRY_DISABLED=1`。
+- 固定 commit 的六个上游文件被复制到临时项目级 Skill 路径，并通过目录比较确认一致。
+- 按要求先执行 `with_server.py --help`，退出成功。
+- helper 启动自有 HTTP fixture 后，Playwright 成功导航并等待 `networkidle`。
+- HTTP 状态为 200，页面标题正确，按钮点击使页面状态从 `Value: 0` 变为 `Value: 1`。
+- 浏览器页面异常数为 0，截图已归档。
+- 使用 `exec python -m http.server ...` 启动单一受控服务进程后，helper 返回时 TCP 4173 端口保持关闭。
+
+**重要限制：** 第一次使用普通 `python -m http.server ...` 命令的运行中，浏览器检查成功，但 helper 退出后端口仍在监听。随后改用 `exec` 让 shell 进程替换为服务器进程，端口清理检查通过。该规避只适用于受控的单进程命令，不证明 helper 能可靠清理复合命令或多进程服务。上文 R3 已记录首次失败的实测证据。
+
+**本次没有做的事情：**
+- 没有向 DSH 发起 Agent 对话或调用 `webapp-testing` Skill。
+- 没有调用 Evaluation Dataset Builder 生成正式用例。
+- 没有运行被测 Skill 的业务能力测试。
+- 没有读取隐藏 Gold Oracle，也没有计算任何 Skill 质量分数。
+
+本次验证的是 CI 运行时、依赖、浏览器和服务 helper 的受控单进程执行路径，不是 Skill 能力评测。
+
+## 6. 资产冻结与实验边界
 
 **已完成：**
 - 固定上游 commit 和 Skill 根目录 Git tree SHA。
@@ -102,17 +134,22 @@ Skill 将 `networkidle` 作为推荐流程，但持续轮询、WebSocket 或长�
 - 六个文件的路径、模式、大小和 Blob SHA 核验。
 - 两个子目录 tree SHA 和规范化清单 SHA-256 核验。
 - 许可证、指令、示例和 helper 的静态内容审查。
-- 增加可在 GitHub Actions 重复执行的资产审计脚本和工作流。
+- GitHub Actions 重复生成并逐字节比对完整资产 manifest。
+- 固定 DSH、Node.js、Python、Playwright 和 Chromium 版本。
+- 验证 DSH Session Log 与 OTel 上传关闭配置。
+- 执行 `with_server.py --help` 和本地浏览器操作。
+- 在受控单进程 `exec` 命令下确认 helper 结束后端口释放。
+- 记录普通 shell 子进程残留的实测失败边界。
 
 **尚未完成：**
-- 在 GitHub Actions 中实际运行新增审计工作流并取得成功记录。
-- 在 Actions runner 中执行 `with_server.py --help` 并记录退出码和输出。
-- 固定并验证 Python、Playwright、Chromium 及 DSH Shell 的兼容性。
-- 验证服务进程启动、就绪、日志、退出和子进程清理。
-- 在隔离 fixture 上运行被测 Skill。
+- 使用 DSH Headless 实际调用 `webapp-testing` Skill。
+- 由 Evaluation Dataset Builder 根据上游公开资产自动生成正式评测套件。
+- 构建并冻结独立 Gold Oracle 和本地业务应用测试场景。
+- 运行被测 Skill 的正式评测与独立判定。
+- 评估复合命令、多进程服务和高日志量下的 helper 生命周期问题。
 
-## 6. 当前结论
+## 7. 当前结论
 
-上游资产清单已达到**静态完整冻结**条件，可以作为 B0 候选输入资产的来源基线。该结论不代表运行时兼容性已通过，也不代表被测 Skill 的能力已完成评测。
+上游资产已完成静态完整冻结，且固定依赖、DSH 隔离配置、Playwright/Chromium 浏览器运行、受控单进程服务启停均已在 GitHub Actions 中通过预检。相关审计和浏览器证据已归档。
 
-在新增 Actions 资产审计工作流成功运行前，实验整体仍保持 `DESIGN_ONLY`。正式评测用例仍必须由 Evaluation Dataset Builder 根据公开资产自动生成；本阶段没有人工编写任何正式评测用例。
+这只表示**实验环境具备进入下一阶段的基础条件**。被测 `webapp-testing` Skill 尚未通过 DSH 实际调用，Evaluation Dataset Builder 也尚未生产该 Skill 的正式评测套件，因此整体实验状态仍为 `DESIGN_ONLY`。下一阶段必须先由 Builder 自动生成正式评测套件，再由 DSH 调用被测 Skill 消费这些用例，并由独立 Oracle 判定。
