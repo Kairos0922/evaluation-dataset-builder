@@ -402,3 +402,234 @@ jobs:
             ${{ runner.temp }}/workboard-mutant.jsonl
           if-no-files-found: warn
           retention-days: 14
+
+  builder-production:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    needs: runtime-preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DSH_HOME: \${{ github.workspace }}/.dsh-home
+      DSH_TELEMETRY_MODE: DISABLED
+      DSH_TELEMETRY_DISABLED: "1"
+      DSH_VERSION: "0.2.2-rc.1"
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Check model credential availability
+        env:
+          DEEPSEEK_API_KEY: \${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$DEEPSEEK_API_KEY" || {
+            echo "::error::DEEPSEEK_API_KEY is missing; no model request was sent."
+            exit 2
+          }
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.9.0"
+
+      - name: Install pinned DSH CLI
+        run: |
+          set -euo pipefail
+          npm install --global --no-audit --no-fund "@deepseek-ai/dsh@$DSH_VERSION"
+          dsh --version
+
+      - name: Configure isolated DSH and stage Builder Skill
+        run: |
+          set -euo pipefail
+          mkdir -p "$DSH_HOME" .dsh/skills artifacts
+          cat > "$DSH_HOME/cordis.patch.yml" <<'YAML'
+          - id: session-log-deepseek
+            config:
+              enabled: false
+          YAML
+          cp -R skills/evaluation-dataset-builder .dsh/skills/evaluation-dataset-builder
+          test -s .dsh/skills/evaluation-dataset-builder/SKILL.md
+          dsh --profile headless --dump-config > artifacts/dsh-config.txt
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          text = Path("artifacts/dsh-config.txt").read_text(encoding="utf-8")
+          marker = "id: session-log-deepseek"
+          if marker not in text:
+              raise SystemExit("Session Log config not found; refusing model request")
+          tail = text.split(marker, 1)[1]
+          next_component = re.search(r"\\n\\s*- id:", tail)
+          section = tail[:next_component.start()] if next_component else tail
+          if not re.search(r"\\benabled:\\s*false\\b", section):
+              raise SystemExit("Session Log upload is not verified disabled")
+          print("Session Log upload disabled; OTel disabled by environment flags.")
+          PY
+
+      - name: Download frozen public Builder input
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-builder-input
+          path: artifacts/webapp-testing-builder-input
+
+      - name: Install independent validation dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check jsonschema
+          python -m py_compile \\
+            benchmarks/webapp-testing/scripts/verify_builder_input.py \\
+            benchmarks/webapp-testing/scripts/verify_builder_dsh_trace.py \\
+            benchmarks/webapp-testing/scripts/validate_builder_output.py
+          python benchmarks/webapp-testing/scripts/verify_builder_input.py
+          mkdir -p artifacts/webapp-testing-builder-output
+          find .dsh/skills/evaluation-dataset-builder -type f -print0 \\
+            | sort -z | xargs -0 sha256sum \\
+            > artifacts/builder-skill-sha256.txt
+
+      - name: Record Builder production environment
+        env:
+          BUILDER_INPUT_REVISION: \${{ github.event.pull_request.head.sha || github.sha }}
+          UPSTREAM_COMMIT: "2c5958ecac7cee2b583967a2c4981d0f4a75c579"
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import platform
+          import subprocess
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          dsh_version = subprocess.run(
+              ["dsh", "--version"], check=True, text=True,
+              stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+          ).stdout.strip()
+          record = {
+              "candidate_sha": os.environ["BUILDER_INPUT_REVISION"],
+              "upstream_skill_commit": os.environ["UPSTREAM_COMMIT"],
+              "dsh_version": dsh_version,
+              "python_version": platform.python_version(),
+              "node_version": subprocess.run(
+                  ["node", "--version"], check=True, text=True,
+                  stdout=subprocess.PIPE
+              ).stdout.strip(),
+              "created_at_utc": datetime.now(timezone.utc).isoformat(),
+              "scope": "builder_production_only",
+              "gold_oracle_mounted": False,
+              "webapp_testing_skill_loaded": False,
+          }
+          Path("artifacts/builder-run-metadata.json").write_text(
+              json.dumps(record, ensure_ascii=False, indent=2) + "\\n",
+              encoding="utf-8"
+          )
+          PY
+
+      - name: Invoke Evaluation Dataset Builder through DSH
+        env:
+          DEEPSEEK_API_KEY: \${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          set -euo pipefail
+          rm -rf artifacts/webapp-testing-builder-output
+          mkdir -p artifacts/webapp-testing-builder-output
+          set +e
+          dsh --profile headless --json --permission-mode workspace-write - \\
+            < artifacts/webapp-testing-builder-input/BUILDER-TASK.md \\
+            > artifacts/builder-dsh-events.jsonl \\
+            2> artifacts/builder-dsh-stderr.log
+          dsh_exit=$?
+          set -e
+          printf '%s\\n' "$dsh_exit" > artifacts/builder-dsh-exit-code.txt
+          if [ "$dsh_exit" -ne 0 ]; then
+            echo "::error::DSH Builder invocation failed with exit code $dsh_exit"
+            exit "$dsh_exit"
+          fi
+
+      - name: Check and redact any accidental credential disclosure
+        if: always()
+        env:
+          DEEPSEEK_API_KEY: \${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          secret = os.environ.get("DEEPSEEK_API_KEY", "").encode()
+          targets = [
+              Path("artifacts/builder-dsh-events.jsonl"),
+              Path("artifacts/builder-dsh-stderr.log"),
+              Path("artifacts/webapp-testing-builder-output"),
+          ]
+          leaked = []
+          if secret:
+              files = []
+              for target in targets:
+                  if target.is_file():
+                      files.append(target)
+                  elif target.is_dir():
+                      files.extend(path for path in target.rglob("*") if path.is_file())
+              for path in files:
+                  try:
+                      data = path.read_bytes()
+                  except OSError:
+                      continue
+                  if secret in data:
+                      path.write_bytes(data.replace(secret, b"[REDACTED_SECRET]"))
+                      leaked.append(path.as_posix())
+          Path("artifacts/credential-scan.json").write_text(
+              json.dumps({
+                  "secret_value_exposed_in_artifact": bool(leaked),
+                  "redacted_files": leaked,
+                  "scope": "DSH evidence and generated output",
+              }, ensure_ascii=False, indent=2) + "\\n",
+              encoding="utf-8",
+          )
+          if leaked:
+              raise SystemExit(
+                  "Credential disclosure detected. Matching values were redacted "
+                  f"from artifacts: {leaked}"
+              )
+          print("PASS: no API credential value found in generated evidence.")
+          PY
+
+      - name: Verify actual Builder invocation in DSH trace
+        if: success()
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/verify_builder_dsh_trace.py \\
+            --events artifacts/builder-dsh-events.jsonl \\
+            --exit-code "$(cat artifacts/builder-dsh-exit-code.txt)" \\
+            --output-dir artifacts/webapp-testing-builder-output \\
+            | tee artifacts/builder-dsh-trace-verification.json
+
+      - name: Validate Builder-generated datasets and manifests
+        if: success()
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/validate_builder_output.py \\
+            | tee artifacts/builder-validation-summary.json
+          find artifacts/webapp-testing-builder-output -type f -print0 \\
+            | sort -z | xargs -0 sha256sum \\
+            > artifacts/builder-output-sha256.txt
+
+      - name: Archive Builder production evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-builder-result
+          path: |
+            artifacts/webapp-testing-builder-output/
+            artifacts/builder-dsh-events.jsonl
+            artifacts/builder-dsh-stderr.log
+            artifacts/builder-dsh-exit-code.txt
+            artifacts/builder-dsh-trace-verification.json
+            artifacts/builder-validation-summary.json
+            artifacts/builder-skill-sha256.txt
+            artifacts/builder-output-sha256.txt
+            artifacts/builder-run-metadata.json
+            artifacts/credential-scan.json
+          if-no-files-found: warn
+          retention-days: 30

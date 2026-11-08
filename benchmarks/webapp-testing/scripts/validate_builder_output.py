@@ -197,8 +197,9 @@ def main() -> int:
     coverage_files = [p for p in OUTPUT.rglob("*") if p.is_file() and "coverage" in p.name.casefold()]
     source_files = [p for p in OUTPUT.rglob("*") if p.is_file() and "source" in p.name.casefold()]
     quality_reports = [
-        p for p in OUTPUT.rglob("*.md")
-        if "quality" in p.name.casefold()
+        p for p in OUTPUT.rglob("*")
+        if p.is_file() and "quality" in p.name.casefold()
+        and p.suffix.lower() in {".md", ".json"}
     ]
     if not coverage_files:
         raise SystemExit("Builder output lacks a coverage matrix or coverage report")
@@ -207,8 +208,9 @@ def main() -> int:
     if not quality_reports:
         raise SystemExit("Builder output lacks a quality report")
     report_templates = [
-        p for p in OUTPUT.rglob("*.md")
-        if "template" in p.name.casefold()
+        p for p in OUTPUT.rglob("*")
+        if p.is_file() and "template" in p.name.casefold()
+        and p.suffix.lower() in {".md", ".json"}
     ]
     if not report_templates:
         raise SystemExit("Builder output lacks the requested report template")

@@ -1,6 +1,6 @@
 # webapp-testing 双 Skill 实验契约
 
-**状态：** 设计基线（尚未执行实验）  
+**状态：** P0 资产冻结、运行时预检和公开输入包已在 GitHub Actions 通过；P1 Builder 生产由本 PR 的 `builder-production` job 执行；P2 至 P5 尚未完成。整体实验仍为 `DESIGN_ONLY`，直至被测 Skill 消费和独立 Oracle 判定通过。  
 **实验对象：** Anthropic `webapp-testing`  
 **Builder：** Evaluation Dataset Builder `0.0.1`  
 **实验运行环境：** GitHub Actions + DSH Headless  
@@ -227,8 +227,8 @@ Oracle 无法确定的情况应保持 UNKNOWN，不得强制归入 PASS/FAIL。�
 
 | 阶段 | 工作 | 通过条件 | 失败处理 |
 |---|---|---|---|
-| P0 资产冻结 | 固定上游 Skill、应用和运行配置 | 来源、commit、哈希完整 | BLOCKED |
-| P1 Builder 生产 | DSH Headless 调用 Builder | Trace 有调用证据，产物完整 | BLOCKED；不允许手工补用例 |
+| P0 资产冻结 | 固定上游 Skill、应用和运行配置 | 完整资产清单、哈希、运行时预检和 Builder 输入包均已由 Actions 验证 | 已通过；run 42484433238 |
+| P1 Builder 生产 | DSH Headless 调用 Builder | Trace 包含真实 Skill tool_call 与匹配 tool_result；产物完整并通过独立验证 | 当前 PR 的 builder-production job 执行；失败则 BLOCKED，不允许手工补用例 |
 | P2 套件验收 | Schema、来源、覆盖、执行契约、隔离检查 | 所有关键门禁通过 | 修订资产/Builder 后重新生产 |
 | P3 B0 消费 | DSH Headless 调用 webapp-testing | Trace 证明加载；消费 Builder 用例 | BLOCKED |
 | P4 双路判定 | 执行 Builder grading 契约并运行 Oracle | 结果和证据均可追溯 | UNKNOWN/隔离用例 |
@@ -238,14 +238,22 @@ CI 运行成功不等于评测成功；依赖安装成功不等于 Skill 运行�
 
 ## 12. 本阶段未决事项
 
-本契约只定义责任和数据边界。以下事项必须在后续实现前通过代码和真实 Actions 运行验证：
+## 已获得的 P0 证据
 
-- 固定上游 `webapp-testing` commit，并校验完整文件树及许可证。
-- 确认 DSH 版本的 Shell、文件工具、Skill 资源路径和权限行为。
-- 确认 Actions runner 中 Python、Playwright、Chromium 安装和无头运行。
-- 证明 DSH 子进程无法读取模型 API 凭证及隐藏 Oracle。
-- 实现公开/隐藏目录隔离、服务端审计、应用重置和失败清理。
-- 由 Builder 根据冻结资产真实生成首套数据集；数量和分布由 Builder 决定。
-- 建立独立验证器和 Oracle，并验证二者不会读取或修改 Builder 产物。
+- 固定上游 Skill 的完整 Git tree 和六个文件清单已冻结，目录树未截断。
+- Actions 已验证 DSH 0.2.2-rc.1、Node 24.9.0、Python 3.12.16、Playwright 1.64.1 和 Chromium 156.0.8078.4。
+- DSH Session Log 上传已关闭，OpenTelemetry 禁用标志已设置。
+- `with_server.py --help`、本地浏览器交互、Workboard clean/mutant 夹具检查和端口清理均已通过。
+- 最新公开输入包含 19 个文件，逐文件 SHA-256、来源版本、捕获时间和上游 tree SHA 均经过独立验证；包清单 SHA-256 为 `143e9c380a532a7df4e9279c1c69ed484e32dc23819e97773b4fe92fb7fcf056`。
+- 对应 Actions run：`42484433238`。输入包 Artifact：`13618733130`。
 
-在以上事项获得真实证据前，实验状态保持 `DESIGN_ONLY`，不得报告 B0 已通过或双 Skill 进化已实现。
+## 尚未获得的证据
+
+- Builder 在本次实验中真实调用的 Trace 和可追溯输出。
+- Builder 生成的数据集、Manifest、覆盖矩阵、来源映射和质量报告。
+- 独立套件验收以及 grading 契约与 Gold Oracle 的交叉核验。
+- DSH 对被测 `webapp-testing` Skill 的真实调用和正式任务执行。
+- 隐藏 Oracle 隔离、A0/A1 与 B0/B1 交叉回归。
+- 复合命令、多进程服务和高日志量条件下的 helper 生命周期压力验证。
+
+在 Builder 正式产物及其独立验收完成前，不得启动被测 Skill 的正式消费阶段。即使 P1 通过，整体实验仍为 `DESIGN_ONLY`，直至 P2 至 P5 的必要证据齐全。

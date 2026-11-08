@@ -139,11 +139,14 @@ Skill 将 `networkidle` 作为推荐流程，但持续轮询、WebSocket 或长�
 - 验证 DSH Session Log 与 OTel 上传关闭配置。
 - 执行 `with_server.py --help` 和本地浏览器操作。
 - 在受控单进程 `exec` 命令下确认 helper 结束后端口释放。
+- Workboard Lite clean 模式 8/8 检查通过；mutant 模式 4/4 预期缺陷观察通过；两个服务端口均释放。
+- 构建并独立校验 19 文件公开 Builder 输入包，记录文件级来源和 SHA-256。
+- 将 19 文件输入包归档到 Actions Artifact `13618733130`，包清单 SHA-256 为 `143e9c380a532a7df4e9279c1c69ed484e32dc23819e97773b4fe92fb7fcf056`。
 - 记录普通 shell 子进程残留的实测失败边界。
 
 **尚未完成：**
+- 由 DSH Headless 实际调用 Evaluation Dataset Builder 并生成正式评测套件（P1）。
 - 使用 DSH Headless 实际调用 `webapp-testing` Skill。
-- 由 Evaluation Dataset Builder 根据上游公开资产自动生成正式评测套件。
 - 构建并冻结独立 Gold Oracle 和本地业务应用测试场景。
 - 运行被测 Skill 的正式评测与独立判定。
 - 评估复合命令、多进程服务和高日志量下的 helper 生命周期问题。

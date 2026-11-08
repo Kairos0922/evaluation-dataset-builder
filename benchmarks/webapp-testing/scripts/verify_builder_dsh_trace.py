@@ -55,6 +55,14 @@ def main() -> int:
             "DSH trace does not prove a skill tool_call for evaluation-dataset-builder"
         )
 
+    call_ids = {event.get("callId") for event in builder_calls if event.get("callId")}
+    matching_results = [
+        event for event in events
+        if event_kind(event) == "tool_result" and event.get("callId") in call_ids
+    ]
+    if not matching_results:
+        raise SystemExit("Builder tool_call has no matching tool_result in DSH trace")
+
     finals = [event for event in events if event_kind(event) == "final"]
     if not finals:
         raise SystemExit("DSH trace has no final event")
