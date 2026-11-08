@@ -257,7 +257,8 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts/runtime-preflight
           python .audit/upstream-skills/skills/webapp-testing/scripts/with_server.py \
-            --server "python -m http.server 4173 --bind 127.0.0.1 --directory benchmarks/webapp-testing/fixtures/runtime-preflight" \
+            # exec replaces the shell with the single server process so helper termination reaches the actual listener.
+            --server "exec python -m http.server 4173 --bind 127.0.0.1 --directory benchmarks/webapp-testing/fixtures/runtime-preflight" \
             --port 4173 \
             --timeout 30 \
             -- python benchmarks/webapp-testing/scripts/check_runtime.py
