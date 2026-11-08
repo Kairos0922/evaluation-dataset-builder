@@ -269,7 +269,8 @@ jobs:
           python -m py_compile \
             benchmarks/webapp-testing/fixtures/workboard/server.py \
             benchmarks/webapp-testing/scripts/validate_workboard_fixture.py \
-            benchmarks/webapp-testing/scripts/prepare_builder_input.py
+            benchmarks/webapp-testing/scripts/prepare_builder_input.py \
+            benchmarks/webapp-testing/scripts/verify_builder_input.py
 
       - name: Validate clean Workboard profile
         run: |
@@ -347,6 +348,11 @@ jobs:
             --upstream-repo-dir .audit/upstream-skills \
             --output artifacts/webapp-testing-builder-input \
             --repo-revision "$BUILDER_INPUT_REVISION"
+
+      - name: Verify public Builder input bundle
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/verify_builder_input.py
 
       - name: Archive the public Builder input bundle
         uses: actions/upload-artifact@v4
