@@ -154,6 +154,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: webapp-testing-upstream-asset-audit
-          path: "$RUNNER_TEMP/upstream-asset-manifest.json"
+          path: ${{ runner.temp }}/upstream-asset-manifest.json
           if-no-files-found: error
           retention-days: 30
