@@ -1,12 +1,13 @@
 name: 验证 Skill
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "experiment/webapp-testing-contract"]
   pull_request:
     branches: ["main"]
   workflow_dispatch:
 
 permissions:
+  actions: read
   contents: read
 
 # PR 更新时只保留最新一次；main 每个 push 使用独立 group，不会互相取消或替换 pending run。
@@ -636,7 +637,16 @@ jobs:
 
   webapp-testing-pilot:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    needs: builder-production
+    needs: [runtime-preflight, builder-production]
+    if: >-
+      always() &&
+      (
+        (github.event_name == 'pull_request' &&
+         github.event.pull_request.head.repo.full_name == github.repository &&
+         needs.builder-production.result == 'success') ||
+        (github.event_name == 'push' &&
+         github.ref == 'refs/heads/experiment/webapp-testing-contract')
+      )
     strategy:
       fail-fast: false
       max-parallel: 3
@@ -661,6 +671,9 @@ jobs:
         with:
           name: webapp-testing-builder-result
           path: artifacts/builder-result
+          run-id: ${{ github.event_name == 'pull_request' && github.run_id || 42484978182 }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          repository: ${{ github.repository }}
 
       - name: Checkout pinned webapp-testing Skill
         uses: actions/checkout@v4
@@ -694,6 +707,8 @@ jobs:
           python -m playwright install --with-deps --only-shell chromium
 
       - name: Configure isolated DSH and verify Session Log is disabled
+        env:
+          CONFIG_PATH: ${{ runner.temp }}/dsh-config.txt
         run: |
           set -euo pipefail
           mkdir -p "$DSH_HOME"
@@ -706,7 +721,8 @@ jobs:
           python - <<'PY'
           from pathlib import Path
           import re
-          text = Path("$RUNNER_TEMP/dsh-config.txt").read_text(encoding="utf-8")
+          import os
+          text = Path(os.environ["CONFIG_PATH"]).read_text(encoding="utf-8")
           marker = "id: session-log-deepseek"
           if marker not in text:
               raise SystemExit("Session Log config missing; refusing model request")
