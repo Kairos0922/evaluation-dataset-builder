@@ -197,7 +197,7 @@ def main() -> int:
     source_files = [p for p in OUTPUT.rglob("*") if p.is_file() and "source" in p.name.casefold()]
     quality_reports = [
         p for p in OUTPUT.rglob("*.md")
-        if "quality" in p.name.casefold() or "report" in p.name.casefold()
+        if "quality" in p.name.casefold()
     ]
     if not coverage_files:
         raise SystemExit("Builder output lacks a coverage matrix or coverage report")
