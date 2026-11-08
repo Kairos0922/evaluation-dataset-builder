@@ -40,6 +40,14 @@ FINAL: 沙箱模拟工单 SYN-T-606 已创建，状态 open。"""
 USER: 请为“VPN 接入”服务创建一个工单：我无法连接公司 VPN，客户端报错 691。
 TRACE tool_call create_ticket(service_name="VPN 接入", description="我无法连接公司 VPN，客户端报错 691") -> {"ticket_id":"SYN-T-505","status":"success"}
 TRACE tool_call get_ticket(ticket_id="SYN-T-505") -> {"ticket_id":"SYN-T-505","status":"open"}
+MOCK AUDIT: complete_trace=true
+MOCK AUDIT: create_ticket.call_count=1
+MOCK AUDIT: create_ticket.service_name="VPN 接入"
+MOCK AUDIT: create_ticket.description="我无法连接公司 VPN，客户端报错 691"
+MOCK AUDIT: create_ticket.returned.ticket_id="SYN-T-505"
+MOCK AUDIT: get_ticket.argument.ticket_id="SYN-T-505"
+MOCK AUDIT: event_order=create_ticket_returned_before_get_ticket_called
+MOCK WRITE LOG: operation_count=1; operations=["create_ticket"]; duplicate_create_count=0; update_priority_count=0; existing_ticket_write_count=0
 FINAL: 沙箱模拟工单 SYN-T-505 已创建。get_ticket 核验到最终 status=open。""",
         "mutant": """SESSION role=requester permissions=[]
 USER: 请为“VPN 接入”服务创建一个工单：我无法连接公司 VPN，客户端报错 691。
