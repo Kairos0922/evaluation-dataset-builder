@@ -157,3 +157,146 @@ jobs:
           path: ${{ runner.temp }}/upstream-asset-manifest.json
           if-no-files-found: error
           retention-days: 30
+
+  runtime-preflight:
+    needs: audit-upstream-assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DSH_HOME: ${{ github.workspace }}/.dsh-home
+      DSH_TELEMETRY_MODE: DISABLED
+      DSH_TELEMETRY_DISABLED: "1"
+      DSH_VERSION: "0.2.2-rc.1"
+      PREFLIGHT_ARTIFACT_DIR: artifacts/runtime-preflight
+      PREFLIGHT_BASE_URL: http://127.0.0.1:4173
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Checkout pinned upstream repository
+        uses: actions/checkout@v4
+        with:
+          repository: anthropics/skills
+          ref: 2c5958ecac7cee2b583967a2c4981d0f4a75c579
+          path: .audit/upstream-skills
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.9.0"
+
+      - name: Install pinned DSH CLI
+        run: |
+          set -euo pipefail
+          npm install --global --no-audit --no-fund "@deepseek-ai/dsh@$DSH_VERSION"
+          dsh --version | tee artifacts-dsh-install.txt
+
+      - name: Configure isolated DSH and verify uploads are disabled
+        run: |
+          set -euo pipefail
+          mkdir -p "$DSH_HOME" .dsh/skills artifacts
+          cat > "$DSH_HOME/cordis.patch.yml" <<'YAML'
+          - id: session-log-deepseek
+            config:
+              enabled: false
+          YAML
+
+          cp -R .audit/upstream-skills/skills/webapp-testing .dsh/skills/webapp-testing
+          diff -qr .audit/upstream-skills/skills/webapp-testing .dsh/skills/webapp-testing
+          test -s .dsh/skills/webapp-testing/SKILL.md
+          dsh --profile headless --dump-config > artifacts/dsh-config.txt
+
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          config = Path("artifacts/dsh-config.txt").read_text(encoding="utf-8")
+          marker = "id: session-log-deepseek"
+          if marker not in config:
+              raise SystemExit("session-log-deepseek missing from composed DSH config")
+          section = config.split(marker, 1)[1]
+          next_component = re.search(r"\n\s*- id:", section)
+          if next_component:
+              section = section[:next_component.start()]
+          if not re.search(r"\benabled:\s*false\b", section):
+              raise SystemExit("Session Log upload was not verified disabled")
+          print("Verified: Session Log upload disabled")
+          print("Verified: OpenTelemetry disabled by DSH environment flags")
+          print("Verified: pinned webapp-testing files staged at .dsh/skills/webapp-testing")
+          PY
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned Playwright
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "playwright==1.64.1"
+          python -c "import playwright; from importlib.metadata import version; print('Playwright', version('playwright'))"
+
+      - name: Install headless Chromium and system dependencies
+        run: python -m playwright install --with-deps --only-shell chromium
+
+      - name: Run upstream server helper help
+        run: |
+          set -euo pipefail
+          python .audit/upstream-skills/skills/webapp-testing/scripts/with_server.py --help \
+            > artifacts/with-server-help.txt 2>&1
+          test -s artifacts/with-server-help.txt
+          cat artifacts/with-server-help.txt
+
+      - name: Run local browser interaction through upstream helper
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/runtime-preflight
+          python .audit/upstream-skills/skills/webapp-testing/scripts/with_server.py \
+            --server "python -m http.server 4173 --bind 127.0.0.1 --directory benchmarks/webapp-testing/fixtures/runtime-preflight" \
+            --port 4173 \
+            --timeout 30 \
+            -- python benchmarks/webapp-testing/scripts/check_runtime.py
+
+      - name: Verify the helper released its server port
+        if: always()
+        run: |
+          python - <<'PY'
+          import socket
+          import sys
+          import time
+
+          port = 4173
+          for attempt in range(12):
+              with socket.socket() as sock:
+                  sock.settimeout(0.25)
+                  try:
+                      sock.connect(("127.0.0.1", port))
+                  except OSError:
+                      if attempt == 11:
+                          print(f"PASS: TCP port {port} remained closed")
+                          raise SystemExit(0)
+                      time.sleep(0.25)
+                  else:
+                      print(f"FAIL: TCP port {port} is still accepting connections")
+                      raise SystemExit(1)
+          print(f"FAIL: could not verify port {port} cleanup")
+          raise SystemExit(1)
+          PY
+
+      - name: Upload runtime preflight evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-runtime-preflight
+          path: |
+            artifacts/runtime-preflight/
+            artifacts/dsh-config.txt
+            artifacts/with-server-help.txt
+            artifacts-dsh-install.txt
+          if-no-files-found: warn
+          retention-days: 14
