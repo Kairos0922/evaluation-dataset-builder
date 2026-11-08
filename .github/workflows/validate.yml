@@ -409,7 +409,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     env:
-      DSH_HOME: \${{ github.workspace }}/.dsh-home
+      DSH_HOME: ${{ github.workspace }}/.dsh-home
       DSH_TELEMETRY_MODE: DISABLED
       DSH_TELEMETRY_DISABLED: "1"
       DSH_VERSION: "0.2.2-rc.1"
@@ -422,7 +422,7 @@ jobs:
 
       - name: Check model credential availability
         env:
-          DEEPSEEK_API_KEY: \${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
           set -euo pipefail
           test -n "$DEEPSEEK_API_KEY" || {
@@ -462,9 +462,9 @@ jobs:
           if marker not in text:
               raise SystemExit("Session Log config not found; refusing model request")
           tail = text.split(marker, 1)[1]
-          next_component = re.search(r"\\n\\s*- id:", tail)
+          next_component = re.search(r"\n\s*- id:", tail)
           section = tail[:next_component.start()] if next_component else tail
-          if not re.search(r"\\benabled:\\s*false\\b", section):
+          if not re.search(r"\benabled:\s*false\b", section):
               raise SystemExit("Session Log upload is not verified disabled")
           print("Session Log upload disabled; OTel disabled by environment flags.")
           PY
@@ -479,19 +479,19 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --disable-pip-version-check jsonschema
-          python -m py_compile \\
-            benchmarks/webapp-testing/scripts/verify_builder_input.py \\
-            benchmarks/webapp-testing/scripts/verify_builder_dsh_trace.py \\
+          python -m py_compile \
+            benchmarks/webapp-testing/scripts/verify_builder_input.py \
+            benchmarks/webapp-testing/scripts/verify_builder_dsh_trace.py \
             benchmarks/webapp-testing/scripts/validate_builder_output.py
           python benchmarks/webapp-testing/scripts/verify_builder_input.py
           mkdir -p artifacts/webapp-testing-builder-output
-          find .dsh/skills/evaluation-dataset-builder -type f -print0 \\
-            | sort -z | xargs -0 sha256sum \\
+          find .dsh/skills/evaluation-dataset-builder -type f -print0 \
+            | sort -z | xargs -0 sha256sum \
             > artifacts/builder-skill-sha256.txt
 
       - name: Record Builder production environment
         env:
-          BUILDER_INPUT_REVISION: \${{ github.event.pull_request.head.sha || github.sha }}
+          BUILDER_INPUT_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
           UPSTREAM_COMMIT: "2c5958ecac7cee2b583967a2c4981d0f4a75c579"
         run: |
           set -euo pipefail
@@ -522,26 +522,26 @@ jobs:
               "webapp_testing_skill_loaded": False,
           }
           Path("artifacts/builder-run-metadata.json").write_text(
-              json.dumps(record, ensure_ascii=False, indent=2) + "\\n",
+              json.dumps(record, ensure_ascii=False, indent=2) + "\n",
               encoding="utf-8"
           )
           PY
 
       - name: Invoke Evaluation Dataset Builder through DSH
         env:
-          DEEPSEEK_API_KEY: \${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
           set -euo pipefail
           rm -rf artifacts/webapp-testing-builder-output
           mkdir -p artifacts/webapp-testing-builder-output
           set +e
-          dsh --profile headless --json --permission-mode workspace-write - \\
-            < artifacts/webapp-testing-builder-input/BUILDER-TASK.md \\
-            > artifacts/builder-dsh-events.jsonl \\
+          dsh --profile headless --json --permission-mode workspace-write - \
+            < artifacts/webapp-testing-builder-input/BUILDER-TASK.md \
+            > artifacts/builder-dsh-events.jsonl \
             2> artifacts/builder-dsh-stderr.log
           dsh_exit=$?
           set -e
-          printf '%s\\n' "$dsh_exit" > artifacts/builder-dsh-exit-code.txt
+          printf '%s\n' "$dsh_exit" > artifacts/builder-dsh-exit-code.txt
           if [ "$dsh_exit" -ne 0 ]; then
             echo "::error::DSH Builder invocation failed with exit code $dsh_exit"
             exit "$dsh_exit"
@@ -550,7 +550,7 @@ jobs:
       - name: Check and redact any accidental credential disclosure
         if: always()
         env:
-          DEEPSEEK_API_KEY: \${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
           python - <<'PY'
           import json
@@ -584,7 +584,7 @@ jobs:
                   "secret_value_exposed_in_artifact": bool(leaked),
                   "redacted_files": leaked,
                   "scope": "DSH evidence and generated output",
-              }, ensure_ascii=False, indent=2) + "\\n",
+              }, ensure_ascii=False, indent=2) + "\n",
               encoding="utf-8",
           )
           if leaked:
@@ -599,20 +599,20 @@ jobs:
         if: success()
         run: |
           set -euo pipefail
-          python benchmarks/webapp-testing/scripts/verify_builder_dsh_trace.py \\
-            --events artifacts/builder-dsh-events.jsonl \\
-            --exit-code "$(cat artifacts/builder-dsh-exit-code.txt)" \\
-            --output-dir artifacts/webapp-testing-builder-output \\
+          python benchmarks/webapp-testing/scripts/verify_builder_dsh_trace.py \
+            --events artifacts/builder-dsh-events.jsonl \
+            --exit-code "$(cat artifacts/builder-dsh-exit-code.txt)" \
+            --output-dir artifacts/webapp-testing-builder-output \
             | tee artifacts/builder-dsh-trace-verification.json
 
       - name: Validate Builder-generated datasets and manifests
         if: success()
         run: |
           set -euo pipefail
-          python benchmarks/webapp-testing/scripts/validate_builder_output.py \\
+          python benchmarks/webapp-testing/scripts/validate_builder_output.py \
             | tee artifacts/builder-validation-summary.json
-          find artifacts/webapp-testing-builder-output -type f -print0 \\
-            | sort -z | xargs -0 sha256sum \\
+          find artifacts/webapp-testing-builder-output -type f -print0 \
+            | sort -z | xargs -0 sha256sum \
             > artifacts/builder-output-sha256.txt
 
       - name: Archive Builder production evidence
