@@ -147,7 +147,7 @@ def main() -> int:
                 page.get_by_label("Title").fill("   ")
                 page.get_by_role("button", name="Create task").click()
                 page.wait_for_function("document.querySelector('#task-rows').innerText.includes('WB-106')")
-                expect(read_counts(page)["all"] == 6, "Expected whitespace-title mutation was not observed")
+                expect(page.locator("#task-rows tr").count() == 6, "Whitespace-only task was not added")
                 result["checks"].append("mutation-blank-title-accepted")
 
             if result["page_errors"]:
