@@ -1,0 +1,63 @@
+name: webapp-testing upstream asset audit
+
+on:
+  pull_request:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/webapp-testing-asset-audit.yml"
+      - "benchmarks/webapp-testing/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: webapp-testing-asset-audit-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit-upstream-assets:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Checkout pinned upstream repository
+        uses: actions/checkout@v4
+        with:
+          repository: anthropics/skills
+          ref: 2c5958ecac7cee2b583967a2c4981d0f4a75c579
+          path: .audit/upstream-skills
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Regenerate complete asset manifest
+        run: |
+          set -euo pipefail
+          python -m py_compile benchmarks/webapp-testing/scripts/audit_upstream_assets.py
+          python benchmarks/webapp-testing/scripts/audit_upstream_assets.py \
+            --repo-dir .audit/upstream-skills \
+            --output "$RUNNER_TEMP/upstream-asset-manifest.json"
+
+      - name: Compare generated manifest with reviewed manifest
+        run: |
+          set -euo pipefail
+          diff -u \
+            benchmarks/webapp-testing/upstream-asset-manifest.json \
+            "$RUNNER_TEMP/upstream-asset-manifest.json"
+
+      - name: Archive audit manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-upstream-asset-audit
+          path: "$RUNNER_TEMP/upstream-asset-manifest.json"
+          if-no-files-found: error
+          retention-days: 30
