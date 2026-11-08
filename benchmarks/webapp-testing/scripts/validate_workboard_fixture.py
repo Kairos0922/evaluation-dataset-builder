@@ -61,7 +61,6 @@ def main() -> int:
         # The Playwright context manager owns browser teardown on both success and failure.
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
-            try:
             result["browser_version"] = browser.version
             page = browser.new_page(viewport={"width": 1440, "height": 900})
             page.on("pageerror", lambda error: result["page_errors"].append(str(error)))
@@ -80,7 +79,7 @@ def main() -> int:
                 page.wait_for_function("document.querySelectorAll('#task-rows tr').length === 1")
                 expect(page.locator("#task-rows tr").filter(has_text="Reset password flow").count() == 1, "Case-insensitive title search failed")
                 search.fill("screenshots")
-                page.locator("#task-rows tr").filter(has_text="WB-102").wait_for()
+                page.locator("#task-rows tr").filter(has_text="Update onboarding guide").wait_for()
                 expect(page.locator("#task-rows tr").count() == 1, "Description search failed")
                 result["checks"].extend(["case-insensitive-search", "description-search"])
 
@@ -145,7 +144,7 @@ def main() -> int:
 
                 page.get_by_label("Title").fill("   ")
                 page.get_by_role("button", name="Create task").click()
-                page.wait_for_function("document.querySelector('#task-rows').innerText.includes('WB-106')")
+                page.wait_for_function("document.querySelectorAll('#task-rows tr').length === 6")
                 expect(page.locator("#task-rows tr").count() == 6, "Whitespace-only task was not added")
                 result["checks"].append("mutation-blank-title-accepted")
 
@@ -153,8 +152,7 @@ def main() -> int:
                 raise AssertionError(f"Browser page errors: {result['page_errors']}")
             page.screenshot(path=result["screenshot"], full_page=True)
             result["status"] = "PASS"
-            finally:
-                browser.close()
+        # Exiting sync_playwright closes the browser even when an assertion raises.
         return_code = 0
     except Exception as exc:
         result["error"] = f"{type(exc).__name__}: {exc}"
