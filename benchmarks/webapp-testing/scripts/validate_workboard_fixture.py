@@ -57,10 +57,11 @@ def main() -> int:
         "screenshot": str(ARTIFACT_DIR / f"workboard-{args.profile}.png"),
     }
 
-    browser = None
     try:
+        # The Playwright context manager owns browser teardown on both success and failure.
         with sync_playwright() as playwright:
             browser = playwright.chromium.launch(headless=True)
+            try:
             result["browser_version"] = browser.version
             page = browser.new_page(viewport={"width": 1440, "height": 900})
             page.on("pageerror", lambda error: result["page_errors"].append(str(error)))
@@ -77,18 +78,17 @@ def main() -> int:
                 search = page.get_by_role("searchbox", name="Search tasks")
                 search.fill("PASSWORD")
                 page.wait_for_function("document.querySelectorAll('#task-rows tr').length === 1")
-                expect(page.locator("#task-rows tr").filter(has_text="WB-101").count() == 1, "Case-insensitive title search failed")
+                expect(page.locator("#task-rows tr").filter(has_text="Reset password flow").count() == 1, "Case-insensitive title search failed")
                 search.fill("screenshots")
                 page.locator("#task-rows tr").filter(has_text="WB-102").wait_for()
                 expect(page.locator("#task-rows tr").count() == 1, "Description search failed")
                 result["checks"].extend(["case-insensitive-search", "description-search"])
 
                 search.fill("")
-                search.fill("")
-                row = page.locator("#task-rows tr").filter(has_text="WB-101")
+                row = page.locator("#task-rows tr").filter(has_text="Reset password flow")
                 row.get_by_role("button", name="Move to In progress").click()
                 page.wait_for_function("""() => {
-                    const row = [...document.querySelectorAll('#task-rows tr')].find(item => item.innerText.includes('WB-101'));
+                    const row = [...document.querySelectorAll('#task-rows tr')].find(item => item.innerText.includes('Reset password flow'));
                     return row && row.children[2].innerText.includes('In progress')
                         && document.querySelector('#count-open').textContent === '1';
                 }""")
@@ -96,10 +96,10 @@ def main() -> int:
                 expect(updated == {"all": 5, "open": 1, "in_progress": 3, "done": 1}, f"Summary did not update after status change: {updated}")
                 result["checks"].append("status-transition-and-summary")
 
-                row = page.locator("#task-rows tr").filter(has_text="WB-104")
+                row = page.locator("#task-rows tr").filter(has_text="Verify email notification")
                 row.get_by_role("button", name="Delete").click()
                 page.get_by_role("dialog").get_by_role("button", name="Cancel").click()
-                expect(page.locator("#task-rows tr").filter(has_text="WB-104").count() == 1, "Cancel deleted the task")
+                expect(page.locator("#task-rows tr").filter(has_text="Verify email notification").count() == 1, "Cancel deleted the task")
                 result["checks"].append("delete-cancel-preserves-state")
 
                 page.get_by_label("Title").fill("   ")
@@ -116,10 +116,10 @@ def main() -> int:
                 expect(read_counts(page)["all"] == 6, "Valid task creation did not update summary")
                 result["checks"].append("valid-task-creation")
 
-                row = page.locator("#task-rows tr").filter(has_text="WB-104")
+                row = page.locator("#task-rows tr").filter(has_text="Verify email notification")
                 row.get_by_role("button", name="Delete").click()
                 page.get_by_role("dialog").get_by_role("button", name="Delete task").click()
-                page.wait_for_function("!document.querySelector('#task-rows').innerText.includes('WB-104')")
+                page.wait_for_function("!document.querySelector('#task-rows').innerText.includes('Verify email notification')")
                 expect(read_counts(page)["all"] == 5, "Confirmed deletion did not update task count")
                 result["checks"].append("confirmed-delete")
             else:
@@ -133,11 +133,10 @@ def main() -> int:
                 result["checks"].append("mutation-search-case-sensitive-title-only")
 
                 search.fill("")
-                search.fill("")
-                row = page.locator("#task-rows tr").filter(has_text="WB-101")
+                row = page.locator("#task-rows tr").filter(has_text="Reset password flow")
                 row.get_by_role("button", name="Move to In progress").click()
                 page.wait_for_function("""() => {
-                    const row = [...document.querySelectorAll('#task-rows tr')].find(item => item.innerText.includes('WB-101'));
+                    const row = [...document.querySelectorAll('#task-rows tr')].find(item => item.innerText.includes('Reset password flow'));
                     return row && row.children[2].innerText.includes('In progress');
                 }""")
                 mutant_counts = read_counts(page)
@@ -154,17 +153,14 @@ def main() -> int:
                 raise AssertionError(f"Browser page errors: {result['page_errors']}")
             page.screenshot(path=result["screenshot"], full_page=True)
             result["status"] = "PASS"
+            finally:
+                browser.close()
         return_code = 0
     except Exception as exc:
         result["error"] = f"{type(exc).__name__}: {exc}"
         result["traceback"] = traceback.format_exc()
         return_code = 1
     finally:
-        if browser is not None:
-            try:
-                browser.close()
-            except Exception as exc:
-                result.setdefault("cleanup_errors", []).append(str(exc))
         output = ARTIFACT_DIR / f"workboard-{args.profile}.json"
         output.write_text(json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(json.dumps(result, ensure_ascii=False, indent=2))
