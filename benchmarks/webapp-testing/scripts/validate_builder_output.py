@@ -33,6 +33,20 @@ def require_nonempty_text(value, location: str) -> None:
         raise SystemExit(f"{location} must be a non-empty string")
 
 
+def require_nonempty_collection(value, location: str) -> None:
+    if not isinstance(value, (list, dict)) or not value:
+        raise SystemExit(f"{location} must be a non-empty list or object")
+
+
+def require_nonempty_value(value, location: str) -> None:
+    if value is None:
+        raise SystemExit(f"{location} is required")
+    if isinstance(value, str) and not value.strip():
+        raise SystemExit(f"{location} must not be blank")
+    if isinstance(value, (list, dict)) and not value:
+        raise SystemExit(f"{location} must not be empty")
+
+
 def main() -> int:
     if not OUTPUT.is_dir():
         raise SystemExit(f"Builder output directory not found: {OUTPUT}")
@@ -87,11 +101,32 @@ def main() -> int:
                     f"Case {case_id} has unsupported execution_status {execution_status}"
                 )
 
+            require_nonempty_value(case.get("user_input"), f"{case_id}.user_input")
+            require_nonempty_value(case.get("expected_behavior"), f"{case_id}.expected_behavior")
+            require_nonempty_collection(case.get("preconditions"), f"{case_id}.preconditions")
+            if "forbidden_behavior" not in case or not isinstance(case["forbidden_behavior"], list):
+                raise SystemExit(f"Case {case_id} must declare forbidden_behavior as a list")
+            require_nonempty_collection(case.get("source_refs"), f"{case_id}.source_refs")
+
+            execution = case["execution_requirements"]
+            for field in ("required_permissions", "allowed_actions", "steps",
+                          "observable_assertions", "forbidden_side_effects"):
+                require_nonempty_collection(execution.get(field), f"{case_id}.execution_requirements.{field}")
+            require_nonempty_collection(execution.get("environment"), f"{case_id}.execution_requirements.environment")
+            for field in ("expected_end_state", "reset_plan", "cleanup_plan", "failure_cleanup"):
+                require_nonempty_value(execution.get(field), f"{case_id}.execution_requirements.{field}")
+
             grading = case["grading"]
             if not grading.get("uncertainty_policy"):
                 raise SystemExit(f"Case {case_id} grading lacks an explicit UNKNOWN policy")
             if not grading.get("pass_conditions") or not grading.get("fail_conditions"):
                 raise SystemExit(f"Case {case_id} grading lacks PASS/FAIL conditions")
+            if not grading.get("evidence_required"):
+                raise SystemExit(f"Case {case_id} grading lacks required evidence")
+            for criterion in grading.get("criteria", []):
+                for field in ("criterion_id", "description", "pass_condition", "fail_condition", "evidence_required"):
+                    if not criterion.get(field):
+                        raise SystemExit(f"Case {case_id} grading criterion lacks {field}")
 
             for source in case.get("source_refs", []):
                 require_nonempty_text(source.get("title"), f"{case_id}.source_refs.title")
