@@ -79,8 +79,8 @@ def main() -> int:
                 page.wait_for_function("document.querySelectorAll('#task-rows tr').length === 1")
                 expect(page.locator("#task-rows tr").filter(has_text="WB-101").count() == 1, "Case-insensitive title search failed")
                 search.fill("screenshots")
-                page.wait_for_function("document.querySelectorAll('#task-rows tr').length === 1")
-                expect(page.locator("#task-rows tr").filter(has_text="WB-102").count() == 1, "Description search failed")
+                page.locator("#task-rows tr").filter(has_text="WB-102").wait_for()
+                expect(page.locator("#task-rows tr").count() == 1, "Description search failed")
                 result["checks"].extend(["case-insensitive-search", "description-search"])
 
                 search.fill("")
