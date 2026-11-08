@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import datetime
 from pathlib import Path
 
 ROOT = Path("artifacts/webapp-testing-builder-input")
@@ -25,6 +26,12 @@ def main() -> int:
 
     if manifest.get("bundle_status") != "COMPLETE":
         raise SystemExit("Builder input bundle is not marked COMPLETE")
+    captured_at = manifest.get("captured_at_utc")
+    if not captured_at:
+        raise SystemExit("Input bundle lacks a capture timestamp")
+    datetime.fromisoformat(captured_at.replace("Z", "+00:00"))
+    if manifest.get("source_snapshot", {}).get("upstream_skill_tree_sha") != "5ffb7dc66b9fd4c25c3e400a4c00da99a349b714":
+        raise SystemExit("Unexpected upstream Skill tree SHA in input bundle")
     if manifest.get("visibility") != "PUBLIC_FOR_BUILDER_AND_CONSUMER":
         raise SystemExit("Unexpected Builder input visibility")
     if manifest.get("formal_evaluation_cases_included") is not False:
