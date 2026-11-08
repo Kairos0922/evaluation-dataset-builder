@@ -1,0 +1,59 @@
+{
+  "schema_version": "0.1",
+  "status": "PARTIAL_INVENTORY",
+  "source": {
+    "repository": "https://github.com/anthropics/skills",
+    "path": "skills/webapp-testing",
+    "commit": "2c5958ecac7cee2b583967a2c4981d0f4a75c579",
+    "license": "Apache-2.0"
+  },
+  "completeness": {
+    "recursive_tree_verified": false,
+    "full_file_inventory_verified": false,
+    "directory_tree_hash": null,
+    "note": "仅列出本轮已逐文件获取并核验的六个文件。不能用于声称上游目录完整冻结。"
+  },
+  "files": [
+    {
+      "path": "skills/webapp-testing/SKILL.md",
+      "blob_sha": "4726215301db64a0cc4d41fc3219c61f37a30f4a",
+      "role": "instructions",
+      "verified_at_commit": "2c5958ecac7cee2b583967a2c4981d0f4a75c579"
+    },
+    {
+      "path": "skills/webapp-testing/LICENSE.txt",
+      "blob_sha": "4f881c52d1f72f4cfb720e339e2d35c3058d01a9",
+      "role": "license",
+      "verified_at_commit": "2c5958ecac7cee2b583967a2c4981d0f4a75c579"
+    },
+    {
+      "path": "skills/webapp-testing/scripts/with_server.py",
+      "blob_sha": "431f2eba16b268b7f3e2ae4daae9db41c0289b6d",
+      "role": "helper_script",
+      "verified_at_commit": "2c5958ecac7cee2b583967a2c4981d0f4a75c579"
+    },
+    {
+      "path": "skills/webapp-testing/examples/console_logging.py",
+      "blob_sha": "9329b5e232ed53d944bfe95e750070117d31b9ab",
+      "role": "example",
+      "verified_at_commit": "2c5958ecac7cee2b583967a2c4981d0f4a75c579"
+    },
+    {
+      "path": "skills/webapp-testing/examples/element_discovery.py",
+      "blob_sha": "917ba72f52421a1b324f93ae8e38af72010a87b9",
+      "role": "example",
+      "verified_at_commit": "2c5958ecac7cee2b583967a2c4981d0f4a75c579"
+    },
+    {
+      "path": "skills/webapp-testing/examples/static_html_automation.py",
+      "blob_sha": "90bbedcc08cdb345c74fb938ebad02c0baf56603",
+      "role": "example",
+      "verified_at_commit": "2c5958ecac7cee2b583967a2c4981d0f4a75c579"
+    }
+  ],
+  "pending": [
+    "获取递归 Git tree 并确认完整目录文件清单",
+    "核验所有未列出文件及其引用、依赖、许可证",
+    "按明确的规范化规则计算目录清单 SHA-256"
+  ]
+}
