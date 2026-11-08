@@ -633,3 +633,116 @@ jobs:
             artifacts/credential-scan.json
           if-no-files-found: warn
           retention-days: 30
+
+  webapp-testing-pilot:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    needs: builder-production
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        dataset_id: [WBT-CONF-001, WBT-DEF-001, WBT-JUDG-001]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DSH_HOME: ${{ runner.temp }}/dsh-home
+      DSH_TELEMETRY_MODE: DISABLED
+      DSH_TELEMETRY_DISABLED: "1"
+      DSH_VERSION: "0.2.2-rc.1"
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download Builder-produced dataset artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-builder-result
+          path: artifacts/builder-result
+
+      - name: Checkout pinned webapp-testing Skill
+        uses: actions/checkout@v4
+        with:
+          repository: anthropics/skills
+          ref: 2c5958ecac7cee2b583967a2c4981d0f4a75c579
+          path: .audit/upstream-skills
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.9.0"
+
+      - name: Install pinned DSH CLI
+        run: |
+          set -euo pipefail
+          npm install --global --no-audit --no-fund "@deepseek-ai/dsh@$DSH_VERSION"
+          dsh --version
+
+      - name: Set up Python and Playwright
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.16"
+
+      - name: Install pinned Playwright and Chromium
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "playwright==1.64.1"
+          python -m playwright install --with-deps --only-shell chromium
+
+      - name: Configure isolated DSH and verify Session Log is disabled
+        run: |
+          set -euo pipefail
+          mkdir -p "$DSH_HOME"
+          cat > "$DSH_HOME/cordis.patch.yml" <<'YAML'
+          - id: session-log-deepseek
+            config:
+              enabled: false
+          YAML
+          dsh --profile headless --dump-config > "$RUNNER_TEMP/dsh-config.txt"
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          text = Path("$RUNNER_TEMP/dsh-config.txt").read_text(encoding="utf-8")
+          marker = "id: session-log-deepseek"
+          if marker not in text:
+              raise SystemExit("Session Log config missing; refusing model request")
+          tail = text.split(marker, 1)[1]
+          next_item = re.search(r"\n\s*- id:", tail)
+          section = tail[:next_item.start()] if next_item else tail
+          if not re.search(r"\benabled:\s*false\b", section):
+              raise SystemExit("Session Log upload is not disabled")
+          print("PASS: Session Log upload disabled; OTel disabled by environment flags.")
+          PY
+
+      - name: Compile execution runner
+        run: python -m py_compile benchmarks/webapp-testing/scripts/run_webapp_testing.py
+
+      - name: Execute first Builder-generated case as a controlled pilot
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/run_webapp_testing.py \
+            --dataset "artifacts/builder-result/webapp-testing-builder-output/datasets/${{ matrix.dataset_id }}.jsonl" \
+            --dataset-id "${{ matrix.dataset_id }}" \
+            --fixture-source benchmarks/webapp-testing/fixtures/workboard \
+            --public-assets benchmarks/webapp-testing/assets/public \
+            --skill-source .audit/upstream-skills/skills/webapp-testing \
+            --work-root "$RUNNER_TEMP/wbt-workspaces" \
+            --output-dir "$RUNNER_TEMP/wbt-output/${{ matrix.dataset_id }}" \
+            --skill-commit "2c5958ecac7cee2b583967a2c4981d0f4a75c579" \
+            --limit 1 \
+            --case-timeout 900
+
+      - name: Archive webapp-testing pilot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-pilot-${{ matrix.dataset_id }}
+          path: ${{ runner.temp }}/wbt-output/${{ matrix.dataset_id }}/
+          if-no-files-found: warn
+          retention-days: 30
