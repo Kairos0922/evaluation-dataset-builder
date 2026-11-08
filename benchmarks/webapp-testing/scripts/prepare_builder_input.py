@@ -11,6 +11,7 @@ import hashlib
 import json
 import shutil
 import subprocess
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -164,6 +165,7 @@ def main() -> int:
         "schema_version": "1.0",
         "bundle_status": "COMPLETE",
         "visibility": "PUBLIC_FOR_BUILDER_AND_CONSUMER",
+        "captured_at_utc": datetime.now(timezone.utc).isoformat(),
         "formal_evaluation_cases_included": False,
         "grading_contracts_included": False,
         "gold_oracle_included": False,
@@ -173,6 +175,7 @@ def main() -> int:
             "upstream_repository": UPSTREAM_REPO,
             "upstream_skill_path": UPSTREAM_SKILL_PATH,
             "upstream_commit": UPSTREAM_COMMIT,
+            "upstream_skill_tree_sha": "5ffb7dc66b9fd4c25c3e400a4c00da99a349b714",
         },
         "file_count": len(records),
         "package_manifest_sha256": package_hash,
