@@ -1,6 +1,6 @@
 # Builder 生产任务：webapp-testing
 
-请使用 `evaluation-dataset-builder` Skill。读取 `benchmarks/webapp-testing/assets/public/` 中的全部公开资产，并分析 `benchmarks/webapp-testing/fixtures/workboard/` 中的应用源文件。基于这些输入，为 Anthropic `webapp-testing` Skill 构建可执行、可判定、可追溯的评测套件。
+请使用 `evaluation-dataset-builder` Skill。读取 `artifacts/webapp-testing-builder-input/` 中的全部资产。该目录包含 `assets/public/`、`fixtures/workboard/`，以及从 Anthropic 固定 commit `2c5958ecac7cee2b583967a2c4981d0f4a75c579` 检出的完整 `upstream-skill/` 目录。必须阅读上游 `SKILL.md`、脚本、示例和许可证，不得只依赖能力摘要。基于这些输入，为 Anthropic `webapp-testing` Skill 构建可执行、可判定、可追溯的评测套件。
 
 ## 评测目标
 
