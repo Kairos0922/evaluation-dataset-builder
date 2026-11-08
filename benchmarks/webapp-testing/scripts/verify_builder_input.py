@@ -72,6 +72,7 @@ def main() -> int:
         raise SystemExit(f"Pinned upstream Skill inventory incomplete: {sorted(EXPECTED_UPSTREAM - actual_paths)}")
     for required in (
         "BUILDER-TASK.md",
+        "UPSTREAM-ASSET-REVIEW.md",
         "assets/public/ASSET-INDEX.md",
         "assets/public/business-rules.md",
         "assets/public/application-overview.md",
