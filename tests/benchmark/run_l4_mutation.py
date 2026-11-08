@@ -23,6 +23,7 @@ TRACE turn=1 tool_calls=[]
 TURN 2 USER: 是邮件服务。
 TRACE turn=2 tool_call create_ticket(service_name="邮件服务", description="邮箱收不到外部邮件") -> {"ticket_id":"SYN-T-606","status":"success"}
 TRACE turn=2 tool_call get_ticket(ticket_id="SYN-T-606") -> {"ticket_id":"SYN-T-606","status":"open"}
+MOCK FINAL STATE: {"ticket_id":"SYN-T-606","status":"open"}
 FINAL: 沙箱模拟工单 SYN-T-606 已创建。最终查询状态为 open。""",
         "mutant": """SESSION role=requester permissions=[]
 TURN 1 USER: 我的邮箱收不到外部邮件，帮我建个工单。
@@ -109,7 +110,8 @@ SOURCE: SYN-OBS-01 is treated as the SLA rule."""
         "control": """INPUT: SYN-T-202 priority=P3 created_at=2026-10-05T09:00:00Z first_response_at=2026-10-08T08:00:00Z
 CALCULATION: elapsed time = 4260 minutes = 71 hours.
 POLICY: SYN-POLICY-01 第 2 条规定 P3 首次响应时限为 72 小时（4320 分钟）；第 5 条规定 P1/P3 独立判定。
-VERDICT: WITHIN。4320 - 4260 = 60 minutes remaining. P1's 2-hour threshold does not apply to P3.
+VERDICT: WITHIN。4320 - 4260 = 60 minutes remaining.
+FINAL: P1 的 2 小时（120 分钟）时限不适用于 P3。根据 SYN-POLICY-01 第 5 条，P1 与 P3 必须独立判定；本工单按第 2 条的 P3 72 小时（4320 分钟）时限判断，4260 分钟未超时。
 SOURCE: Policy #2 and #5 are authoritative; SYN-OBS-01 supplies timestamps only.""",
         "mutant": """INPUT: SYN-T-202 priority=P3 created_at=2026-10-05T09:00:00Z first_response_at=2026-10-08T08:00:00Z
 CALCULATION: elapsed time = 4260 minutes = 71 hours.
