@@ -76,17 +76,22 @@ def main() -> int:
             if args.profile == "clean":
                 search = page.get_by_role("searchbox", name="Search tasks")
                 search.fill("PASSWORD")
-                page.locator("#task-rows tr").filter(has_text="WB-101").wait_for()
-                expect(page.locator("#task-rows tr").count() == 1, "Case-insensitive title search failed")
+                page.wait_for_function("document.querySelectorAll('#task-rows tr').length === 1")
+                expect(page.locator("#task-rows tr").filter(has_text="WB-101").count() == 1, "Case-insensitive title search failed")
                 search.fill("screenshots")
-                page.locator("#task-rows tr").filter(has_text="WB-102").wait_for()
-                expect(page.locator("#task-rows tr").count() == 1, "Description search failed")
+                page.wait_for_function("document.querySelectorAll('#task-rows tr').length === 1")
+                expect(page.locator("#task-rows tr").filter(has_text="WB-102").count() == 1, "Description search failed")
                 result["checks"].extend(["case-insensitive-search", "description-search"])
 
                 search.fill("")
+                search.fill("")
                 row = page.locator("#task-rows tr").filter(has_text="WB-101")
                 row.get_by_role("button", name="Move to In progress").click()
-                page.wait_for_function("document.querySelector('#count-open').textContent === '1'")
+                page.wait_for_function("""() => {
+                    const row = [...document.querySelectorAll('#task-rows tr')].find(item => item.innerText.includes('WB-101'));
+                    return row && row.children[2].innerText.includes('In progress')
+                        && document.querySelector('#count-open').textContent === '1';
+                }""")
                 updated = read_counts(page)
                 expect(updated == {"all": 5, "open": 1, "in_progress": 3, "done": 1}, f"Summary did not update after status change: {updated}")
                 result["checks"].append("status-transition-and-summary")
@@ -99,7 +104,7 @@ def main() -> int:
 
                 page.get_by_label("Title").fill("   ")
                 page.get_by_role("button", name="Create task").click()
-                page.get_by_role("status").wait_for()
+                page.wait_for_function("document.querySelector('#status-message').innerText.includes('Title is required')")
                 expect("Title is required" in page.locator("#status-message").inner_text(), "Whitespace-only title was not rejected")
                 expect(page.locator("#count-all").inner_text() == "5", "Invalid task was created")
                 result["checks"].append("blank-title-rejected")
@@ -120,15 +125,21 @@ def main() -> int:
             else:
                 search = page.get_by_role("searchbox", name="Search tasks")
                 search.fill("PASSWORD")
+                page.wait_for_function("document.querySelector('#empty-state').hidden === false")
                 expect(page.locator("#task-rows tr").count() == 0, "Expected search mutation was not observed")
                 search.fill("screenshots")
+                page.wait_for_function("document.querySelector('#empty-state').hidden === false")
                 expect(page.locator("#task-rows tr").count() == 0, "Expected description-search mutation was not observed")
                 result["checks"].append("mutation-search-case-sensitive-title-only")
 
                 search.fill("")
+                search.fill("")
                 row = page.locator("#task-rows tr").filter(has_text="WB-101")
                 row.get_by_role("button", name="Move to In progress").click()
-                page.wait_for_function("document.querySelector('#task-rows').innerText.includes('In progress')")
+                page.wait_for_function("""() => {
+                    const row = [...document.querySelectorAll('#task-rows tr')].find(item => item.innerText.includes('WB-101'));
+                    return row && row.children[2].innerText.includes('In progress');
+                }""")
                 mutant_counts = read_counts(page)
                 expect(mutant_counts == initial, f"Expected stale summary was not observed: {mutant_counts}")
                 result["checks"].append("mutation-stale-summary")
