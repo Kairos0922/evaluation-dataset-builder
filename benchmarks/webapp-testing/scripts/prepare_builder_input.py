@@ -80,7 +80,7 @@ def main() -> int:
     )
     shutil.copy2(
         repo / "benchmarks/webapp-testing/UPSTREAM-ASSET-REVIEW.md",
-        provenance / "upstream-asset-review.md",
+        output / "UPSTREAM-ASSET-REVIEW.md",
     )
 
     records: list[dict[str, Any]] = []
@@ -127,6 +127,13 @@ def main() -> int:
                 "revision": args.repo_revision,
                 "source_path": "benchmarks/webapp-testing/BUILDER-TASK.md",
                 "asset_type": "task_instruction",
+            }
+        elif relative == "UPSTREAM-ASSET-REVIEW.md":
+            source = {
+                "repository": "Kairos0922/evaluation-dataset-builder",
+                "revision": args.repo_revision,
+                "source_path": "benchmarks/webapp-testing/UPSTREAM-ASSET-REVIEW.md",
+                "asset_type": "provenance_record",
             }
         else:
             meta = source_by_prefix[prefix]
