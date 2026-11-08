@@ -263,6 +263,79 @@ jobs:
             --timeout 30 \
             -- python benchmarks/webapp-testing/scripts/check_runtime.py
 
+      - name: Compile Workboard fixture and validation script
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            benchmarks/webapp-testing/fixtures/workboard/server.py \
+            benchmarks/webapp-testing/scripts/validate_workboard_fixture.py
+
+      - name: Validate clean Workboard profile
+        run: |
+          set -euo pipefail
+          python .audit/upstream-skills/skills/webapp-testing/scripts/with_server.py \
+            --server "exec env APP_PROFILE=clean APP_HOST=127.0.0.1 APP_PORT=4173 APP_AUDIT_LOG=$RUNNER_TEMP/workboard-clean.jsonl python benchmarks/webapp-testing/fixtures/workboard/server.py" \
+            --port 4173 \
+            --timeout 30 \
+            -- python benchmarks/webapp-testing/scripts/validate_workboard_fixture.py --profile clean
+
+      - name: Verify clean Workboard server cleanup
+        if: always()
+        run: |
+          python - <<'PY'
+          import socket
+          import sys
+          import time
+
+          for attempt in range(8):
+              with socket.socket() as sock:
+                  sock.settimeout(0.25)
+                  try:
+                      sock.connect(("127.0.0.1", 4173))
+                  except OSError:
+                      if attempt == 7:
+                          print("PASS: clean Workboard server port is closed")
+                          raise SystemExit(0)
+                      time.sleep(0.25)
+                  else:
+                      print("FAIL: clean Workboard server is still listening")
+                      raise SystemExit(1)
+          raise SystemExit("Could not verify clean server cleanup")
+          PY
+
+      - name: Validate mutant Workboard profile
+        run: |
+          set -euo pipefail
+          python .audit/upstream-skills/skills/webapp-testing/scripts/with_server.py \
+            --server "exec env APP_PROFILE=mutant APP_HOST=127.0.0.1 APP_PORT=4173 APP_AUDIT_LOG=$RUNNER_TEMP/workboard-mutant.jsonl python benchmarks/webapp-testing/fixtures/workboard/server.py" \
+            --port 4173 \
+            --timeout 30 \
+            -- python benchmarks/webapp-testing/scripts/validate_workboard_fixture.py --profile mutant
+
+      - name: Verify mutant Workboard server cleanup
+        if: always()
+        run: |
+          python - <<'PY'
+          import socket
+          import sys
+          import time
+
+          for attempt in range(8):
+              with socket.socket() as sock:
+                  sock.settimeout(0.25)
+                  try:
+                      sock.connect(("127.0.0.1", 4173))
+                  except OSError:
+                      if attempt == 7:
+                          print("PASS: mutant Workboard server port is closed")
+                          raise SystemExit(0)
+                      time.sleep(0.25)
+                  else:
+                      print("FAIL: mutant Workboard server is still listening")
+                      raise SystemExit(1)
+          raise SystemExit("Could not verify mutant server cleanup")
+          PY
+
       - name: Verify the helper released its server port
         if: always()
         run: |
@@ -299,5 +372,7 @@ jobs:
             artifacts/dsh-config.txt
             artifacts/with-server-help.txt
             artifacts-dsh-install.txt
+            ${{ runner.temp }}/workboard-clean.jsonl
+            ${{ runner.temp }}/workboard-mutant.jsonl
           if-no-files-found: warn
           retention-days: 14
