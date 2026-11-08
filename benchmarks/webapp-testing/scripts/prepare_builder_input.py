@@ -116,7 +116,7 @@ def main() -> int:
             continue
         relative = path.relative_to(output).as_posix()
         prefix = next((key for key in source_by_prefix if relative.startswith(key)), None)
-        if prefix is None and relative != "BUILDER-TASK.md":
+        if prefix is None and relative not in {"BUILDER-TASK.md", "UPSTREAM-ASSET-REVIEW.md"}:
             raise SystemExit(f"Unclassified Builder input file: {relative}")
         data = path.read_bytes()
         digest = hashlib.sha256(data).hexdigest()
