@@ -113,6 +113,7 @@ def main() -> int:
                           "observable_assertions", "forbidden_side_effects"):
                 require_nonempty_collection(execution.get(field), f"{case_id}.execution_requirements.{field}")
             require_nonempty_collection(execution.get("environment"), f"{case_id}.execution_requirements.environment")
+            require_nonempty_value(execution.get("initial_state"), f"{case_id}.execution_requirements.initial_state")
             for field in ("expected_end_state", "reset_plan", "cleanup_plan", "failure_cleanup"):
                 require_nonempty_value(execution.get(field), f"{case_id}.execution_requirements.{field}")
 
