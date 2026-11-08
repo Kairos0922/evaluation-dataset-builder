@@ -2,7 +2,7 @@
 
 **审查对象：** `anthropics/skills/skills/webapp-testing`  
 **冻结 Commit：** `2c5958ecac7cee2b583967a2c4981d0f4a75c579`  
-**资产清单状态：** <badge>COMPLETE</badge> 完整目录清单已冻结  
+**资产清单状态：** COMPLETE，完整目录清单已冻结  
 **运行状态：** DESIGN_ONLY，尚未执行 DSH/Playwright 运行时验证  
 **用途：** 为 Evaluation Dataset Builder 的公开输入资产包提供可追溯来源。本文件不是评测用例。
 
