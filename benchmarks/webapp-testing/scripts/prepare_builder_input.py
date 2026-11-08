@@ -21,7 +21,7 @@ UPSTREAM_SKILL_PATH = "skills/webapp-testing"
 ASSET_ROOTS = [
     ("assets/public", "benchmarks/webapp-testing/assets/public", "business_and_capability_asset"),
     ("fixtures/workboard", "benchmarks/webapp-testing/fixtures/workboard", "application_fixture"),
-    ("upstream-skill", ".audit/upstream-skills/skills/webapp-testing", "upstream_skill_asset"),
+    ("upstream-skill", "skills/webapp-testing", "upstream_skill_asset"),
 ]
 
 
