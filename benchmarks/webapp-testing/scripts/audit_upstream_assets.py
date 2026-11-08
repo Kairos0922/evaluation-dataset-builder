@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Verify the pinned upstream webapp-testing Skill inventory.
 
-The manifest is intentionally deterministic. It records Git blob identities and
-sizes; the SHA-256 digest covers the canonical inventory fields documented below.
+The manifest is deterministic. It records Git blob identities and sizes; the
+SHA-256 digest covers the canonical inventory fields documented in the output.
 """
 
 from __future__ import annotations
