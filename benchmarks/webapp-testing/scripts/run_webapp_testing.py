@@ -299,6 +299,19 @@ def main() -> int:
         stop_process_group(server)
         server_log.close()
 
+    # Preserve all files created by the Skill in its isolated workspace.
+    skill_artifact_root = workspace / "artifacts"
+    if skill_artifact_root.is_dir():
+        shutil.copytree(skill_artifact_root, case_dir / "skill-artifacts", dirs_exist_ok=True)
+    skill_artifact_files = [
+        path for path in (case_dir / "skill-artifacts").rglob("*")
+        if path.is_file()
+    ] if (case_dir / "skill-artifacts").exists() else []
+    artifact_suffixes = {path.suffix.lower() for path in skill_artifact_files}
+    has_markdown_report = ".md" in artifact_suffixes
+    has_json_evidence_index = ".json" in artifact_suffixes
+    has_screenshot = bool({".png", ".jpg", ".jpeg", ".webp"} & artifact_suffixes)
+
     port_closed = not port_open(host, port)
     trace = parse_trace(case_dir / "dsh-events.jsonl")
     evidence_files = []
@@ -317,6 +330,9 @@ def main() -> int:
         and trace["final_reason"] == "completed"
         and port_closed
         and error is None
+        and has_markdown_report
+        and has_json_evidence_index
+        and has_screenshot
         else "BLOCKED"
     )
     result = {
@@ -337,6 +353,13 @@ def main() -> int:
         "dsh_exit_code": dsh_exit,
         "trace": trace,
         "server_port_closed": port_closed,
+        "skill_artifact_file_count": len(skill_artifact_files),
+        "skill_artifact_types": sorted(artifact_suffixes),
+        "required_skill_evidence": {
+            "markdown_report": has_markdown_report,
+            "json_evidence_index": has_json_evidence_index,
+            "screenshot": has_screenshot,
+        },
         "runner_error": error,
         "evidence_files": evidence_files,
     }
