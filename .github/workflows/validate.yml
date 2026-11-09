@@ -638,20 +638,17 @@ jobs:
   webapp-testing-pilot:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     needs: [runtime-preflight, builder-production]
-    if: >-
-      always() &&
-      (
-        (github.event_name == 'pull_request' &&
-         github.event.pull_request.head.repo.full_name == github.repository &&
-         needs.builder-production.result == 'success') ||
-        (github.event_name == 'push' &&
-         github.ref == 'refs/heads/experiment/webapp-testing-contract')
-      )
     strategy:
       fail-fast: false
-      max-parallel: 3
+      max-parallel: 1
       matrix:
-        dataset_id: [WBT-CONF-001, WBT-DEF-001, WBT-JUDG-001]
+        include:
+          - dataset_id: WBT-CONF-001
+            case_id: WBT-CONF-001
+          - dataset_id: WBT-DEF-001
+            case_id: WBT-DEF-001
+          - dataset_id: WBT-JUDG-001
+            case_id: WBT-JUDG-001
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -671,9 +668,6 @@ jobs:
         with:
           name: webapp-testing-builder-result
           path: artifacts/builder-result
-          run-id: ${{ github.event_name == 'pull_request' && github.run_id || 42484978182 }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          repository: ${{ github.repository }}
 
       - name: Checkout pinned webapp-testing Skill
         uses: actions/checkout@v4
@@ -683,6 +677,16 @@ jobs:
           path: .audit/upstream-skills
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Check model credential availability
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$DEEPSEEK_API_KEY" || {
+            echo "::error::DEEPSEEK_API_KEY is missing; no model request was sent."
+            exit 2
+          }
 
       - name: Install Node.js
         uses: actions/setup-node@v4
@@ -734,8 +738,11 @@ jobs:
           print("PASS: Session Log upload disabled; OTel disabled by environment flags.")
           PY
 
-      - name: Compile execution runner
-        run: python -m py_compile benchmarks/webapp-testing/scripts/run_webapp_testing.py
+      - name: Compile and self-test execution runner
+        run: |
+          set -euo pipefail
+          python -m py_compile benchmarks/webapp-testing/scripts/run_webapp_testing.py
+          python benchmarks/webapp-testing/scripts/run_webapp_testing.py --self-test
 
       - name: Execute first Builder-generated case as a controlled pilot
         env:
@@ -745,6 +752,7 @@ jobs:
           python benchmarks/webapp-testing/scripts/run_webapp_testing.py \
             --dataset "artifacts/builder-result/webapp-testing-builder-output/datasets/${{ matrix.dataset_id }}.jsonl" \
             --dataset-id "${{ matrix.dataset_id }}" \
+            --case-id "${{ matrix.case_id }}" \
             --fixture-source benchmarks/webapp-testing/fixtures/workboard \
             --public-assets benchmarks/webapp-testing/assets/public \
             --skill-source .audit/upstream-skills/skills/webapp-testing \
