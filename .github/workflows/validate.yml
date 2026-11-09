@@ -652,7 +652,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      DSH_HOME: ${{ runner.temp }}/dsh-home
+      DSH_HOME: ${{ github.workspace }}/.dsh-home
       DSH_TELEMETRY_MODE: DISABLED
       DSH_TELEMETRY_DISABLED: "1"
       DSH_VERSION: "0.2.2-rc.1"
