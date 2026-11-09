@@ -1,131 +1,355 @@
 #!/usr/bin/env python3
-import argparse, hashlib, json, os, shutil, signal, socket, subprocess, sys, time, urllib.request
+"""Run one Builder-produced webapp-testing case in an isolated local fixture."""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import shutil
+import signal
+import socket
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
 
-def now(): return datetime.now(timezone.utc).isoformat()
-def digest(p): return hashlib.sha256(p.read_bytes()).hexdigest()
-def tree_digest(root):
- h=hashlib.sha256()
- for p in sorted(x for x in root.rglob('*') if x.is_file() and '__pycache__' not in x.parts and x.suffix!='.pyc'):
-  h.update(p.relative_to(root).as_posix().encode()+b'\0'+bytes.fromhex(digest(p)))
- return h.hexdigest()
-def listening(host,port):
- with socket.socket() as s:
-  s.settimeout(.2)
-  try: s.connect((host,port)); return True
-  except OSError: return False
-def request(url,method='GET',payload=None):
- data=None if payload is None else json.dumps(payload).encode()
- req=urllib.request.Request(url,data=data,method=method,headers={'Content-Type':'application/json'})
- with urllib.request.urlopen(req,timeout=5) as r:
-  raw=r.read()
-  try: return r.status,json.loads(raw)
-  except Exception: return r.status,raw.decode(errors='replace')
-def wait_health(url):
- end=time.monotonic()+30; last='not ready'
- while time.monotonic()<end:
-  try:
-   status,data=request(url+'/api/health')
-   if status==200 and data.get('status')=='ok': return data
-  except Exception as e: last=str(e)
-  time.sleep(.25)
- raise RuntimeError('health check timeout: '+last)
-def stop(p):
- if p and p.poll() is None:
-  p.terminate()
-  try:p.wait(timeout=5)
-  except subprocess.TimeoutExpired:p.kill();p.wait(timeout=5)
-def events(path):
- es=[]
- if path.exists():
-  for line in path.read_text(errors='replace').splitlines():
-   try:es.append(json.loads(line))
-   except json.JSONDecodeError:pass
- calls=[e for e in es if e.get('type')=='tool_call' and e.get('tool')=='skill' and (e.get('input') or {}).get('name')=='webapp-testing']
- results={e.get('callId'):e for e in es if e.get('type')=='tool_result'}
- finals=[e for e in es if e.get('type')=='final']
- usage=[e.get('usage',{}) for e in es if e.get('type')=='status' and e.get('usage')]
- return {'event_count':len(es),'skill_calls':len(calls),'completed_skill_calls':sum(results.get(c.get('callId'),{}).get('status')=='completed' for c in calls),'final_reason':(finals[-1].get('reason') or {}).get('kind') if finals else None,'total_tokens':sum(int(u.get('totalTokens',0) or 0) for u in usage)}
-def main():
- a=argparse.ArgumentParser()
- for n in ['dataset','dataset-id','fixture-source','public-assets','skill-source','work-root','output-dir','skill-commit']:a.add_argument('--'+n,required=True)
- a.add_argument('--limit',type=int,default=0);a.add_argument('--case-timeout',type=int,default=900);x=a.parse_args()
- ds=Path(x.dataset).resolve(); fixture=Path(x.fixture_source).resolve(); public=Path(x.public_assets).resolve(); skill=Path(x.skill_source).resolve(); workroot=Path(x.work_root).resolve(); out=Path(x.output_dir).resolve()
- workroot.mkdir(parents=True,exist_ok=True);out.mkdir(parents=True,exist_ok=True)
- cases=[json.loads(l) for l in ds.read_text().splitlines() if l.strip()]
- if x.limit:cases=cases[:x.limit]
- key=os.environ.get('DEEPSEEK_API_KEY','')
- if not key:raise SystemExit('DEEPSEEK_API_KEY missing')
- results=[]
- for c in cases:
-  cid=c['case_id'];
-  if c.get('dataset_id')!=x.dataset_id:raise SystemExit('dataset mismatch: '+cid)
-  er=c.get('execution_requirements') or {}; spec=er.get('environment') or {}; ui=c.get('user_input') or {}
-  profile=spec.get('fixture_profile','clean'); mutations=spec.get('fixture_mutations') or []; state=spec.get('server_state_at_start','running')
-  url=ui.get('target_url') or spec.get('app_url') or 'http://127.0.0.1:4173'; u=urlparse(url);host=u.hostname or '127.0.0.1';port=u.port or 4173
-  if host not in ('127.0.0.1','localhost'):raise SystemExit('non-loopback target refused: '+url)
-  co=out/cid;co.mkdir(parents=True,exist_ok=True);wd=workroot/cid
-  if wd.exists():shutil.rmtree(wd)
-  wd.mkdir(parents=True)
-  shutil.copytree(public,wd/'assets'/'public',dirs_exist_ok=True);shutil.copytree(fixture,wd/'fixtures'/'workboard',dirs_exist_ok=True);shutil.copytree(skill,wd/'.dsh'/'skills'/'webapp-testing',dirs_exist_ok=True)
-  wf=wd/'fixtures'/'workboard';before=tree_digest(wf);(wd/'artifacts'/cid).mkdir(parents=True,exist_ok=True)
-  audit=co/'server-audit.jsonl';log=co/'server.log';lh=log.open('w');proc=None;pre=post=None;err=None;timed=False;exitcode=None;start=now()
-  env=os.environ.copy()
-  for k in ('APP_PROFILE','APP_MUTATIONS','APP_AUDIT_LOG','APP_PORT','APP_HOST'):env.pop(k,None)
-  env.update({'DSH_TELEMETRY_MODE':'DISABLED','DSH_TELEMETRY_DISABLED':'1','DSH_HOME':os.environ['DSH_HOME']})
-  if state=='stopped':env.update({'APP_HOST':host,'APP_PORT':str(port),'APP_PROFILE':profile,'APP_MUTATIONS':','.join(mutations),'APP_AUDIT_LOG':str(audit)})
-  try:
-   if listening(host,port):raise RuntimeError('port already occupied: '+str(port))
-   if state!='stopped':
-    se=os.environ.copy();se.update({'APP_HOST':host,'APP_PORT':str(port),'APP_PROQ’SHŽœ›Ùš[K	ÐTÓUUUSÓ”ÉÎ‰Ë	Ëš›Ú[Š]]][ÛœÊK	ÐTÐUQUÓÑÉÎœÝŠ]Y]
-_JBˆ›ØÏ\ÝXœ›ØÙ\ÜË”Ü[ŠÜÞ\Ë™^XÝ]X›K	ÜÙ\™\‹œI×KÝÙ]Ù‹[\ÙKÝÝ][Ý\œ\ÝXœ›ØÙ\ÜË”ÕÕUÝ\Û™]×ÜÙ\ÜÚ[ÛUYJBˆØZ]ÚX[
-\›
-NÜ™\]Y\Ý
-\›
-ÉËØ\KÜ™\Ù]	Ë	ÔÔÕ	ËßJN×Ë™O\™\]Y\Ý
-\›
-ÉËØ\KÝ\ÚÜÉÊBˆ^[ØY^ÚÎZK™Ù]
-ÊH›ÜˆÈ[ˆ
-	Ý\ÚÉË	Ý\™Ù]Ý\›	Ë	Ü[\×ÜÛÝ\˜ÙIË	Ü[\×Ú[—ÜØÛÜIË	Ü™\ÜÜ™\]Z\™[Y[ÉË	ØÛÛœÝ˜Z[ÉÊ_Bˆ›Û\I×‰Ëš›Ú[ŠÉÈÈÙXˆ\XØ][Ûˆ\Ý[™È\ÚÉË	ÐØ\ÙHQˆ	ÊØÚY	Ñ]\Ù]Qˆ	ÊÞ™]\Ù]ÚY	Ô[›™YÚÚ[ÛÛ[Z]ˆ	ÊÞœÚÚ[ØÛÛ[Z]	ÉË	ÓØY[™›ÛÝÈHÙX˜\]\Ý[™ÈÚÚ[ˆ\ÙH™X[^]ÜšYÚœ›ÝÜÙ\ˆ[\˜XÝ[Û‹‰Ë	ÔX›XÈ[\È\™H[ˆ\ÜÙ]ËÜX›XËÎÈ\ÛÝ\˜ÙH\È[ˆš^\™\ËÝÛÜšØ›Ø\™È›ÜˆÝ\\[™Ù[XÝÜˆÛÛ^Û›KˆÈ›Ý™\XÙHœ›ÝÜÙ\ˆ\Ý[™ÈÚ]ÛÝ\˜ÙKÐTH[œÜXÝ[Û‹‰Ë	ÔØ]™HHÚ[™\ÙHX\šÙÝÛˆ™\Ü]šY[˜ÙKZ[™^”ÓÓ‹ØÜ™Y[œÚÝËØÜš\È[™ÙÜÈ[™\ˆ\Y˜XÝËÉÊØÚY+'/ .','Do not modify app source. Do not access external networks or hidden evaluation data. Do not search for other evaluation cases.','',json.dumps(payload,ensure_ascii=False,indent=2)])
-   (co/'task-prompt.md').write_text(prompt)
-   ev=co/'dsh-events.jsonl';se=co/'dsh-stderr.log'
-   with ev.open('w') as stdout,se.open('w') as stderr:
-    p=subprocess.Popen(['dsh','--profile','headless','--json','--permission-mode','workspace-write','-'],cwd=wd,env=env,stdin=subprocess.PIPE,stdout=stdout,stderr=stderr,text=True,start_new_session=True)
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def http_json(url: str, method: str = "GET", payload: dict | None = None) -> tuple[int, dict]:
+    data = None if payload is None else json.dumps(payload).encode("utf-8")
+    request = urllib.request.Request(
+        url, data=data, method=method,
+        headers={"Content-Type": "application/json", "Accept": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=5) as response:
+        raw = response.read()
+        return response.status, json.loads(raw.decode("utf-8"))
+
+
+def wait_health(url: str, timeout: int = 30) -> dict:
+    deadline = time.monotonic() + timeout
+    last_error = "not ready"
+    while time.monotonic() < deadline:
+        try:
+            status, payload = http_json(url + "/api/health")
+            if status == 200 and payload.get("status") == "ok":
+                return payload
+        except Exception as exc:
+            last_error = str(exc)
+        time.sleep(0.25)
+    raise TimeoutError(f"HTTP health check timed out: {last_error}")
+
+
+def port_open(host: str, port: int) -> bool:
+    with socket.socket() as sock:
+        sock.settimeout(0.2)
+        try:
+            sock.connect((host, port))
+            return True
+        except OSError:
+            return False
+
+
+def stop_process_group(process: subprocess.Popen | None, timeout: int = 8) -> None:
+    if process is None or process.poll() is not None:
+        return
     try:
-     p.communicate(prompt,timeout=x.case_timeout);exitcode=p.returncode
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    try:
+        process.wait(timeout=timeout)
     except subprocess.TimeoutExpired:
-     timed=True;exitcode=124
-     try:os.killpg(p.pid,signal.SIGTERM);p.wait(timeout=5)
-     except Exception:
-      try:os.killpg(p.pid,signal.SIGKILL)
-      except ProcessLookupError:pass
-      p.wait(timeout=5)
-   if state!='stopped':
-    try:_,post=request(url+'/api/tasks')
-    except Exception as e:err='post-state capture: '+str(e)
-  except Exception as e:err=type(e).__name__+': '+str(e)
-  finally:
-   stop(proc);lh.close();after_skill=listening(host,port)
-   if after_skill:
-    err=(err+'; ' if err else '')+'port remains open after Skill completion'
-    f=shutil.which('fuser')
-    if f:subpprocess.run([f,'-k',f'{port}/tcp'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,check=False)
-   after_cleanup=listening(host,port)
-  trace=events(co/'dsh-events.jsonl');after=tree_digest(wf)
-  shutil.copytree(wd,co/'workspace',dirs_exist_ok=True)
-  done=now();status='PASS' if exitcode==0 and trace['final_reason']=='completed' and trace['skill_calls']>0 and trace['completed_skill_calls']>0 and not err and not timed and before==after else 'BLOCKED'
-  row={'case_id':cid,'dataset_id':x.dataset_id,'started_at':start,'finished_at':done,'fixture_profile_runner_only':profile,'fixture_mutations_runner_only':mutations,'server_state_at_start':state,'pre_state':pre,'post_state':post,'server_listener_after_skill':after_skill,'server_listener_after_cleanup':after_cleanup,'dsh_exit_code':exitcode,'timed_out':timed,'runner_error':err,'trace':trace,'fixture_tree_sha256_before':before,'fixture_tree_sha256_after':after,'fixture_modified_by_skill':before!=after,'status':status}
-  (co/'runner-result.json').write_text(json.dumps(row,ensure_ascii=False,indent=2)+'\n');results.append(row)
-  print(json.dumps({'case_id':cid,'status':status,'dsh_exit_code':exitcode,'trace':trace,'runner_error':err},ensure_ascii=False),flush=True)
- leaked=[]
- for p in out.rglob('*'):
-  if p.is_file():
-   try:b=p.read_bytes()
-   except OSError:continue
-   if key.encode() in b:p.write_bytes(b.replace(key.encode(),b'[REDACTED_SECRET]'));leaked.append(str(p.relative_to(out)))
- summary={'dataset_id':x.dataset_id,'selected_cases':len(results),'runner_pass_count':sum(r['status']=='PASS' for r in results),'blocked_cases':[r['case_id'] for r in results if r['status']!='PASS'],'credential_leak_detected':bool(leaked),'redacted_files':leaked,'scope':'Skill invocation and execution completion only; not grading or Oracle adjudication','cases':[{'case_id':r['case_id'],'status':r['status'],'dsh_exit_code':r['dsh_exit_code'],'skill_calls':r['trace']['skill_calls'],'final_reason':r['trace']['final_reason']} for r in results]}
- out/'dataset-runner-summary.json'.write_text(json.dumps(summary,ensure_ascii=False,indent=2)+'\n')
- return 0 if not summary['blocked_cases'] and not leaked else 1
-if __name__=='__main__':raise SystemExit(main())
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.wait(timeout=timeout)
+
+
+def parse_trace(path: Path) -> dict:
+    events = []
+    if path.exists():
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            try:
+                item = json.loads(line)
+                if isinstance(item, dict):
+                    events.append(item)
+            except json.JSONDecodeError:
+                continue
+    calls = [
+        item for item in events
+        if item.get("type") == "tool_call"
+        and item.get("tool") == "skill"
+        and (item.get("input") or {}).get("name") == "webapp-testing"
+    ]
+    results = {
+        item.get("callId"): item
+        for item in events
+        if item.get("type") == "tool_result" and item.get("callId")
+    }
+    finals = [item for item in events if item.get("type") == "final"]
+    return {
+        "event_count": len(events),
+        "webapp_testing_skill_calls": len(calls),
+        "completed_skill_calls": sum(
+            results.get(call.get("callId"), {}).get("status") == "completed"
+            for call in calls
+        ),
+        "final_reason": (finals[-1].get("reason") or {}).get("kind") if finals else None,
+    }
+
+
+def self_test() -> int:
+    import tempfile
+    with tempfile.TemporaryDirectory() as directory:
+        path = Path(directory) / "events.jsonl"
+        path.write_text(
+            json.dumps({"type": "tool_call", "tool": "skill",
+                        "input": {"name": "webapp-testing"}, "callId": "c1"}) + "\n"
+            + json.dumps({"type": "tool_result", "callId": "c1", "status": "completed"}) + "\n"
+            + json.dumps({"type": "final", "reason": {"kind": "completed"}}) + "\n",
+            encoding="utf-8",
+        )
+        parsed = parse_trace(path)
+        assert parsed["webapp_testing_skill_calls"] == 1
+        assert parsed["completed_skill_calls"] == 1
+        assert parsed["final_reason"] == "completed"
+    print("PASS: runner self-test")
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--dataset")
+    parser.add_argument("--dataset-id")
+    parser.add_argument("--case-id")
+    parser.add_argument("--fixture-source")
+    parser.add_argument("--public-assets")
+    parser.add_argument("--skill-source")
+    parser.add_argument("--work-root")
+    parser.add_argument("--output-dir")
+    parser.add_argument("--skill-commit")
+    parser.add_argument("--case-timeout", type=int, default=900)
+    args = parser.parse_args()
+
+    if args.self_test:
+        return self_test()
+    required = ("dataset", "dataset_id", "case_id", "fixture_source",
+                "public_assets", "skill_source", "work_root", "output_dir",
+                "skill_commit")
+    missing = [name for name in required if not getattr(args, name)]
+    if missing:
+        parser.error("missing required arguments: " + ", ".join("--" + x.replace("_", "-") for x in missing))
+
+    dataset = Path(args.dataset).resolve()
+    fixture = Path(args.fixture_source).resolve()
+    public_assets = Path(args.public_assets).resolve()
+    skill_source = Path(args.skill_source).resolve()
+    work_root = Path(args.work_root).resolve()
+    output = Path(args.output_dir).resolve()
+    for path in (dataset, fixture, public_assets, skill_source):
+        if not path.exists():
+            raise SystemExit(f"required path does not exist: {path}")
+    output.mkdir(parents=True, exist_ok=True)
+    work_root.mkdir(parents=True, exist_ok=True)
+
+    cases = [json.loads(line) for line in dataset.read_text(encoding="utf-8").splitlines() if line.strip()]
+    selected = [case for case in cases if case.get("case_id") == args.case_id]
+    if len(selected) != 1:
+        raise SystemExit(f"expected exactly one case_id={args.case_id!r}; found {len(selected)}")
+    case = selected[0]
+    if case.get("dataset_id") != args.dataset_id:
+        raise SystemExit("dataset_id does not match selected case")
+
+    execution = case.get("execution_requirements") or {}
+    environment = execution.get("environment") or {}
+    initial_state = execution.get("initial_state") or {}
+    target_url = (case.get("user_input") or {}).get("target_url") or environment.get("app_url")
+    if not target_url:
+        raise SystemExit("case has no target URL")
+    parsed = urlparse(target_url)
+    host = parsed.hostname or ""
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    if parsed.scheme != "http" or host not in ("127.0.0.1", "localhost"):
+        raise SystemExit(f"only local HTTP loopback targets are allowed: {target_url}")
+    if port != 4173:
+        raise SystemExit(f"unexpected fixture port {port}; expected 4173")
+
+    profile = initial_state.get("fixture_profile") or environment.get("fixture_profile") or "clean"
+    mutations = initial_state.get("fixture_mutations") or environment.get("fixture_mutations") or []
+    server_state = initial_state.get("server_state") or environment.get("server_state_at_start") or "running"
+    if server_state != "running":
+        raise SystemExit("pilot runner supports server_state=running only; stopped-server cases are deferred")
+    if profile not in ("clean", "mutant") or not isinstance(mutations, list):
+        raise SystemExit("invalid fixture profile or mutations in Builder case")
+
+    case_dir = output / args.case_id
+    if case_dir.exists():
+        raise SystemExit(f"refusing to overwrite existing evidence directory: {case_dir}")
+    case_dir.mkdir(parents=True)
+    workspace = work_root / args.case_id
+    if workspace.exists():
+        shutil.rmtree(workspace)
+    workspace.mkdir(parents=True)
+    shutil.copytree(public_assets, workspace / "assets" / "public")
+    shutil.copytree(skill_source, workspace / ".dsh" / "skills" / "webapp-testing")
+
+    audit_log = case_dir / "server-audit.jsonl"
+    server_log = (case_dir / "server.log").open("w", encoding="utf-8")
+    env = os.environ.copy()
+    env.update({
+        "APP_HOST": host, "APP_PORT": str(port), "APP_PROFILE": profile,
+        "APP_MUTATIONS": ",".join(mutations), "APP_AUDIT_LOG": str(audit_log),
+    })
+    if port_open(host, port):
+        raise SystemExit(f"fixture port already occupied: {host}:{port}")
+
+    server = None
+    dsh = None
+    error = None
+    dsh_exit = None
+    started = utc_now()
+    pre_state = post_state = None
+    try:
+        server = subprocess.Popen(
+            [sys.executable, str(fixture / "server.py")],
+            cwd=str(fixture), env=env, stdout=server_log, stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+        health = wait_health(target_url)
+        _, reset_result = http_json(target_url + "/api/reset", "POST", {})
+        _, pre_state = http_json(target_url + "/api/tasks")
+        dsh_env = os.environ.copy()
+        dsh_env.update({
+            "DSH_TELEMETRY_MODE": "DISABLED",
+            "DSH_TELEMETRY_DISABLED": "1",
+        })
+        events_path = case_dir / "dsh-events.jsonl"
+        stderr_path = case_dir / "dsh-stderr.log"
+        task = (case.get("user_input") or {}).get("task")
+        if not isinstance(task, str) or not task.strip():
+            raise RuntimeError("Builder case user_input.task must be a non-empty string")
+        public_task = {
+            "case_id": case["case_id"],
+            "dataset_id": case["dataset_id"],
+            "title": case.get("title"),
+            "objective": case.get("objective"),
+            "task": task,
+            "target_url": target_url,
+            "public_assets": "assets/public/",
+            "constraints": [
+                "Use the webapp-testing Skill and real Playwright browser interaction.",
+                "Only access the local loopback application. Do not access external networks.",
+                "Do not read, modify, or infer hidden Oracle data.",
+                "Do not modify application source files.",
+                "Save reports, screenshots, scripts, and evidence in artifacts/ only.",
+                "Do not claim PASS without observable browser evidence.",
+            ],
+        }
+        prompt = (
+            "Execute the following Builder-generated web application test task. "
+            "Follow the webapp-testing Skill instructions. The application is already "
+            "running and healthy at the supplied URL. Use the public assets for rules. "
+            "Do not inspect application source code. Create your own Playwright test "
+            "script and a concise report with evidence.\n\n"
+            + json.dumps(public_task, ensure_ascii=False, indent=2)
+        )
+        (case_dir / "consumer-task.json").write_text(
+            json.dumps(public_task, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        (workspace / "TASK.md").write_text(prompt + "\n", encoding="utf-8")
+        artifacts_dir = workspace / "artifacts"
+        artifacts_dir.mkdir()
+        with events_path.open("w", encoding="utf-8") as stdout, stderr_path.open("w", encoding="utf-8") as stderr:
+            dsh = subprocess.Popen(
+                ["dsh", "--profile", "headless", "--json", "--permission-mode", "workspace-write", "-"],
+                cwd=str(workspace), env=dsh_env, stdin=subprocess.PIPE,
+                stdout=stdout, stderr=stderr, text=True, start_new_session=True,
+            )
+            try:
+                dsh.communicate(prompt, timeout=args.case_timeout)
+                dsh_exit = dsh.returncode
+            except subprocess.TimeoutExpired:
+                error = f"DSH timed out after {args.case_timeout}s"
+                stop_process_group(dsh, timeout=5)
+                dsh_exit = 124
+        _, post_state = http_json(target_url + "/api/tasks")
+    except Exception as exc:
+        error = f"{type(exc).__name__}: {exc}"
+    finally:
+        stop_process_group(dsh)
+        stop_process_group(server)
+        server_log.close()
+
+    port_closed = not port_open(host, port)
+    trace = parse_trace(case_dir / "dsh-events.jsonl")
+    evidence_files = []
+    for path in sorted(case_dir.rglob("*")):
+        if path.is_file():
+            evidence_files.append({
+                "path": str(path.relative_to(case_dir)),
+                "sha256": sha256(path),
+                "size_bytes": path.stat().st_size,
+            })
+    runner_status = (
+        "INVOCATION_OK"
+        if dsh_exit == 0
+        and trace["webapp_testing_skill_calls"] > 0
+        and trace["completed_skill_calls"] > 0
+        and trace["final_reason"] == "completed"
+        and port_closed
+        and error is None
+        else "BLOCKED"
+    )
+    result = {
+        "case_id": args.case_id,
+        "dataset_id": args.dataset_id,
+        "runner_status": runner_status,
+        "scope": "pilot invocation evidence only; not grading or Oracle adjudication",
+        "started_at_utc": started,
+        "finished_at_utc": utc_now(),
+        "builder_case_sha256": sha256(dataset),
+        "webapp_testing_skill_commit": args.skill_commit,
+        "fixture_profile": profile,
+        "fixture_mutations": mutations,
+        "server_health": health if "health" in locals() else None,
+        "reset_response": reset_result if "reset_result" in locals() else None,
+        "pre_state": pre_state,
+        "post_state": post_state,
+        "dsh_exit_code": dsh_exit,
+        "trace": trace,
+        "server_port_closed": port_closed,
+        "runner_error": error,
+        "evidence_files": evidence_files,
+    }
+    (case_dir / "runner-result.json").write_text(
+        json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    print(json.dumps({
+        "case_id": args.case_id, "dataset_id": args.dataset_id,
+        "runner_status": runner_status, "trace": trace,
+        "server_port_closed": port_closed, "runner_error": error,
+    }, ensure_ascii=False))
+    return 0 if runner_status == "INVOCATION_OK" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
