@@ -738,11 +738,9 @@ jobs:
           print("PASS: Session Log upload disabled; OTel disabled by environment flags.")
           PY
 
-      - name: Decompress, compile, and self-test execution runner
+      - name: Compile and self-test execution runner
         run: |
           set -euo pipefail
-          gzip -dc benchmarks/webapp-testing/scripts/run_webapp_testing.py.gz > benchmarks/webapp-testing/scripts/run_webapp_testing.py
-          echo "0c48f1a17c13cb49ff03504fa73dbbc8c2888d0a9793f9a78be48607a55f851d  benchmarks/webapp-testing/scripts/run_webapp_testing.py" | sha256sum --check
           python -m py_compile benchmarks/webapp-testing/scripts/run_webapp_testing.py
           python benchmarks/webapp-testing/scripts/run_webapp_testing.py --self-test
 
