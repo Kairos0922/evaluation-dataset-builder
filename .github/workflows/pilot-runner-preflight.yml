@@ -78,5 +78,5 @@ jobs:
         run: |
           set -euo pipefail
           grep -q -- '--case-id' .github/workflows/validate.yml
-          ! grep -q 'gzip -dc benchmarks/webapp-testing/scripts/run_webapp_testing.py.gz' .github/workflows/validate.yml
+          if grep -q 'gzip -dc benchmarks/webapp-testing/scripts/run_webapp_testing.py.gz' .github/workflows/validate.yml; then exit 1; fi
           echo "PASS: workflow invokes source runner with explicit case selection"
