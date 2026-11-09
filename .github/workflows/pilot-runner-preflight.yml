@@ -28,6 +28,11 @@ jobs:
       - name: Install YAML parser
         run: python -m pip install --disable-pip-version-check PyYAML==6.0.2
 
+      - name: Install and run actionlint against all workflows
+        run: |
+          set -euo pipefail
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          "$(go env GOPATH)/bin/actionlint" -color
       - name: Parse workflow and reject duplicate mapping keys
         run: |
           python - <<'PY'
