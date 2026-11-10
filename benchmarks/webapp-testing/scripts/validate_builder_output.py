@@ -194,6 +194,11 @@ def main() -> int:
     if not suite_manifest_path.is_file():
         raise SystemExit("Builder output lacks SUITE-MANIFEST.json")
     suite_manifest = load_json(suite_manifest_path)
+    for field in ("suite_id", "version", "built_at", "evaluation_target"):
+        require_nonempty_text(suite_manifest.get(field), f"SUITE-MANIFEST.json.{field}")
+    suite_coverage = suite_manifest.get("coverage")
+    require_nonempty_collection(suite_coverage, "SUITE-MANIFEST.json.coverage")
+    require_nonempty_collection(suite_coverage.get("dimensions"), "SUITE-MANIFEST.json.coverage.dimensions")
     suite_entries = suite_manifest.get("datasets")
     if not isinstance(suite_entries, list) or not suite_entries:
         raise SystemExit("SUITE-MANIFEST.json must contain a non-empty datasets array")
@@ -217,6 +222,11 @@ def main() -> int:
         if dataset_id in suite_dataset_ids:
             raise SystemExit(f"Duplicate dataset_id in Suite Manifest: {dataset_id}")
         suite_dataset_ids.add(dataset_id)
+        require_nonempty_text(entry.get("purpose"), f"SUITE-MANIFEST.json.datasets[{dataset_id}].purpose")
+        if entry.get("quality_status") not in ALLOWED_QUALITY:
+            raise SystemExit(f"Suite Manifest dataset {dataset_id} quality_status must remain candidate/needs_info")
+        if entry.get("execution_status") not in ALLOWED_EXECUTION:
+            raise SystemExit(f"Suite Manifest dataset {dataset_id} execution_status must be NOT_RUN")
         jsonl_relative = entry.get("jsonl")
         manifest_relative = entry.get("manifest")
         if not isinstance(jsonl_relative, str) or not isinstance(manifest_relative, str):
