@@ -88,14 +88,21 @@ def load_suite(output_root: Path) -> dict:
         # Stable, low-cost pilot selection: first case in Builder-authored JSONL order.
         # This is selection only; the case content and ID remain unchanged.
         selected = cases[0]
-        # Preserve the original three-role pilot design without fixed dataset IDs:
-        # baseline on the first dataset, mutation challenge on the second, and
-        # false-positive control on subsequent datasets.
-        fixture_profile = "mutant" if dataset_index == 1 else "clean"
+        # Apply a mutation only when the selected Builder case explicitly tests
+        # description/search behavior. Keep all unrelated cases on the clean profile.
+        test_data = (selected.get("execution_requirements") or {}).get("test_data") or []
+        search_challenge = any(
+            isinstance(item, dict)
+            and item.get("kind") in {"description_queries", "search_queries"}
+            for item in test_data
+        )
+        fixture_profile = "mutant" if search_challenge else "clean"
+        fixture_mutations = ["search-case-sensitive"] if search_challenge else []
         include.append({
             "dataset_id": dataset_id,
             "case_id": selected["case_id"],
             "fixture_profile": fixture_profile,
+            "fixture_mutations": fixture_mutations,
         })
 
     if len(include) != len(datasets):
@@ -124,8 +131,8 @@ def self_test() -> int:
         }), encoding="utf-8")
         matrix = load_suite(root)
         assert matrix == {"include": [
-            {"dataset_id": "D-A", "case_id": "D-A-001", "fixture_profile": "clean"},
-            {"dataset_id": "D-B", "case_id": "D-B-001", "fixture_profile": "mutant"},
+            {"dataset_id": "D-A", "case_id": "D-A-001", "fixture_profile": "clean", "fixture_mutations": []},
+            {"dataset_id": "D-B", "case_id": "D-B-001", "fixture_profile": "mutant", "fixture_mutations": ["search-case-sensitive"]},
         ]}
         print("PASS: dynamic pilot matrix self-test")
     return 0
