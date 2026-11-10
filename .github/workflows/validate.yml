@@ -782,7 +782,7 @@ jobs:
         run: |
           set -euo pipefail
           python benchmarks/webapp-testing/scripts/run_webapp_testing.py \
-            --dataset "artifacts/builder-result/webapp-testing-builder-output/datasets/${{ matrix.dataset_id }}.jsonl" \
+            --dataset "artifacts/builder-result/webapp-testing-builder-output/${{ matrix.dataset_path }}" \
             --dataset-id "${{ matrix.dataset_id }}" \
             --case-id "${{ matrix.case_id }}" \
             --fixture-profile "${{ matrix.fixture_profile }}" \
