@@ -106,6 +106,15 @@ def resolve_user_input(case: dict) -> tuple[str, str | None]:
     return task, target_url
 
 
+def resolve_dsh_timeout(override: int | None) -> int:
+    timeout = 1500 if override is None else override
+    if isinstance(timeout, bool) or not isinstance(timeout, int):
+        raise ValueError("dsh_timeout_seconds must be an integer")
+    if timeout < 60 or timeout > 1500:
+        raise ValueError("DSH timeout must be between 60 and 1500 seconds")
+    return timeout
+
+
 def resolve_case_timeout(environment: dict, override: int | None) -> int:
     raw = override if override is not None else environment.get("case_timeout_seconds", 900)
     if isinstance(raw, bool):
@@ -179,7 +188,9 @@ def self_test() -> int:
         assert resolve_case_timeout({"case_timeout_seconds": 180}, None) == 180
         assert resolve_case_timeout({"case_timeout_seconds": 600}, None) == 600
         assert resolve_case_timeout({"case_timeout_seconds": 600}, 300) == 300
-    print("PASS: runner self-test (trace, input formats, and case-specific timeout)")
+        assert resolve_dsh_timeout(None) == 1500
+        assert resolve_dsh_timeout(900) == 900
+    print("PASS: runner self-test (trace, input formats, case budget, and DSH timeout)")
     return 0
 
 
@@ -197,7 +208,8 @@ def main() -> int:
     parser.add_argument("--skill-commit")
     parser.add_argument("--fixture-profile", choices=("clean", "mutant"))
     parser.add_argument("--fixture-mutations")
-    parser.add_argument("--case-timeout", type=int)
+    parser.add_argument("--case-timeout", type=int, help="Override the case execution budget passed to the Skill")
+    parser.add_argument("--dsh-timeout", type=int, help="Maximum DSH session duration in seconds (default: 1500)")
     args = parser.parse_args()
 
     if args.self_test:
@@ -265,6 +277,7 @@ def main() -> int:
         raise SystemExit("invalid fixture profile in Builder case")
     try:
         case_timeout = resolve_case_timeout(environment, args.case_timeout)
+        dsh_timeout = resolve_dsh_timeout(args.dsh_timeout)
     except ValueError as exc:
         raise SystemExit(str(exc))
 
@@ -318,6 +331,7 @@ def main() -> int:
             "objective": case.get("objective"),
             "task": task,
             "target_url": target_url,
+            "execution_budget_seconds": case_timeout,
             "public_assets": "assets/public/",
             "constraints": [
                 "Use the webapp-testing Skill and real Playwright browser interaction.",
@@ -349,7 +363,7 @@ def main() -> int:
                 stdout=stdout, stderr=stderr, text=True, start_new_session=True,
             )
             try:
-                dsh.communicate(prompt, timeout=case_timeout)
+                dsh.communicate(prompt, timeout=dsh_timeout)
                 dsh_exit = dsh.returncode
             except subprocess.TimeoutExpired:
                 error = f"DSH timed out after {args.case_timeout}s"
@@ -416,6 +430,7 @@ def main() -> int:
         "post_state": post_state,
         "dsh_exit_code": dsh_exit,
         "case_timeout_seconds": case_timeout,
+        "dsh_timeout_seconds": dsh_timeout,
         "trace": trace,
         "server_port_closed": port_closed,
         "skill_artifact_file_count": len(skill_artifact_files),
