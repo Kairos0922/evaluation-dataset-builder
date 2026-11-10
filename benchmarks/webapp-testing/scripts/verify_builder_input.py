@@ -66,9 +66,16 @@ def main() -> int:
             f"missing_files={sorted(declared_paths - actual_paths)}"
         )
 
+    if manifest.get("file_count") != len(records):
+        raise SystemExit("Input manifest file_count does not match its asset records")
     record_by_path = {record["path"]: record for record in records}
     if len(record_by_path) != len(records):
         raise SystemExit("Duplicate input asset paths")
+    asset_ids = [record.get("asset_id") for record in records]
+    if any(not isinstance(asset_id, str) or not asset_id for asset_id in asset_ids):
+        raise SystemExit("Every input asset must have a non-empty asset_id")
+    if len(set(asset_ids)) != len(asset_ids):
+        raise SystemExit("Duplicate input asset IDs")
     for path in sorted(actual_paths):
         file_path = ROOT / path
         if file_path.is_symlink() or not file_path.is_file():
@@ -82,8 +89,12 @@ def main() -> int:
             raise SystemExit(f"Size mismatch: {path}")
         if record.get("visibility") != "PUBLIC":
             raise SystemExit(f"Asset is not marked PUBLIC: {path}")
-        if not record.get("asset_id") or not record.get("source", {}).get("revision"):
-            raise SystemExit(f"Asset lacks stable ID or source revision: {path}")
+        if record.get("asset_id") != f"webapp-testing:{path}":
+            raise SystemExit(f"Asset ID does not match its stable path: {path}")
+        source = record.get("source") or {}
+        for field in ("repository", "revision", "source_path", "asset_type"):
+            if not isinstance(source.get(field), str) or not source[field].strip():
+                raise SystemExit(f"Asset source.{field} is missing: {path}")
 
     if not EXPECTED_UPSTREAM.issubset(actual_paths):
         raise SystemExit(f"Pinned upstream Skill inventory incomplete: {sorted(EXPECTED_UPSTREAM - actual_paths)}")
