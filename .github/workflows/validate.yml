@@ -5,6 +5,12 @@ on:
   pull_request:
     branches: ["main"]
   workflow_dispatch:
+    inputs:
+      run_builder_production:
+        description: "确认 DeepSeek API 余额可用后，执行真实 Builder 生产及三条试运行"
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   actions: read
@@ -406,8 +412,10 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  # Avoid repeated paid model requests after the confirmed HTTP 402 quota failure.
+  # Opt in with the PR label "run-builder-production" or workflow_dispatch input.
   builder-production:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production)
     needs: runtime-preflight
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -638,7 +646,7 @@ jobs:
           retention-days: 30
 
   resolve-pilot-matrix:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production)
     needs: builder-production
     runs-on: ubuntu-latest
     outputs:
@@ -667,7 +675,7 @@ jobs:
           cat "$RUNNER_TEMP/pilot-matrix.json"
 
   webapp-testing-pilot:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production)
     needs: [runtime-preflight, builder-production, resolve-pilot-matrix]
     strategy:
       fail-fast: false
