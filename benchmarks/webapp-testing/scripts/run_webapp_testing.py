@@ -177,6 +177,7 @@ def main() -> int:
     parser.add_argument("--work-root")
     parser.add_argument("--output-dir")
     parser.add_argument("--skill-commit")
+    parser.add_argument("--fixture-profile", choices=("clean", "mutant"))
     parser.add_argument("--case-timeout", type=int, default=900)
     args = parser.parse_args()
 
@@ -227,7 +228,7 @@ def main() -> int:
     if port != 4173:
         raise SystemExit(f"unexpected fixture port {port}; expected 4173")
 
-    profile = initial_state.get("fixture_profile") or environment.get("fixture_profile") or "clean"
+    profile = args.fixture_profile or initial_state.get("fixture_profile") or environment.get("fixture_profile") or "clean"
     mutations = initial_state.get("fixture_mutations") or environment.get("fixture_mutations") or []
     server_state = initial_state.get("server_state") or environment.get("server_state_at_start") or "running"
     if server_state != "running":
