@@ -4,6 +4,7 @@ on:
     branches: ["main", "experiment/webapp-testing-contract"]
   pull_request:
     branches: ["main"]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   workflow_dispatch:
     inputs:
       run_builder_production:
@@ -413,9 +414,9 @@ jobs:
           retention-days: 14
 
   # Avoid repeated paid model requests after the confirmed HTTP 402 quota failure.
-  # Real Builder production is opt-in through workflow_dispatch only.
+  # Opt in with the PR label "run-builder-production" or workflow_dispatch input.
   builder-production:
-    if: github.event_name == 'workflow_dispatch' && inputs.run_builder_production
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production)
     needs: runtime-preflight
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -646,7 +647,7 @@ jobs:
           retention-days: 30
 
   resolve-pilot-matrix:
-    if: github.event_name == 'workflow_dispatch' && inputs.run_builder_production
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production)
     needs: builder-production
     runs-on: ubuntu-latest
     outputs:
@@ -675,7 +676,7 @@ jobs:
           cat "$RUNNER_TEMP/pilot-matrix.json"
 
   webapp-testing-pilot:
-    if: github.event_name == 'workflow_dispatch' && inputs.run_builder_production
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production)
     needs: [runtime-preflight, builder-production, resolve-pilot-matrix]
     strategy:
       fail-fast: false
