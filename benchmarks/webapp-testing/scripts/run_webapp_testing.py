@@ -483,6 +483,13 @@ def main() -> int:
         and trace["webapp_testing_skill_calls"] > 0
         and trace["completed_skill_calls"] > 0
         and trace["final_reason"] == "completed"
+        and trace["turn_start_count"] == len(user_turns)
+        and trace["turn_end_count"] == len(user_turns)
+        and len(session_turn_results) == len(user_turns)
+        and all(
+            item["dsh_exit_code"] == 0 and item["final_reason"] == "completed"
+            for item in session_turn_results
+        )
         and port_closed
         and error is None
         and has_markdown_report
@@ -509,6 +516,10 @@ def main() -> int:
         "case_timeout_seconds": case_timeout,
         "dsh_timeout_seconds": dsh_timeout,
         "trace": trace,
+        "user_turn_count": len(user_turns),
+        "completed_user_turn_count": len(session_turn_results),
+        "session_id": session_id,
+        "session_turn_results": session_turn_results,
         "server_port_closed": port_closed,
         "skill_artifact_file_count": len(skill_artifact_files),
         "skill_artifact_types": sorted(artifact_suffixes),
@@ -525,7 +536,8 @@ def main() -> int:
     )
     print(json.dumps({
         "case_id": args.case_id, "dataset_id": args.dataset_id,
-        "runner_status": runner_status, "trace": trace,
+        "runner_status": runner_status, "user_turn_count": len(user_turns),
+        "completed_user_turn_count": len(session_turn_results), "trace": trace,
         "server_port_closed": port_closed, "runner_error": error,
     }, ensure_ascii=False))
     return 0 if runner_status == "INVOCATION_OK" else 1
