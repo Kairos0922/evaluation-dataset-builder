@@ -660,9 +660,9 @@ jobs:
         id: resolve
         run: |
           set -euo pipefail
-          python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py \\
-            --output-root artifacts/builder-result/webapp-testing-builder-output \\
-            --github-output \\
+          python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py \
+            --output-root artifacts/builder-result/webapp-testing-builder-output \
+            --github-output \
             --write-output "$RUNNER_TEMP/pilot-matrix.json"
           cat "$RUNNER_TEMP/pilot-matrix.json"
 
