@@ -79,7 +79,8 @@ jobs:
           set -euo pipefail
           python -m py_compile \
             benchmarks/webapp-testing/scripts/run_webapp_testing.py \
-            benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py
+            benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py \
+            benchmarks/webapp-testing/scripts/validate_builder_output.py
           python benchmarks/webapp-testing/scripts/run_webapp_testing.py --self-test
           python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py --self-test
 
