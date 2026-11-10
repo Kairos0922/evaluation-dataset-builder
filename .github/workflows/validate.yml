@@ -434,6 +434,11 @@ jobs:
       - name: Check model credential availability
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DATASET_PATH: ${{ matrix.dataset_path }}
+          DATASET_ID: ${{ matrix.dataset_id }}
+          CASE_ID: ${{ matrix.case_id }}
+          FIXTURE_PROFILE: ${{ matrix.fixture_profile }}
+          FIXTURE_MUTATIONS: ${{ join(matrix.fixture_mutations, ',') }}
         run: |
           set -euo pipefail
           test -n "$DEEPSEEK_API_KEY" || {
@@ -782,16 +787,16 @@ jobs:
         run: |
           set -euo pipefail
           python benchmarks/webapp-testing/scripts/run_webapp_testing.py \
-            --dataset "artifacts/builder-result/webapp-testing-builder-output/${{ matrix.dataset_path }}" \
-            --dataset-id "${{ matrix.dataset_id }}" \
-            --case-id "${{ matrix.case_id }}" \
-            --fixture-profile "${{ matrix.fixture_profile }}" \
-            --fixture-mutations "${{ join(matrix.fixture_mutations, ',') }}" \
+            --dataset "artifacts/builder-result/webapp-testing-builder-output/$DATASET_PATH" \
+            --dataset-id "$DATASET_ID" \
+            --case-id "$CASE_ID" \
+            --fixture-profile "$FIXTURE_PROFILE" \
+            --fixture-mutations "$FIXTURE_MUTATIONS" \
             --fixture-source benchmarks/webapp-testing/fixtures/workboard \
             --public-assets benchmarks/webapp-testing/assets/public \
             --skill-source .audit/upstream-skills/skills/webapp-testing \
             --work-root "$RUNNER_TEMP/wbt-workspaces" \
-            --output-dir "$RUNNER_TEMP/wbt-output/${{ matrix.dataset_id }}" \
+            --output-dir "$RUNNER_TEMP/wbt-output/$DATASET_ID" \
             --skill-commit "2c5958ecac7cee2b583967a2c4981d0f4a75c579"
 
       - name: Archive webapp-testing pilot evidence
