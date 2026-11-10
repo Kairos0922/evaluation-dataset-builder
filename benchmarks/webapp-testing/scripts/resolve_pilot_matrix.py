@@ -100,6 +100,7 @@ def load_suite(output_root: Path) -> dict:
         fixture_mutations = ["search-case-sensitive"] if search_challenge else []
         include.append({
             "dataset_id": dataset_id,
+            "dataset_path": relative_jsonl,
             "case_id": selected["case_id"],
             "fixture_profile": fixture_profile,
             "fixture_mutations": fixture_mutations,
@@ -135,8 +136,8 @@ def self_test() -> int:
         }), encoding="utf-8")
         matrix = load_suite(root)
         assert matrix == {"include": [
-            {"dataset_id": "D-A", "case_id": "D-A-001", "fixture_profile": "clean", "fixture_mutations": []},
-            {"dataset_id": "D-B", "case_id": "D-B-001", "fixture_profile": "mutant", "fixture_mutations": ["search-case-sensitive"]},
+            {"dataset_id": "D-A", "dataset_path": "datasets/D-A.jsonl", "case_id": "D-A-001", "fixture_profile": "clean", "fixture_mutations": []},
+            {"dataset_id": "D-B", "dataset_path": "datasets/D-B.jsonl", "case_id": "D-B-001", "fixture_profile": "mutant", "fixture_mutations": ["search-case-sensitive"]},
         ]}
         print("PASS: dynamic pilot matrix self-test")
     return 0
