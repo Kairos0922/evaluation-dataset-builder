@@ -35,7 +35,7 @@ def load_suite(output_root: Path) -> dict:
     include = []
     seen_dataset_ids = set()
     seen_case_ids = set()
-    for dataset in datasets:
+    for dataset_index, dataset in enumerate(datasets):
         if not isinstance(dataset, dict):
             fail("each dataset manifest entry must be an object")
         dataset_id = dataset.get("dataset_id")
@@ -88,7 +88,15 @@ def load_suite(output_root: Path) -> dict:
         # Stable, low-cost pilot selection: first case in Builder-authored JSONL order.
         # This is selection only; the case content and ID remain unchanged.
         selected = cases[0]
-        include.append({"dataset_id": dataset_id, "case_id": selected["case_id"]})
+        # Preserve the original three-role pilot design without fixed dataset IDs:
+        # baseline on the first dataset, mutation challenge on the second, and
+        # false-positive control on subsequent datasets.
+        fixture_profile = "mutant" if dataset_index == 1 else "clean"
+        include.append({
+            "dataset_id": dataset_id,
+            "case_id": selected["case_id"],
+            "fixture_profile": fixture_profile,
+        })
 
     if len(include) != len(datasets):
         fail("not every Builder dataset produced exactly one pilot selection")
@@ -116,8 +124,8 @@ def self_test() -> int:
         }), encoding="utf-8")
         matrix = load_suite(root)
         assert matrix == {"include": [
-            {"dataset_id": "D-A", "case_id": "D-A-001"},
-            {"dataset_id": "D-B", "case_id": "D-B-001"},
+            {"dataset_id": "D-A", "case_id": "D-A-001", "fixture_profile": "clean"},
+            {"dataset_id": "D-B", "case_id": "D-B-001", "fixture_profile": "mutant"},
         ]}
         print("PASS: dynamic pilot matrix self-test")
     return 0
