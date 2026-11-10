@@ -28,6 +28,10 @@ def load_suite(output_root: Path) -> dict:
     except (OSError, json.JSONDecodeError) as exc:
         fail(f"cannot read suite manifest: {exc}")
 
+    if suite.get("quality_status") != "candidate":
+        fail("Suite quality_status must be candidate before pilot execution")
+    if suite.get("execution_status") != "NOT_RUN":
+        fail("Suite execution_status must be NOT_RUN before pilot execution")
     datasets = suite.get("datasets")
     if not isinstance(datasets, list) or not datasets:
         fail("SUITE-MANIFEST.json must contain a non-empty datasets array")
@@ -41,6 +45,10 @@ def load_suite(output_root: Path) -> dict:
         dataset_id = dataset.get("dataset_id")
         relative_jsonl = dataset.get("jsonl")
         expected_count = dataset.get("case_count")
+        if dataset.get("quality_status") != "candidate":
+            fail(f"{dataset_id}: dataset quality_status must be candidate")
+        if dataset.get("execution_status") != "NOT_RUN":
+            fail(f"{dataset_id}: dataset execution_status must be NOT_RUN")
         if not isinstance(dataset_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}", dataset_id):
             fail(f"invalid dataset_id: {dataset_id!r}")
         if dataset_id in seen_dataset_ids:
@@ -84,10 +92,15 @@ def load_suite(output_root: Path) -> dict:
             fail(f"{dataset_id}: manifest says {expected_count} cases, JSONL contains {len(cases)}")
         if not cases:
             fail(f"{dataset_id}: no cases available for pilot")
+        candidate_cases = [case for case in cases if case.get("quality_status") == "candidate"]
+        if not candidate_cases:
+            fail(f"{dataset_id}: no candidate-quality cases are available for pilot")
 
-        # Stable, low-cost pilot selection: first case in Builder-authored JSONL order.
+        # Stable, low-cost pilot selection: first candidate in Builder-authored JSONL order.
         # This is selection only; the case content and ID remain unchanged.
-        selected = cases[0]
+        selected = candidate_cases[0]
+        if (selected.get("execution_requirements") or {}).get("status") != "NOT_RUN":
+            fail(f"{dataset_id}/{selected['case_id']}: case execution status must be NOT_RUN")
         # Apply a mutation only when the selected Builder case explicitly tests
         # description/search behavior. Keep all unrelated cases on the clean profile.
         test_data = (selected.get("execution_requirements") or {}).get("test_data") or []
@@ -116,23 +129,26 @@ def self_test() -> int:
         root = Path(tmp)
         (root / "datasets").mkdir()
         (root / "datasets" / "D-A.jsonl").write_text(
-            json.dumps({"dataset_id": "D-A", "case_id": "D-A-001"}) + "\n"
-            + json.dumps({"dataset_id": "D-A", "case_id": "D-A-002"}) + "\n",
+            json.dumps({"dataset_id": "D-A", "case_id": "D-A-001", "quality_status": "candidate", "execution_requirements": {"status": "NOT_RUN"}}) + "\n"
+            + json.dumps({"dataset_id": "D-A", "case_id": "D-A-002", "quality_status": "candidate", "execution_requirements": {"status": "NOT_RUN"}}) + "\n",
             encoding="utf-8",
         )
         (root / "datasets" / "D-B.jsonl").write_text(
             json.dumps({
                 "dataset_id": "D-B",
                 "case_id": "D-B-001",
-                "execution_requirements": {"test_data": [{"kind": "description_queries"}]},
+                "quality_status": "candidate",
+                "execution_requirements": {"status": "NOT_RUN", "test_data": [{"kind": "description_queries"}]},
             }) + "\n",
             encoding="utf-8",
         )
         (root / "SUITE-MANIFEST.json").write_text(json.dumps({
             "datasets": [
-                {"dataset_id": "D-A", "jsonl": "datasets/D-A.jsonl", "case_count": 2},
-                {"dataset_id": "D-B", "jsonl": "datasets/D-B.jsonl", "case_count": 1},
-            ]
+                {"dataset_id": "D-A", "jsonl": "datasets/D-A.jsonl", "case_count": 2, "quality_status": "candidate", "execution_status": "NOT_RUN"},
+                {"dataset_id": "D-B", "jsonl": "datasets/D-B.jsonl", "case_count": 1, "quality_status": "candidate", "execution_status": "NOT_RUN"},
+            ],
+            "quality_status": "candidate",
+            "execution_status": "NOT_RUN",
         }), encoding="utf-8")
         matrix = load_suite(root)
         assert matrix == {"include": [
