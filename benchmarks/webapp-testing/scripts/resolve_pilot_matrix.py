@@ -120,7 +120,11 @@ def self_test() -> int:
             encoding="utf-8",
         )
         (root / "datasets" / "D-B.jsonl").write_text(
-            json.dumps({"dataset_id": "D-B", "case_id": "D-B-001"}) + "\n",
+            json.dumps({
+                "dataset_id": "D-B",
+                "case_id": "D-B-001",
+                "execution_requirements": {"test_data": [{"kind": "description_queries"}]},
+            }) + "\n",
             encoding="utf-8",
         )
         (root / "SUITE-MANIFEST.json").write_text(json.dumps({
