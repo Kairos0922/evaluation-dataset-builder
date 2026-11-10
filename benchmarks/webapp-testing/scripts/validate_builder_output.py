@@ -115,6 +115,16 @@ def main() -> int:
                 require_nonempty_collection(execution.get(field), f"{case_id}.execution_requirements.{field}")
             require_nonempty_collection(execution.get("environment"), f"{case_id}.execution_requirements.environment")
             require_nonempty_value(execution.get("initial_state"), f"{case_id}.execution_requirements.initial_state")
+            environment = execution["environment"]
+            initial_state = execution["initial_state"]
+            if environment.get("app_url") != "http://127.0.0.1:4173":
+                raise SystemExit(f"{case_id}: app_url must target the local Workboard fixture")
+            case_budget = environment.get("case_timeout_seconds")
+            if type(case_budget) is not int or not 1 <= case_budget <= 900:
+                raise SystemExit(f"{case_id}: case_timeout_seconds must be an integer from 1 to 900")
+            server_state = initial_state.get("server_state") or environment.get("server_state_at_start") or "running"
+            if server_state != "running":
+                raise SystemExit(f"{case_id}: this pilot runner supports server_state=running only")
             for field in ("expected_end_state", "reset_plan", "cleanup_plan", "failure_cleanup"):
                 require_nonempty_value(execution.get(field), f"{case_id}.execution_requirements.{field}")
 
