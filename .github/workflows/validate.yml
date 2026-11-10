@@ -777,6 +777,7 @@ jobs:
             --dataset "artifacts/builder-result/webapp-testing-builder-output/datasets/${{ matrix.dataset_id }}.jsonl" \
             --dataset-id "${{ matrix.dataset_id }}" \
             --case-id "${{ matrix.case_id }}" \
+            --fixture-profile "${{ matrix.fixture_profile }}" \
             --fixture-source benchmarks/webapp-testing/fixtures/workboard \
             --public-assets benchmarks/webapp-testing/assets/public \
             --skill-source .audit/upstream-skills/skills/webapp-testing \
