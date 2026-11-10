@@ -434,11 +434,6 @@ jobs:
       - name: Check model credential availability
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          DATASET_PATH: ${{ matrix.dataset_path }}
-          DATASET_ID: ${{ matrix.dataset_id }}
-          CASE_ID: ${{ matrix.case_id }}
-          FIXTURE_PROFILE: ${{ matrix.fixture_profile }}
-          FIXTURE_MUTATIONS: ${{ join(matrix.fixture_mutations, ',') }}
         run: |
           set -euo pipefail
           test -n "$DEEPSEEK_API_KEY" || {
@@ -781,9 +776,14 @@ jobs:
           python -m py_compile benchmarks/webapp-testing/scripts/run_webapp_testing.py
           python benchmarks/webapp-testing/scripts/run_webapp_testing.py --self-test
 
-      - name: Execute first Builder-generated case as a controlled pilot
+      - name: Execute Builder-generated pilot case
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DATASET_PATH: ${{ matrix.dataset_path }}
+          DATASET_ID: ${{ matrix.dataset_id }}
+          CASE_ID: ${{ matrix.case_id }}
+          FIXTURE_PROFILE: ${{ matrix.fixture_profile }}
+          FIXTURE_MUTATIONS: ${{ join(matrix.fixture_mutations, ',') }}
         run: |
           set -euo pipefail
           python benchmarks/webapp-testing/scripts/run_webapp_testing.py \
