@@ -71,8 +71,8 @@ def load_suite(output_root: Path) -> dict:
                 if case.get("dataset_id") != dataset_id:
                     fail(f"{dataset_id}:{line_number}: case dataset_id mismatch")
                 case_id = case.get("case_id")
-                if not isinstance(case_id, str) or not case_id.strip():
-                    fail(f"{dataset_id}:{line_number}: missing case_id")
+                if not isinstance(case_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", case_id):
+                    fail(f"{dataset_id}:{line_number}: invalid case_id: {case_id!r}")
                 if case_id in seen_case_ids:
                     fail(f"duplicate case_id across suite: {case_id}")
                 seen_case_ids.add(case_id)
