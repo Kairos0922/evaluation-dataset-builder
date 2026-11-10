@@ -163,6 +163,9 @@ def parse_trace(path: Path) -> dict:
         if item.get("type") == "tool_result" and item.get("callId")
     }
     finals = [item for item in events if item.get("type") == "final"]
+    sessions = [item.get("sessionId") for item in events if item.get("type") == "session" and item.get("sessionId")]
+    turn_starts = [item for item in events if item.get("type") == "status" and item.get("phase") == "turn_start"]
+    turn_ends = [item for item in events if item.get("type") == "status" and item.get("phase") == "turn_end"]
     return {
         "event_count": len(events),
         "webapp_testing_skill_calls": len(calls),
@@ -170,6 +173,12 @@ def parse_trace(path: Path) -> dict:
             results.get(call.get("callId"), {}).get("status") == "completed"
             for call in calls
         ),
+        "session_id": sessions[0] if sessions else None,
+        "session_ids": list(dict.fromkeys(sessions)),
+        "turn_start_count": len(turn_starts),
+        "turn_end_count": len(turn_ends),
+        "turn_numbers_started": [item.get("turn") for item in turn_starts],
+        "final_event_count": len(finals),
         "final_reason": (finals[-1].get("reason") or {}).get("kind") if finals else None,
     }
 
@@ -189,15 +198,19 @@ def self_test() -> int:
         assert parsed["webapp_testing_skill_calls"] == 1
         assert parsed["completed_skill_calls"] == 1
         assert parsed["final_reason"] == "completed"
-        string_task, string_url = resolve_user_input({"user_input": "  run this task  "})
-        assert string_task == "run this task" and string_url is None
-        object_task, object_url = resolve_user_input({
+        string_turns, string_url = resolve_user_input({"user_input": "  run this task  "})
+        assert string_turns == [{"turn_id": "T1", "content": "run this task"}] and string_url is None
+        object_turns, object_url = resolve_user_input({
             "user_input": {"task": "inspect the app", "target_url": "http://127.0.0.1:4173"}
         })
-        assert object_task == "inspect the app"
+        assert object_turns == [{"turn_id": "T1", "content": "inspect the app"}]
         assert object_url == "http://127.0.0.1:4173"
-        array_task, array_url = resolve_user_input({"user_input": ["step one", "step two"]})
-        assert '"step one"' in array_task and array_url is None
+        array_turns, array_url = resolve_user_input({"user_input": [
+            {"turn_id": "T1", "content": "step one"}, {"turn_id": "T2", "content": "step two"}
+        ]})
+        assert [x["turn_id"] for x in array_turns] == ["T1", "T2"]
+        assert [x["content"] for x in array_turns] == ["step one", "step two"]
+        assert array_url is None
         assert resolve_case_timeout({"case_timeout_seconds": 180}, None) == 180
         assert resolve_case_timeout({"case_timeout_seconds": 600}, None) == 600
         assert resolve_case_timeout({"case_timeout_seconds": 600}, 300) == 300
