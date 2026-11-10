@@ -16,8 +16,9 @@
 6. 业务预期以 `assets/public/business-rules.md` 为准。应用源代码是被测实现，不是业务规则的替代来源。代码检查不能替代真实页面交互。
 7. 将所有合成资产标记为 SYNTHETIC。不得编造生产缺陷、真实用户、真实执行轨迹或外部来源。
 8. 若资产不能支持可靠判定，标记 `needs_info` 或 `UNKNOWN`，不要补造预期结果。
-9. 用例质量状态保持 `candidate` 或 `needs_info`。在没有执行证据时，执行状态保持 `NOT_RUN` 或 `DESIGN_ONLY`。
+9. 用例质量状态保持 `candidate` 或 `needs_info`。本次 Builder 生产不会执行被测 Skill，因此每条用例的 `execution_requirements.status`、每个数据集 Manifest 和套件 Manifest 的 `execution_status` 必须统一标记为 `NOT_RUN`。不得使用 `DESIGN_ONLY`、`READY_TO_RUN` 或 `EXECUTION_VERIFIED`。
 10. 不要读取或推断隐藏运行配置、Gold Oracle 或独立验证器内容。
+11. 交付前清理 `__pycache__`、`*.pyc` 和临时文件。不要把缓存或临时文件放入最终套件。
 
 ## 输出
 
