@@ -1,6 +1,6 @@
 # webapp-testing 双 Skill 实验契约
 
-**状态：** P0 资产冻结、运行时预检和公开输入包已在 GitHub Actions 通过；P1 Builder 生产流程已接入，但因上次模型调用返回 HTTP 402，当前仅允许通过 `workflow_dispatch` 并显式设置 `run_builder_production=true` 后执行；PR 默认不触发付费模型调用。P2 至 P5 尚未完成。整体实验仍为 `DESIGN_ONLY`，直至被测 Skill 消费和独立 Oracle 判定通过。  
+**状态：** P0 资产冻结、运行时预检和公开输入包已在 GitHub Actions 通过；P1 Builder 生产流程已接入，但因上次模型调用返回 HTTP 402，当前仅允许在 PR 添加 `run-builder-production` 标签，或通过 `workflow_dispatch` 显式设置 `run_builder_production=true` 后执行；PR 默认不触发付费模型调用。P2 至 P5 尚未完成。整体实验仍为 `DESIGN_ONLY`，直至被测 Skill 消费和独立 Oracle 判定通过。  
 **实验对象：** Anthropic `webapp-testing`  
 **Builder：** Evaluation Dataset Builder `0.0.1`  
 **实验运行环境：** GitHub Actions + DSH Headless  
@@ -228,7 +228,7 @@ Oracle 无法确定的情况应保持 UNKNOWN，不得强制归入 PASS/FAIL。�
 | 阶段 | 工作 | 通过条件 | 失败处理 |
 |---|---|---|---|
 | P0 资产冻结 | 固定上游 Skill、应用和运行配置 | 完整资产清单、哈希、运行时预检和 Builder 输入包均已由 Actions 验证 | 已通过；run 42484433238 |
-| P1 Builder 生产 | DSH Headless 调用 Builder | Trace 包含真实 Skill tool_call 与匹配 tool_result；产物完整并通过独立验证 | 余额确认可用后，通过 `workflow_dispatch` 输入 `run_builder_production=true` 执行；失败则 BLOCKED，不允许手工补用例 |
+| P1 Builder 生产 | DSH Headless 调用 Builder | Trace 包含真实 Skill tool_call 与匹配 tool_result；产物完整并通过独立验证 | 余额确认可用后，为 PR 添加 `run-builder-production` 标签，或通过 `workflow_dispatch` 输入 `run_builder_production=true` 执行；失败则 BLOCKED，不允许手工补用例 |
 | P2 套件验收 | Schema、来源、覆盖、执行契约、隔离检查 | 所有关键门禁通过 | 修订资产/Builder 后重新生产 |
 | P3 B0 消费 | DSH Headless 调用 webapp-testing | Trace 证明加载；消费 Builder 用例 | BLOCKED |
 | P4 双路判定 | 执行 Builder grading 契约并运行 Oracle | 结果和证据均可追溯 | UNKNOWN/隔离用例 |
