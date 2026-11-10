@@ -85,25 +85,38 @@ def stop_process_group(process: subprocess.Popen | None, timeout: int = 8) -> No
         process.wait(timeout=timeout)
 
 
-def resolve_user_input(case: dict) -> tuple[str, str | None]:
-    """Normalize schema-supported user_input values without guessing field names."""
+def resolve_user_input(case: dict) -> tuple[list[dict[str, str]], str | None]:
+    """Normalize user_input into separately submitted DSH user turns."""
     raw = case.get("user_input")
+    target_url = None
     if isinstance(raw, str):
-        task = raw.strip()
-        target_url = None
+        value = raw.strip()
+        turns = [{"turn_id": "T1", "content": value}]
     elif isinstance(raw, dict):
         task_value = raw.get("task") or raw.get("prompt") or raw.get("content")
-        task = task_value.strip() if isinstance(task_value, str) else ""
+        value = task_value.strip() if isinstance(task_value, str) else ""
         url_value = raw.get("target_url") or raw.get("url")
         target_url = url_value.strip() if isinstance(url_value, str) and url_value.strip() else None
+        turns = [{"turn_id": "T1", "content": value}]
     elif isinstance(raw, list):
-        task = json.dumps(raw, ensure_ascii=False, indent=2)
-        target_url = None
+        turns = []
+        for index, item in enumerate(raw, 1):
+            if isinstance(item, str):
+                turn_id, content = f"T{index}", item.strip()
+            elif isinstance(item, dict):
+                turn_id = item.get("turn_id") or f"T{index}"
+                content_value = item.get("content") or item.get("message") or item.get("prompt")
+                content = content_value.strip() if isinstance(content_value, str) else ""
+            else:
+                raise ValueError(f"user_input turn {index} must be a string or object")
+            if not isinstance(turn_id, str) or not turn_id.strip() or not content:
+                raise ValueError(f"user_input turn {index} must contain non-empty turn_id and content")
+            turns.append({"turn_id": turn_id.strip(), "content": content})
     else:
-        raise ValueError("case user_input must be a non-empty string, object, or array")
-    if not task:
-        raise ValueError("case user_input does not contain usable task text")
-    return task, target_url
+        raise ValueError("case user_input must be a non-empty string, object, or array of turns")
+    if not turns or any(not turn["content"] for turn in turns):
+        raise ValueError("case user_input does not contain usable user turns")
+    return turns, target_url
 
 
 def resolve_dsh_timeout(override: int | None) -> int:
