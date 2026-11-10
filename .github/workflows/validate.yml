@@ -271,7 +271,9 @@ jobs:
             benchmarks/webapp-testing/fixtures/workboard/server.py \
             benchmarks/webapp-testing/scripts/validate_workboard_fixture.py \
             benchmarks/webapp-testing/scripts/prepare_builder_input.py \
-            benchmarks/webapp-testing/scripts/verify_builder_input.py
+            benchmarks/webapp-testing/scripts/verify_builder_input.py \
+            benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py
+          python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py --self-test
 
       - name: Validate clean Workboard profile
         run: |
@@ -635,20 +637,42 @@ jobs:
           if-no-files-found: warn
           retention-days: 30
 
+  resolve-pilot-matrix:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    needs: builder-production
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download Builder-produced suite
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-builder-result
+          path: artifacts/builder-result
+
+      - name: Resolve one pilot case per generated dataset
+        id: resolve
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py \\
+            --output-root artifacts/builder-result/webapp-testing-builder-output \\
+            --github-output \\
+            --write-output "$RUNNER_TEMP/pilot-matrix.json"
+          cat "$RUNNER_TEMP/pilot-matrix.json"
+
   webapp-testing-pilot:
     if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
-    needs: [runtime-preflight, builder-production]
+    needs: [runtime-preflight, builder-production, resolve-pilot-matrix]
     strategy:
       fail-fast: false
       max-parallel: 1
-      matrix:
-        include:
-          - dataset_id: WBT-CONF-001
-            case_id: WBT-CONF-001
-          - dataset_id: WBT-DEF-001
-            case_id: WBT-DEF-001
-          - dataset_id: WBT-JUDG-001
-            case_id: WBT-JUDG-001
+      matrix: ${{ fromJSON(needs.resolve-pilot-matrix.outputs.matrix) }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
