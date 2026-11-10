@@ -271,7 +271,7 @@ def main() -> int:
     environment = execution.get("environment") or {}
     initial_state = execution.get("initial_state") or {}
     try:
-        task, input_target_url = resolve_user_input(case)
+        user_turns, input_target_url = resolve_user_input(case)
     except ValueError as exc:
         raise SystemExit(str(exc))
     target_url = input_target_url or initial_state.get("url") or environment.get("app_url")
@@ -332,6 +332,8 @@ def main() -> int:
     dsh = None
     error = None
     dsh_exit = None
+    session_id = None
+    session_turn_results = []
     started = utc_now()
     pre_state = post_state = None
     try:
@@ -355,7 +357,8 @@ def main() -> int:
             "dataset_id": case["dataset_id"],
             "title": case.get("title"),
             "objective": case.get("objective"),
-            "task": task,
+            "user_turns": user_turns,
+            "user_turn_count": len(user_turns),
             "target_url": target_url,
             "execution_budget_seconds": case_timeout,
             "public_assets": "assets/public/",
@@ -368,33 +371,81 @@ def main() -> int:
                 "Do not claim PASS without observable browser evidence.",
             ],
         }
-        prompt = (
-            "Execute the following Builder-generated web application test task. "
-            "Follow the webapp-testing Skill instructions. The application is already "
-            "running and healthy at the supplied URL. Use the public assets for rules. "
-            "Do not inspect application source code. Create your own Playwright test "
-            "script and a concise report with evidence.\n\n"
-            + json.dumps(public_task, ensure_ascii=False, indent=2)
-        )
         (case_dir / "consumer-task.json").write_text(
             json.dumps(public_task, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
         )
-        (workspace / "TASK.md").write_text(prompt + "\n", encoding="utf-8")
         artifacts_dir = workspace / "artifacts"
         artifacts_dir.mkdir()
-        with events_path.open("w", encoding="utf-8") as stdout, stderr_path.open("w", encoding="utf-8") as stderr:
-            dsh = subprocess.Popen(
-                ["dsh", "--profile", "headless", "--json", "--permission-mode", "workspace-write", "-"],
-                cwd=str(workspace), env=dsh_env, stdin=subprocess.PIPE,
-                stdout=stdout, stderr=stderr, text=True, start_new_session=True,
+
+        def prompt_for_turn(turn: dict[str, str], first: bool) -> str:
+            if not first:
+                return f"[User turn {turn['turn_id']}]\\n{turn['content']}\\n"
+            first_task = {
+                "case_id": case["case_id"],
+                "dataset_id": case["dataset_id"],
+                "title": case.get("title"),
+                "objective": case.get("objective"),
+                "turn_id": turn["turn_id"],
+                "user_message": turn["content"],
+                "target_url": target_url,
+                "execution_budget_seconds": case_timeout,
+                "public_assets": "assets/public/",
+                "constraints": public_task["constraints"],
+            }
+            return (
+                "Execute this Builder-generated web application testing task. "
+                "Follow the webapp-testing Skill instructions. The application is already "
+                "running and healthy at the supplied URL. Use the public assets for rules. "
+                "Do not inspect application source code. Create Playwright tests and keep "
+                "all reports, screenshots, scripts, and evidence in artifacts/ only. "
+                "Do not claim PASS without observable browser evidence.\n\n"
+                + json.dumps(first_task, ensure_ascii=False, indent=2) + "\n"
             )
-            try:
-                dsh.communicate(prompt, timeout=dsh_timeout)
-                dsh_exit = dsh.returncode
-            except subprocess.TimeoutExpired:
-                error = f"DSH timed out after {args.case_timeout}s"
-                stop_process_group(dsh, timeout=5)
-                dsh_exit = 124
+
+        dsh_deadline = time.monotonic() + dsh_timeout
+        with events_path.open("w", encoding="utf-8") as stdout, stderr_path.open("w", encoding="utf-8") as stderr:
+            for turn_index, turn in enumerate(user_turns):
+                remaining = max(0.0, dsh_deadline - time.monotonic())
+                if remaining < 1:
+                    error = f"DSH session exceeded the total {dsh_timeout}s timeout"
+                    dsh_exit = 124
+                    break
+                command = ["dsh", "--profile", "headless", "--json"]
+                if session_id:
+                    command.extend(["--session-id", session_id])
+                command.extend(["--permission-mode", "workspace-write", "-"])
+                prompt = prompt_for_turn(turn, turn_index == 0)
+                dsh = subprocess.Popen(
+                    command, cwd=str(workspace), env=dsh_env, stdin=subprocess.PIPE,
+                    stdout=stdout, stderr=stderr, text=True, start_new_session=True,
+                )
+                try:
+                    dsh.communicate(prompt, timeout=remaining)
+                    dsh_exit = dsh.returncode
+                except subprocess.TimeoutExpired:
+                    error = f"DSH session timed out after {dsh_timeout}s"
+                    stop_process_group(dsh, timeout=5)
+                    dsh_exit = 124
+                stdout.flush()
+                stderr.flush()
+                partial_trace = parse_trace(events_path)
+                if turn_index == 0:
+                    session_id = partial_trace.get("session_id")
+                    if not session_id:
+                        error = "DSH did not emit a sessionId; cannot safely continue multi-turn input"
+                        break
+                session_turn_results.append({
+                    "turn_id": turn["turn_id"],
+                    "session_id_argument": session_id if turn_index > 0 else None,
+                    "dsh_exit_code": dsh_exit,
+                    "final_reason": partial_trace.get("final_reason"),
+                })
+                if dsh_exit != 0 or partial_trace.get("final_reason") != "completed":
+                    error = error or f"DSH turn {turn['turn_id']} did not complete successfully"
+                    break
+                stop_process_group(dsh)
+            if len(session_turn_results) != len(user_turns) and error is None:
+                error = f"Only {len(session_turn_results)} of {len(user_turns)} DSH user turns completed"
         _, post_state = http_json(target_url + "/api/tasks")
     except Exception as exc:
         error = f"{type(exc).__name__}: {exc}"
