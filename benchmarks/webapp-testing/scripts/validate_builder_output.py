@@ -17,7 +17,7 @@ OUTPUT = Path("artifacts/webapp-testing-builder-output")
 CASE_SCHEMA_PATH = ROOT / "skills/evaluation-dataset-builder/references/dataset-schema.json"
 MANIFEST_SCHEMA_PATH = ROOT / "skills/evaluation-dataset-builder/references/dataset-manifest-schema.json"
 ALLOWED_QUALITY = {"candidate", "needs_info"}
-ALLOWED_EXECUTION = {"NOT_RUN", "DESIGN_ONLY"}
+ALLOWED_EXECUTION = {"NOT_RUN"}
 
 
 def load_schema(path: Path) -> dict:
@@ -68,6 +68,7 @@ def main() -> int:
     datasets: dict[str, list[dict]] = defaultdict(list)
     coverage_counts: dict[str, int] = defaultdict(int)
     case_file_count = {}
+    file_dataset_ids: dict[str, set[str]] = defaultdict(set)
 
     for path in dataset_files:
         file_count = 0
@@ -135,22 +136,27 @@ def main() -> int:
 
             all_cases[case_id] = case
             datasets[case["dataset_id"]].append(case)
+            file_dataset_ids[path.relative_to(OUTPUT).as_posix()].add(case["dataset_id"])
             for tag in case.get("coverage_tags", []):
                 coverage_counts[tag["coverage_item_id"]] += 1
             file_count += 1
 
         if file_count == 0:
             raise SystemExit(f"Dataset file contains no cases: {path}")
-        case_file_count[path.relative_to(OUTPUT).as_posix()] = file_count
+        relative_dataset_path = path.relative_to(OUTPUT).as_posix()
+        if len(file_dataset_ids[relative_dataset_path]) != 1:
+            raise SystemExit(f"Dataset file must contain cases from exactly one dataset: {relative_dataset_path}")
+        case_file_count[relative_dataset_path] = file_count
 
     manifest_files = sorted(
         path for path in OUTPUT.rglob("*.json")
-        if "manifest" in path.name.casefold()
+        if path.name.casefold().endswith(".manifest.json")
     )
     if not manifest_files:
         raise SystemExit("Builder did not produce a dataset Manifest JSON file")
 
     manifests: dict[str, dict] = {}
+    manifest_path_by_id: dict[str, str] = {}
     for path in manifest_files:
         manifest = load_json(path)
         errors = sorted(manifest_validator.iter_errors(manifest), key=lambda e: list(e.path))
@@ -170,7 +176,7 @@ def main() -> int:
             )
         if manifest["execution_status"] not in ALLOWED_EXECUTION:
             raise SystemExit(
-                f"Manifest {dataset_id} execution_status must remain NOT_RUN/DESIGN_ONLY"
+                f"Manifest {dataset_id} execution_status must be NOT_RUN before any real execution"
             )
 
         owned_cases = datasets.get(dataset_id, [])
@@ -182,6 +188,62 @@ def main() -> int:
                 f"but found {len(owned_cases)} generated cases"
             )
         manifests[dataset_id] = manifest
+        manifest_path_by_id[dataset_id] = path.relative_to(OUTPUT).as_posix()
+
+    suite_manifest_path = OUTPUT / "SUITE-MANIFEST.json"
+    if not suite_manifest_path.is_file():
+        raise SystemExit("Builder output lacks SUITE-MANIFEST.json")
+    suite_manifest = load_json(suite_manifest_path)
+    suite_entries = suite_manifest.get("datasets")
+    if not isinstance(suite_entries, list) or not suite_entries:
+        raise SystemExit("SUITE-MANIFEST.json must contain a non-empty datasets array")
+    if suite_manifest.get("case_count") != len(all_cases):
+        raise SystemExit(
+            f"Suite Manifest case_count={suite_manifest.get('case_count')} "
+            f"but found {len(all_cases)} generated cases"
+        )
+    if suite_manifest.get("quality_status") not in ALLOWED_QUALITY:
+        raise SystemExit("Suite Manifest quality_status must remain candidate/needs_info")
+    if suite_manifest.get("execution_status") not in ALLOWED_EXECUTION:
+        raise SystemExit("Suite Manifest execution_status must be NOT_RUN before any real execution")
+
+    suite_dataset_ids = set()
+    for entry in suite_entries:
+        if not isinstance(entry, dict):
+            raise SystemExit("Each Suite Manifest dataset entry must be an object")
+        dataset_id = entry.get("dataset_id")
+        if not isinstance(dataset_id, str) or not dataset_id.strip():
+            raise SystemExit("Suite Manifest dataset entry has an invalid dataset_id")
+        if dataset_id in suite_dataset_ids:
+            raise SystemExit(f"Duplicate dataset_id in Suite Manifest: {dataset_id}")
+        suite_dataset_ids.add(dataset_id)
+        jsonl_relative = entry.get("jsonl")
+        manifest_relative = entry.get("manifest")
+        if not isinstance(jsonl_relative, str) or not isinstance(manifest_relative, str):
+            raise SystemExit(f"Suite Manifest {dataset_id} must reference JSONL and Manifest paths")
+        jsonl_path = Path(jsonl_relative)
+        manifest_path = Path(manifest_relative)
+        for relative, label in ((jsonl_path, "jsonl"), (manifest_path, "manifest")):
+            if relative.is_absolute() or ".." in relative.parts:
+                raise SystemExit(f"Suite Manifest {dataset_id} has unsafe {label} path: {relative}")
+        jsonl_key = jsonl_path.as_posix()
+        manifest_key = manifest_path.as_posix()
+        if jsonl_key not in case_file_count:
+            raise SystemExit(f"Suite Manifest {dataset_id} references missing JSONL: {jsonl_key}")
+        if file_dataset_ids[jsonl_key] != {dataset_id}:
+            raise SystemExit(f"Suite Manifest {dataset_id} JSONL contains different dataset IDs")
+        if entry.get("case_count") != case_file_count[jsonl_key]:
+            raise SystemExit(f"Suite Manifest {dataset_id} case_count does not match JSONL")
+        if manifest_path_by_id.get(dataset_id) != manifest_key:
+            raise SystemExit(f"Suite Manifest {dataset_id} references the wrong dataset Manifest")
+        if manifests[dataset_id]["case_count"] != case_file_count[jsonl_key]:
+            raise SystemExit(f"Dataset Manifest {dataset_id} case_count does not match JSONL")
+
+    if suite_dataset_ids != set(datasets):
+        raise SystemExit(
+            f"Suite Manifest dataset IDs do not match generated datasets: "
+            f"suite={sorted(suite_dataset_ids)}, generated={sorted(datasets)}"
+        )
 
     if set(datasets) != set(manifests):
         missing = sorted(set(datasets) - set(manifests))
@@ -191,9 +253,6 @@ def main() -> int:
             f"manifests_without_cases={orphaned}"
         )
 
-    json_files = {
-        path.name: path for path in OUTPUT.rglob("*.json")
-    }
     coverage_files = [p for p in OUTPUT.rglob("*") if p.is_file() and "coverage" in p.name.casefold()]
     source_files = [p for p in OUTPUT.rglob("*") if p.is_file() and "source" in p.name.casefold()]
     quality_reports = [
@@ -215,6 +274,16 @@ def main() -> int:
     if not report_templates:
         raise SystemExit("Builder output lacks the requested report template")
 
+    transient_files = [
+        path.relative_to(OUTPUT).as_posix()
+        for path in OUTPUT.rglob("*")
+        if path.is_file() and (path.suffix.lower() == ".pyc" or "__pycache__" in path.parts)
+    ]
+    if transient_files:
+        raise SystemExit(
+            "Builder output contains Python cache artifacts: " + ", ".join(transient_files[:10])
+        )
+
     summary = {
         "status": "PASS",
         "scope": "builder_output_validation_only",
@@ -234,7 +303,7 @@ def main() -> int:
         "coverage_item_counts": dict(sorted(coverage_counts.items())),
         "schema_errors": 0,
         "quality_status_gate": "candidate/needs_info",
-        "execution_status_gate": "NOT_RUN/DESIGN_ONLY",
+        "execution_status_gate": "NOT_RUN",
         "unknown_policy_gate": "present_in_every_case",
     }
     print(json.dumps(summary, ensure_ascii=False, indent=2))
