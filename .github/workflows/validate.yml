@@ -786,14 +786,13 @@ jobs:
             --dataset-id "${{ matrix.dataset_id }}" \
             --case-id "${{ matrix.case_id }}" \
             --fixture-profile "${{ matrix.fixture_profile }}" \
+            --fixture-mutations "${{ join(matrix.fixture_mutations, ',') }}" \
             --fixture-source benchmarks/webapp-testing/fixtures/workboard \
             --public-assets benchmarks/webapp-testing/assets/public \
             --skill-source .audit/upstream-skills/skills/webapp-testing \
             --work-root "$RUNNER_TEMP/wbt-workspaces" \
             --output-dir "$RUNNER_TEMP/wbt-output/${{ matrix.dataset_id }}" \
-            --skill-commit "2c5958ecac7cee2b583967a2c4981d0f4a75c579" \
-            --limit 1 \
-            --case-timeout 900
+            --skill-commit "2c5958ecac7cee2b583967a2c4981d0f4a75c579"
 
       - name: Archive webapp-testing pilot evidence
         if: always()
