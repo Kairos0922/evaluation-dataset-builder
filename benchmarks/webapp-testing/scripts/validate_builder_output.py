@@ -268,6 +268,10 @@ def main() -> int:
     if len(coverage_matrix_files) != 1:
         raise SystemExit("Builder output must contain exactly one coverage-matrix.json")
     coverage_matrix = load_json(coverage_matrix_files[0])
+    if coverage_matrix.get("suite_id") != suite_manifest.get("suite_id"):
+        raise SystemExit("Coverage matrix suite_id does not match SUITE-MANIFEST.json")
+    if coverage_matrix.get("version") != suite_manifest.get("version"):
+        raise SystemExit("Coverage matrix version does not match SUITE-MANIFEST.json")
     coverage_items = coverage_matrix.get("items")
     if not isinstance(coverage_items, list) or not coverage_items:
         raise SystemExit("coverage-matrix.json must contain a non-empty items array")
@@ -282,6 +286,10 @@ def main() -> int:
             raise SystemExit(f"{item_id}: invalid applicability value")
         if item["applicability"] != "applicable":
             require_nonempty_text(item.get("notes"), f"{item_id}.notes")
+            if coverage_counts.get(item_id, 0) > 0:
+                raise SystemExit(f"{item_id}: not_applicable/needs_info item must not be tagged by a case")
+        if item["applicability"] == "needs_info" and suite_manifest.get("quality_status") != "needs_info":
+            raise SystemExit(f"{item_id}: suite quality_status must be needs_info")
         coverage_item_by_id[item_id] = item
 
     unknown_coverage_tags = sorted(set(coverage_counts) - set(coverage_item_by_id))
@@ -347,6 +355,8 @@ def main() -> int:
                 raise SystemExit(
                     f"Applicable coverage gap lacks a Suite Manifest gap_priority: {item['coverage_item_id']}"
                 )
+            if gap.get("priority") not in {"critical", "high", "medium", "low"}:
+                raise SystemExit(f"{item['coverage_item_id']}: gap priority must be critical/high/medium/low")
             require_nonempty_text(gap.get("reason"), f"{item['coverage_item_id']}.gap_priority.reason")
             require_nonempty_text(gap.get("planned_action"), f"{item['coverage_item_id']}.gap_priority.planned_action")
 
