@@ -39,7 +39,12 @@ def copy_tree(source: Path, destination: Path) -> None:
     for path in source.rglob("*"):
         if path.is_symlink():
             raise SystemExit(f"Symlinks are not allowed in Builder input assets: {path}")
-    shutil.copytree(source, destination, dirs_exist_ok=True)
+    shutil.copytree(
+        source,
+        destination,
+        dirs_exist_ok=True,
+        ignore=shutil.ignore_patterns("__pycache__", "*.pyc", "*.pyo"),
+    )
 
 
 def main() -> int:
