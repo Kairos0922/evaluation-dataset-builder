@@ -67,8 +67,10 @@ def port_open(host: str, port: int) -> bool:
 
 
 def stop_process_group(process: subprocess.Popen | None, timeout: int = 8) -> None:
-    if process is None or process.poll() is not None:
+    if process is None:
         return
+    # Kill the process group even when its leader has exited; browser/helper
+    # children may still be alive in the same session.
     try:
         os.killpg(process.pid, signal.SIGTERM)
     except ProcessLookupError:
@@ -102,6 +104,19 @@ def resolve_user_input(case: dict) -> tuple[str, str | None]:
     if not task:
         raise ValueError("case user_input does not contain usable task text")
     return task, target_url
+
+
+def resolve_case_timeout(environment: dict, override: int | None) -> int:
+    raw = override if override is not None else environment.get("case_timeout_seconds", 900)
+    if isinstance(raw, bool):
+        raise ValueError("case_timeout_seconds must be an integer")
+    try:
+        timeout = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("case_timeout_seconds must be an integer") from exc
+    if timeout < 1 or timeout > 900:
+        raise ValueError("case timeout must be between 1 and 900 seconds")
+    return timeout
 
 
 def parse_trace(path: Path) -> dict:
@@ -161,7 +176,10 @@ def self_test() -> int:
         assert object_url == "http://127.0.0.1:4173"
         array_task, array_url = resolve_user_input({"user_input": ["step one", "step two"]})
         assert '"step one"' in array_task and array_url is None
-    print("PASS: runner self-test (trace parsing and user_input string/object/array)")
+        assert resolve_case_timeout({"case_timeout_seconds": 180}, None) == 180
+        assert resolve_case_timeout({"case_timeout_seconds": 600}, None) == 600
+        assert resolve_case_timeout({"case_timeout_seconds": 600}, 300) == 300
+    print("PASS: runner self-test (trace, input formats, and case-specific timeout)")
     return 0
 
 
@@ -178,7 +196,8 @@ def main() -> int:
     parser.add_argument("--output-dir")
     parser.add_argument("--skill-commit")
     parser.add_argument("--fixture-profile", choices=("clean", "mutant"))
-    parser.add_argument("--case-timeout", type=int, default=900)
+    parser.add_argument("--fixture-mutations")
+    parser.add_argument("--case-timeout", type=int)
     args = parser.parse_args()
 
     if args.self_test:
@@ -229,12 +248,25 @@ def main() -> int:
         raise SystemExit(f"unexpected fixture port {port}; expected 4173")
 
     profile = args.fixture_profile or initial_state.get("fixture_profile") or environment.get("fixture_profile") or "clean"
-    mutations = initial_state.get("fixture_mutations") or environment.get("fixture_mutations") or []
+    case_mutations = initial_state.get("fixture_mutations") or environment.get("fixture_mutations") or []
+    if args.fixture_mutations is not None:
+        mutations = [item.strip() for item in args.fixture_mutations.split(",") if item.strip()]
+    else:
+        mutations = case_mutations
+    allowed_mutations = {"search-case-sensitive", "stale-summary", "blank-title"}
+    if not isinstance(mutations, list) or not set(mutations).issubset(allowed_mutations):
+        raise SystemExit("invalid fixture mutations in case or pilot arguments")
+    if profile == "clean" and mutations:
+        raise SystemExit("clean fixture profile cannot include mutations")
     server_state = initial_state.get("server_state") or environment.get("server_state_at_start") or "running"
     if server_state != "running":
         raise SystemExit("pilot runner supports server_state=running only; stopped-server cases are deferred")
-    if profile not in ("clean", "mutant") or not isinstance(mutations, list):
-        raise SystemExit("invalid fixture profile or mutations in Builder case")
+    if profile not in ("clean", "mutant"):
+        raise SystemExit("invalid fixture profile in Builder case")
+    try:
+        case_timeout = resolve_case_timeout(environment, args.case_timeout)
+    except ValueError as exc:
+        raise SystemExit(str(exc))
 
     case_dir = output / args.case_id
     if case_dir.exists():
@@ -317,7 +349,7 @@ def main() -> int:
                 stdout=stdout, stderr=stderr, text=True, start_new_session=True,
             )
             try:
-                dsh.communicate(prompt, timeout=args.case_timeout)
+                dsh.communicate(prompt, timeout=case_timeout)
                 dsh_exit = dsh.returncode
             except subprocess.TimeoutExpired:
                 error = f"DSH timed out after {args.case_timeout}s"
@@ -383,6 +415,7 @@ def main() -> int:
         "pre_state": pre_state,
         "post_state": post_state,
         "dsh_exit_code": dsh_exit,
+        "case_timeout_seconds": case_timeout,
         "trace": trace,
         "server_port_closed": port_closed,
         "skill_artifact_file_count": len(skill_artifact_files),
