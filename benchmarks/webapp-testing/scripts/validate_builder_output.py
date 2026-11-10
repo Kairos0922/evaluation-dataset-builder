@@ -264,6 +264,92 @@ def main() -> int:
         )
 
     coverage_files = [p for p in OUTPUT.rglob("*") if p.is_file() and "coverage" in p.name.casefold()]
+    coverage_matrix_files = [p for p in coverage_files if p.name.casefold() == "coverage-matrix.json"]
+    if len(coverage_matrix_files) != 1:
+        raise SystemExit("Builder output must contain exactly one coverage-matrix.json")
+    coverage_matrix = load_json(coverage_matrix_files[0])
+    coverage_items = coverage_matrix.get("items")
+    if not isinstance(coverage_items, list) or not coverage_items:
+        raise SystemExit("coverage-matrix.json must contain a non-empty items array")
+    coverage_item_by_id = {}
+    for item in coverage_items:
+        if not isinstance(item, dict):
+            raise SystemExit("Coverage matrix items must be objects")
+        item_id = item.get("coverage_item_id")
+        if not isinstance(item_id, str) or not item_id.strip() or item_id in coverage_item_by_id:
+            raise SystemExit(f"Invalid or duplicate coverage_item_id: {item_id!r}")
+        if item.get("applicability") not in {"applicable", "not_applicable", "needs_info"}:
+            raise SystemExit(f"{item_id}: invalid applicability value")
+        if item["applicability"] != "applicable":
+            require_nonempty_text(item.get("notes"), f"{item_id}.notes")
+        coverage_item_by_id[item_id] = item
+
+    unknown_coverage_tags = sorted(set(coverage_counts) - set(coverage_item_by_id))
+    if unknown_coverage_tags:
+        raise SystemExit(f"Cases reference unknown coverage items: {unknown_coverage_tags}")
+    gap_priorities = suite_manifest["coverage"].get("gap_priorities") or []
+    gap_by_id = {
+        gap.get("gap_id"): gap
+        for gap in gap_priorities
+        if isinstance(gap, dict) and isinstance(gap.get("gap_id"), str)
+    }
+    if len(gap_by_id) != len(gap_priorities):
+        raise SystemExit("Suite Manifest gap_priorities contains invalid or duplicate gap IDs")
+
+    matrix_dimensions = {
+        item.get("dimension"): item
+        for item in coverage_matrix.get("dimensions", [])
+        if isinstance(item, dict) and isinstance(item.get("dimension"), str)
+    }
+    suite_dimensions = {
+        item.get("dimension"): item
+        for item in suite_manifest["coverage"].get("dimensions", [])
+        if isinstance(item, dict) and isinstance(item.get("dimension"), str)
+    }
+    if set(matrix_dimensions) != set(suite_dimensions):
+        raise SystemExit("Coverage matrix and Suite Manifest dimensions do not match")
+
+    for dimension, matrix_summary in matrix_dimensions.items():
+        applicable_items = [
+            item for item in coverage_items
+            if item.get("dimension") == dimension and item.get("applicability") == "applicable"
+        ]
+        covered_items = [
+            item for item in applicable_items
+            if coverage_counts.get(item["coverage_item_id"], 0) > 0
+        ]
+        uncovered_items = [
+            item for item in applicable_items
+            if coverage_counts.get(item["coverage_item_id"], 0) == 0
+        ]
+        expected_uncovered = {
+            f"{item['coverage_item_id']} {item.get('value', '')}".strip()
+            for item in uncovered_items
+        }
+        for summary in (matrix_summary, suite_dimensions[dimension]):
+            if summary.get("total") != len(applicable_items):
+                raise SystemExit(f"{dimension}: coverage total does not match applicable items")
+            if summary.get("covered") != len(covered_items):
+                raise SystemExit(f"{dimension}: covered count does not match case coverage tags")
+            if set(summary.get("uncovered", [])) != expected_uncovered:
+                raise SystemExit(f"{dimension}: uncovered list does not match coverage items")
+            expected_rate = (len(covered_items) / len(applicable_items)) if applicable_items else None
+            actual_rate = summary.get("coverage_rate")
+            if expected_rate is None:
+                if actual_rate is not None:
+                    raise SystemExit(f"{dimension}: coverage_rate must be null when total is zero")
+            elif not isinstance(actual_rate, (int, float)) or abs(actual_rate - expected_rate) > 0.0001:
+                raise SystemExit(f"{dimension}: coverage_rate does not match covered/total")
+
+        for item in uncovered_items:
+            gap = gap_by_id.get(item["coverage_item_id"])
+            if gap is None:
+                raise SystemExit(
+                    f"Applicable coverage gap lacks a Suite Manifest gap_priority: {item['coverage_item_id']}"
+                )
+            require_nonempty_text(gap.get("reason"), f"{item['coverage_item_id']}.gap_priority.reason")
+            require_nonempty_text(gap.get("planned_action"), f"{item['coverage_item_id']}.gap_priority.planned_action")
+
     source_files = [p for p in OUTPUT.rglob("*") if p.is_file() and "source" in p.name.casefold()]
     quality_reports = [
         p for p in OUTPUT.rglob("*")
