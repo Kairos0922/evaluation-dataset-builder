@@ -66,6 +66,9 @@ def main() -> int:
 
     all_cases: dict[str, dict] = {}
     datasets: dict[str, list[dict]] = defaultdict(list)
+    # All tags are checked for referential integrity and forbidden needs_info tags.
+    # Only candidate cases contribute to effective/full coverage.
+    coverage_tag_counts: dict[str, int] = defaultdict(int)
     coverage_counts: dict[str, int] = defaultdict(int)
     case_file_count = {}
     file_dataset_ids: dict[str, set[str]] = defaultdict(set)
@@ -148,7 +151,10 @@ def main() -> int:
             datasets[case["dataset_id"]].append(case)
             file_dataset_ids[path.relative_to(OUTPUT).as_posix()].add(case["dataset_id"])
             for tag in case.get("coverage_tags", []):
-                coverage_counts[tag["coverage_item_id"]] += 1
+                item_id = tag["coverage_item_id"]
+                coverage_tag_counts[item_id] += 1
+                if case["quality_status"] == "candidate":
+                    coverage_counts[item_id] += 1
             file_count += 1
 
         if file_count == 0:
@@ -296,13 +302,13 @@ def main() -> int:
             raise SystemExit(f"{item_id}: invalid applicability value")
         if item["applicability"] != "applicable":
             require_nonempty_text(item.get("notes"), f"{item_id}.notes")
-            if coverage_counts.get(item_id, 0) > 0:
+            if coverage_tag_counts.get(item_id, 0) > 0:
                 raise SystemExit(f"{item_id}: not_applicable/needs_info item must not be tagged by a case")
         if item["applicability"] == "needs_info" and suite_manifest.get("quality_status") != "needs_info":
             raise SystemExit(f"{item_id}: suite quality_status must be needs_info")
         coverage_item_by_id[item_id] = item
 
-    unknown_coverage_tags = sorted(set(coverage_counts) - set(coverage_item_by_id))
+    unknown_coverage_tags = sorted(set(coverage_tag_counts) - set(coverage_item_by_id))
     if unknown_coverage_tags:
         raise SystemExit(f"Cases reference unknown coverage items: {unknown_coverage_tags}")
     gap_priorities = suite_manifest["coverage"].get("gap_priorities") or []
@@ -417,6 +423,7 @@ def main() -> int:
             for dataset_id, cases in sorted(datasets.items())
         },
         "coverage_item_counts": dict(sorted(coverage_counts.items())),
+        "all_case_coverage_tag_counts": dict(sorted(coverage_tag_counts.items())),
         "schema_errors": 0,
         "quality_status_gate": "candidate/needs_info",
         "execution_status_gate": "NOT_RUN",

@@ -101,13 +101,12 @@ def load_suite(output_root: Path) -> dict:
         selected = candidate_cases[0]
         if (selected.get("execution_requirements") or {}).get("status") != "NOT_RUN":
             fail(f"{dataset_id}/{selected['case_id']}: case execution status must be NOT_RUN")
-        # Apply a mutation only when the selected Builder case explicitly tests
-        # description/search behavior. Keep all unrelated cases on the clean profile.
-        test_data = (selected.get("execution_requirements") or {}).get("test_data") or []
+        # BR-02 is the stable business-rule identifier for case-insensitive
+        # search. Builder test_data payload shapes are not standardized, so
+        # select the search mutant from the semantic coverage tag instead.
         search_challenge = any(
-            isinstance(item, dict)
-            and item.get("kind") in {"description_queries", "search_queries"}
-            for item in test_data
+            isinstance(tag, dict) and tag.get("coverage_item_id") == "BR-02"
+            for tag in selected.get("coverage_tags", [])
         )
         fixture_profile = "mutant" if search_challenge else "clean"
         fixture_mutations = ["search-case-sensitive"] if search_challenge else []
@@ -138,7 +137,8 @@ def self_test() -> int:
                 "dataset_id": "D-B",
                 "case_id": "D-B-001",
                 "quality_status": "candidate",
-                "execution_requirements": {"status": "NOT_RUN", "test_data": [{"kind": "description_queries"}]},
+                "execution_requirements": {"status": "NOT_RUN", "test_data": [{"query": "RESET PASSWORD FLOW", "variant": "uppercase"}]},
+                "coverage_tags": [{"coverage_item_id": "BR-02"}],
             }) + "\n",
             encoding="utf-8",
         )
