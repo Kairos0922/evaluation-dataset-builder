@@ -41,11 +41,21 @@ def main() -> int:
     if manifest.get("gold_oracle_included") is not False:
         raise SystemExit("Gold Oracle must not be present in the Builder input bundle")
 
-    actual_paths = {
-        path.relative_to(ROOT).as_posix()
-        for path in ROOT.rglob("*")
+    actual_files = [
+        path for path in ROOT.rglob("*")
         if path.is_file() and path != MANIFEST_PATH
-    }
+    ]
+    transient_files = [
+        path.relative_to(ROOT).as_posix()
+        for path in actual_files
+        if path.suffix.lower() in {".pyc", ".pyo"} or "__pycache__" in path.parts
+    ]
+    if transient_files:
+        raise SystemExit(
+            "Python cache artifacts must not enter the public Builder input: "
+            + ", ".join(transient_files[:10])
+        )
+    actual_paths = {path.relative_to(ROOT).as_posix() for path in actual_files}
     records = manifest.get("assets")
     if not isinstance(records, list) or not records:
         raise SystemExit("Manifest assets must be a non-empty list")
