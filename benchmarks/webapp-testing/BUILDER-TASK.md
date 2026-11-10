@@ -19,7 +19,7 @@
 9. 用例质量状态保持 `candidate` 或 `needs_info`。本次 Builder 生产不会执行被测 Skill，因此每条用例的 `execution_requirements.status`、每个数据集 Manifest 和套件 Manifest 的 `execution_status` 必须统一标记为 `NOT_RUN`。不得使用 `DESIGN_ONLY`、`READY_TO_RUN` 或 `EXECUTION_VERIFIED`。
 10. 不要读取或推断隐藏运行配置、Gold Oracle 或独立验证器内容。
 11. 交付前清理 `__pycache__`、`*.pyc` 和临时文件。不要把缓存或临时文件放入最终套件。
-12. 覆盖矩阵中的每个 `applicable` capability/risk 项必须由至少一条用例覆盖，或在 `SUITE-MANIFEST.json.coverage.gap_priorities` 中记录匹配的 `gap_id`、`priority`、`reason` 和 `planned_action`。若该行为由测试运行器负责，或当前 fixture 无法触发，应基于来源将其标记为 `not_applicable` 并说明理由。相关 capability 与 risk 项的适用性必须保持一致，不得一边标记适用、一边以运行器代管为由留空。
+12. 覆盖矩阵中的每个 `applicable` capability/risk 项必须由至少一条用例覆盖，或在 `SUITE-MANIFEST.json.coverage.gap_priorities` 中记录 `gap_id`（必须等于对应的 `coverage_item_id`）、`priority`、`reason` 和 `planned_action`。若该行为由测试运行器负责，或当前 fixture 无法触发，应基于来源将其标记为 `not_applicable` 并说明理由。相关 capability 与 risk 项的适用性必须保持一致，不得一边标记适用、一边以运行器代管为由留空。
 
 ## 输出
 
