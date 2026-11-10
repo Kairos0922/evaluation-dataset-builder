@@ -83,6 +83,27 @@ def stop_process_group(process: subprocess.Popen | None, timeout: int = 8) -> No
         process.wait(timeout=timeout)
 
 
+def resolve_user_input(case: dict) -> tuple[str, str | None]:
+    """Normalize schema-supported user_input values without guessing field names."""
+    raw = case.get("user_input")
+    if isinstance(raw, str):
+        task = raw.strip()
+        target_url = None
+    elif isinstance(raw, dict):
+        task_value = raw.get("task") or raw.get("prompt") or raw.get("content")
+        task = task_value.strip() if isinstance(task_value, str) else ""
+        url_value = raw.get("target_url") or raw.get("url")
+        target_url = url_value.strip() if isinstance(url_value, str) and url_value.strip() else None
+    elif isinstance(raw, list):
+        task = json.dumps(raw, ensure_ascii=False, indent=2)
+        target_url = None
+    else:
+        raise ValueError("case user_input must be a non-empty string, object, or array")
+    if not task:
+        raise ValueError("case user_input does not contain usable task text")
+    return task, target_url
+
+
 def parse_trace(path: Path) -> dict:
     events = []
     if path.exists():
@@ -131,7 +152,16 @@ def self_test() -> int:
         assert parsed["webapp_testing_skill_calls"] == 1
         assert parsed["completed_skill_calls"] == 1
         assert parsed["final_reason"] == "completed"
-    print("PASS: runner self-test")
+        string_task, string_url = resolve_user_input({"user_input": "  run this task  "})
+        assert string_task == "run this task" and string_url is None
+        object_task, object_url = resolve_user_input({
+            "user_input": {"task": "inspect the app", "target_url": "http://127.0.0.1:4173"}
+        })
+        assert object_task == "inspect the app"
+        assert object_url == "http://127.0.0.1:4173"
+        array_task, array_url = resolve_user_input({"user_input": ["step one", "step two"]})
+        assert '"step one"' in array_task and array_url is None
+    print("PASS: runner self-test (trace parsing and user_input string/object/array)")
     return 0
 
 
@@ -182,9 +212,13 @@ def main() -> int:
     execution = case.get("execution_requirements") or {}
     environment = execution.get("environment") or {}
     initial_state = execution.get("initial_state") or {}
-    target_url = (case.get("user_input") or {}).get("target_url") or environment.get("app_url")
+    try:
+        task, input_target_url = resolve_user_input(case)
+    except ValueError as exc:
+        raise SystemExit(str(exc))
+    target_url = input_target_url or initial_state.get("url") or environment.get("app_url")
     if not target_url:
-        raise SystemExit("case has no target URL")
+        raise SystemExit("case has no target URL in user_input or execution_requirements")
     parsed = urlparse(target_url)
     host = parsed.hostname or ""
     port = parsed.port or (443 if parsed.scheme == "https" else 80)
@@ -244,9 +278,6 @@ def main() -> int:
         })
         events_path = case_dir / "dsh-events.jsonl"
         stderr_path = case_dir / "dsh-stderr.log"
-        task = (case.get("user_input") or {}).get("task")
-        if not isinstance(task, str) or not task.strip():
-            raise RuntimeError("Builder case user_input.task must be a non-empty string")
         public_task = {
             "case_id": case["case_id"],
             "dataset_id": case["dataset_id"],
