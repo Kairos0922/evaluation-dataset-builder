@@ -244,8 +244,8 @@ CI 运行成功不等于评测成功；依赖安装成功不等于 Skill 运行�
 - Actions 已验证 DSH 0.2.2-rc.1、Node 24.9.0、Python 3.12.16、Playwright 1.64.1 和 Chromium 156.0.8078.4。
 - DSH Session Log 上传已关闭，OpenTelemetry 禁用标志已设置。
 - `with_server.py --help`、本地浏览器交互、Workboard clean/mutant 夹具检查和端口清理均已通过。
-- 最新公开输入包含 19 个文件，逐文件 SHA-256、来源版本、捕获时间和上游 tree SHA 均经过独立验证；包清单 SHA-256 为 `143e9c380a532a7df4e9279c1c69ed484e32dc23819e97773b4fe92fb7fcf056`。
-- 对应 Actions run：`42484433238`。输入包 Artifact：`13618733130`。
+- 最新公开输入包含 18 个文件，逐文件 SHA-256、来源版本、捕获时间和上游 tree SHA 均经过独立验证；已排除运行预检生成的 `__pycache__` 和 `*.pyc`。包清单 SHA-256 为 `c446fbea3137ffae3769591d6a64b56d4a1a6f2d4a28b5d8b26181f9e41b7da4`。
+- 对应 PR Actions run：`42830784372`。输入包 Artifact：`13770873683`。此前 19 文件包包含 Python 缓存，已被本次 18 文件包取代。
 
 ## 尚未获得的证据
 
