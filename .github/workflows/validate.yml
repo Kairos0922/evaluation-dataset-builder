@@ -456,14 +456,15 @@ jobs:
       - name: Configure isolated DSH and stage Builder Skill
         run: |
           set -euo pipefail
-          mkdir -p "$DSH_HOME" .dsh/skills artifacts
+          BUILDER_WORKSPACE="$RUNNER_TEMP/builder-workspace"
+          mkdir -p "$DSH_HOME" artifacts "$BUILDER_WORKSPACE/.dsh/skills" "$BUILDER_WORKSPACE/artifacts"
           cat > "$DSH_HOME/cordis.patch.yml" <<'YAML'
           - id: session-log-deepseek
             config:
               enabled: false
           YAML
-          cp -R skills/evaluation-dataset-builder .dsh/skills/evaluation-dataset-builder
-          test -s .dsh/skills/evaluation-dataset-builder/SKILL.md
+          cp -R skills/evaluation-dataset-builder "$BUILDER_WORKSPACE/.dsh/skills/evaluation-dataset-builder"
+          test -s "$BUILDER_WORKSPACE/.dsh/skills/evaluation-dataset-builder/SKILL.md"
           dsh --profile headless --dump-config > artifacts/dsh-config.txt
           python - <<'PY'
           from pathlib import Path
@@ -497,7 +498,7 @@ jobs:
             benchmarks/webapp-testing/scripts/validate_builder_output.py
           python benchmarks/webapp-testing/scripts/verify_builder_input.py
           mkdir -p artifacts/webapp-testing-builder-output
-          find .dsh/skills/evaluation-dataset-builder -type f -print0 \
+          find "$RUNNER_TEMP/builder-workspace/.dsh/skills/evaluation-dataset-builder" -type f -print0 \
             | sort -z | xargs -0 sha256sum \
             > artifacts/builder-skill-sha256.txt
 
@@ -530,7 +531,10 @@ jobs:
               ).stdout.strip(),
               "created_at_utc": datetime.now(timezone.utc).isoformat(),
               "scope": "builder_production_only",
+              "workspace_isolated": True,
+              "workspace_contents": ["Builder Skill", "public Builder input bundle"],
               "gold_oracle_mounted": False,
+              "independent_validator_mounted": False,
               "webapp_testing_skill_loaded": False,
           }
           Path("artifacts/builder-run-metadata.json").write_text(
@@ -544,13 +548,43 @@ jobs:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
           set -euo pipefail
-          rm -rf artifacts/webapp-testing-builder-output
-          mkdir -p artifacts/webapp-testing-builder-output
+          BUILDER_WORKSPACE="$RUNNER_TEMP/builder-workspace"
+          rm -rf "$BUILDER_WORKSPACE/artifacts/webapp-testing-builder-output" artifacts/webapp-testing-builder-output
+          mkdir -p "$BUILDER_WORKSPACE/artifacts/webapp-testing-builder-output"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "builder-workspace"
+          allowed = (".dsh/skills/evaluation-dataset-builder/", "artifacts/webapp-testing-builder-input/")
+          files = sorted(p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file())
+          unexpected = [p for p in files if not p.startswith(allowed)]
+          if unexpected:
+              raise SystemExit(f"Builder workspace contains unexpected files: {unexpected}")
+          if not any(p.startswith(allowed[0]) for p in files):
+              raise SystemExit("Builder Skill is missing from isolated workspace")
+          if not any(p.startswith(allowed[1]) for p in files):
+              raise SystemExit("Public Builder input is missing from isolated workspace")
+          evidence = {
+              "workspace_isolated": True,
+              "file_count": len(files),
+              "allowed_roots": list(allowed),
+              "forbidden_components_present": False,
+              "files": files,
+          }
+          Path("artifacts/builder-workspace-boundary.json").write_text(
+              json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+          )
+          PY
           set +e
-          dsh --profile headless --json --permission-mode workspace-write - \
-            < artifacts/webapp-testing-builder-input/BUILDER-TASK.md \
-            > artifacts/builder-dsh-events.jsonl \
-            2> artifacts/builder-dsh-stderr.log
+          (
+            cd "$BUILDER_WORKSPACE"
+            dsh --profile headless --json --permission-mode workspace-write - \
+              < artifacts/webapp-testing-builder-input/BUILDER-TASK.md \
+              > "$GITHUB_WORKSPACE/artifacts/builder-dsh-events.jsonl" \
+              2> "$GITHUB_WORKSPACE/artifacts/builder-dsh-stderr.log"
+          )
           dsh_exit=$?
           set -e
           printf '%s\n' "$dsh_exit" > artifacts/builder-dsh-exit-code.txt
@@ -558,6 +592,8 @@ jobs:
             echo "::error::DSH Builder invocation failed with exit code $dsh_exit"
             exit "$dsh_exit"
           fi
+          cp -a "$BUILDER_WORKSPACE/artifacts/webapp-testing-builder-output" artifacts/
+          test -d artifacts/webapp-testing-builder-output
 
       - name: Check and redact any accidental credential disclosure
         if: always()
@@ -642,6 +678,7 @@ jobs:
             artifacts/builder-skill-sha256.txt
             artifacts/builder-output-sha256.txt
             artifacts/builder-run-metadata.json
+            artifacts/builder-workspace-boundary.json
             artifacts/credential-scan.json
           if-no-files-found: warn
           retention-days: 30
