@@ -6,6 +6,7 @@ This script validates only. It must never create, edit, repair, or select cases.
 from __future__ import annotations
 
 import json
+import os
 import sys
 from collections import defaultdict
 from pathlib import Path
@@ -13,7 +14,7 @@ from pathlib import Path
 import jsonschema
 
 ROOT = Path(__file__).resolve().parents[3]
-OUTPUT = Path("artifacts/webapp-testing-builder-output")
+OUTPUT = Path(os.environ.get("BUILDER_OUTPUT_DIR", "artifacts/webapp-testing-builder-output"))
 CASE_SCHEMA_PATH = ROOT / "skills/evaluation-dataset-builder/references/dataset-schema.json"
 MANIFEST_SCHEMA_PATH = ROOT / "skills/evaluation-dataset-builder/references/dataset-manifest-schema.json"
 ALLOWED_QUALITY = {"candidate", "needs_info"}
