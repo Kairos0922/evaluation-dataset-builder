@@ -413,7 +413,7 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
-  # Avoid repeated paid model requests after the confirmed HTTP 402 quota failure.
+  # Paid Builder production and target-Skill pilot run only after explicit opt-in.
   # Opt in with the PR label "run-builder-production" or workflow_dispatch input.
   builder-production:
     if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production)
@@ -725,7 +725,7 @@ jobs:
           name: webapp-testing-builder-result
           path: artifacts/builder-result
 
-      - name: Resolve one pilot case per generated dataset
+      - name: Resolve three Builder-generated candidate pilot cases
         id: resolve
         run: |
           set -euo pipefail
@@ -864,7 +864,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: webapp-testing-pilot-${{ matrix.dataset_id }}
+          name: webapp-testing-pilot-${{ matrix.case_id }}
           path: ${{ runner.temp }}/wbt-output/${{ matrix.dataset_id }}/
           if-no-files-found: warn
           retention-days: 30
