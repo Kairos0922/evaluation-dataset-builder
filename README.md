@@ -107,7 +107,7 @@ README 当前记录的四种安装环境均尚未完成逐平台真实运行验�
 | claude.ai | DOCUMENTED_NOT_VERIFIED |
 | Claude API | DOCUMENTED_NOT_VERIFIED |
 
-安装文档和离线 CI 不构成宿主兼容性证据。验证步骤、证据格式和发布要求见 [目标宿主验证矩阵](tests/target-runtime-matrix.md)。
+安装文档和离线 CI 不构成宿主兼容性证据。需要逐平台认证时，可参考[目标宿主兼容性补充验证矩阵](tests/target-runtime-matrix.md)；该矩阵不是 0.0.1 发布门禁。
 
 ## 使用方法
 
