@@ -69,14 +69,14 @@ jobs:
           python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py \
             --output-root artifacts/builder-result/webapp-testing-builder-output \
             --github-output \
-            --write-output "$RUNNER_TEMP/pilot-matrix.json"
+            --write-output "$GITHUB_WORKSPACE/pilot-matrix.json"
           cat "$RUNNER_TEMP/pilot-matrix.json"
           python - <<'PY'
           import json
           import os
           from pathlib import Path
 
-          matrix_path = Path(os.environ["RUNNER_TEMP"]) / "pilot-matrix.json"
+          matrix_path = Path(os.environ["GITHUB_WORKSPACE"]) / "pilot-matrix.json"
           matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
           selected = {item["dataset_id"]: item for item in matrix["include"]}
           defect = selected.get("wb-defect")
@@ -95,7 +95,7 @@ jobs:
           path: |
             artifacts/builder-result/webapp-testing-builder-output/
             artifacts/builder-replay-validation.json
-            ${{ runner.temp }}/pilot-matrix.json
+            pilot-matrix.json
           if-no-files-found: error
           retention-days: 30
 
@@ -108,7 +108,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
-      DSH_HOME: ${{ runner.temp }}/dsh-home
+      DSH_HOME: ${{ github.workspace }}/.dsh-home
       DSH_TELEMETRY_MODE: DISABLED
       DSH_TELEMETRY_DISABLED: "1"
       DSH_VERSION: "0.2.2-rc.1"
@@ -163,7 +163,7 @@ jobs:
 
       - name: Disable Session Log upload
         env:
-          DSH_CONFIG_PATH: ${{ runner.temp }}/dsh-config.txt
+          DSH_CONFIG_PATH: ${{ github.workspace }}/dsh-config.txt
         run: |
           set -euo pipefail
           mkdir -p "$DSH_HOME"
