@@ -1,55 +1,72 @@
-# 目标宿主验证矩阵（0.0.1）
+# 目标宿主兼容性补充验证矩阵（0.0.1 非发布阻断项）
 
-## 当前声明边界
+## 1. 目的与范围
 
-README 已提供以下四种环境的安装或启用说明。这表示仓库提供对应的安装指导，**不表示已经验证运行兼容性**。截至本矩阵更新，四种环境均为 `DOCUMENTED_NOT_VERIFIED`；没有真实宿主执行证据，不得把任何一项标记为 PASS。
+本矩阵用于在需要时评估不同 Agent 宿主的安装和集成差异。它不是 Evaluation Dataset Builder 0.0.1 的发布阻断项。
 
-| 宿主 | README 中的安装/启用方式 | 当前验证状态 | 0.0.1 发布要求 |
+**0.0.1 核心能力验收采用一个固定的生成模型配置和独立 Judge。** 对同一 Skill 入口指令执行行为评测、基线比较和重复运行稳定性检查。没有必要为了证明相同 Skill 规则的模型行为，再在 Codex、Claude Code、claude.ai 和 Claude API 上重复整套评测。
+
+但必须区分以下两个结论：
+
+- **模型与 Skill 行为质量：** 由固定候选 SHA 的正式行为评测给出结论。
+- **宿主集成兼容性：** 包括 Skill 发现、参考资料加载、文件访问、工具调用、权限和清理行为。这些能力由宿主提供，可能存在差异；单一宿主的运行结果不能证明其他宿主的集成行为。
+
+因此，0.0.1 可以使用一个模型配置完成核心行为验收，但不得宣称四种宿主均已通过真实兼容性验证。
+
+## 2. 已记录的安装方式
+
+以下平台保留安装说明。当前状态表示文档已提供，不表示真实运行已经验证。
+
+| 宿主 | README 中的安装/启用方式 | 逐平台验证状态 | 是否阻断 0.0.1 |
 |---|---|---|---|
-| Codex | 用户级或项目级 `.agents/skills` 目录 | DOCUMENTED_NOT_VERIFIED | 必须实测通过 |
-| Claude Code | 用户级或项目级 `.claude/skills` 目录 | DOCUMENTED_NOT_VERIFIED | 必须实测通过 |
-| claude.ai | 上传完整 Skill ZIP 并启用 | DOCUMENTED_NOT_VERIFIED | 必须实测通过 |
-| Claude API | Skills API 上传并在 Messages API 启用 | DOCUMENTED_NOT_VERIFIED | 必须实测通过 |
+| Codex | 用户级或项目级 `.agents/skills` 目录 | DOCUMENTED_NOT_VERIFIED | 否 |
+| Claude Code | 用户级或项目级 `.claude/skills` 目录 | DOCUMENTED_NOT_VERIFIED | 否 |
+| claude.ai | 上传完整 Skill ZIP 并启用 | DOCUMENTED_NOT_VERIFIED | 否 |
+| Claude API | Skills API 上传并在 Messages API 启用 | DOCUMENTED_NOT_VERIFIED | 否 |
 
-如未来缩小对外支持范围，必须同步调整 README 的安装声明、本矩阵和发布门禁；不得仅在验证报告中删掉未通过的平台。
+不得把 DOCUMENTED_NOT_VERIFIED 改写为 PASS。不得在 README、发布说明或营销材料中声称未实测平台已通过兼容性认证。
 
-## 每个宿主必须执行的检查
+## 3. 需要平台兼容性认证时的检查
 
-1. **发现（discovery）**：按 README 指定方式安装后，宿主能够识别 Skill 名称、描述和入口；记录宿主版本、安装方式、发现界面/日志。
-2. **正向触发（positive_trigger）**：使用与评测数据集构建任务明确匹配的请求，确认宿主加载该 Skill；记录测试 ID 和触发证据。
-3. **负向触发（negative_trigger）**：使用无关请求，确认不会错误触发该 Skill；记录测试 ID 和未触发证据。
-4. **参考资料读取（reference_loading）**：至少验证业务模型、场景桶、覆盖指南、来源证据政策、评分器指南、用例 Schema、清单 Schema、质量标准和变更修复指南等关键资源的按需读取。记录实际读取路径、不可读取路径及证据。PASS 时不可存在不可读取的必需路径。
-5. **真实任务执行（task_execution）**：运行至少一个端到端构建任务，记录用例 ID、输入、输出、工具/文件访问轨迹、初始与最终状态。
-6. **副作用检查（side_effect_check）**：确认未修改未授权文件、未访问未授权系统、没有未声明的外部写入或其他副作用。
-7. **清理检查（cleanup_check）**：确认测试数据清理、状态重置、临时文件处理和失败清理按计划完成。
+未来如需对某个平台作出兼容性承诺，应在该平台单独执行：
 
-## 证据要求
+1. **发现（discovery）：** 宿主按对应安装方式识别 Skill 名称、描述和入口。
+2. **正向触发（positive_trigger）：** 与评测集构建任务匹配的请求能触发 Skill。
+3. **负向触发（negative_trigger）：** 无关请求不会错误触发 Skill。
+4. **参考资料读取（reference_loading）：** 按需读取 Skill 所需的参考资料。
+5. **真实任务执行（task_execution）：** 完成至少一个端到端评测集构建任务。
+6. **副作用检查（side_effect_check）：** 不修改未经授权的文件，不访问未经授权的系统。
+7. **清理检查（cleanup_check）：** 测试数据、临时文件和执行状态按计划清理。
 
-- 每个 PASS、FAIL 或 BLOCKED 检查必须有至少一项证据引用；NOT_RUN 必须说明未运行原因。
-- 每份证据记录 evidence_id、所属宿主、所属检查项、不可变 HTTPS URI、SHA-256、文件名、媒体类型、采集时间和描述。
-- 所有检查项的 evidence_refs 必须能解析到证据清单，且宿主/检查项归属一致。
-- 可下载的证据包可用 `--evidence-dir` 执行本地 SHA-256 校验；仅填写哈希字符串不等于已经验证了文件内容。
-- 独立审查人必须打开证据源，检查来源、时间、宿主身份、候选包标识和观察内容。结构校验与哈希格式检查不能单独证明证据真实。
-- 对外公开证据前必须清理 API 密钥、令牌、客户信息、个人数据和其他敏感内容。
+每项 PASS、FAIL 或 BLOCKED 都必须有可复核证据。NOT_RUN 必须说明原因。
 
-## 报告文件与发布绑定
+## 4. 证据与报告
 
-验证报告必须作为独立证据 PR 提交，不能与它所验证的候选提交形成自引用。请在候选 PR 仍开放时先合并证据 PR，再在候选 PR 的独立审查意见中引用该报告，最后合并候选 PR。证据 PR 只能新增对应的 `tests/runtime-evidence/<candidate_sha>.json` 报告文件；发布绑定检查会忽略该报告文件及其目录项，但要求候选 PR head 与最终 merge commit 的其他所有仓库路径完全一致。建议路径：
+需要对外声明某个平台已验证时，应：
 
-`tests/runtime-evidence/<candidate_sha>.json`
+- 记录宿主和模型版本、安装方式、测试时间以及 Skill 包 SHA。
+- 把每个检查项绑定到不可变证据文件和 SHA-256。
+- 独立审查原始证据，不得仅凭格式校验或模型自述判定通过。
+- 报告必须绑定被测 Skill 的实际目录树 SHA。
+- 公开证据前清理密钥、令牌、客户资料和个人信息。
 
-报告提交后，在独立 PR 审查中使用固定 commit SHA 的 GitHub 文件永久链接：
+现有 `target-runtime-report.schema.json` 与 `validate_target_runtime_report.py` 可以用于将来的补充兼容性认证。它们不再作为 0.0.1 正式发布的必需门禁。
 
-`https://github.com/<owner>/<repo>/blob/<evidence_commit_sha>/tests/runtime-evidence/<candidate_sha>.json`
+## 5. 发布门禁边界
 
-发布程序将按该不可变链接从同一仓库读取报告，并核对：
+0.0.1 正式发布必须满足：
 
-- 报告 candidate_sha 等于发布 PR 的 head SHA；
-- 报告 skill_tree_sha 等于候选提交的 Skill 目录树 SHA；
-- 四个宿主均有且仅有一份报告；
-- 每个宿主的状态与各检查项推导状态一致；
-- 所有证据引用均存在且归属正确；
-- overall_status 与各宿主检查结果一致；
-- 0.0.1 发布要求四个宿主所有门禁均为 PASS。
+- 固定候选 SHA 的行为评测全部通过。
+- 使用独立 Judge，生成模型与 Judge 的实际服务端身份不同。
+- 行为通过率、Trigger Precision、Trigger Recall 达到既定阈值。
+- 至少两次完整运行，稳定性波动不超过既定阈值。
+- 匹配基线完整，关键用例完成独立人工审查。
+- Skill 包结构、Schema、离线测试和发布 SHA 绑定检查通过。
 
-独立审查意见必须包含 `target-runtime: PASS <固定文件永久链接>`。链接、报告、SHA 或状态任一缺失/不匹配，发布必须 BLOCKED。
+逐平台安装与兼容性认证不是 0.0.1 的发布条件。以后如增加平台兼容性承诺，应单独立项和验收，不得反向改变本版本的测试结论。
+
+## 6. 当前结论
+
+0.0.1 的宿主范围按“一个固定模型配置完成核心行为验收；不同宿主安装说明保持透明，逐平台认证留待后续”执行。
+
+这不会把一个宿主的结果推广为所有宿主的兼容性保证，也不会要求为了重复同一套模型行为测试而消耗额外模型额度。
