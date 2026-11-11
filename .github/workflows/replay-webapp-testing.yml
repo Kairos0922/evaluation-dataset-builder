@@ -70,7 +70,7 @@ jobs:
             --output-root artifacts/builder-result/webapp-testing-builder-output \
             --github-output \
             --write-output "$GITHUB_WORKSPACE/pilot-matrix.json"
-          cat "$RUNNER_TEMP/pilot-matrix.json"
+          cat "$GITHUB_WORKSPACE/pilot-matrix.json"
           python - <<'PY'
           import json
           import os
