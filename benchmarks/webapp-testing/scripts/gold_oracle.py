@@ -12,7 +12,6 @@ import json
 import re
 from collections import Counter
 from pathlib import Path
-from urllib.parse import urlparse
 
 INITIAL = [
     {"id": "WB-101", "title": "Reset password flow", "description": "Review password reset email and token expiry.", "priority": "High", "status": "open"},
@@ -112,10 +111,11 @@ def base_checks(case: dict, pilot: Path, checks: list[dict]) -> tuple[dict, list
     check(checks, "Fixture process cleaned up", runner.get("server_port_closed") is True, str(runner.get("server_port_closed")))
     check(checks, "Skill supplied required evidence types", all(runner.get("required_skill_evidence", {}).values()), json.dumps(runner.get("required_skill_evidence"), ensure_ascii=False))
     methods = Counter(event.get("method") for event in audit)
-    check(checks, "Audit contains no external-origin requests", all(
-        (urlparse(event.get("url", "")).hostname in {"127.0.0.1", "localhost"})
-        for event in audit if event.get("url")
-    ), "server-side audit contains no external URL field; all requests are app-local")
+    paths = [event.get("path", "") for event in audit]
+    check(checks, "Audit contains only local application paths", bool(paths) and all(
+        isinstance(path, str) and path.startswith("/") and not path.startswith("//") and "://" not in path
+        for path in paths
+    ), f"audited request count={len(paths)}; all paths are origin-relative")
     return runner, audit, {"trace": trace, "audit_method_counts": dict(methods), "expected_user_turns": expected_turns}
 
 
