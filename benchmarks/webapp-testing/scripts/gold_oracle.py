@@ -285,7 +285,7 @@ def adjudicate(case: dict, pilot: Path) -> dict:
         click_targets = [event.get("target", "") for event in click_events]
         cancel_pos = next((i for i, value in enumerate(click_targets) if "Cancel" in value), -1)
         confirm_pos = next((i for i, value in enumerate(click_targets) if "Delete task confirmation" in value), -1)
-        initial_delete_clicks = [event for event in click_events if event.get("target") == "row Delete button" and event.get("task_id") == "WB-104"]
+        initial_delete_clicks = [event for event in click_events if str(event.get("target", "")).startswith("row Delete button") and event.get("task_id") == "WB-104"]
         check(checks, "Step log records Cancel before confirmed Delete task", cancel_pos >= 0 and confirm_pos > cancel_pos, str(click_targets))
         check(checks, "Both Delete launches target WB-104", len(initial_delete_clicks) == 2, json.dumps(initial_delete_clicks, ensure_ascii=False))
 
@@ -301,7 +301,13 @@ def adjudicate(case: dict, pilot: Path) -> dict:
             for event in delete_events
         )
         check(checks, "Only one confirmed DELETE was issued for WB-104", len(delete_events) == 1 and correct_delete_events, json.dumps(delete_events, ensure_ascii=False))
-        check(checks, "No task creation or status mutation occurred", len(all_task_writes) == 1 and len(delete_events) == 1, json.dumps(all_task_writes, ensure_ascii=False))
+        create_or_status_events = [
+            event for event in audit
+            if event.get("action") in {"created", "status-changed"}
+            or event.get("method") in {"PUT", "PATCH"}
+            or (event.get("method") == "POST" and event.get("path") != "/api/reset")
+        ]
+        check(checks, "No task creation or status mutation occurred", not create_or_status_events, json.dumps(create_or_status_events, ensure_ascii=False))
 
         result_checks = br08_result.get("checks") or []
         failed_result_checks = [item for item in result_checks if item.get("result") != "PASS"]
