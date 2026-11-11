@@ -187,17 +187,25 @@ def self_test() -> int:
     import tempfile
     with tempfile.TemporaryDirectory() as directory:
         path = Path(directory) / "events.jsonl"
-        path.write_text(
-            json.dumps({"type": "tool_call", "tool": "skill",
-                        "input": {"name": "webapp-testing"}, "callId": "c1"}) + "\n"
-            + json.dumps({"type": "tool_result", "callId": "c1", "status": "completed"}) + "\n"
-            + json.dumps({"type": "final", "reason": {"kind": "completed"}}) + "\n",
-            encoding="utf-8",
-        )
+        events = [
+            {"type": "session", "sessionId": "session-test"},
+            {"type": "status", "phase": "turn_start", "turn": 1},
+            {"type": "tool_call", "tool": "skill", "input": {"name": "webapp-testing"}, "callId": "c1"},
+            {"type": "tool_result", "callId": "c1", "status": "completed"},
+            {"type": "status", "phase": "turn_end", "turn": 1},
+            {"type": "final", "sessionId": "session-test", "reason": {"kind": "completed"}},
+            {"type": "status", "phase": "turn_start", "turn": 2},
+            {"type": "status", "phase": "turn_end", "turn": 2},
+            {"type": "final", "sessionId": "session-test", "reason": {"kind": "completed"}},
+        ]
+        path.write_text("".join(json.dumps(event) + "\n" for event in events), encoding="utf-8")
         parsed = parse_trace(path)
         assert parsed["webapp_testing_skill_calls"] == 1
         assert parsed["completed_skill_calls"] == 1
         assert parsed["final_reason"] == "completed"
+        assert parsed["session_id"] == "session-test"
+        assert parsed["session_ids"] == ["session-test"]
+        assert parsed["turn_start_count"] == 2 and parsed["turn_end_count"] == 2
         string_turns, string_url = resolve_user_input({"user_input": "  run this task  "})
         assert string_turns == [{"turn_id": "T1", "content": "run this task"}] and string_url is None
         object_turns, object_url = resolve_user_input({
@@ -379,7 +387,7 @@ def main() -> int:
 
         def prompt_for_turn(turn: dict[str, str], first: bool) -> str:
             if not first:
-                return f"[User turn {turn['turn_id']}]\\n{turn['content']}\\n"
+                return f"[User turn {turn['turn_id']}]\n{turn['content']}\n"
             first_task = {
                 "case_id": case["case_id"],
                 "dataset_id": case["dataset_id"],
