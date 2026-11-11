@@ -276,7 +276,7 @@ def adjudicate(case: dict, pilot: Path) -> dict:
         confirm_position = log_text.find("delete task", cancel_position + 6) if cancel_position >= 0 else -1
         check(checks, "Step log records Cancel before confirmed Delete task", cancel_position >= 0 and confirm_position > cancel_position, f"cancel_position={cancel_position}, confirm_position={confirm_position}")
 
-        report_has_conforms = "CONFORMS" in report_text.upper() or re.search(r"\\bPASS\\b", report_text, re.I) is not None
+        report_has_conforms = "CONFORMS" in report_text.upper() or re.search(r"\bPASS\b", report_text, re.I) is not None
         report_has_violates = "VIOLATES" in report_text.upper()
         check(checks, "Target report agrees with the observed BR-08 result", report_has_conforms and not report_has_violates, f"conforms={report_has_conforms}, violates={report_has_violates}")
         contract = "PASS" if all(item["status"] == "PASS" for item in checks) else "FAIL"
@@ -286,11 +286,16 @@ def adjudicate(case: dict, pilot: Path) -> dict:
         events = audit
         last_reset = max((i for i, event in enumerate(events) if event.get("method") == "POST" and event.get("path") == "/api/reset"), default=-1)
         actions = events[last_reset + 1:]
+        lifecycle_sequence = [
+            event.get("action") for event in actions
+            if event.get("action") in {"created", "status-changed", "deleted"}
+        ]
         created = [event for event in actions if event.get("action") == "created"]
         changed = [event for event in actions if event.get("action") == "status-changed"]
         deleted = [event for event in actions if event.get("action") == "deleted"]
         same_id = bool(created and changed and deleted) and len({created[0].get("item", {}).get("id"), *(event.get("path", "").rsplit("/", 1)[-1] for event in changed), deleted[0].get("item", {}).get("id")}) == 1
         check(checks, "Application action sequence is create, two status changes, delete", len(created) == 1 and len(changed) == 2 and len(deleted) == 1, f"create={len(created)}, status_changes={len(changed)}, delete={len(deleted)}")
+        check(checks, "Lifecycle mutations occurred in the required order", lifecycle_sequence == ["created", "status-changed", "status-changed", "deleted"], str(lifecycle_sequence))
         check(checks, "Lifecycle actions target the same task ID", same_id, f"created={created[0].get('item', {}).get('id') if created else None}, delete={deleted[0].get('item', {}).get('id') if deleted else None}")
         check(checks, "Status sequence is Open to In progress to Done", [event.get("new_status") for event in changed] == ["in_progress", "done"], str([event.get("new_status") for event in changed]))
         check(checks, "Final application state is reset to the initial fixture", normalized_tasks(runner.get("post_state")) == INITIAL, "post-state compared with frozen initial task set")
@@ -304,6 +309,9 @@ def adjudicate(case: dict, pilot: Path) -> dict:
             and bool(runner.get("session_id"))
         )
         check(checks, "Three separate DSH messages continue one persisted session", continuation_valid, json.dumps(turn_results, ensure_ascii=False))
+        report_has_conforms = "CONFORMS" in report_text.upper() or re.search(r"\bPASS\b", report_text, re.I) is not None
+        report_has_violates = "VIOLATES" in report_text.upper()
+        check(checks, "Target report agrees with the observed lifecycle result", report_has_conforms and not report_has_violates, f"conforms={report_has_conforms}, violates={report_has_violates}")
         if runtime["trace"]["turn_start_count"] != runtime["expected_user_turns"]:
             contract = "UNKNOWN"
             oracle = "UNKNOWN"
@@ -356,23 +364,64 @@ def main():
     pilots_root = Path(args.pilots_root).resolve()
     output_path = Path(args.output).resolve()
     cases = case_index(builder_output)
-    results = []
+    expected_pilots = {
+        "WB-DEF-01": ("wb-defect", "mutant"),
+        "WB-LIFE-01": ("wb-lifecycle", "clean"),
+        "WB-CORE-08": ("wb-core", "clean"),
+    }
+    pilot_dirs = {}
     for pilot in sorted(pilots_root.iterdir()):
         if not pilot.is_dir() or not (pilot / "runner-result.json").is_file():
             continue
         case_id = load_json(pilot / "runner-result.json").get("case_id")
+        if case_id not in expected_pilots:
+            raise SystemExit(f"unexpected pilot case artifact: {case_id!r}")
+        if case_id in pilot_dirs:
+            raise SystemExit(f"duplicate pilot evidence for case: {case_id}")
+        pilot_dirs[case_id] = pilot
+
+    results = []
+    for case_id, (dataset_id, expected_profile) in expected_pilots.items():
         case = cases.get(case_id)
-        if not case:
-            raise SystemExit(f"pilot case {case_id!r} does not exist in Builder output")
-        results.append(adjudicate(case, pilot))
-    if not results:
-        raise SystemExit("No pilot evidence directories found")
+        if not case or case.get("dataset_id") != dataset_id:
+            raise SystemExit(f"required Builder case is missing or in the wrong dataset: {case_id}")
+        pilot = pilot_dirs.get(case_id)
+        if pilot is None:
+            expected_turns = len(case.get("user_input")) if isinstance(case.get("user_input"), list) else 1
+            results.append({
+                "case_id": case_id,
+                "dataset_id": dataset_id,
+                "fixture_profile": expected_profile,
+                "execution_valid": False,
+                "expected_user_turns": expected_turns,
+                "observed_dsh_turns": 0,
+                "session_ids": [],
+                "contract_verdict": "UNKNOWN",
+                "oracle_verdict": "UNKNOWN",
+                "checks": [{
+                    "check": "Archived target execution evidence is present",
+                    "status": "UNKNOWN",
+                    "evidence": "No runner-result.json was archived for this required pilot case.",
+                }],
+                "target_report_excerpt": [],
+                "limitations": ["The target pilot did not produce an evidence artifact; no behavior verdict is possible."],
+            })
+        else:
+            results.append(adjudicate(case, pilot))
+    verdicts = [item["oracle_verdict"] for item in results]
+    overall_status = (
+        "COMPLETED_WITH_FAIL" if "FAIL" in verdicts
+        else "COMPLETED_WITH_UNKNOWN" if "UNKNOWN" in verdicts
+        else "COMPLETED"
+    )
     output = {
-        "status": "COMPLETED_WITH_UNKNOWN" if any(item["oracle_verdict"] == "UNKNOWN" for item in results) else "COMPLETED",
+        "status": overall_status,
         "scope": "independent pilot adjudication only; does not approve the full 23-case suite",
         "builder_suite_id": load_json(builder_output / "SUITE-MANIFEST.json").get("suite_id"),
         "builder_version": load_json(builder_output / "SUITE-MANIFEST.json").get("version"),
         "case_count": len(results),
+        "required_case_ids": list(expected_pilots),
+        "observed_case_ids": [item["case_id"] for item in results if item["execution_valid"]],
         "verdict_counts": dict(Counter(item["oracle_verdict"] for item in results)),
         "results": results,
         "limitations": [

@@ -173,10 +173,7 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --disable-pip-version-check "playwright==1.64.1"
-          if ! python -m playwright install --with-deps --only-shell chromium; then
-            echo "::warning::APT dependency bootstrap failed; retrying the pinned Chromium browser download without APT. The real target execution must still prove Chromium can launch."
-            python -m playwright install --only-shell chromium
-          fi
+          python -m playwright install --only-shell chromium
 
       - name: Disable Session Log upload
         env:

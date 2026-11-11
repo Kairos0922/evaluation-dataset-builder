@@ -256,13 +256,8 @@ jobs:
           python -m pip install --disable-pip-version-check "playwright==1.64.1"
           python -c "import playwright; from importlib.metadata import version; print('Playwright', version('playwright'))"
 
-      - name: Install headless Chromium and system dependencies
-        run: |
-          set -euo pipefail
-          if ! python -m playwright install --with-deps --only-shell chromium; then
-            echo "::warning::APT dependency bootstrap failed; retrying the pinned Chromium browser download without APT. The following browser interaction remains the runtime gate."
-            python -m playwright install --only-shell chromium
-          fi
+      - name: Install headless Chromium
+        run: python -m playwright install --only-shell chromium
 
       - name: Run upstream server helper help
         run: |
