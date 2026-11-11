@@ -1,0 +1,273 @@
+name: Replay Builder evaluation with independent Oracle
+
+on:
+  push:
+    branches: ["experiment/webapp-testing-contract"]
+    paths:
+      - "benchmarks/webapp-testing/scripts/**"
+      - ".github/workflows/replay-webapp-testing.yml"
+  workflow_dispatch:
+    inputs:
+      builder_run_id:
+        description: "Historical Actions run ID containing webapp-testing-builder-result"
+        required: true
+        type: string
+        default: "42918862179"
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: webapp-testing-replay-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+    env:
+      SOURCE_RUN_ID: ${{ inputs.builder_run_id || '42918862179' }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download immutable Builder production artifact
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]]
+          gh run download "$SOURCE_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name webapp-testing-builder-result \
+            --dir artifacts/builder-result
+          test -s artifacts/builder-result/webapp-testing-builder-output/SUITE-MANIFEST.json
+
+      - name: Validate the original Builder output with candidate-only coverage
+        env:
+          BUILDER_OUTPUT_DIR: artifacts/builder-result/webapp-testing-builder-output
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check jsonschema
+          python -m py_compile \
+            benchmarks/webapp-testing/scripts/validate_builder_output.py \
+            benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py \
+            benchmarks/webapp-testing/scripts/gold_oracle.py \
+            benchmarks/webapp-testing/scripts/run_webapp_testing.py
+          python benchmarks/webapp-testing/scripts/validate_builder_output.py \
+            | tee artifacts/builder-replay-validation.json
+
+      - name: Resolve candidate pilot matrix from Builder cases
+        id: resolve
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py \
+            --output-root artifacts/builder-result/webapp-testing-builder-output \
+            --github-output \
+            --write-output "$RUNNER_TEMP/pilot-matrix.json"
+          cat "$RUNNER_TEMP/pilot-matrix.json"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          matrix_path = Path(os.environ["RUNNER_TEMP"]) / "pilot-matrix.json"
+          matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
+          selected = {item["dataset_id"]: item for item in matrix["include"]}
+          defect = selected.get("wb-defect")
+          lifecycle = selected.get("wb-lifecycle")
+          if not defect or defect["fixture_profile"] != "mutant" or "search-case-sensitive" not in defect["fixture_mutations"]:
+              raise SystemExit("BR-02 search case was not assigned the case-sensitive mutant fixture")
+          if not lifecycle or lifecycle["case_id"] != "WB-LIFE-01":
+              raise SystemExit("Builder-generated lifecycle candidate was not selected")
+          print("PASS: BR-02 mutant and Builder-generated lifecycle case selected.")
+          PY
+
+      - name: Archive immutable Builder input for pilot and Oracle jobs
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-replay-builder-input
+          path: |
+            artifacts/builder-result/webapp-testing-builder-output/
+            artifacts/builder-replay-validation.json
+            ${{ runner.temp }}/pilot-matrix.json
+          if-no-files-found: error
+          retention-days: 30
+
+  webapp-testing-pilot:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DSH_HOME: ${{ runner.temp }}/dsh-home
+      DSH_TELEMETRY_MODE: DISABLED
+      DSH_TELEMETRY_DISABLED: "1"
+      DSH_VERSION: "0.2.2-rc.1"
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download validated Builder output
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-replay-builder-input
+          path: artifacts/builder-result
+
+      - name: Checkout pinned upstream webapp-testing Skill
+        uses: actions/checkout@v4
+        with:
+          repository: anthropics/skills
+          ref: 2c5958ecac7cee2b583967a2c4981d0f4a75c579
+          path: .audit/upstream-skills
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Check model credential availability
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$DEEPSEEK_API_KEY" || {
+            echo "::error::DEEPSEEK_API_KEY is missing; no DSH target run was started."
+            exit 2
+          }
+
+      - name: Install Node.js and pinned DSH
+        run: |
+          set -euo pipefail
+          npm install --global --no-audit --no-fund "@deepseek-ai/dsh@$DSH_VERSION"
+          dsh --version
+
+      - name: Set up Python and Playwright
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.16"
+
+      - name: Install pinned Chromium runtime
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "playwright==1.64.1"
+          python -m playwright install --with-deps --only-shell chromium
+
+      - name: Disable Session Log upload
+        env:
+          DSH_CONFIG_PATH: ${{ runner.temp }}/dsh-config.txt
+        run: |
+          set -euo pipefail
+          mkdir -p "$DSH_HOME"
+          cat > "$DSH_HOME/cordis.patch.yml" <<'YAML'
+          - id: session-log-deepseek
+            config:
+              enabled: false
+          YAML
+          dsh --profile headless --dump-config > "$DSH_CONFIG_PATH"
+          python - <<'PY'
+          from pathlib import Path
+          import os
+          import re
+
+          config = Path(os.environ["DSH_CONFIG_PATH"]).read_text(encoding="utf-8")
+          marker = "id: session-log-deepseek"
+          if marker not in config:
+              raise SystemExit("Session Log plugin not found in composed DSH config")
+          tail = config.split(marker, 1)[1]
+          next_item = re.search(r"\n\s*- id:", tail)
+          section = tail[:next_item.start()] if next_item else tail
+          if not re.search(r"\benabled:\s*false\b", section):
+              raise SystemExit("Session Log upload was not disabled")
+          print("PASS: Session Log upload disabled.")
+          PY
+
+      - name: Compile and self-test the execution runner
+        run: |
+          set -euo pipefail
+          python -m py_compile benchmarks/webapp-testing/scripts/run_webapp_testing.py
+          python benchmarks/webapp-testing/scripts/run_webapp_testing.py --self-test
+
+      - name: Execute the exact Builder-generated pilot case
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DATASET_PATH: ${{ matrix.dataset_path }}
+          DATASET_ID: ${{ matrix.dataset_id }}
+          CASE_ID: ${{ matrix.case_id }}
+          FIXTURE_PROFILE: ${{ matrix.fixture_profile }}
+          FIXTURE_MUTATIONS: ${{ join(matrix.fixture_mutations, ',') }}
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/run_webapp_testing.py \
+            --dataset "artifacts/builder-result/webapp-testing-builder-output/$DATASET_PATH" \
+            --dataset-id "$DATASET_ID" \
+            --case-id "$CASE_ID" \
+            --fixture-profile "$FIXTURE_PROFILE" \
+            --fixture-mutations "$FIXTURE_MUTATIONS" \
+            --fixture-source benchmarks/webapp-testing/fixtures/workboard \
+            --public-assets benchmarks/webapp-testing/assets/public \
+            --skill-source .audit/upstream-skills/skills/webapp-testing \
+            --work-root "$RUNNER_TEMP/wbt-workspaces" \
+            --output-dir "$RUNNER_TEMP/wbt-output/$DATASET_ID" \
+            --skill-commit "2c5958ecac7cee2b583967a2c4981d0f4a75c579"
+
+      - name: Archive immutable target execution evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-pilot-${{ matrix.dataset_id }}
+          path: ${{ runner.temp }}/wbt-output/${{ matrix.dataset_id }}/
+          if-no-files-found: warn
+          retention-days: 30
+
+  oracle-adjudication:
+    needs: [prepare, webapp-testing-pilot]
+    if: always() && needs.prepare.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download Builder suite
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-replay-builder-input
+          path: artifacts/builder-replay
+
+      - name: Download pilot evidence from all matrix jobs
+        uses: actions/download-artifact@v4
+        with:
+          pattern: webapp-testing-pilot-*
+          path: artifacts/pilots
+          merge-multiple: true
+
+      - name: Run independent contract and Gold Oracle adjudication
+        run: |
+          set -euo pipefail
+          python -m py_compile benchmarks/webapp-testing/scripts/gold_oracle.py
+          python benchmarks/webapp-testing/scripts/gold_oracle.py \
+            --builder-output artifacts/builder-replay/webapp-testing-builder-output \
+            --pilots-root artifacts/pilots \
+            --output artifacts/oracle-adjudication.json
+          cat artifacts/oracle-adjudication.json
+
+      - name: Archive independent adjudication report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-oracle-adjudication
+          path: artifacts/oracle-adjudication.json
+          if-no-files-found: warn
+          retention-days: 90
