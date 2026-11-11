@@ -4,8 +4,8 @@ on:
   push:
     branches: ["experiment/webapp-testing-contract"]
     paths:
-      - "benchmarks/webapp-testing/scripts/**"
-      - ".github/workflows/replay-webapp-testing.yml"
+      - "benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py"
+      - "benchmarks/webapp-testing/scripts/run_webapp_testing.py"
   workflow_dispatch:
     inputs:
       builder_run_id:

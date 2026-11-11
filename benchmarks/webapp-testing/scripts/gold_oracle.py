@@ -12,6 +12,7 @@ import json
 import re
 from collections import Counter
 from pathlib import Path
+from urllib.parse import parse_qs, unquote_plus
 
 INITIAL = [
     {"id": "WB-101", "title": "Reset password flow", "description": "Review password reset email and token expiry.", "priority": "High", "status": "open"},
@@ -112,6 +113,9 @@ def base_checks(case: dict, pilot: Path, checks: list[dict]) -> tuple[dict, list
     check(checks, "Skill supplied required evidence types", all(runner.get("required_skill_evidence", {}).values()), json.dumps(runner.get("required_skill_evidence"), ensure_ascii=False))
     methods = Counter(event.get("method") for event in audit)
     paths = [event.get("path", "") for event in audit]
+    reset_events = [event for event in audit if event.get("method") == "POST" and event.get("path") == "/api/reset"]
+    check(checks, "Only the runner performs the single initial reset", len(reset_events) == 1, f"reset_count={len(reset_events)}; timestamps={[event.get('timestamp') for event in reset_events]}")
+    check(checks, "Initial reset completes before task interactions", bool(reset_events) and (not audit or audit.index(reset_events[0]) == 0), f"first_audit_event={audit[0] if audit else None}")
     check(checks, "Audit contains only local application paths", bool(paths) and all(
         isinstance(path, str) and path.startswith("/") and not path.startswith("//") and "://" not in path
         for path in paths
@@ -123,6 +127,7 @@ def adjudicate(case: dict, pilot: Path) -> dict:
     checks: list[dict] = []
     runner, audit, runtime = base_checks(case, pilot, checks)
     case_id = case["case_id"]
+    business_behavior_verdict = "UNKNOWN"
     skill_root = pilot / "skill-artifacts"
     report_files = list(skill_root.glob("*.md"))
     report_text = "\n".join(path.read_text(encoding="utf-8", errors="replace") for path in report_files)
@@ -147,34 +152,69 @@ def adjudicate(case: dict, pilot: Path) -> dict:
         oracle = contract
 
     elif case_id == "WB-DEF-01":
-        if runner.get("fixture_profile") == "mutant":
-            expected_upper = 0
-            expected_verdict = "VIOLATES"
-        else:
-            expected_upper = 1
-            expected_verdict = "CONFORMS"
-        query_events = [event for event in audit if event.get("method") == "GET" and "/api/tasks" in event.get("path", "") and "q=" in event.get("query", "")]
-        lower_events = [event for event in query_events if "reset+password+flow" in event.get("query", "").lower()]
-        upper_events = [event for event in query_events if "RESET+PASSWORD+FLOW" in event.get("query", "")]
-        low_file = skill_root / "evidence" / "query-lowercase.json"
-        up_file = skill_root / "evidence" / "query-uppercase.json"
-        lower = load_json(low_file) if low_file.is_file() else {}
-        upper = load_json(up_file) if up_file.is_file() else {}
-        lower_count, upper_count = lower.get("count"), upper.get("count")
-        check(checks, "Lowercase probe is present in server audit", bool(lower_events), str([e.get("query") for e in lower_events]))
-        check(checks, "Uppercase probe is present in server audit", bool(upper_events), str([e.get("query") for e in upper_events]))
-        check(checks, "Lowercase query returns WB-101", lower_count == 1 and [row.get("id") for row in lower.get("rows", [])] == ["WB-101"], json.dumps({"count": lower_count, "rows": [x.get("id") for x in lower.get("rows", [])]}))
-        check(checks, "Uppercase query result matches fixture profile", upper_count == expected_upper and ([row.get("id") for row in upper.get("rows", [])] == (["WB-101"] if expected_upper else [])), f"profile={runner.get('fixture_profile')}, expected={expected_upper}, actual={upper_count}")
-        result_path = skill_root / "evidence" / "result.json"
-        result_evidence = load_json(result_path) if result_path.is_file() else {}
-        if expected_verdict == "VIOLATES":
-            result_signal = result_evidence.get("verdict") in {"FAIL", "VIOLATES"} and result_evidence.get("br02") in {"VIOLATES", "NONCOMPLIANT", "NON_COMPLIANT"}
-        else:
-            result_signal = result_evidence.get("verdict") in {"PASS", "CONFORMS"} and result_evidence.get("br02") in {"COMPLIANT", "CONFORMS"}
-        report_has_expected = expected_verdict in report_text or (expected_verdict == "CONFORMS" and "PASS" in report_text) or result_signal
-        check(checks, "Target report matches the observed search behavior", report_has_expected, f"expected_report_signal={expected_verdict}; result_signal={result_signal}")
-        write_events = [event for event in audit if event.get("method") in {"PUT", "PATCH", "DELETE"} or (event.get("method") == "POST" and event.get("path") != "/api/reset")]
-        check(checks, "Search probe does not mutate task data", not write_events, json.dumps(write_events, ensure_ascii=False))
+        mutations = runner.get("fixture_mutations") or []
+        is_mutant = runner.get("fixture_profile") == "mutant" and "search-case-sensitive" in mutations
+        expected_count = 0 if is_mutant else 1
+        expected_eval = "FAIL" if is_mutant else "PASS"
+
+        def query_value(event):
+            values = parse_qs(event.get("query", ""), keep_blank_values=True).get("q", [""])
+            return unquote_plus(values[0]) if values else ""
+
+        query_events = [
+            event for event in audit
+            if event.get("method") == "GET" and event.get("path") == "/api/tasks" and "q=" in event.get("query", "")
+        ]
+        lower_events = [event for event in query_events if query_value(event) == "reset password flow"]
+        upper_events = [event for event in query_events if query_value(event) == "RESET PASSWORD FLOW"]
+        exact_events = [event for event in query_events if query_value(event) == "Reset password flow"]
+
+        lower_file = skill_root / "snapshots" / "query_lowercase_rows.json"
+        upper_file = skill_root / "snapshots" / "query_uppercase_rows.json"
+        exact_file = skill_root / "snapshots" / "query_exact_rows.json"
+        lower = load_json(lower_file) if lower_file.is_file() else {}
+        upper = load_json(upper_file) if upper_file.is_file() else {}
+        exact = load_json(exact_file) if exact_file.is_file() else {}
+
+        def row_ids(value):
+            return [row.get("task_id") or row.get("id") for row in value.get("rows", []) if isinstance(row, dict)]
+
+        lower_count = lower.get("result_count")
+        upper_count = upper.get("result_count")
+        exact_count = exact.get("result_count")
+        expected_rows = [] if is_mutant else ["WB-101"]
+        check(checks, "Expected search fixture mutation is explicitly selected", is_mutant and mutations == ["search-case-sensitive"], f"profile={runner.get('fixture_profile')}, mutations={mutations}")
+        check(checks, "Lowercase probe is present in independent server audit", bool(lower_events), str([event.get("query") for event in lower_events]))
+        check(checks, "Uppercase probe is present in independent server audit", bool(upper_events), str([event.get("query") for event in upper_events]))
+        check(checks, "Exact-case diagnostic probe is present in independent server audit", bool(exact_events), str([event.get("query") for event in exact_events]))
+        check(checks, "Lowercase result matches the selected fixture profile", lower_count == expected_count and row_ids(lower) == expected_rows, json.dumps({"count": lower_count, "ids": row_ids(lower), "expected_count": expected_count, "expected_ids": expected_rows}, ensure_ascii=False))
+        check(checks, "Uppercase result matches the selected fixture profile", upper_count == expected_count and row_ids(upper) == expected_rows, json.dumps({"count": upper_count, "ids": row_ids(upper), "expected_count": expected_count, "expected_ids": expected_rows}, ensure_ascii=False))
+        check(checks, "Exact-case diagnostic control returns WB-101", exact_count == 1 and row_ids(exact) == ["WB-101"], json.dumps({"count": exact_count, "ids": row_ids(exact)}, ensure_ascii=False))
+        check(checks, "Server audit counts agree with all three saved query snapshots", all(event.get("result_count") == expected_count for event in lower_events + upper_events) and all(event.get("result_count") == 1 for event in exact_events), json.dumps({"lower": [event.get("result_count") for event in lower_events], "upper": [event.get("result_count") for event in upper_events], "exact": [event.get("result_count") for event in exact_events]}, ensure_ascii=False))
+
+        test_run_path = skill_root / "logs" / "test_run.json"
+        test_run = load_json(test_run_path) if test_run_path.is_file() else {}
+        evaluation = test_run.get("evaluation") or {}
+        evaluation_matches = (
+            evaluation.get("verdict") == expected_eval
+            and (not is_mutant or evaluation.get("defect_type") == "case_sensitive_search")
+            and (not is_mutant or evaluation.get("br") == "BR-02")
+        )
+        check(checks, "Target's machine-readable verdict matches the observed search behavior", evaluation_matches, json.dumps({"expected": expected_eval, "evaluation": evaluation}, ensure_ascii=False))
+        report_has_expected = (
+            ("FAIL" in report_text.upper() and "BR-02" in report_text)
+            if is_mutant else
+            ("PASS" in report_text.upper() or "CONFORMS" in report_text.upper())
+        )
+        check(checks, "Target report communicates the expected BR-02 result", report_has_expected, f"mutant={is_mutant}; report_has_FAIL={'FAIL' in report_text.upper()}; report_has_BR02={'BR-02' in report_text}")
+        write_events = [
+            event for event in audit
+            if event.get("method") in {"PUT", "PATCH", "DELETE"}
+            or (event.get("method") == "POST" and event.get("path") != "/api/reset")
+        ]
+        check(checks, "Search probes do not mutate task data", not write_events, json.dumps(write_events, ensure_ascii=False))
+        check(checks, "Application state is unchanged by search probes", runner.get("pre_state") == runner.get("post_state") and normalized_tasks(runner.get("post_state")) == INITIAL, "runner pre/post snapshots independently compared")
+        business_behavior_verdict = "EXPECTED_VIOLATION_DETECTED" if is_mutant and evaluation_matches and report_has_expected else ("PASS" if evaluation_matches and report_has_expected else "FAIL")
         contract = "PASS" if all(item["status"] == "PASS" for item in checks) else "FAIL"
         oracle = contract
 
@@ -211,81 +251,82 @@ def adjudicate(case: dict, pilot: Path) -> dict:
         check(checks, "Final state contains exactly the four retained tasks", normalized_tasks(post) == expected_after, f"final IDs={[item.get('id') for item in normalized_tasks(post)]}")
         check(checks, "Final summary is 4/1/2/1", (post.get("summary") or {}) == {"all": 4, "open": 1, "in_progress": 2, "done": 1}, json.dumps(post.get("summary"), ensure_ascii=False))
 
-        last_reset = max((i for i, event in enumerate(audit) if event.get("method") == "POST" and event.get("path") == "/api/reset"), default=-1)
-        actions = audit[last_reset + 1:]
-        write_events = [
-            event for event in actions
-            if event.get("method") in {"POST", "PATCH", "DELETE"}
+        snapshots_path = skill_root / "data" / "br08_snapshots.json"
+        result_path = skill_root / "data" / "br08_result.json"
+        steps_path = skill_root / "logs" / "br08_steps.jsonl"
+        snapshots = load_json(snapshots_path) if snapshots_path.is_file() else {}
+        br08_result = load_json(result_path) if result_path.is_file() else {}
+        step_events = load_jsonl(steps_path) if steps_path.is_file() else []
+
+        baseline = snapshots.get("01_baseline") or {}
+        dialog_open = snapshots.get("02_dialog_open_cancel_pending") or {}
+        after_cancel = snapshots.get("03_after_cancel") or {}
+        dialog_reopened = snapshots.get("04_dialog_reopened_confirm_pending") or {}
+        after_confirm = snapshots.get("05_after_confirm_delete") or {}
+        ids = lambda state: [row.get("task_id") or row.get("id") for row in state.get("rows", []) if isinstance(row, dict)]
+        initial_ids = [item["id"] for item in INITIAL]
+        final_ids = [item["id"] for item in expected_after]
+
+        check(checks, "Baseline snapshot contains exactly the five initial tasks", baseline.get("row_count") == 5 and ids(baseline) == initial_ids, json.dumps({"row_count": baseline.get("row_count"), "ids": ids(baseline)}, ensure_ascii=False))
+        check(checks, "First confirmation dialog is visible and modal", (dialog_open.get("dialog") or {}).get("open") is True and (dialog_open.get("dialog") or {}).get("modal") is True, json.dumps(dialog_open.get("dialog"), ensure_ascii=False))
+        check(checks, "Cancel closes dialog and preserves the exact five-task set", after_cancel.get("row_count") == 5 and ids(after_cancel) == initial_ids and (after_cancel.get("dialog") or {}).get("open") is False, json.dumps({"row_count": after_cancel.get("row_count"), "ids": ids(after_cancel), "dialog": after_cancel.get("dialog")}, ensure_ascii=False))
+        check(checks, "Second confirmation dialog is visible and modal", (dialog_reopened.get("dialog") or {}).get("open") is True and (dialog_reopened.get("dialog") or {}).get("modal") is True, json.dumps(dialog_reopened.get("dialog"), ensure_ascii=False))
+        check(checks, "Delete confirmation leaves exactly the four expected tasks", after_confirm.get("row_count") == 4 and ids(after_confirm) == final_ids and (after_confirm.get("dialog") or {}).get("open") is False, json.dumps({"row_count": after_confirm.get("row_count"), "ids": ids(after_confirm), "dialog": after_confirm.get("dialog")}, ensure_ascii=False))
+
+        required_screenshots = [
+            "screenshots/br08_02_dialog_open_cancel_pending.png",
+            "screenshots/br08_03_after_cancel_list.png",
+            "screenshots/br08_05_after_confirm_delete_list.png",
         ]
-        deletes = [event for event in write_events if event.get("method") == "DELETE"]
-        expected_delete = (
-            len(deletes) == 1
-            and deletes[0].get("path") == "/api/tasks/WB-104"
-            and deletes[0].get("status") == 200
-            and (deletes[0].get("item") or {}).get("id") == "WB-104"
-        )
-        check(checks, "Server audit records exactly one deletion of WB-104", expected_delete, json.dumps(deletes, ensure_ascii=False))
-        check(checks, "No task creation or status mutation occurred", len(write_events) == 1 and expected_delete, json.dumps(write_events, ensure_ascii=False))
+        screenshot_presence = {name: (skill_root / name).is_file() and (skill_root / name).stat().st_size > 0 for name in required_screenshots}
+        check(checks, "Dialog, Cancel, and confirmed-delete screenshots are archived", all(screenshot_presence.values()), json.dumps(screenshot_presence, ensure_ascii=False))
 
-        required_files = [
-            "25-dialog.png", "26-after-cancel.png", "27-after-confirm.png",
-            "28-rows.json", "step-log.jsonl",
+        click_events = [event for event in step_events if event.get("action") == "click"]
+        click_targets = [event.get("target", "") for event in click_events]
+        cancel_pos = next((i for i, value in enumerate(click_targets) if "Cancel" in value), -1)
+        confirm_pos = next((i for i, value in enumerate(click_targets) if "Delete task confirmation" in value), -1)
+        initial_delete_clicks = [event for event in click_events if event.get("target") == "row Delete button" and event.get("task_id") == "WB-104"]
+        check(checks, "Step log records Cancel before confirmed Delete task", cancel_pos >= 0 and confirm_pos > cancel_pos, str(click_targets))
+        check(checks, "Both Delete launches target WB-104", len(initial_delete_clicks) == 2, json.dumps(initial_delete_clicks, ensure_ascii=False))
+
+        delete_events = [event for event in audit if event.get("method") == "DELETE"]
+        all_task_writes = [
+            event for event in audit
+            if event.get("method") in {"PUT", "PATCH", "DELETE"}
+            or (event.get("method") == "POST" and event.get("path") != "/api/reset")
         ]
-        found_files = {
-            name: next((path for path in skill_root.rglob(name) if path.is_file() and path.stat().st_size > 0), None)
-            for name in required_files
-        }
-        check(checks, "All three phase screenshots and structured evidence exist", all(found_files[name] for name in required_files), json.dumps({name: str(path.relative_to(skill_root)) if path else None for name, path in found_files.items()}, ensure_ascii=False))
-
-        row_file = found_files.get("28-rows.json")
-        cancel_snapshot = False
-        confirm_snapshot = False
-        def collect_snapshots(value, path="$"):
-            snapshots = []
-            if isinstance(value, dict):
-                for key, child in value.items():
-                    snapshots.extend(collect_snapshots(child, f"{path}.{key}"))
-            elif isinstance(value, list):
-                if value and all(isinstance(item, dict) and (item.get("id") or item.get("task_id")) for item in value):
-                    ids = [str(item.get("id") or item.get("task_id")) for item in value]
-                    snapshots.append((path.casefold(), ids))
-                for index, child in enumerate(value):
-                    if isinstance(child, (dict, list)):
-                        snapshots.extend(collect_snapshots(child, f"{path}[{index}]"))
-            return snapshots
-        snapshots = []
-        if row_file:
-            try:
-                snapshots = collect_snapshots(load_json(row_file))
-            except (OSError, json.JSONDecodeError, ValueError):
-                snapshots = []
-        initial_ids = {item["id"] for item in INITIAL}
-        final_ids = initial_ids - {"WB-104"}
-        cancel_snapshot = any("cancel" in path and len(ids) == 5 and set(ids) == initial_ids for path, ids in snapshots)
-        confirm_snapshot = any(
-            any(token in path for token in ("confirm", "delete", "after"))
-            and len(ids) == 4 and set(ids) == final_ids
-            for path, ids in snapshots
+        correct_delete_events = all(
+            event.get("path") == "/api/tasks/WB-104" and event.get("status") == 200
+            and (event.get("item") or {}).get("id") == "WB-104"
+            for event in delete_events
         )
-        check(checks, "Row snapshots prove Cancel preserved all five tasks", cancel_snapshot, json.dumps([{"path": path, "ids": ids} for path, ids in snapshots], ensure_ascii=False))
-        check(checks, "Row snapshots prove confirmation removed only WB-104", confirm_snapshot, json.dumps([{"path": path, "ids": ids} for path, ids in snapshots], ensure_ascii=False))
+        check(checks, "Only one confirmed DELETE was issued for WB-104", len(delete_events) == 1 and correct_delete_events, json.dumps(delete_events, ensure_ascii=False))
+        check(checks, "No task creation or status mutation occurred", len(all_task_writes) == 1 and len(delete_events) == 1, json.dumps(all_task_writes, ensure_ascii=False))
 
-        log_file = found_files.get("step-log.jsonl")
-        log_text = log_file.read_text(encoding="utf-8", errors="replace").casefold() if log_file else ""
-        cancel_position = log_text.find("cancel")
-        confirm_position = log_text.find("delete task", cancel_position + 6) if cancel_position >= 0 else -1
-        check(checks, "Step log records Cancel before confirmed Delete task", cancel_position >= 0 and confirm_position > cancel_position, f"cancel_position={cancel_position}, confirm_position={confirm_position}")
+        result_checks = br08_result.get("checks") or []
+        failed_result_checks = [item for item in result_checks if item.get("result") != "PASS"]
+        check(checks, "Skill's structured BR-08 checks are all PASS", len(result_checks) >= 13 and not failed_result_checks, json.dumps({"check_count": len(result_checks), "failed": failed_result_checks}, ensure_ascii=False))
+        report_has_conforms = ("PASS" in report_text.upper() or "CONFORMS" in report_text.upper()) and "BR-08" in report_text
+        report_has_violates = "VIOLATES" in report_text.upper() or "违反 BR-08" in report_text
+        check(checks, "Target report agrees with the observed BR-08 UI behavior", report_has_conforms and not report_has_violates, f"conforms={report_has_conforms}, violates={report_has_violates}")
 
-        report_has_conforms = "CONFORMS" in report_text.upper() or re.search(r"\bPASS\b", report_text, re.I) is not None
-        report_has_violates = "VIOLATES" in report_text.upper()
-        check(checks, "Target report agrees with the observed BR-08 result", report_has_conforms and not report_has_violates, f"conforms={report_has_conforms}, violates={report_has_violates}")
+        business_behavior_verdict = "PASS" if (
+            baseline.get("row_count") == 5
+            and after_cancel.get("row_count") == 5
+            and ids(after_cancel) == initial_ids
+            and after_confirm.get("row_count") == 4
+            and ids(after_confirm) == final_ids
+            and (dialog_open.get("dialog") or {}).get("open") is True
+            and (dialog_reopened.get("dialog") or {}).get("open") is True
+        ) else "FAIL"
         contract = "PASS" if all(item["status"] == "PASS" for item in checks) else "FAIL"
         oracle = contract
 
     elif case_id == "WB-LIFE-01":
         events = audit
-        last_reset = max((i for i, event in enumerate(events) if event.get("method") == "POST" and event.get("path") == "/api/reset"), default=-1)
-        actions = events[last_reset + 1:]
+        reset_indices = [i for i, event in enumerate(events) if event.get("method") == "POST" and event.get("path") == "/api/reset"]
+        first_reset = reset_indices[0] if reset_indices else -1
+        actions = events[first_reset + 1:] if first_reset >= 0 else events
         lifecycle_sequence = [
             event.get("action") for event in actions
             if event.get("action") in {"created", "status-changed", "deleted"}
@@ -293,12 +334,28 @@ def adjudicate(case: dict, pilot: Path) -> dict:
         created = [event for event in actions if event.get("action") == "created"]
         changed = [event for event in actions if event.get("action") == "status-changed"]
         deleted = [event for event in actions if event.get("action") == "deleted"]
-        same_id = bool(created and changed and deleted) and len({created[0].get("item", {}).get("id"), *(event.get("path", "").rsplit("/", 1)[-1] for event in changed), deleted[0].get("item", {}).get("id")}) == 1
-        check(checks, "Application action sequence is create, two status changes, delete", len(created) == 1 and len(changed) == 2 and len(deleted) == 1, f"create={len(created)}, status_changes={len(changed)}, delete={len(deleted)}")
-        check(checks, "Lifecycle mutations occurred in the required order", lifecycle_sequence == ["created", "status-changed", "status-changed", "deleted"], str(lifecycle_sequence))
-        check(checks, "Lifecycle actions target the same task ID", same_id, f"created={created[0].get('item', {}).get('id') if created else None}, delete={deleted[0].get('item', {}).get('id') if deleted else None}")
+        task_ids = {
+            created_event.get("item", {}).get("id")
+            for created_event in created
+        } | {
+            event.get("path", "").rsplit("/", 1)[-1]
+            for event in changed
+        } | {
+            event.get("item", {}).get("id")
+            for event in deleted
+        }
+        same_id = len(task_ids) == 1 and None not in task_ids
+        reset_count = len(reset_indices)
+        one_creation = len(created) == 1
+        state_carry_valid = reset_count == 1 and one_creation and lifecycle_sequence == ["created", "status-changed", "status-changed", "deleted"]
+
+        check(checks, "Lifecycle action sequence is one create, two status changes, one delete", lifecycle_sequence == ["created", "status-changed", "status-changed", "deleted"], str(lifecycle_sequence))
+        check(checks, "The task was created only once across all three turns", one_creation, f"create_events={len(created)}; ids={[event.get('item', {}).get('id') for event in created]}")
+        check(checks, "No extra application reset interrupted cross-turn state", reset_count == 1, f"reset_events={[event.get('timestamp') for event in events if event.get('method') == 'POST' and event.get('path') == '/api/reset']}")
+        check(checks, "All lifecycle actions target one task ID", same_id, f"task_ids={sorted(str(value) for value in task_ids)}")
         check(checks, "Status sequence is Open to In progress to Done", [event.get("new_status") for event in changed] == ["in_progress", "done"], str([event.get("new_status") for event in changed]))
-        check(checks, "Final application state is reset to the initial fixture", normalized_tasks(runner.get("post_state")) == INITIAL, "post-state compared with frozen initial task set")
+        check(checks, "Final application state is restored to the initial fixture", normalized_tasks(runner.get("post_state")) == INITIAL, "post-state compared with frozen initial task set")
+
         turn_results = runner.get("session_turn_results") or []
         expected_turn_ids = ["T1", "T2", "T3"]
         continuation_valid = (
@@ -310,14 +367,13 @@ def adjudicate(case: dict, pilot: Path) -> dict:
         )
         check(checks, "Three separate DSH messages continue one persisted session", continuation_valid, json.dumps(turn_results, ensure_ascii=False))
         report_has_conforms = "CONFORMS" in report_text.upper() or re.search(r"\bPASS\b", report_text, re.I) is not None
-        report_has_violates = "VIOLATES" in report_text.upper()
-        check(checks, "Target report agrees with the observed lifecycle result", report_has_conforms and not report_has_violates, f"conforms={report_has_conforms}, violates={report_has_violates}")
-        if runtime["trace"]["turn_start_count"] != runtime["expected_user_turns"]:
-            contract = "UNKNOWN"
-            oracle = "UNKNOWN"
-        else:
-            contract = "PASS" if all(item["status"] == "PASS" for item in checks) else "FAIL"
-            oracle = contract
+        report_has_violates = "VIOLATES" in report_text.upper() or "FAIL" in report_text.upper()
+        report_consistent = report_has_conforms and not report_has_violates if state_carry_valid else report_has_violates
+        check(checks, "Target report agrees with independently observed cross-turn state", report_consistent, f"state_carry_valid={state_carry_valid}; report_conforms={report_has_conforms}; report_violates={report_has_violates}")
+
+        business_behavior_verdict = "PASS" if state_carry_valid and continuation_valid else "FAIL"
+        contract = "PASS" if all(item["status"] == "PASS" for item in checks) else "FAIL"
+        oracle = contract
 
     else:
         contract = "UNKNOWN"
@@ -342,6 +398,7 @@ def adjudicate(case: dict, pilot: Path) -> dict:
         "session_ids": runtime["trace"]["session_ids"],
         "contract_verdict": contract,
         "oracle_verdict": oracle,
+        "business_behavior_verdict": business_behavior_verdict,
         "checks": checks,
         "target_report_excerpt": [line.strip() for line in report_text.splitlines() if re.search(r"PASS|FAIL|CONFORMS|VIOLATES", line, re.I)][:8],
         "limitations": (
@@ -423,6 +480,7 @@ def main():
         "required_case_ids": list(expected_pilots),
         "observed_case_ids": [item["case_id"] for item in results if item["execution_valid"]],
         "verdict_counts": dict(Counter(item["oracle_verdict"] for item in results)),
+        "business_behavior_verdict_counts": dict(Counter(item["business_behavior_verdict"] for item in results)),
         "results": results,
         "limitations": [
             "Only selected pilot cases are adjudicated; 23 generated cases are not all executed.",
