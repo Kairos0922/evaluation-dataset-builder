@@ -88,14 +88,19 @@ jobs:
           print("PASS: BR-02 mutant and Builder-generated lifecycle case selected.")
           PY
 
+      - name: Stage immutable Builder input for pilot and Oracle jobs
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/replay-input
+          cp -R artifacts/builder-result/webapp-testing-builder-output artifacts/replay-input/
+          cp artifacts/builder-replay-validation.json artifacts/replay-input/
+          cp pilot-matrix.json artifacts/replay-input/
+
       - name: Archive immutable Builder input for pilot and Oracle jobs
         uses: actions/upload-artifact@v4
         with:
           name: webapp-testing-replay-builder-input
-          path: |
-            artifacts/builder-result/webapp-testing-builder-output/
-            artifacts/builder-replay-validation.json
-            pilot-matrix.json
+          path: artifacts/replay-input/
           if-no-files-found: error
           retention-days: 30
 
