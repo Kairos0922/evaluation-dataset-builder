@@ -488,6 +488,29 @@ jobs:
           name: webapp-testing-builder-input
           path: artifacts/webapp-testing-builder-input
 
+      - name: Assemble isolated Builder workspace
+        run: |
+          set -euo pipefail
+          workspace="$RUNNER_TEMP/builder-workspace"
+          test -d "$workspace/.dsh/skills/evaluation-dataset-builder"
+          mkdir -p "$workspace/artifacts"
+          cp -R artifacts/webapp-testing-builder-input "$workspace/artifacts/"
+          test -s "$workspace/artifacts/webapp-testing-builder-input/BUILDER-TASK.md"
+          python - <<'PY'
+          from pathlib import Path
+          import os
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "builder-workspace"
+          files = [p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file()]
+          allowed = (".dsh/skills/evaluation-dataset-builder/", "artifacts/webapp-testing-builder-input/")
+          unexpected = [p for p in files if not p.startswith(allowed)]
+          if unexpected:
+              raise SystemExit(f"Unexpected Builder workspace files: {unexpected}")
+          if any("validate_builder_output.py" in p or "gold-oracle" in p.lower() or "oracle" in p.lower() for p in files):
+              raise SystemExit("Independent validator or oracle is exposed to Builder workspace")
+          print(f"PASS: isolated Builder workspace assembled with {len(files)} files")
+          PY
+
       - name: Install independent validation dependencies
         run: |
           set -euo pipefail
