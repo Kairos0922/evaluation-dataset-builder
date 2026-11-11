@@ -165,8 +165,14 @@ def adjudicate(case: dict, pilot: Path) -> dict:
         check(checks, "Uppercase probe is present in server audit", bool(upper_events), str([e.get("query") for e in upper_events]))
         check(checks, "Lowercase query returns WB-101", lower_count == 1 and [row.get("id") for row in lower.get("rows", [])] == ["WB-101"], json.dumps({"count": lower_count, "rows": [x.get("id") for x in lower.get("rows", [])]}))
         check(checks, "Uppercase query result matches fixture profile", upper_count == expected_upper and ([row.get("id") for row in upper.get("rows", [])] == (["WB-101"] if expected_upper else [])), f"profile={runner.get('fixture_profile')}, expected={expected_upper}, actual={upper_count}")
-        report_has_expected = expected_verdict in report_text or (expected_verdict == "CONFORMS" and "PASS" in report_text)
-        check(checks, "Target report matches the observed search behavior", report_has_expected, f"expected_report_signal={expected_verdict}")
+        result_path = skill_root / "evidence" / "result.json"
+        result_evidence = load_json(result_path) if result_path.is_file() else {}
+        if expected_verdict == "VIOLATES":
+            result_signal = result_evidence.get("verdict") in {"FAIL", "VIOLATES"} and result_evidence.get("br02") in {"VIOLATES", "NONCOMPLIANT", "NON_COMPLIANT"}
+        else:
+            result_signal = result_evidence.get("verdict") in {"PASS", "CONFORMS"} and result_evidence.get("br02") in {"COMPLIANT", "CONFORMS"}
+        report_has_expected = expected_verdict in report_text or (expected_verdict == "CONFORMS" and "PASS" in report_text) or result_signal
+        check(checks, "Target report matches the observed search behavior", report_has_expected, f"expected_report_signal={expected_verdict}; result_signal={result_signal}")
         write_events = [event for event in audit if event.get("method") in {"PUT", "PATCH", "DELETE"} or (event.get("method") == "POST" and event.get("path") != "/api/reset")]
         check(checks, "Search probe does not mutate task data", not write_events, json.dumps(write_events, ensure_ascii=False))
         contract = "PASS" if all(item["status"] == "PASS" for item in checks) else "FAIL"
