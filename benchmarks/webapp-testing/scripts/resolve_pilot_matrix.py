@@ -137,14 +137,12 @@ def load_suite(output_root: Path, pilot_count: int = 3) -> dict:
             selected.append((match, role))
             selected_ids.add(match["case_id"])
 
-    # Fill any remaining slots with Builder-authored candidates in dataset/JSONL order.
-    for case in all_candidate_cases:
-        if len(selected) >= pilot_count:
-            break
-        if case["case_id"] in selected_ids:
-            continue
-        selected.append((case, "coverage_fallback"))
-        selected_ids.add(case["case_id"])
+    selected_roles = {role for _, role in selected}
+    missing_roles = [role for _, role in PILOT_ROLES if role not in selected_roles]
+    if missing_roles:
+        fail("Builder candidate cases do not cover all required pilot roles: " + ", ".join(missing_roles))
+    if len(selected) != pilot_count:
+        fail(f"expected {pilot_count} distinct semantic pilot cases; selected {len(selected)}")
 
     include = []
     for case, role in selected:
