@@ -203,11 +203,86 @@ def adjudicate(case: dict, pilot: Path) -> dict:
         contract = "PASS" if all(item["status"] == "PASS" for item in checks) else "FAIL"
         oracle = contract
 
+    elif case_id == "WB-CORE-08":
+        pre = runner.get("pre_state") or {}
+        post = runner.get("post_state") or {}
+        expected_after = [item for item in INITIAL if item["id"] != "WB-104"]
+        check(checks, "Independent initial state matches the five-task fixture", normalized_tasks(pre) == INITIAL, f"initial IDs={[item.get('id') for item in normalized_tasks(pre)]}")
+        check(checks, "Final state contains exactly the four retained tasks", normalized_tasks(post) == expected_after, f"final IDs={[item.get('id') for item in normalized_tasks(post)]}")
+        check(checks, "Final summary is 4/1/2/1", (post.get("summary") or {}) == {"all": 4, "open": 1, "in_progress": 2, "done": 1}, json.dumps(post.get("summary"), ensure_ascii=False))
+
+        last_reset = max((i for i, event in enumerate(audit) if event.get("method") == "POST" and event.get("path") == "/api/reset"), default=-1)
+        actions = audit[last_reset + 1:]
+        write_events = [
+            event for event in actions
+            if event.get("method") in {"POST", "PATCH", "DELETE"}
+        ]
+        deletes = [event for event in write_events if event.get("method") == "DELETE"]
+        expected_delete = (
+            len(deletes) == 1
+            and deletes[0].get("path") == "/api/tasks/WB-104"
+            and deletes[0].get("status") == 200
+            and (deletes[0].get("item") or {}).get("id") == "WB-104"
+        )
+        check(checks, "Server audit records exactly one deletion of WB-104", expected_delete, json.dumps(deletes, ensure_ascii=False))
+        check(checks, "No task creation or status mutation occurred", len(write_events) == 1 and expected_delete, json.dumps(write_events, ensure_ascii=False))
+
+        required_files = [
+            "25-dialog.png", "26-after-cancel.png", "27-after-confirm.png",
+            "28-rows.json", "step-log.jsonl",
+        ]
+        found_files = {
+            name: next((path for path in skill_root.rglob(name) if path.is_file() and path.stat().st_size > 0), None)
+            for name in required_files
+        }
+        check(checks, "All three phase screenshots and structured evidence exist", all(found_files[name] for name in required_files), json.dumps({name: str(path.relative_to(skill_root)) if path else None for name, path in found_files.items()}, ensure_ascii=False))
+
+        row_file = found_files.get("28-rows.json")
+        cancel_snapshot = False
+        confirm_snapshot = False
+        def collect_snapshots(value, path="$"):
+            snapshots = []
+            if isinstance(value, dict):
+                for key, child in value.items():
+                    snapshots.extend(collect_snapshots(child, f"{path}.{key}"))
+            elif isinstance(value, list):
+                if value and all(isinstance(item, dict) and (item.get("id") or item.get("task_id")) for item in value):
+                    ids = [str(item.get("id") or item.get("task_id")) for item in value]
+                    snapshots.append((path.casefold(), ids))
+                for index, child in enumerate(value):
+                    if isinstance(child, (dict, list)):
+                        snapshots.extend(collect_snapshots(child, f"{path}[{index}]"))
+            return snapshots
+        snapshots = []
+        if row_file:
+            try:
+                snapshots = collect_snapshots(load_json(row_file))
+            except (OSError, json.JSONDecodeError, ValueError):
+                snapshots = []
+        initial_ids = {item["id"] for item in INITIAL}
+        final_ids = initial_ids - {"WB-104"}
+        cancel_snapshot = any("cancel" in path and len(ids) == 5 and set(ids) == initial_ids for path, ids in snapshots)
+        confirm_snapshot = any(
+            any(token in path for token in ("confirm", "delete", "after"))
+            and len(ids) == 4 and set(ids) == final_ids
+            for path, ids in snapshots
+        )
+        check(checks, "Row snapshots prove Cancel preserved all five tasks", cancel_snapshot, json.dumps([{"path": path, "ids": ids} for path, ids in snapshots], ensure_ascii=False))
+        check(checks, "Row snapshots prove confirmation removed only WB-104", confirm_snapshot, json.dumps([{"path": path, "ids": ids} for path, ids in snapshots], ensure_ascii=False))
+
+        log_file = found_files.get("step-log.jsonl")
+        log_text = log_file.read_text(encoding="utf-8", errors="replace").casefold() if log_file else ""
+        cancel_position = log_text.find("cancel")
+        confirm_position = log_text.find("delete task", cancel_position + 6) if cancel_position >= 0 else -1
+        check(checks, "Step log records Cancel before confirmed Delete task", cancel_position >= 0 and confirm_position > cancel_position, f"cancel_position={cancel_position}, confirm_position={confirm_position}")
+
+        report_has_conforms = "CONFORMS" in report_text.upper() or re.search(r"\\bPASS\\b", report_text, re.I) is not None
+        report_has_violates = "VIOLATES" in report_text.upper()
+        check(checks, "Target report agrees with the observed BR-08 result", report_has_conforms and not report_has_violates, f"conforms={report_has_conforms}, violates={report_has_violates}")
+        contract = "PASS" if all(item["status"] == "PASS" for item in checks) else "FAIL"
+        oracle = contract
+
     elif case_id == "WB-LIFE-01":
-        # The Builder case defines three user turns. The first pilot bundled the
-        # entire array into one DSH prompt, so its scripted sub-runs cannot prove
-        # cross-turn memory. Check the app state sequence, but do not score target
-        # capability until the runner replays the turns in one persisted session.
         events = audit
         last_reset = max((i for i, event in enumerate(events) if event.get("method") == "POST" and event.get("path") == "/api/reset"), default=-1)
         actions = events[last_reset + 1:]
@@ -219,6 +294,16 @@ def adjudicate(case: dict, pilot: Path) -> dict:
         check(checks, "Lifecycle actions target the same task ID", same_id, f"created={created[0].get('item', {}).get('id') if created else None}, delete={deleted[0].get('item', {}).get('id') if deleted else None}")
         check(checks, "Status sequence is Open to In progress to Done", [event.get("new_status") for event in changed] == ["in_progress", "done"], str([event.get("new_status") for event in changed]))
         check(checks, "Final application state is reset to the initial fixture", normalized_tasks(runner.get("post_state")) == INITIAL, "post-state compared with frozen initial task set")
+        turn_results = runner.get("session_turn_results") or []
+        expected_turn_ids = ["T1", "T2", "T3"]
+        continuation_valid = (
+            [item.get("turn_id") for item in turn_results] == expected_turn_ids
+            and len(turn_results) == 3
+            and all(item.get("dsh_exit_code") == 0 and item.get("final_reason") == "completed" for item in turn_results)
+            and all(item.get("session_id_argument") == runner.get("session_id") for item in turn_results[1:])
+            and bool(runner.get("session_id"))
+        )
+        check(checks, "Three separate DSH messages continue one persisted session", continuation_valid, json.dumps(turn_results, ensure_ascii=False))
         if runtime["trace"]["turn_start_count"] != runtime["expected_user_turns"]:
             contract = "UNKNOWN"
             oracle = "UNKNOWN"
@@ -292,8 +377,6 @@ def main():
         "results": results,
         "limitations": [
             "Only selected pilot cases are adjudicated; 23 generated cases are not all executed.",
-            "The clean WB-DEF-01 probe does not substitute for a mutant negative-control run.",
-            "WB-LIFE-01 is UNKNOWN until the three user turns are delivered as separate DSH messages in one persisted session.",
             "This pilot Oracle does not complete the A0/A1 × B0/B1 regression matrix.",
         ],
     }

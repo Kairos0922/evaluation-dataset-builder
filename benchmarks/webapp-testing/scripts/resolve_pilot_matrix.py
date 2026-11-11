@@ -16,9 +16,9 @@ from pathlib import Path, PurePosixPath
 
 ALLOWED_QUALITY = {"candidate", "needs_info"}
 PILOT_ROLES = (
-    ("BR-02", "search_mutation"),
-    ("TC-03", "multi_turn"),
-    ("BR-08", "delete_confirmation"),
+    ("wb-defect", "WB-DEF-01", "BR-02", "search_mutation"),
+    ("wb-lifecycle", "WB-LIFE-01", "SCN-MULTI-TURN", "multi_turn"),
+    ("wb-core", "WB-CORE-08", "BR-08", "delete_confirmation"),
 )
 
 
@@ -127,20 +127,26 @@ def load_suite(output_root: Path, pilot_count: int = 3) -> dict:
 
     selected: list[tuple[dict, str]] = []
     selected_ids: set[str] = set()
-    for coverage_id, role in PILOT_ROLES:
-        match = next(
-            (case for case in all_candidate_cases
-             if case["case_id"] not in selected_ids and coverage_id in tags_for(case)),
-            None,
-        )
-        if match is not None and len(selected) < pilot_count:
-            selected.append((match, role))
-            selected_ids.add(match["case_id"])
+    for expected_dataset, expected_case_id, coverage_id, role in PILOT_ROLES:
+        matches = [
+            case for case in all_candidate_cases
+            if case["dataset_id"] == expected_dataset
+            and case["case_id"] == expected_case_id
+            and coverage_id in tags_for(case)
+        ]
+        if len(matches) != 1:
+            fail(
+                f"required pilot role {role} must resolve to exactly one Builder candidate "
+                f"({expected_dataset}/{expected_case_id}, tag {coverage_id}); found {len(matches)}"
+            )
+        match = matches[0]
+        if match["case_id"] in selected_ids:
+            fail(f"pilot roles resolve to duplicate case_id: {match['case_id']}")
+        selected.append((match, role))
+        selected_ids.add(match["case_id"])
 
-    selected_roles = {role for _, role in selected}
-    missing_roles = [role for _, role in PILOT_ROLES if role not in selected_roles]
-    if missing_roles:
-        fail("Builder candidate cases do not cover all required pilot roles: " + ", ".join(missing_roles))
+    if pilot_count != len(PILOT_ROLES):
+        fail(f"this benchmark requires exactly {len(PILOT_ROLES)} semantic pilot roles")
     if len(selected) != pilot_count:
         fail(f"expected {pilot_count} distinct semantic pilot cases; selected {len(selected)}")
 
@@ -166,33 +172,47 @@ def self_test() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         (root / "datasets").mkdir()
-        cases_a = [
-            {"dataset_id": "D-A", "case_id": "D-A-001", "quality_status": "candidate", "execution_requirements": {"status": "NOT_RUN"}, "coverage_tags": [{"coverage_item_id": "BR-02"}]},
-            {"dataset_id": "D-A", "case_id": "D-A-002", "quality_status": "candidate", "execution_requirements": {"status": "NOT_RUN"}, "coverage_tags": [{"coverage_item_id": "TC-03"}]},
+        pilot_cases = [
+            ("wb-defect", "WB-DEF-01", "BR-02"),
+            ("wb-lifecycle", "WB-LIFE-01", "SCN-MULTI-TURN"),
+            ("wb-core", "WB-CORE-08", "BR-08"),
         ]
-        cases_b = [
-            {"dataset_id": "D-B", "case_id": "D-B-001", "quality_status": "candidate", "execution_requirements": {"status": "NOT_RUN"}, "coverage_tags": [{"coverage_item_id": "BR-08"}]},
-            {"dataset_id": "D-B", "case_id": "D-B-002", "quality_status": "needs_info", "execution_requirements": {"status": "NOT_RUN"}, "coverage_tags": [{"coverage_item_id": "RSK-20"}]},
-        ]
-        for name, cases in (("D-A", cases_a), ("D-B", cases_b)):
-            (root / "datasets" / f"{name}.jsonl").write_text(
-                "".join(json.dumps(case) + "\n" for case in cases), encoding="utf-8"
-            )
+        datasets = []
+        for dataset_id, case_id, coverage_id in pilot_cases:
+            case = {
+                "dataset_id": dataset_id,
+                "case_id": case_id,
+                "quality_status": "candidate",
+                "execution_requirements": {"status": "NOT_RUN"},
+                "coverage_tags": [{"coverage_item_id": coverage_id}],
+            }
+            jsonl = f"datasets/{dataset_id}.jsonl"
+            (root / jsonl).write_text(json.dumps(case) + "\n", encoding="utf-8")
+            datasets.append({
+                "dataset_id": dataset_id,
+                "jsonl": jsonl,
+                "case_count": 1,
+                "quality_status": "candidate",
+                "execution_status": "NOT_RUN",
+            })
         (root / "SUITE-MANIFEST.json").write_text(json.dumps({
-            "datasets": [
-                {"dataset_id": "D-A", "jsonl": "datasets/D-A.jsonl", "case_count": 2, "quality_status": "candidate", "execution_status": "NOT_RUN"},
-                {"dataset_id": "D-B", "jsonl": "datasets/D-B.jsonl", "case_count": 2, "quality_status": "needs_info", "execution_status": "NOT_RUN"},
-            ],
-            "quality_status": "needs_info",
+            "datasets": datasets,
+            "quality_status": "candidate",
             "execution_status": "NOT_RUN",
         }), encoding="utf-8")
         matrix = load_suite(root, pilot_count=3)
-        assert [item["case_id"] for item in matrix["include"]] == ["D-A-001", "D-A-002", "D-B-001"]
-        assert [item["pilot_role"] for item in matrix["include"]] == ["search_mutation", "multi_turn", "delete_confirmation"]
-        assert [item["fixture_profile"] for item in matrix["include"]] == ["mutant", "clean", "clean"]
-        print("PASS: three-case pilot selection, needs_info isolation, and mutation routing")
+        assert [item["case_id"] for item in matrix["include"]] == [
+            "WB-DEF-01", "WB-LIFE-01", "WB-CORE-08"
+        ]
+        assert [item["pilot_role"] for item in matrix["include"]] == [
+            "search_mutation", "multi_turn", "delete_confirmation"
+        ]
+        assert [item["fixture_profile"] for item in matrix["include"]] == [
+            "mutant", "clean", "clean"
+        ]
+        assert matrix["include"][0]["fixture_mutations"] == ["search-case-sensitive"]
+        print("PASS: exact Builder-authored cases selected for mutant search, true multi-turn, and delete confirmation")
     return 0
-
 
 def main() -> int:
     parser = argparse.ArgumentParser()

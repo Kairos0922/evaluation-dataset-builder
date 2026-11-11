@@ -78,14 +78,23 @@ jobs:
 
           matrix_path = Path(os.environ["GITHUB_WORKSPACE"]) / "pilot-matrix.json"
           matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
-          selected = {item["dataset_id"]: item for item in matrix["include"]}
-          defect = selected.get("wb-defect")
-          lifecycle = selected.get("wb-lifecycle")
-          if not defect or defect["fixture_profile"] != "mutant" or "search-case-sensitive" not in defect["fixture_mutations"]:
-              raise SystemExit("BR-02 search case was not assigned the case-sensitive mutant fixture")
-          if not lifecycle or lifecycle["case_id"] != "WB-LIFE-01":
-              raise SystemExit("Builder-generated lifecycle candidate was not selected")
-          print("PASS: BR-02 mutant and Builder-generated lifecycle case selected.")
+          selected = {item["pilot_role"]: item for item in matrix["include"]}
+          search = selected.get("search_mutation")
+          lifecycle = selected.get("multi_turn")
+          deletion = selected.get("delete_confirmation")
+          if not search or (search["dataset_id"], search["case_id"]) != ("wb-defect", "WB-DEF-01"):
+              raise SystemExit("Builder-authored WB-DEF-01 search defect case was not selected")
+          if search["fixture_profile"] != "mutant" or "search-case-sensitive" not in search["fixture_mutations"]:
+              raise SystemExit("WB-DEF-01 was not assigned the case-sensitive mutant fixture")
+          if not lifecycle or (lifecycle["dataset_id"], lifecycle["case_id"]) != ("wb-lifecycle", "WB-LIFE-01"):
+              raise SystemExit("Builder-authored WB-LIFE-01 multi-turn case was not selected")
+          if lifecycle["fixture_profile"] != "clean":
+              raise SystemExit("Multi-turn lifecycle case must use the clean fixture")
+          if not deletion or (deletion["dataset_id"], deletion["case_id"]) != ("wb-core", "WB-CORE-08"):
+              raise SystemExit("Builder-authored WB-CORE-08 delete-confirmation case was not selected")
+          if deletion["fixture_profile"] != "clean":
+              raise SystemExit("Delete-confirmation case must use the clean fixture")
+          print("PASS: exact Builder-authored search mutant, multi-turn, and delete-confirmation cases selected.")
           PY
 
       - name: Stage immutable Builder input for pilot and Oracle jobs
@@ -164,7 +173,10 @@ jobs:
         run: |
           set -euo pipefail
           python -m pip install --disable-pip-version-check "playwright==1.64.1"
-          python -m playwright install --with-deps --only-shell chromium
+          if ! python -m playwright install --with-deps --only-shell chromium; then
+            echo "::warning::APT dependency bootstrap failed; retrying the pinned Chromium browser download without APT. The real target execution must still prove Chromium can launch."
+            python -m playwright install --only-shell chromium
+          fi
 
       - name: Disable Session Log upload
         env:
