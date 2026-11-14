@@ -119,12 +119,44 @@ jobs:
         if: steps.scope.outputs.run_validation == 'true'
         run: python -m unittest discover -s tests -p "test_*.py" -v
 
-      - name: 验证独立 Gold Oracle
+      - name: 验证独立 Gold Oracle 与 Builder 输出验证器
         if: steps.scope.outputs.run_validation == 'true'
         run: |
           set -euo pipefail
-          python -m py_compile benchmarks/webapp-testing/oracle/adjudicate_pilot.py
+          python -m py_compile \
+            benchmarks/webapp-testing/oracle/adjudicate_pilot.py \
+            benchmarks/webapp-testing/scripts/validate_builder_output.py
           python benchmarks/webapp-testing/oracle/adjudicate_pilot.py --self-test
+          PYTHONPATH=benchmarks/webapp-testing/scripts python - <<'PY'
+          import validate_builder_output as validator
+
+          corpus = validator.load_source_corpus()
+          validator.verify_source_evidence(
+              "SOURCE-SMOKE-01",
+              {
+                  "title": "Workboard Lite 业务规则",
+                  "locator": "BR-02",
+                  "quoted_evidence": "搜索必须不区分大小写",
+              },
+              corpus,
+          )
+          try:
+              validator.verify_source_evidence(
+                  "SOURCE-SMOKE-NEGATIVE",
+                  {
+                      "title": "Workboard Lite 业务规则",
+                      "locator": "BR-02",
+                      "quoted_evidence": "这是一段不存在的虚构来源引文",
+                  },
+                  corpus,
+              )
+          except SystemExit as error:
+              if "cannot be found" not in str(error):
+                  raise
+          else:
+              raise SystemExit("Validator accepted fabricated source evidence")
+          print("PASS: exact source quotation accepted; fabricated quotation rejected")
+          PY
 
       - name: 验证 Builder 试运行选择器
         if: steps.scope.outputs.run_validation == 'true'
