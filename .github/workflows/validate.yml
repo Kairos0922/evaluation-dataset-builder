@@ -126,6 +126,13 @@ jobs:
           python -m py_compile benchmarks/webapp-testing/oracle/adjudicate_pilot.py
           python benchmarks/webapp-testing/oracle/adjudicate_pilot.py --self-test
 
+      - name: 验证 Builder 试运行选择器
+        if: steps.scope.outputs.run_validation == 'true'
+        run: |
+          set -euo pipefail
+          python -m py_compile benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py
+          python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py --self-test
+
   audit-upstream-assets:
     runs-on: ubuntu-latest
     timeout-minutes: 5
