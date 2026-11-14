@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Select three Builder-authored candidate cases for an isolated execution pilot.
+"""Select three Builder-authored cases for the isolated execution pilot.
 
-This script validates and selects existing cases only. It never creates, edits,
-repairs, or regrades formal evaluation cases.
+Selection is semantic and data-driven. This module validates and selects
+existing Builder cases only; it never creates, edits, repairs, or regrades them.
 """
 from __future__ import annotations
 
@@ -15,29 +15,90 @@ import tempfile
 from pathlib import Path, PurePosixPath
 
 ALLOWED_QUALITY = {"candidate", "needs_info"}
-PILOT_ROLES = (
-    ("wb-defect", "WB-DEF-01", "BR-02", "search_mutation"),
-    ("wb-lifecycle", "WB-LIFE-01", "SCN-MULTI-TURN", "multi_turn"),
-    ("wb-core", "WB-CORE-08", "BR-08", "delete_confirmation"),
-)
+PILOT_COUNT = 3
+ROLE_PATTERNS = {
+    "search_mutation": {
+        "required_groups": [
+            ("search",),
+            ("case-sensitive", "case sensitive", "case-insensitive", "case insensitive"),
+            ("defect", "bug", "incorrect", "mismatch", "regression", "failure"),
+        ],
+    },
+    "multi_turn": {
+        "required_groups": [("multi_turn", "multi-turn", "multi turn")],
+    },
+    "delete_confirmation": {
+        "required_groups": [
+            ("delete", "remove", "deletion", "removal"),
+            ("confirm", "confirmation", "confirming"),
+        ],
+    },
+}
 
 
 def fail(message: str) -> None:
     raise SystemExit(f"ERROR: {message}")
 
 
-def tags_for(case: dict) -> set[str]:
-    tags = case.get("coverage_tags", [])
-    if not isinstance(tags, list):
-        fail(f"{case.get('case_id')}: coverage_tags must be a list")
-    values = set()
-    for tag in tags:
-        if isinstance(tag, dict) and isinstance(tag.get("coverage_item_id"), str):
-            values.add(tag["coverage_item_id"])
-    return values
+def case_text(case: dict) -> str:
+    """Build a searchable view from authored case fields without changing them."""
+    fields = (
+        "title", "objective", "evaluation_target", "user_input",
+        "expected_behavior", "forbidden_behavior", "capability_keys",
+        "scenario_bucket", "business_rule_refs", "workflow_refs",
+    )
+    values = [str(case.get(key, "")) for key in fields]
+    for tag in case.get("coverage_tags", []) if isinstance(case.get("coverage_tags"), list) else []:
+        if isinstance(tag, dict):
+            values.extend(str(tag.get(key, "")) for key in ("dimension", "value", "coverage_item_id"))
+    return " ".join(values).casefold()
 
 
-def load_suite(output_root: Path, pilot_count: int = 3) -> dict:
+def role_score(case: dict, role: str) -> int:
+    text = case_text(case)
+    score = 0
+    for alternatives in ROLE_PATTERNS[role]["required_groups"]:
+        matched = [term for term in alternatives if term.casefold() in text]
+        if not matched:
+            return 0
+        score += max(len(term) for term in matched)
+    if role == "multi_turn":
+        buckets = case.get("scenario_bucket", [])
+        if isinstance(buckets, list) and "multi_turn" in buckets:
+            score += 100
+    return score
+
+
+def validate_case_for_pilot(case: dict, dataset_id: str) -> None:
+    case_id = case["case_id"]
+    if case.get("quality_status") != "candidate":
+        fail(f"{dataset_id}/{case_id}: pilot cases must have quality_status=candidate")
+    execution = case.get("execution_requirements")
+    if not isinstance(execution, dict) or execution.get("status") != "NOT_RUN":
+        fail(f"{dataset_id}/{case_id}: candidate case execution status must be NOT_RUN")
+    if case.get("information_gaps"):
+        open_gaps = [
+            gap for gap in case["information_gaps"]
+            if isinstance(gap, dict) and gap.get("status") in {"OPEN", "IN_PROGRESS"}
+        ]
+        if open_gaps:
+            fail(f"{dataset_id}/{case_id}: unresolved information gaps block pilot selection")
+    environment = execution.get("environment")
+    if not isinstance(environment, dict):
+        fail(f"{dataset_id}/{case_id}: execution environment is missing")
+    if environment.get("app_url") != "http://127.0.0.1:4173":
+        fail(f"{dataset_id}/{case_id}: app_url must target the local Workboard fixture")
+    timeout = environment.get("case_timeout_seconds")
+    if type(timeout) is not int or not 1 <= timeout <= 900:
+        fail(f"{dataset_id}/{case_id}: case_timeout_seconds must be an integer from 1 to 900")
+    initial = execution.get("initial_state", {})
+    state = initial.get("server_state") if isinstance(initial, dict) else None
+    state = state or environment.get("server_state_at_start") or "running"
+    if state != "running":
+        fail(f"{dataset_id}/{case_id}: pilot runner supports server_state=running only")
+
+
+def load_suite(output_root: Path, pilot_count: int = PILOT_COUNT) -> dict:
     root = output_root.resolve()
     manifest_path = root / "SUITE-MANIFEST.json"
     if not manifest_path.is_file():
@@ -54,11 +115,11 @@ def load_suite(output_root: Path, pilot_count: int = 3) -> dict:
     datasets = suite.get("datasets")
     if not isinstance(datasets, list) or not datasets:
         fail("SUITE-MANIFEST.json must contain a non-empty datasets array")
-    if type(pilot_count) is not int or pilot_count < 1:
-        fail("pilot_count must be a positive integer")
+    if type(pilot_count) is not int or pilot_count != PILOT_COUNT:
+        fail(f"this benchmark requires exactly {PILOT_COUNT} semantic pilot roles")
 
     all_candidate_cases: list[dict] = []
-    seen_dataset_ids: set[str] = set()
+    dataset_entries: dict[str, dict] = {}
     seen_case_ids: set[str] = set()
 
     for dataset in datasets:
@@ -69,9 +130,9 @@ def load_suite(output_root: Path, pilot_count: int = 3) -> dict:
         expected_count = dataset.get("case_count")
         if not isinstance(dataset_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}", dataset_id):
             fail(f"invalid dataset_id: {dataset_id!r}")
-        if dataset_id in seen_dataset_ids:
+        if dataset_id in dataset_entries:
             fail(f"duplicate dataset_id: {dataset_id}")
-        seen_dataset_ids.add(dataset_id)
+        dataset_entries[dataset_id] = dataset
         if dataset.get("quality_status") not in ALLOWED_QUALITY:
             fail(f"{dataset_id}: dataset quality_status must be candidate or needs_info")
         if dataset.get("execution_status") != "NOT_RUN":
@@ -87,11 +148,12 @@ def load_suite(output_root: Path, pilot_count: int = 3) -> dict:
         if type(expected_count) is not int or expected_count < 1:
             fail(f"{dataset_id}: case_count must be a positive integer")
 
-        cases = []
+        actual_count = 0
         try:
             for line_number, line in enumerate(jsonl_path.read_text(encoding="utf-8").splitlines(), 1):
                 if not line.strip():
                     continue
+                actual_count += 1
                 try:
                     case = json.loads(line)
                 except json.JSONDecodeError as exc:
@@ -109,62 +171,54 @@ def load_suite(output_root: Path, pilot_count: int = 3) -> dict:
                 if case.get("quality_status") not in ALLOWED_QUALITY:
                     fail(f"{dataset_id}/{case_id}: unsupported quality_status")
                 if case.get("quality_status") == "candidate":
-                    execution = case.get("execution_requirements")
-                    if not isinstance(execution, dict) or execution.get("status") != "NOT_RUN":
-                        fail(f"{dataset_id}/{case_id}: candidate case execution status must be NOT_RUN")
-                    cases.append(case)
+                    validate_case_for_pilot(case, dataset_id)
+                    all_candidate_cases.append(case)
         except OSError as exc:
             fail(f"{dataset_id}: cannot read dataset JSONL: {exc}")
-
-        actual_count = sum(1 for line in jsonl_path.read_text(encoding="utf-8").splitlines() if line.strip())
         if actual_count != expected_count:
             fail(f"{dataset_id}: manifest case_count does not match JSONL")
-        # A dataset with zero candidate cases is allowed when its own quality is needs_info.
-        all_candidate_cases.extend(cases)
+        if actual_count == 0:
+            fail(f"{dataset_id}: dataset JSONL contains no cases")
 
-    if len(all_candidate_cases) < pilot_count:
-        fail(f"only {len(all_candidate_cases)} candidate cases are available; {pilot_count} required")
+    if len(all_candidate_cases) < PILOT_COUNT:
+        fail(f"only {len(all_candidate_cases)} candidate cases are available; {PILOT_COUNT} required")
 
     selected: list[tuple[dict, str]] = []
     selected_ids: set[str] = set()
-    for expected_dataset, expected_case_id, coverage_id, role in PILOT_ROLES:
-        matches = [
-            case for case in all_candidate_cases
-            if case["dataset_id"] == expected_dataset
-            and case["case_id"] == expected_case_id
-            and coverage_id in tags_for(case)
+    for role in ROLE_PATTERNS:
+        scored = [
+            (role_score(case, role), case)
+            for case in all_candidate_cases
+            if case["case_id"] not in selected_ids
         ]
-        if len(matches) != 1:
+        scored = [(score, case) for score, case in scored if score > 0]
+        if not scored:
             fail(
-                f"required pilot role {role} must resolve to exactly one Builder candidate "
-                f"({expected_dataset}/{expected_case_id}, tag {coverage_id}); found {len(matches)}"
+                f"no Builder-authored candidate matches pilot role {role}; "
+                "do not fabricate or rename a case to satisfy the pilot"
             )
-        match = matches[0]
-        if match["case_id"] in selected_ids:
-            fail(f"pilot roles resolve to duplicate case_id: {match['case_id']}")
+        best_score = max(score for score, _ in scored)
+        best = [case for score, case in scored if score == best_score]
+        if len(best) != 1:
+            ids = sorted(case["case_id"] for case in best)
+            fail(f"pilot role {role} is ambiguous at score {best_score}: {ids}")
+        match = best[0]
         selected.append((match, role))
         selected_ids.add(match["case_id"])
-
-    if pilot_count != len(PILOT_ROLES):
-        fail(f"this benchmark requires exactly {len(PILOT_ROLES)} semantic pilot roles")
-    if len(selected) != pilot_count:
-        fail(f"expected {pilot_count} distinct semantic pilot cases; selected {len(selected)}")
 
     include = []
     for case, role in selected:
         dataset_id = case["dataset_id"]
-        entry = next(item for item in datasets if item["dataset_id"] == dataset_id)
-        relative_jsonl = entry["jsonl"]
+        entry = dataset_entries[dataset_id]
         is_search_mutation = role == "search_mutation"
         include.append({
             "dataset_id": dataset_id,
-            "dataset_path": relative_jsonl,
+            "dataset_path": entry["jsonl"],
             "case_id": case["case_id"],
             "pilot_role": role,
             "fixture_profile": "mutant" if is_search_mutation else "clean",
             "fixture_mutations": ["search-case-sensitive"] if is_search_mutation else [],
         })
-
     return {"include": include}
 
 
@@ -172,19 +226,29 @@ def self_test() -> int:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         (root / "datasets").mkdir()
-        pilot_cases = [
-            ("wb-defect", "WB-DEF-01", "BR-02"),
-            ("wb-lifecycle", "WB-LIFE-01", "SCN-MULTI-TURN"),
-            ("wb-core", "WB-CORE-08", "BR-08"),
+        authored = [
+            ("dataset-alpha", "CASE-SEARCH-17", "Search defect: case-sensitive matching returns incorrect results", ["business_rule"], "Search should be case-insensitive; detect the mismatch."),
+            ("dataset-beta", "CASE-CONTEXT-42", "Multi-turn workflow retains the selected workboard item", ["multi_turn"], "Continue the previous task and verify retained context."),
+            ("dataset-gamma", "CASE-DELETE-08", "Delete requires confirmation before removal", ["business_rule"], "Attempt deletion and verify confirmation."),
         ]
         datasets = []
-        for dataset_id, case_id, coverage_id in pilot_cases:
+        for dataset_id, case_id, title, buckets, objective in authored:
             case = {
                 "dataset_id": dataset_id,
                 "case_id": case_id,
+                "title": title,
+                "objective": objective,
+                "scenario_bucket": buckets,
                 "quality_status": "candidate",
-                "execution_requirements": {"status": "NOT_RUN"},
-                "coverage_tags": [{"coverage_item_id": coverage_id}],
+                "execution_requirements": {
+                    "status": "NOT_RUN",
+                    "environment": {
+                        "app_url": "http://127.0.0.1:4173",
+                        "case_timeout_seconds": 120,
+                        "server_state_at_start": "running",
+                    },
+                    "initial_state": {"server_state": "running"},
+                },
             }
             jsonl = f"datasets/{dataset_id}.jsonl"
             (root / jsonl).write_text(json.dumps(case) + "\n", encoding="utf-8")
@@ -200,24 +264,25 @@ def self_test() -> int:
             "quality_status": "candidate",
             "execution_status": "NOT_RUN",
         }), encoding="utf-8")
-        matrix = load_suite(root, pilot_count=3)
+        matrix = load_suite(root)
         assert [item["case_id"] for item in matrix["include"]] == [
-            "WB-DEF-01", "WB-LIFE-01", "WB-CORE-08"
+            "CASE-SEARCH-17", "CASE-CONTEXT-42", "CASE-DELETE-08"
         ]
-        assert [item["pilot_role"] for item in matrix["include"]] == [
-            "search_mutation", "multi_turn", "delete_confirmation"
+        assert [item["dataset_id"] for item in matrix["include"]] == [
+            "dataset-alpha", "dataset-beta", "dataset-gamma"
         ]
         assert [item["fixture_profile"] for item in matrix["include"]] == [
             "mutant", "clean", "clean"
         ]
         assert matrix["include"][0]["fixture_mutations"] == ["search-case-sensitive"]
-        print("PASS: exact Builder-authored cases selected for mutant search, true multi-turn, and delete confirmation")
+        print("PASS: three semantic pilot roles resolve across Builder-chosen dataset and case IDs")
     return 0
+
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-root")
-    parser.add_argument("--pilot-count", type=int, default=3)
+    parser.add_argument("--pilot-count", type=int, default=PILOT_COUNT)
     parser.add_argument("--write-output")
     parser.add_argument("--github-output", action="store_true")
     parser.add_argument("--self-test", action="store_true")
