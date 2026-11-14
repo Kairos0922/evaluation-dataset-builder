@@ -7,7 +7,9 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import sys
+import unicodedata
 from collections import defaultdict
 from pathlib import Path
 
@@ -19,6 +21,15 @@ CASE_SCHEMA_PATH = ROOT / "skills/evaluation-dataset-builder/references/dataset-
 MANIFEST_SCHEMA_PATH = ROOT / "skills/evaluation-dataset-builder/references/dataset-manifest-schema.json"
 ALLOWED_QUALITY = {"candidate", "needs_info"}
 ALLOWED_EXECUTION = {"NOT_RUN"}
+SOURCE_ROOTS = (
+    ROOT / "benchmarks/webapp-testing/assets/public",
+    ROOT / "benchmarks/webapp-testing/fixtures/workboard",
+    ROOT / "artifacts/webapp-testing-builder-input/assets/public",
+    ROOT / "artifacts/webapp-testing-builder-input/fixtures/workboard",
+    ROOT / "artifacts/webapp-testing-builder-input/upstream-skill",
+    ROOT / ".audit/upstream-skills/skills/webapp-testing",
+)
+SOURCE_SUFFIXES = {".md", ".txt", ".py", ".html", ".js", ".css", ".json"}
 
 
 def load_schema(path: Path) -> dict:
@@ -48,6 +59,57 @@ def require_nonempty_value(value, location: str) -> None:
         raise SystemExit(f"{location} must not be empty")
 
 
+def normalize_source_text(value: str) -> str:
+    value = unicodedata.normalize('NFKC', value).casefold()
+    return re.sub(r'\\s+', ' ', value).strip()
+
+
+def load_source_corpus() -> dict[str, str]:
+    corpus: dict[str, str] = {}
+    for source_root in SOURCE_ROOTS:
+        if not source_root.is_dir():
+            continue
+        for path in sorted(source_root.rglob('*')):
+            if not path.is_file() or path.is_symlink() or path.suffix.lower() not in SOURCE_SUFFIXES:
+                continue
+            try:
+                content = path.read_text(encoding='utf-8')
+            except (OSError, UnicodeDecodeError):
+                continue
+            if content.strip():
+                corpus[path.relative_to(ROOT).as_posix()] = normalize_source_text(content)
+    if not corpus:
+        raise SystemExit('No readable public source corpus is available for source-evidence verification')
+    return corpus
+
+
+def verify_source_evidence(case_id: str, source: dict, corpus: dict[str, str]) -> None:
+    title = source.get('title', '')
+    locator = source.get('locator', '')
+    quote = source.get('quoted_evidence')
+    require_nonempty_text(quote, f'{case_id}.source_refs.quoted_evidence')
+    normalized_quote = normalize_source_text(quote)
+    if len(normalized_quote) < 6:
+        raise SystemExit(f'{case_id}: source quote is too short to verify reliably')
+
+    title_locator = f'{title} {locator}'.casefold()
+    candidates = corpus
+    if re.search(r'\\bBR-\\d+\\b', title_locator) or '业务规则' in title_locator or 'business rule' in title_locator:
+        candidates = {path: text for path, text in corpus.items() if path.endswith('business-rules.md')}
+    elif 'skill.md' in title_locator or 'webapp-testing' in title_locator:
+        candidates = {path: text for path, text in corpus.items() if path.endswith('SKILL.md')}
+    else:
+        filename = Path(locator).name
+        if filename and '.' in filename:
+            matched = {path: text for path, text in corpus.items() if path.endswith(filename)}
+            if matched:
+                candidates = matched
+
+    if not candidates:
+        raise SystemExit(f'{case_id}: source locator does not resolve to an available source file: {locator}')
+    if not any(normalized_quote in text for text in candidates.values()):
+        raise SystemExit(f'{case_id}: quoted_evidence cannot be found in the source selected by title/locator ({title!r}, {locator!r})')
+
 def main() -> int:
     if not OUTPUT.is_dir():
         raise SystemExit(f"Builder output directory not found: {OUTPUT}")
@@ -61,6 +123,8 @@ def main() -> int:
         manifest_schema, format_checker=jsonschema.FormatChecker()
     )
 
+    source_corpus = load_source_corpus()
+    source_evidence_verified = 0
     dataset_files = sorted(OUTPUT.rglob("*.jsonl"))
     if not dataset_files:
         raise SystemExit("Builder did not produce any JSONL dataset files")
@@ -147,6 +211,8 @@ def main() -> int:
             for source in case.get("source_refs", []):
                 require_nonempty_text(source.get("title"), f"{case_id}.source_refs.title")
                 require_nonempty_text(source.get("locator"), f"{case_id}.source_refs.locator")
+                verify_source_evidence(case_id, source, source_corpus)
+                source_evidence_verified += 1
 
             all_cases[case_id] = case
             datasets[case["dataset_id"]].append(case)
@@ -426,6 +492,8 @@ def main() -> int:
         "coverage_item_counts": dict(sorted(coverage_counts.items())),
         "all_case_coverage_tag_counts": dict(sorted(coverage_tag_counts.items())),
         "schema_errors": 0,
+        "source_evidence_refs_verified": source_evidence_verified,
+        "source_evidence_check": "exact normalized quote matched to source selected by title/locator",
         "quality_status_gate": "candidate/needs_info",
         "execution_status_gate": "NOT_RUN",
         "unknown_policy_gate": "present_in_every_case",
