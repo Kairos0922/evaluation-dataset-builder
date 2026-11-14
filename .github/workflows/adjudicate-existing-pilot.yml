@@ -1,0 +1,67 @@
+name: Re-adjudicate archived Webapp Testing pilot
+
+on:
+  push:
+    branches: ["experiment/webapp-testing-contract"]
+    paths:
+      - "benchmarks/webapp-testing/scripts/gold_oracle.py"
+      - ".github/workflows/adjudicate-existing-pilot.yml"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  adjudicate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SOURCE_RUN_ID: "43038478841"
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.16"
+
+      - name: Download immutable Builder input from the completed replay
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-replay-builder-input
+          repository: ${{ github.repository }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+          github-token: ${{ github.token }}
+          path: artifacts/builder-replay
+
+      - name: Download all three archived target pilot artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: webapp-testing-pilot-*
+          repository: ${{ github.repository }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+          github-token: ${{ github.token }}
+          path: artifacts/pilots
+          merge-multiple: true
+
+      - name: Run corrected independent Gold Oracle without repeating target calls
+        run: |
+          set -euo pipefail
+          python -m py_compile benchmarks/webapp-testing/scripts/gold_oracle.py
+          python benchmarks/webapp-testing/scripts/gold_oracle.py \
+            --builder-output artifacts/builder-replay/webapp-testing-builder-output \
+            --pilots-root artifacts/pilots \
+            --output artifacts/oracle-adjudication-corrected.json
+          cat artifacts/oracle-adjudication-corrected.json
+
+      - name: Archive corrected independent adjudication
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-oracle-adjudication-corrected
+          path: artifacts/oracle-adjudication-corrected.json
+          if-no-files-found: error
+          retention-days: 90

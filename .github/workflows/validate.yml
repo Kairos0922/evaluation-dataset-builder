@@ -1,12 +1,20 @@
 name: 验证 Skill
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "experiment/webapp-testing-contract"]
   pull_request:
     branches: ["main"]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   workflow_dispatch:
+    inputs:
+      run_builder_production:
+        description: "确认 DeepSeek API 余额可用后，执行真实 Builder 生产及三条试运行"
+        required: true
+        type: boolean
+        default: false
 
 permissions:
+  actions: read
   contents: read
 
 # PR 更新时只保留最新一次；main 每个 push 使用独立 group，不会互相取消或替换 pending run。
@@ -110,3 +118,846 @@ jobs:
       - name: 运行离线测试
         if: steps.scope.outputs.run_validation == 'true'
         run: python -m unittest discover -s tests -p "test_*.py" -v
+
+      - name: 验证独立 Gold Oracle 与 Builder 输出验证器
+        if: steps.scope.outputs.run_validation == 'true'
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            benchmarks/webapp-testing/oracle/adjudicate_pilot.py \
+            benchmarks/webapp-testing/scripts/validate_builder_output.py
+          python benchmarks/webapp-testing/oracle/adjudicate_pilot.py --self-test
+          PYTHONPATH=benchmarks/webapp-testing/scripts python - <<'PY'
+          import validate_builder_output as validator
+
+          corpus = validator.load_source_corpus()
+          validator.verify_source_evidence(
+              "SOURCE-SMOKE-01",
+              {
+                  "title": "Workboard Lite 业务规则",
+                  "locator": "BR-02",
+                  "quoted_evidence": "搜索必须不区分大小写",
+              },
+              corpus,
+          )
+          try:
+              validator.verify_source_evidence(
+                  "SOURCE-SMOKE-NEGATIVE",
+                  {
+                      "title": "Workboard Lite 业务规则",
+                      "locator": "BR-02",
+                      "quoted_evidence": "这是一段不存在的虚构来源引文",
+                  },
+                  corpus,
+              )
+          except SystemExit as error:
+              if "cannot be found" not in str(error):
+                  raise
+          else:
+              raise SystemExit("Validator accepted fabricated source evidence")
+          print("PASS: exact source quotation accepted; fabricated quotation rejected")
+          PY
+
+      - name: 验证 Builder 试运行选择器
+        if: steps.scope.outputs.run_validation == 'true'
+        run: |
+          set -euo pipefail
+          python -m py_compile benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py
+          python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py --self-test
+
+  audit-upstream-assets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Checkout pinned upstream repository
+        uses: actions/checkout@v4
+        with:
+          repository: anthropics/skills
+          ref: 2c5958ecac7cee2b583967a2c4981d0f4a75c579
+          path: .audit/upstream-skills
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Regenerate complete asset manifest
+        run: |
+          set -euo pipefail
+          python -m py_compile benchmarks/webapp-testing/scripts/audit_upstream_assets.py
+          python benchmarks/webapp-testing/scripts/audit_upstream_assets.py \
+            --repo-dir .audit/upstream-skills \
+            --output "$RUNNER_TEMP/upstream-asset-manifest.json"
+
+      - name: Compare generated manifest with reviewed manifest
+        run: |
+          set -euo pipefail
+          diff -u \
+            benchmarks/webapp-testing/upstream-asset-manifest.json \
+            "$RUNNER_TEMP/upstream-asset-manifest.json"
+
+      - name: Archive audit manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-upstream-asset-audit
+          path: ${{ runner.temp }}/upstream-asset-manifest.json
+          if-no-files-found: error
+          retention-days: 30
+
+  runtime-preflight:
+    needs: audit-upstream-assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DSH_HOME: ${{ github.workspace }}/.dsh-home
+      DSH_TELEMETRY_MODE: DISABLED
+      DSH_TELEMETRY_DISABLED: "1"
+      DSH_VERSION: "0.2.2-rc.1"
+      PREFLIGHT_ARTIFACT_DIR: artifacts/runtime-preflight
+      PREFLIGHT_BASE_URL: http://127.0.0.1:4173
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Checkout pinned upstream repository
+        uses: actions/checkout@v4
+        with:
+          repository: anthropics/skills
+          ref: 2c5958ecac7cee2b583967a2c4981d0f4a75c579
+          path: .audit/upstream-skills
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.9.0"
+
+      - name: Install pinned DSH CLI
+        run: |
+          set -euo pipefail
+          npm install --global --no-audit --no-fund "@deepseek-ai/dsh@$DSH_VERSION"
+          dsh --version | tee artifacts-dsh-install.txt
+
+      - name: Configure isolated DSH and verify uploads are disabled
+        run: |
+          set -euo pipefail
+          mkdir -p "$DSH_HOME" .dsh/skills artifacts
+          cat > "$DSH_HOME/cordis.patch.yml" <<'YAML'
+          - id: session-log-deepseek
+            config:
+              enabled: false
+          YAML
+
+          cp -R .audit/upstream-skills/skills/webapp-testing .dsh/skills/webapp-testing
+          diff -qr .audit/upstream-skills/skills/webapp-testing .dsh/skills/webapp-testing
+          test -s .dsh/skills/webapp-testing/SKILL.md
+          dsh --profile headless --dump-config > artifacts/dsh-config.txt
+
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          config = Path("artifacts/dsh-config.txt").read_text(encoding="utf-8")
+          marker = "id: session-log-deepseek"
+          if marker not in config:
+              raise SystemExit("session-log-deepseek missing from composed DSH config")
+          section = config.split(marker, 1)[1]
+          next_component = re.search(r"\n\s*- id:", section)
+          if next_component:
+              section = section[:next_component.start()]
+          if not re.search(r"\benabled:\s*false\b", section):
+              raise SystemExit("Session Log upload was not verified disabled")
+          print("Verified: Session Log upload disabled")
+          print("Verified: OpenTelemetry disabled by DSH environment flags")
+          print("Verified: pinned webapp-testing files staged at .dsh/skills/webapp-testing")
+          PY
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pinned Playwright
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "playwright==1.64.1"
+          python -c "import playwright; from importlib.metadata import version; print('Playwright', version('playwright'))"
+
+      - name: Install headless Chromium
+        run: python -m playwright install --only-shell chromium
+
+      - name: Run upstream server helper help
+        run: |
+          set -euo pipefail
+          python .audit/upstream-skills/skills/webapp-testing/scripts/with_server.py --help \
+            > artifacts/with-server-help.txt 2>&1
+          test -s artifacts/with-server-help.txt
+          cat artifacts/with-server-help.txt
+
+      - name: Run local browser interaction through upstream helper
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/runtime-preflight
+          # exec replaces the shell with the single server process so helper termination reaches the actual listener.
+          python .audit/upstream-skills/skills/webapp-testing/scripts/with_server.py \
+            --server "exec python -m http.server 4173 --bind 127.0.0.1 --directory benchmarks/webapp-testing/fixtures/runtime-preflight" \
+            --port 4173 \
+            --timeout 30 \
+            -- python benchmarks/webapp-testing/scripts/check_runtime.py
+
+      - name: Compile Workboard fixture and validation script
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            benchmarks/webapp-testing/fixtures/workboard/server.py \
+            benchmarks/webapp-testing/scripts/validate_workboard_fixture.py \
+            benchmarks/webapp-testing/scripts/prepare_builder_input.py \
+            benchmarks/webapp-testing/scripts/verify_builder_input.py \
+            benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py
+          python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py --self-test
+
+      - name: Validate clean Workboard profile
+        run: |
+          set -euo pipefail
+          python .audit/upstream-skills/skills/webapp-testing/scripts/with_server.py \
+            --server "exec env APP_PROFILE=clean APP_HOST=127.0.0.1 APP_PORT=4173 APP_AUDIT_LOG=$RUNNER_TEMP/workboard-clean.jsonl python benchmarks/webapp-testing/fixtures/workboard/server.py" \
+            --port 4173 \
+            --timeout 30 \
+            -- python benchmarks/webapp-testing/scripts/validate_workboard_fixture.py --profile clean
+
+      - name: Verify clean Workboard server cleanup
+        if: always()
+        run: |
+          python - <<'PY'
+          import socket
+          import sys
+          import time
+
+          for attempt in range(8):
+              with socket.socket() as sock:
+                  sock.settimeout(0.25)
+                  try:
+                      sock.connect(("127.0.0.1", 4173))
+                  except OSError:
+                      if attempt == 7:
+                          print("PASS: clean Workboard server port is closed")
+                          raise SystemExit(0)
+                      time.sleep(0.25)
+                  else:
+                      print("FAIL: clean Workboard server is still listening")
+                      raise SystemExit(1)
+          raise SystemExit("Could not verify clean server cleanup")
+          PY
+
+      - name: Validate mutant Workboard profile
+        run: |
+          set -euo pipefail
+          python .audit/upstream-skills/skills/webapp-testing/scripts/with_server.py \
+            --server "exec env APP_PROFILE=mutant APP_HOST=127.0.0.1 APP_PORT=4173 APP_AUDIT_LOG=$RUNNER_TEMP/workboard-mutant.jsonl python benchmarks/webapp-testing/fixtures/workboard/server.py" \
+            --port 4173 \
+            --timeout 30 \
+            -- python benchmarks/webapp-testing/scripts/validate_workboard_fixture.py --profile mutant
+
+      - name: Verify mutant Workboard server cleanup
+        if: always()
+        run: |
+          python - <<'PY'
+          import socket
+          import sys
+          import time
+
+          for attempt in range(8):
+              with socket.socket() as sock:
+                  sock.settimeout(0.25)
+                  try:
+                      sock.connect(("127.0.0.1", 4173))
+                  except OSError:
+                      if attempt == 7:
+                          print("PASS: mutant Workboard server port is closed")
+                          raise SystemExit(0)
+                      time.sleep(0.25)
+                  else:
+                      print("FAIL: mutant Workboard server is still listening")
+                      raise SystemExit(1)
+          raise SystemExit("Could not verify mutant server cleanup")
+          PY
+
+      - name: Prepare the public Builder input bundle
+        env:
+          BUILDER_INPUT_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/prepare_builder_input.py \
+            --repo-dir . \
+            --upstream-repo-dir .audit/upstream-skills \
+            --output artifacts/webapp-testing-builder-input \
+            --repo-revision "$BUILDER_INPUT_REVISION"
+
+      - name: Verify public Builder input bundle
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/verify_builder_input.py
+
+      - name: Archive the public Builder input bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-builder-input
+          path: artifacts/webapp-testing-builder-input/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Verify the helper released its server port
+        if: always()
+        run: |
+          python - <<'PY'
+          import socket
+          import sys
+          import time
+
+          port = 4173
+          for attempt in range(12):
+              with socket.socket() as sock:
+                  sock.settimeout(0.25)
+                  try:
+                      sock.connect(("127.0.0.1", port))
+                  except OSError:
+                      if attempt == 11:
+                          print(f"PASS: TCP port {port} remained closed")
+                          raise SystemExit(0)
+                      time.sleep(0.25)
+                  else:
+                      print(f"FAIL: TCP port {port} is still accepting connections")
+                      raise SystemExit(1)
+          print(f"FAIL: could not verify port {port} cleanup")
+          raise SystemExit(1)
+          PY
+
+      - name: Upload runtime preflight evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-runtime-preflight
+          path: |
+            artifacts/runtime-preflight/
+            artifacts/dsh-config.txt
+            artifacts/with-server-help.txt
+            artifacts-dsh-install.txt
+            ${{ runner.temp }}/workboard-clean.jsonl
+            ${{ runner.temp }}/workboard-mutant.jsonl
+          if-no-files-found: warn
+          retention-days: 14
+
+  # Paid Builder production and target-Skill pilot run only after explicit opt-in.
+  # Opt in with the PR label "run-builder-production" or workflow_dispatch input.
+  builder-production:
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production)
+    needs: runtime-preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      DSH_HOME: ${{ github.workspace }}/.dsh-home
+      DSH_TELEMETRY_MODE: DISABLED
+      DSH_TELEMETRY_DISABLED: "1"
+      DSH_VERSION: "0.2.2-rc.1"
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Check model credential availability
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$DEEPSEEK_API_KEY" || {
+            echo "::error::DEEPSEEK_API_KEY is missing; no model request was sent."
+            exit 2
+          }
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.9.0"
+
+      - name: Install pinned DSH CLI
+        run: |
+          set -euo pipefail
+          npm install --global --no-audit --no-fund "@deepseek-ai/dsh@$DSH_VERSION"
+          dsh --version
+
+      - name: Configure isolated DSH and stage Builder Skill
+        run: |
+          set -euo pipefail
+          BUILDER_WORKSPACE="$RUNNER_TEMP/builder-workspace"
+          mkdir -p "$DSH_HOME" artifacts "$BUILDER_WORKSPACE/.dsh/skills" "$BUILDER_WORKSPACE/artifacts"
+          cat > "$DSH_HOME/cordis.patch.yml" <<'YAML'
+          - id: session-log-deepseek
+            config:
+              enabled: false
+          YAML
+          cp -R skills/evaluation-dataset-builder "$BUILDER_WORKSPACE/.dsh/skills/evaluation-dataset-builder"
+          test -s "$BUILDER_WORKSPACE/.dsh/skills/evaluation-dataset-builder/SKILL.md"
+          dsh --profile headless --dump-config > artifacts/dsh-config.txt
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          text = Path("artifacts/dsh-config.txt").read_text(encoding="utf-8")
+          marker = "id: session-log-deepseek"
+          if marker not in text:
+              raise SystemExit("Session Log config not found; refusing model request")
+          tail = text.split(marker, 1)[1]
+          next_component = re.search(r"\n\s*- id:", tail)
+          section = tail[:next_component.start()] if next_component else tail
+          if not re.search(r"\benabled:\s*false\b", section):
+              raise SystemExit("Session Log upload is not verified disabled")
+          print("Session Log upload disabled; OTel disabled by environment flags.")
+          PY
+
+      - name: Download frozen public Builder input
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-builder-input
+          path: artifacts/webapp-testing-builder-input
+
+      - name: Assemble isolated Builder workspace
+        run: |
+          set -euo pipefail
+          workspace="$RUNNER_TEMP/builder-workspace"
+          test -d "$workspace/.dsh/skills/evaluation-dataset-builder"
+          mkdir -p "$workspace/artifacts"
+          cp -R artifacts/webapp-testing-builder-input "$workspace/artifacts/"
+          test -s "$workspace/artifacts/webapp-testing-builder-input/BUILDER-TASK.md"
+          python - <<'PY'
+          from pathlib import Path
+          import os
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "builder-workspace"
+          files = [p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file()]
+          allowed = (".dsh/skills/evaluation-dataset-builder/", "artifacts/webapp-testing-builder-input/")
+          unexpected = [p for p in files if not p.startswith(allowed)]
+          if unexpected:
+              raise SystemExit(f"Unexpected Builder workspace files: {unexpected}")
+          if any("validate_builder_output.py" in p or "gold-oracle" in p.lower() or "oracle" in p.lower() for p in files):
+              raise SystemExit("Independent validator or oracle is exposed to Builder workspace")
+          print(f"PASS: isolated Builder workspace assembled with {len(files)} files")
+          PY
+
+      - name: Install independent validation dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check jsonschema
+          python -m py_compile \
+            benchmarks/webapp-testing/scripts/verify_builder_input.py \
+            benchmarks/webapp-testing/scripts/verify_builder_dsh_trace.py \
+            benchmarks/webapp-testing/scripts/validate_builder_output.py
+          python benchmarks/webapp-testing/scripts/verify_builder_input.py
+          mkdir -p artifacts/webapp-testing-builder-output
+          find "$RUNNER_TEMP/builder-workspace/.dsh/skills/evaluation-dataset-builder" -type f -print0 \
+            | sort -z | xargs -0 sha256sum \
+            > artifacts/builder-skill-sha256.txt
+
+      - name: Record Builder production environment
+        env:
+          BUILDER_INPUT_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+          UPSTREAM_COMMIT: "2c5958ecac7cee2b583967a2c4981d0f4a75c579"
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import platform
+          import subprocess
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          dsh_version = subprocess.run(
+              ["dsh", "--version"], check=True, text=True,
+              stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+          ).stdout.strip()
+          record = {
+              "candidate_sha": os.environ["BUILDER_INPUT_REVISION"],
+              "upstream_skill_commit": os.environ["UPSTREAM_COMMIT"],
+              "dsh_version": dsh_version,
+              "python_version": platform.python_version(),
+              "node_version": subprocess.run(
+                  ["node", "--version"], check=True, text=True,
+                  stdout=subprocess.PIPE
+              ).stdout.strip(),
+              "created_at_utc": datetime.now(timezone.utc).isoformat(),
+              "scope": "builder_production_only",
+              "workspace_isolated": True,
+              "workspace_contents": ["Builder Skill", "public Builder input bundle"],
+              "gold_oracle_mounted": False,
+              "independent_validator_mounted": False,
+              "webapp_testing_skill_loaded": False,
+          }
+          Path("artifacts/builder-run-metadata.json").write_text(
+              json.dumps(record, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8"
+          )
+          PY
+
+      - name: Invoke Evaluation Dataset Builder through DSH
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          set -euo pipefail
+          BUILDER_WORKSPACE="$RUNNER_TEMP/builder-workspace"
+          rm -rf "$BUILDER_WORKSPACE/artifacts/webapp-testing-builder-output" artifacts/webapp-testing-builder-output
+          mkdir -p "$BUILDER_WORKSPACE/artifacts/webapp-testing-builder-output"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "builder-workspace"
+          allowed = (".dsh/skills/evaluation-dataset-builder/", "artifacts/webapp-testing-builder-input/")
+          files = sorted(p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file())
+          unexpected = [p for p in files if not p.startswith(allowed)]
+          if unexpected:
+              raise SystemExit(f"Builder workspace contains unexpected files: {unexpected}")
+          if not any(p.startswith(allowed[0]) for p in files):
+              raise SystemExit("Builder Skill is missing from isolated workspace")
+          if not any(p.startswith(allowed[1]) for p in files):
+              raise SystemExit("Public Builder input is missing from isolated workspace")
+          evidence = {
+              "workspace_isolated": True,
+              "file_count": len(files),
+              "allowed_roots": list(allowed),
+              "forbidden_components_present": False,
+              "files": files,
+          }
+          Path("artifacts/builder-workspace-boundary.json").write_text(
+              json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+          )
+          PY
+          set +e
+          (
+            cd "$BUILDER_WORKSPACE"
+            dsh --profile headless --json --permission-mode workspace-write - \
+              < artifacts/webapp-testing-builder-input/BUILDER-TASK.md \
+              > "$GITHUB_WORKSPACE/artifacts/builder-dsh-events.jsonl" \
+              2> "$GITHUB_WORKSPACE/artifacts/builder-dsh-stderr.log"
+          )
+          dsh_exit=$?
+          set -e
+          printf '%s\n' "$dsh_exit" > artifacts/builder-dsh-exit-code.txt
+          if [ "$dsh_exit" -ne 0 ]; then
+            echo "::error::DSH Builder invocation failed with exit code $dsh_exit"
+            exit "$dsh_exit"
+          fi
+          cp -a "$BUILDER_WORKSPACE/artifacts/webapp-testing-builder-output" artifacts/
+          test -d artifacts/webapp-testing-builder-output
+
+      - name: Check and redact any accidental credential disclosure
+        if: always()
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          secret = os.environ.get("DEEPSEEK_API_KEY", "").encode()
+          targets = [
+              Path("artifacts/builder-dsh-events.jsonl"),
+              Path("artifacts/builder-dsh-stderr.log"),
+              Path("artifacts/webapp-testing-builder-output"),
+          ]
+          leaked = []
+          if secret:
+              files = []
+              for target in targets:
+                  if target.is_file():
+                      files.append(target)
+                  elif target.is_dir():
+                      files.extend(path for path in target.rglob("*") if path.is_file())
+              for path in files:
+                  try:
+                      data = path.read_bytes()
+                  except OSError:
+                      continue
+                  if secret in data:
+                      path.write_bytes(data.replace(secret, b"[REDACTED_SECRET]"))
+                      leaked.append(path.as_posix())
+          Path("artifacts/credential-scan.json").write_text(
+              json.dumps({
+                  "secret_value_exposed_in_artifact": bool(leaked),
+                  "redacted_files": leaked,
+                  "scope": "DSH evidence and generated output",
+              }, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          if leaked:
+              raise SystemExit(
+                  "Credential disclosure detected. Matching values were redacted "
+                  f"from artifacts: {leaked}"
+              )
+          print("PASS: no API credential value found in generated evidence.")
+          PY
+
+      - name: Verify actual Builder invocation in DSH trace
+        if: success()
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/verify_builder_dsh_trace.py \
+            --events artifacts/builder-dsh-events.jsonl \
+            --exit-code "$(cat artifacts/builder-dsh-exit-code.txt)" \
+            --output-dir artifacts/webapp-testing-builder-output \
+            | tee artifacts/builder-dsh-trace-verification.json
+
+      - name: Validate Builder-generated datasets and manifests
+        if: success()
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/validate_builder_output.py \
+            | tee artifacts/builder-validation-summary.json
+          find artifacts/webapp-testing-builder-output -type f -print0 \
+            | sort -z | xargs -0 sha256sum \
+            > artifacts/builder-output-sha256.txt
+
+      - name: Archive Builder production evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-builder-result
+          path: |
+            artifacts/webapp-testing-builder-output/
+            artifacts/builder-dsh-events.jsonl
+            artifacts/builder-dsh-stderr.log
+            artifacts/builder-dsh-exit-code.txt
+            artifacts/builder-dsh-trace-verification.json
+            artifacts/builder-validation-summary.json
+            artifacts/builder-skill-sha256.txt
+            artifacts/builder-output-sha256.txt
+            artifacts/builder-run-metadata.json
+            artifacts/builder-workspace-boundary.json
+            artifacts/credential-scan.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  resolve-pilot-matrix:
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production)
+    needs: builder-production
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download Builder-produced suite
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-builder-result
+          path: artifacts/builder-result
+
+      - name: Resolve three Builder-generated candidate pilot cases
+        id: resolve
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py \
+            --output-root artifacts/builder-result/webapp-testing-builder-output \
+            --github-output \
+            --write-output "$RUNNER_TEMP/pilot-matrix.json"
+          cat "$RUNNER_TEMP/pilot-matrix.json"
+
+  webapp-testing-pilot:
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production)
+    needs: [runtime-preflight, builder-production, resolve-pilot-matrix]
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.resolve-pilot-matrix.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DSH_HOME: ${{ github.workspace }}/.dsh-home
+      DSH_TELEMETRY_MODE: DISABLED
+      DSH_TELEMETRY_DISABLED: "1"
+      DSH_VERSION: "0.2.2-rc.1"
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download Builder-produced dataset artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-builder-result
+          path: artifacts/builder-result
+
+      - name: Checkout pinned webapp-testing Skill
+        uses: actions/checkout@v4
+        with:
+          repository: anthropics/skills
+          ref: 2c5958ecac7cee2b583967a2c4981d0f4a75c579
+          path: .audit/upstream-skills
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Check model credential availability
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$DEEPSEEK_API_KEY" || {
+            echo "::error::DEEPSEEK_API_KEY is missing; no model request was sent."
+            exit 2
+          }
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.9.0"
+
+      - name: Install pinned DSH CLI
+        run: |
+          set -euo pipefail
+          npm install --global --no-audit --no-fund "@deepseek-ai/dsh@$DSH_VERSION"
+          dsh --version
+
+      - name: Set up Python and Playwright
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.16"
+
+      - name: Install pinned Playwright and Chromium
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "playwright==1.64.1"
+          python -m playwright install --with-deps --only-shell chromium
+
+      - name: Configure isolated DSH and verify Session Log is disabled
+        env:
+          CONFIG_PATH: ${{ runner.temp }}/dsh-config.txt
+        run: |
+          set -euo pipefail
+          mkdir -p "$DSH_HOME"
+          cat > "$DSH_HOME/cordis.patch.yml" <<'YAML'
+          - id: session-log-deepseek
+            config:
+              enabled: false
+          YAML
+          dsh --profile headless --dump-config > "$RUNNER_TEMP/dsh-config.txt"
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          import os
+          text = Path(os.environ["CONFIG_PATH"]).read_text(encoding="utf-8")
+          marker = "id: session-log-deepseek"
+          if marker not in text:
+              raise SystemExit("Session Log config missing; refusing model request")
+          tail = text.split(marker, 1)[1]
+          next_item = re.search(r"\n\s*- id:", tail)
+          section = tail[:next_item.start()] if next_item else tail
+          if not re.search(r"\benabled:\s*false\b", section):
+              raise SystemExit("Session Log upload is not disabled")
+          print("PASS: Session Log upload disabled; OTel disabled by environment flags.")
+          PY
+
+      - name: Compile and self-test execution runner
+        run: |
+          set -euo pipefail
+          python -m py_compile benchmarks/webapp-testing/scripts/run_webapp_testing.py
+          python benchmarks/webapp-testing/scripts/run_webapp_testing.py --self-test
+
+      - name: Execute Builder-generated pilot case
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DATASET_PATH: ${{ matrix.dataset_path }}
+          DATASET_ID: ${{ matrix.dataset_id }}
+          CASE_ID: ${{ matrix.case_id }}
+          FIXTURE_PROFILE: ${{ matrix.fixture_profile }}
+          FIXTURE_MUTATIONS: ${{ join(matrix.fixture_mutations, ',') }}
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/run_webapp_testing.py \
+            --dataset "artifacts/builder-result/webapp-testing-builder-output/$DATASET_PATH" \
+            --dataset-id "$DATASET_ID" \
+            --case-id "$CASE_ID" \
+            --fixture-profile "$FIXTURE_PROFILE" \
+            --fixture-mutations "$FIXTURE_MUTATIONS" \
+            --fixture-source benchmarks/webapp-testing/fixtures/workboard \
+            --public-assets benchmarks/webapp-testing/assets/public \
+            --skill-source .audit/upstream-skills/skills/webapp-testing \
+            --work-root "$RUNNER_TEMP/wbt-workspaces" \
+            --output-dir "$RUNNER_TEMP/wbt-output/$DATASET_ID" \
+            --skill-commit "2c5958ecac7cee2b583967a2c4981d0f4a75c579"
+
+      - name: Archive webapp-testing pilot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-pilot-${{ matrix.case_id }}
+          path: ${{ runner.temp }}/wbt-output/${{ matrix.dataset_id }}/
+          if-no-files-found: warn
+          retention-days: 30
+
+  adjudicate-pilot:
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production)
+    needs: [builder-production, resolve-pilot-matrix, webapp-testing-pilot]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download Builder-produced suite
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-builder-result
+          path: artifacts/builder-result
+
+      - name: Download three target-Skill evidence packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: webapp-testing-pilot-*
+          path: artifacts/pilot-results
+          merge-multiple: true
+
+      - name: Run independent Gold Oracle
+        env:
+          PILOT_MATRIX: ${{ needs.resolve-pilot-matrix.outputs.matrix }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$PILOT_MATRIX" > "$RUNNER_TEMP/pilot-matrix.json"
+          python -m py_compile benchmarks/webapp-testing/oracle/adjudicate_pilot.py
+          python benchmarks/webapp-testing/oracle/adjudicate_pilot.py \
+            --suite-root artifacts/builder-result/webapp-testing-builder-output \
+            --pilot-root artifacts/pilot-results \
+            --matrix "$RUNNER_TEMP/pilot-matrix.json" \
+            --output artifacts/independent-adjudication.json
+
+      - name: Archive independent adjudication
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-independent-adjudication
+          path: artifacts/independent-adjudication.json
+          if-no-files-found: warn
+          retention-days: 30
