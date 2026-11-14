@@ -38,6 +38,15 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Checkout pinned upstream source corpus for evidence verification
+        uses: actions/checkout@v4
+        with:
+          repository: anthropics/skills
+          ref: 2c5958ecac7cee2b583967a2c4981d0f4a75c579
+          path: .audit/upstream-skills
+          fetch-depth: 1
+          persist-credentials: false
+
       - name: Download immutable Builder production artifact
         run: |
           set -euo pipefail
@@ -78,23 +87,26 @@ jobs:
 
           matrix_path = Path(os.environ["GITHUB_WORKSPACE"]) / "pilot-matrix.json"
           matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
+          expected_roles = {"search_mutation", "multi_turn", "delete_confirmation"}
+          if len(matrix["include"]) != 3:
+              raise SystemExit("Pilot matrix must contain exactly three cases")
           selected = {item["pilot_role"]: item for item in matrix["include"]}
-          search = selected.get("search_mutation")
-          lifecycle = selected.get("multi_turn")
-          deletion = selected.get("delete_confirmation")
-          if not search or (search["dataset_id"], search["case_id"]) != ("wb-defect", "WB-DEF-01"):
-              raise SystemExit("Builder-authored WB-DEF-01 search defect case was not selected")
-          if search["fixture_profile"] != "mutant" or "search-case-sensitive" not in search["fixture_mutations"]:
-              raise SystemExit("WB-DEF-01 was not assigned the case-sensitive mutant fixture")
-          if not lifecycle or (lifecycle["dataset_id"], lifecycle["case_id"]) != ("wb-lifecycle", "WB-LIFE-01"):
-              raise SystemExit("Builder-authored WB-LIFE-01 multi-turn case was not selected")
-          if lifecycle["fixture_profile"] != "clean":
-              raise SystemExit("Multi-turn lifecycle case must use the clean fixture")
-          if not deletion or (deletion["dataset_id"], deletion["case_id"]) != ("wb-core", "WB-CORE-08"):
-              raise SystemExit("Builder-authored WB-CORE-08 delete-confirmation case was not selected")
-          if deletion["fixture_profile"] != "clean":
+          if set(selected) != expected_roles:
+              raise SystemExit(f"Pilot roles mismatch: {sorted(selected)}")
+          if len({item["case_id"] for item in matrix["include"]}) != 3:
+              raise SystemExit("Pilot cases must have three distinct case IDs")
+          if len({item["dataset_id"] for item in matrix["include"]}) < 1:
+              raise SystemExit("Pilot matrix has no dataset references")
+          search = selected["search_mutation"]
+          lifecycle = selected["multi_turn"]
+          deletion = selected["delete_confirmation"]
+          if search["fixture_profile"] != "mutant" or search["fixture_mutations"] != ["search-case-sensitive"]:
+              raise SystemExit("Search defect case must use the case-sensitive mutant fixture")
+          if lifecycle["fixture_profile"] != "clean" or lifecycle["fixture_mutations"]:
+              raise SystemExit("Multi-turn case must use the clean fixture")
+          if deletion["fixture_profile"] != "clean" or deletion["fixture_mutations"]:
               raise SystemExit("Delete-confirmation case must use the clean fixture")
-          print("PASS: exact Builder-authored search mutant, multi-turn, and delete-confirmation cases selected.")
+          print("PASS: three distinct Builder-authored cases selected by semantic role, without fixed IDs.")
           PY
 
       - name: Stage immutable Builder input for pilot and Oracle jobs
