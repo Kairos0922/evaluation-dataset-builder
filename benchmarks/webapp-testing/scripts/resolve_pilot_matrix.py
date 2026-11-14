@@ -19,9 +19,9 @@ PILOT_COUNT = 3
 ROLE_PATTERNS = {
     "search_mutation": {
         "required_groups": [
-            ("search",),
-            ("case-sensitive", "case sensitive", "case-insensitive", "case insensitive"),
-            ("defect", "bug", "incorrect", "mismatch", "regression", "failure"),
+            ("search", "搜索"),
+            ("case-sensitive", "case sensitive", "case-insensitive", "case insensitive", "大小写", "不区分大小写"),
+            ("defect", "bug", "incorrect", "mismatch", "regression", "failure", "缺陷", "错误", "不符合", "异常", "变异", "突变"),
         ],
     },
     "multi_turn": {
@@ -29,8 +29,8 @@ ROLE_PATTERNS = {
     },
     "delete_confirmation": {
         "required_groups": [
-            ("delete", "remove", "deletion", "removal"),
-            ("confirm", "confirmation", "confirming"),
+            ("delete", "remove", "deletion", "removal", "删除"),
+            ("confirm", "confirmation", "confirming", "确认", "对话框"),
         ],
     },
 }
@@ -227,9 +227,9 @@ def self_test() -> int:
         root = Path(tmp)
         (root / "datasets").mkdir()
         authored = [
-            ("dataset-alpha", "CASE-SEARCH-17", "Search defect: case-sensitive matching returns incorrect results", ["business_rule"], "Search should be case-insensitive; detect the mismatch."),
-            ("dataset-beta", "CASE-CONTEXT-42", "Multi-turn workflow retains the selected workboard item", ["multi_turn"], "Continue the previous task and verify retained context."),
-            ("dataset-gamma", "CASE-DELETE-08", "Delete requires confirmation before removal", ["business_rule"], "Attempt deletion and verify confirmation."),
+            ("dataset-alpha", "CASE-SEARCH-17", "搜索必须不区分大小写，并匹配标题和描述；检测大小写敏感缺陷", ["business_rule"], "搜索结果应符合不区分大小写的规则。"),
+            ("dataset-beta", "CASE-CONTEXT-42", "多轮任务应保留前序工作区上下文", ["multi_turn"], "继续前一轮任务并验证上下文承接。"),
+            ("dataset-gamma", "CASE-DELETE-08", "删除任务前必须显示确认对话框", ["business_rule"], "点击删除并验证确认对话框。"),
         ]
         datasets = []
         for dataset_id, case_id, title, buckets, objective in authored:
