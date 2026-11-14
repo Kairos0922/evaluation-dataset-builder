@@ -61,7 +61,7 @@ def require_nonempty_value(value, location: str) -> None:
 
 def normalize_source_text(value: str) -> str:
     value = unicodedata.normalize('NFKC', value).casefold()
-    return re.sub(r'\\s+', ' ', value).strip()
+    return re.sub(r'\s+', ' ', value).strip()
 
 
 def load_source_corpus() -> dict[str, str]:
@@ -94,7 +94,7 @@ def verify_source_evidence(case_id: str, source: dict, corpus: dict[str, str]) -
 
     title_locator = f'{title} {locator}'.casefold()
     candidates = corpus
-    if re.search(r'\\bBR-\\d+\\b', title_locator) or '业务规则' in title_locator or 'business rule' in title_locator:
+    if re.search(r'\bBR-\d+\b', title_locator) or '业务规则' in title_locator or 'business rule' in title_locator:
         candidates = {path: text for path, text in corpus.items() if path.endswith('business-rules.md')}
     elif 'skill.md' in title_locator or 'webapp-testing' in title_locator:
         candidates = {path: text for path, text in corpus.items() if path.endswith('SKILL.md')}
