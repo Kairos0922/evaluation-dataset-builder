@@ -36,9 +36,7 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: .github/workflows/publish-release.yml
-      - name: Install structured runtime-evidence validator
-        run: python -m pip install --disable-pip-version-check jsonschema
-      - name: Verify merged PR, exact SHA, CI report, baseline, stability, runtime evidence, and independent approval; create tag
+      - name: Verify merged PR, exact SHA, behavior report, baseline, stability, and independent approval; create tag
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
