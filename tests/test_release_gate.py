@@ -464,6 +464,9 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn("release_pr_binding", verifier)
         self.assertIn('startswith("Behavioral Skill Evaluation")', verifier)
         self.assertIn('contents/RELEASE.md?ref=main', updater)
+        self.assertNotIn("load_target_runtime_report", creator)
+        self.assertNotIn("skill_package_tree_sha", creator)
+        self.assertNotIn("runtime_report", creator)
 
     def test_release_pr_binding_separates_review_head_from_release_commit(self):
         pr = {
