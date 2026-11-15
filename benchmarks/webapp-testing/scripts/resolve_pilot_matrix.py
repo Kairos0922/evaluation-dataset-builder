@@ -62,10 +62,34 @@ def role_score(case: dict, role: str) -> int:
         if not matched:
             return 0
         score += max(len(term) for term in matched)
-    if role == "multi_turn":
-        buckets = case.get("scenario_bucket", [])
-        if isinstance(buckets, list) and "multi_turn" in buckets:
-            score += 100
+
+    # Select the focused search-rule case for the case-sensitive mutant.
+    # A case that only mentions search as one step of a larger workflow, or
+    # that primarily tests evidence/adversarial claims, is not this pilot role.
+    workflows = set(case.get("workflow_refs", []))
+    business_rules = set(case.get("business_rule_refs", []))
+    buckets = set(case.get("scenario_bucket", []))
+    if role == "search_mutation":
+        if workflows != {"WF-SEARCH"} or business_rules != {"BR-02"} or "normal" not in buckets:
+            return 0
+        score += 100
+
+    # Prefer the richest genuinely multi-turn case. Turn count is derived
+    # from the Builder-authored prompt structure; workflow breadth breaks a tie.
+    elif role == "multi_turn":
+        if "multi_turn" not in buckets:
+            return 0
+        user_input = case.get("user_input")
+        turn_count = len(user_input) if isinstance(user_input, list) else 1
+        score += 100 + min(turn_count, 9) * 10 + min(len(workflows), 9)
+
+    # Keep the deletion pilot focused on a single UI workflow. Multi-turn
+    # deletion scenarios remain eligible for the multi-turn role instead.
+    elif role == "delete_confirmation":
+        if workflows != {"WF-DELETE"} or "BR-08" not in business_rules or "multi_turn" in buckets:
+            return 0
+        score += 100
+
     return score
 
 
@@ -227,18 +251,68 @@ def self_test() -> int:
         root = Path(tmp)
         (root / "datasets").mkdir()
         authored = [
-            ("dataset-alpha", "CASE-SEARCH-17", "搜索必须不区分大小写，并匹配标题和描述；检测大小写敏感缺陷", ["business_rule"], "搜索结果应符合不区分大小写的规则。"),
-            ("dataset-beta", "CASE-CONTEXT-42", "多轮任务应保留前序工作区上下文", ["multi_turn"], "继续前一轮任务并验证上下文承接。"),
-            ("dataset-gamma", "CASE-DELETE-08", "删除任务前必须显示确认对话框", ["business_rule"], "点击删除并验证确认对话框。"),
+            {
+                "dataset_id": "dataset-alpha",
+                "case_id": "CASE-SEARCH-17",
+                "title": "搜索必须不区分大小写，并匹配标题和描述；检测大小写敏感缺陷",
+                "objective": "验证 BR-02 搜索规则。",
+                "scenario_bucket": ["normal", "business_rule"],
+                "business_rule_refs": ["BR-02"],
+                "workflow_refs": ["WF-SEARCH"],
+                "user_input": "在页面验证大小写不敏感搜索。",
+            },
+            {
+                "dataset_id": "dataset-search-evidence",
+                "case_id": "CASE-SEARCH-EVIDENCE-18",
+                "title": "核验未经验证的交接声明并裁决搜索大小写缺陷",
+                "objective": "从证据独立核验搜索规则。",
+                "scenario_bucket": ["adversarial", "business_rule"],
+                "business_rule_refs": ["BR-02"],
+                "workflow_refs": ["WF-SEARCH", "WF-EVIDENCE"],
+                "user_input": "验证搜索并审查证据。",
+            },
+            {
+                "dataset_id": "dataset-beta",
+                "case_id": "CASE-CONTEXT-42",
+                "title": "多轮任务应保留前序工作区上下文",
+                "objective": "跨轮使用同一任务并验证状态连续性。",
+                "scenario_bucket": ["multi_turn"],
+                "business_rule_refs": ["BR-04", "BR-02", "BR-07", "BR-03"],
+                "workflow_refs": ["WF-CREATE", "WF-SEARCH", "WF-STATUS-CYCLE", "WF-FILTER"],
+                "user_input": [
+                    {"turn": 1, "prompt": "创建任务并记录 ID X。"},
+                    {"turn": 2, "prompt": "继续使用 X 并推进状态。"},
+                    {"turn": 3, "prompt": "继续筛选并核对 X。"},
+                ],
+            },
+            {
+                "dataset_id": "dataset-multi-delete",
+                "case_id": "CASE-MULTI-DELETE-43",
+                "title": "多轮删除确认应保留前序上下文",
+                "objective": "先取消，再重新打开确认删除。",
+                "scenario_bucket": ["multi_turn", "negative"],
+                "business_rule_refs": ["BR-08", "BR-01"],
+                "workflow_refs": ["WF-DELETE"],
+                "user_input": [
+                    {"turn": 1, "prompt": "点击删除并取消。"},
+                    {"turn": 2, "prompt": "继续并确认删除。"},
+                ],
+            },
+            {
+                "dataset_id": "dataset-gamma",
+                "case_id": "CASE-DELETE-08",
+                "title": "删除任务前必须显示确认对话框",
+                "objective": "点击删除并验证确认对话框。",
+                "scenario_bucket": ["normal", "negative", "business_rule"],
+                "business_rule_refs": ["BR-08", "BR-01"],
+                "workflow_refs": ["WF-DELETE"],
+                "user_input": "通过页面删除选中任务并确认。",
+            },
         ]
         datasets = []
-        for dataset_id, case_id, title, buckets, objective in authored:
+        for item in authored:
             case = {
-                "dataset_id": dataset_id,
-                "case_id": case_id,
-                "title": title,
-                "objective": objective,
-                "scenario_bucket": buckets,
+                **item,
                 "quality_status": "candidate",
                 "execution_requirements": {
                     "status": "NOT_RUN",
@@ -250,10 +324,10 @@ def self_test() -> int:
                     "initial_state": {"server_state": "running"},
                 },
             }
-            jsonl = f"datasets/{dataset_id}.jsonl"
-            (root / jsonl).write_text(json.dumps(case) + "\n", encoding="utf-8")
+            jsonl = f"datasets/{item['dataset_id']}.jsonl"
+            (root / jsonl).write_text(json.dumps(case, ensure_ascii=False) + "\n", encoding="utf-8")
             datasets.append({
-                "dataset_id": dataset_id,
+                "dataset_id": item["dataset_id"],
                 "jsonl": jsonl,
                 "case_count": 1,
                 "quality_status": "candidate",
@@ -264,6 +338,7 @@ def self_test() -> int:
             "quality_status": "candidate",
             "execution_status": "NOT_RUN",
         }), encoding="utf-8")
+
         matrix = load_suite(root)
         assert [item["case_id"] for item in matrix["include"]] == [
             "CASE-SEARCH-17", "CASE-CONTEXT-42", "CASE-DELETE-08"
@@ -274,8 +349,10 @@ def self_test() -> int:
         assert [item["fixture_profile"] for item in matrix["include"]] == [
             "mutant", "clean", "clean"
         ]
-        assert matrix["include"][0]["fixture_mutations"] == ["search-case-sensitive"]
-        print("PASS: three semantic pilot roles resolve across Builder-chosen dataset and case IDs")
+        assert [item["fixture_mutations"] for item in matrix["include"]] == [
+            ["search-case-sensitive"], [], []
+        ]
+        print("PASS: focused search, multi-turn and delete-confirmation pilots resolve from Builder-authored cases")
     return 0
 
 
