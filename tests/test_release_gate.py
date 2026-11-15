@@ -572,6 +572,13 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn("release-merge-sha", updated)
         self.assertIn("independent-reviewer", updated)
         self.assertIn("Matched baseline mean uplift: +4.0%", updated)
+        incomplete_report = dict(report)
+        incomplete_report.pop("builder_evidence")
+        with self.assertRaisesRegex(ValueError, "without exact-SHA Builder and three-trial evidence"):
+            UPDATE_RELEASE_DOC.build_published_release_doc(
+                current, incomplete_report, "candidate-sha", "release-merge-sha",
+                "independent-reviewer",
+            )
         self.assertIn("Builder evidence PR: #38", updated)
         self.assertIn("Real Skill trials: 3 PASS", updated)
         self.assertIn("does not claim that each documented host", updated)
