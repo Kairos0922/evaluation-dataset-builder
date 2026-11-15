@@ -86,6 +86,7 @@ def role_score(case: dict, role: str) -> int:
             and "wb-104" in message
             and "cancel" in message
             and "delete task" in message
+            and "do not click delete task" not in message
         ):
             return 100 + len(message)
 
@@ -213,6 +214,9 @@ def self_test() -> int:
             ("D-CORE", "Generated-Delete-03", "delete_confirmation",
              ["BR-08"], ["WF-DELETE"], ["normal", "business_rule"],
              "For WB-104, click Delete, click Cancel, then reopen and click Delete task."),
+            ("D-CORE", "Generated-Delete-CancelOnly-04", "distractor",
+             ["BR-08"], ["WF-DELETE", "WF-CLEANUP"], ["normal", "negative"],
+             "For WB-104 open the delete dialog and click Cancel. Do not click Delete task; only Cancel."),
         ]
         datasets = {}
         for dataset_id, case_id, _, rules, workflows, buckets, message in source_cases:
