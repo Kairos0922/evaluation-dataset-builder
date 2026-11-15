@@ -365,6 +365,34 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 reviews, "pr-author", "different-pr-head-sha", 12345
             )
 
+    def test_independent_review_must_cover_builder_and_three_pilot_evidence(self):
+        critical = "SE03 SE04 SE05 SE08 SE09 SE11 SE12"
+        builder_url = "https://github.com/example/repo/actions/runs/67890"
+        evidence = {
+            "workflow_run_url": builder_url,
+            "pilot_case_ids": ["CASE-SEARCH", "CASE-MULTI", "CASE-DELETE"],
+        }
+        base_body = (
+            "Reviewed " + critical + " baseline and spread. "
+            "https://github.com/example/repo/actions/runs/12345 "
+        )
+        review = {
+            "user": {"login": "independent-reviewer"},
+            "state": "APPROVED",
+            "submitted_at": "2026-11-15T09:00:00Z",
+            "commit_id": "pr-head-sha",
+            "body": base_body,
+        }
+        with self.assertRaisesRegex(ValueError, "Builder/pilot evidence links"):
+            VERIFY_RELEASE.latest_approved_review(
+                [review], "pr-author", "pr-head-sha", 12345, evidence
+            )
+        review["body"] = base_body + builder_url + " CASE-SEARCH CASE-MULTI CASE-DELETE"
+        result = VERIFY_RELEASE.latest_approved_review(
+            [review], "pr-author", "pr-head-sha", 12345, evidence
+        )
+        self.assertEqual(result["user"]["login"], "independent-reviewer")
+
     def test_release_verifier_requires_independent_judge_endpoint(self):
         report = self._valid_release_report()
         report["judge_api_base_url"] = report["api_base_url"]
