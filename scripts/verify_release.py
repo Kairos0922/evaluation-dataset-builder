@@ -153,7 +153,7 @@ def verify_report(report, candidate_sha, run_id):
     return report
 
 
-def latest_approved_review(reviews, author, reviewed_head_sha, run_id):
+def latest_approved_review(reviews, author, reviewed_head_sha, run_id, builder_evidence=None):
     latest_by_user = {}
     for review in reviews:
         user = (review.get("user") or {}).get("login")
@@ -179,10 +179,17 @@ def latest_approved_review(reviews, author, reviewed_head_sha, run_id):
             continue
         if run_url_fragment not in body or "baseline" not in body.lower() or "spread" not in body.lower():
             continue
+        if builder_evidence:
+            builder_url = builder_evidence.get("workflow_run_url") or ""
+            pilot_ids = builder_evidence.get("pilot_case_ids") or []
+            if not builder_url or builder_url not in body:
+                continue
+            if any(not case_id or case_id not in body for case_id in pilot_ids):
+                continue
         return review
     raise ValueError(
         "No independent APPROVED review exists on the exact PR head SHA with "
-        "critical-case findings, baseline/stability assessment, and the exact Actions run link."
+        "critical-case findings, baseline/stability assessment, exact behavior run link, and Builder/pilot evidence links."
     )
 
 
