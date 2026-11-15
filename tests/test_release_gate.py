@@ -339,15 +339,10 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
     def test_release_verifier_requires_independent_approval_on_exact_sha(self):
         critical = "SE03 SE04 SE05 SE08 SE09 SE11 SE12"
-        report_url = (
-            "https://github.com/example/repo/blob/" + "c" * 40
-            + "/tests/runtime-evidence/" + "a" * 40 + ".json"
-        )
         body = (
             "Reviewed " + critical
             + " baseline comparison and spread assessment: acceptable. "
-            + "https://github.com/example/repo/actions/runs/12345 "
-            + "target-runtime: PASS " + report_url
+            + "https://github.com/example/repo/actions/runs/12345"
         )
         reviews = [{
             "user": {"login": "independent-reviewer"},
