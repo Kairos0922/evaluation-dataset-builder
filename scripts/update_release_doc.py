@@ -25,6 +25,11 @@ def build_published_release_doc(current, report, candidate_sha, release_sha, rev
     before, checklist = text.split("## 发布门禁", 1)
     checklist = checklist.replace("- [ ] ", "- [x] ")
     text = before + "## 发布门禁" + checklist
+    builder = report.get("builder_evidence") or {}
+    require(builder.get("status") == "PASS"
+            and builder.get("pilot_count") == 3
+            and builder.get("skill_tree_matches_release_candidate") is True,
+            "RELEASE.md cannot be marked published without exact-SHA Builder and three-trial evidence.")
     stability = report["stability"]
     baseline = report["baseline_comparison"]
     evidence = (
