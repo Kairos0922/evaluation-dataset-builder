@@ -44,6 +44,10 @@ def build_published_release_doc(current, report, candidate_sha, release_sha, rev
         f"- Trigger Recall mean / spread: {stability['trigger_recall']['mean']:.1%} / {stability['trigger_recall']['spread']:.1%}\n"
         f"- Matched baseline mean uplift: {baseline['mean_uplift']:+.1%}\n"
         f"- Independent reviewer: {reviewer}\n"
+        f"- Builder evidence PR: #{builder['pr_number']} at {builder['candidate_sha']}\n"
+        f"- Builder production run: {builder['workflow_run_url']}\n"
+        f"- Independently validated datasets / cases: {builder['dataset_count']} / {builder['case_count']}\n"
+        f"- Real Skill trials: {builder['pilot_count']} PASS ({', '.join(builder['pilot_case_ids'])})\n"
         "\nThis release does not claim that each documented host's installation, discovery, reference-loading, and tool-integration path has been independently verified.\n"
     )
     if "\n## Release evidence\n" in text:
