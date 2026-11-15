@@ -161,5 +161,43 @@ class BuilderSourceLocatorTests(unittest.TestCase):
                 with self.assertRaisesRegex(SystemExit, "locator/quoted_evidence pair"):
                     VALIDATOR.verify_source_evidence("WB-C01", source, corpus, source_map)
 
+
+    def test_source_map_accepts_canonical_quotes_field(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            relative = "artifacts/webapp-testing-builder-input/assets/public/business-rules.md"
+            content = "BR-02 搜索必须不区分大小写。"
+            source_path = root / relative
+            source_path.parent.mkdir(parents=True)
+            source_path.write_text(content, encoding="utf-8")
+            output = root / "output"
+            output.mkdir()
+            record = {
+                "source_id": "SRC-BR",
+                "title": "业务规则",
+                "source_type": "authoritative_policy",
+                "path": "assets/public/business-rules.md",
+                "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+                "quotes": [{
+                    "locator": "BR-02 (line 1)",
+                    "quoted_evidence": "BR-02 搜索必须不区分大小写。",
+                }],
+            }
+            (output / "SOURCE-MAP.json").write_text(
+                json.dumps({"sources": [record]}, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            corpus = {relative: VALIDATOR.normalize_source_text(content)}
+            source = {
+                "source_id": "SRC-BR",
+                "source_type": "authoritative_policy",
+                "title": "业务规则",
+                "locator": "BR-02 (line 1)",
+                "quoted_evidence": "BR-02 搜索必须不区分大小写。",
+            }
+            with patch.object(VALIDATOR, "ROOT", root):
+                source_map = VALIDATOR.load_source_map(output, corpus)
+                VALIDATOR.verify_source_evidence("CASE-BR02", source, corpus, source_map)
+
 if __name__ == "__main__":
     unittest.main()

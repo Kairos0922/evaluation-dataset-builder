@@ -158,17 +158,22 @@ def load_source_map(output: Path, corpus: dict[str, str]) -> dict[str, dict]:
                 f"{source_id}: source file SHA-256 does not match SOURCE-MAP.json: {declared_path}"
             )
 
-        locators = record.get("locators")
-        if not isinstance(locators, list) or not locators:
-            raise SystemExit(f"{source_id}: SOURCE-MAP.json lacks locator records")
-        for item in locators:
+        # "quotes" is the current Builder source-map contract. Accept
+        # "locators" only as a compatibility alias for earlier artifacts.
+        quote_records = record.get("quotes")
+        if quote_records is None:
+            quote_records = record.get("locators")
+        if not isinstance(quote_records, list) or not quote_records:
+            raise SystemExit(f"{source_id}: SOURCE-MAP.json lacks quote records")
+        for item in quote_records:
             if not isinstance(item, dict):
-                raise SystemExit(f"{source_id}: source locator entries must be objects")
-            require_nonempty_text(item.get("locator"), f"{source_id}.locators[].locator")
-            require_nonempty_text(item.get("quoted_evidence"), f"{source_id}.locators[].quoted_evidence")
+                raise SystemExit(f"{source_id}: source quote entries must be objects")
+            require_nonempty_text(item.get("locator"), f"{source_id}.quotes[].locator")
+            require_nonempty_text(item.get("quoted_evidence"), f"{source_id}.quotes[].quoted_evidence")
 
         verified_record = dict(record)
         verified_record["_verified_corpus_paths"] = verified_paths
+        verified_record["_verified_quotes"] = quote_records
         index[source_id] = verified_record
 
     return index
@@ -204,7 +209,7 @@ def verify_source_evidence(
         locator_quote_found = any(
             normalize_source_text(str(item.get("locator", ""))) == normalized_locator
             and normalize_source_text(str(item.get("quoted_evidence", ""))) == normalized_quote
-            for item in mapped["locators"]
+            for item in mapped["_verified_quotes"]
         )
         if not locator_quote_found:
             raise SystemExit(

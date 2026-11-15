@@ -4,15 +4,14 @@ on:
   push:
     branches: ["experiment/webapp-testing-contract"]
     paths:
-      - "benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py"
-      - "benchmarks/webapp-testing/scripts/run_webapp_testing.py"
+      - ".github/replay-webapp-testing-trigger.txt"
   workflow_dispatch:
     inputs:
       builder_run_id:
         description: "Historical Actions run ID containing webapp-testing-builder-result"
         required: true
         type: string
-        default: "42918862179"
+        default: ""
 
 permissions:
   actions: read
@@ -29,7 +28,7 @@ jobs:
     outputs:
       matrix: ${{ steps.resolve.outputs.matrix }}
     env:
-      SOURCE_RUN_ID: ${{ inputs.builder_run_id || '42918862179' }}
+      SOURCE_RUN_ID: ${{ inputs.builder_run_id || '' }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout benchmark repository
@@ -47,15 +46,40 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Download immutable Builder production artifact
+      - name: Resolve and download the successful Builder production artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          [[ "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]]
-          gh run download "$SOURCE_RUN_ID" \
+          source_run_id="$SOURCE_RUN_ID"
+          if [ -z "$source_run_id" ]; then
+            runs_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=experiment/webapp-testing-contract&event=pull_request&per_page=100")"
+            mapfile -t candidate_runs < <(jq -r '
+              [.workflow_runs[]
+               | select(.path == ".github/workflows/validate.yml")
+               | select(.head_branch == "experiment/webapp-testing-contract")
+               | select(.conclusion == "success")]
+              | sort_by(.created_at) | reverse | .[].id
+            ' <<< "$runs_json")
+            for run_id in "${candidate_runs[@]}"; do
+              jobs_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100")"
+              if jq -e 'any(.jobs[]; .name == "builder-production" and .conclusion == "success")' <<< "$jobs_json" >/dev/null; then
+                source_run_id="$run_id"
+                break
+              fi
+            done
+          fi
+          [[ "$source_run_id" =~ ^[0-9]+$ ]] || {
+            echo "::error::No successful Builder production run was found for the candidate branch."
+            exit 2
+          }
+          echo "Resolved successful Builder run: $source_run_id"
+          gh run download "$source_run_id" \
             --repo "$GITHUB_REPOSITORY" \
             --name webapp-testing-builder-result \
             --dir artifacts/builder-result
           test -s artifacts/builder-result/webapp-testing-builder-output/SUITE-MANIFEST.json
+          echo "source_run_id=$source_run_id" >> "$GITHUB_OUTPUT"
 
       - name: Validate the original Builder output with candidate-only coverage
         env:
@@ -87,7 +111,7 @@ jobs:
 
           matrix_path = Path(os.environ["GITHUB_WORKSPACE"]) / "pilot-matrix.json"
           matrix = json.loads(matrix_path.read_text(encoding="utf-8"))
-          expected_roles = {"search_mutation", "multi_turn", "delete_confirmation"}
+          expected_roles = {"search_mutation", "state_cycle", "delete_confirmation"}
           if len(matrix["include"]) != 3:
               raise SystemExit("Pilot matrix must contain exactly three cases")
           selected = {item["pilot_role"]: item for item in matrix["include"]}
@@ -98,7 +122,7 @@ jobs:
           if len({item["dataset_id"] for item in matrix["include"]}) < 1:
               raise SystemExit("Pilot matrix has no dataset references")
           search = selected["search_mutation"]
-          lifecycle = selected["multi_turn"]
+          state_cycle = selected["state_cycle"]
           deletion = selected["delete_confirmation"]
           if search["fixture_profile"] != "mutant" or search["fixture_mutations"] != ["search-case-sensitive"]:
               raise SystemExit("Search defect case must use the case-sensitive mutant fixture")
@@ -249,7 +273,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: webapp-testing-pilot-${{ matrix.dataset_id }}
+          name: webapp-testing-pilot-${{ matrix.case_id }}
           path: ${{ runner.temp }}/wbt-output/${{ matrix.dataset_id }}/
           if-no-files-found: warn
           retention-days: 30
@@ -286,6 +310,7 @@ jobs:
           python benchmarks/webapp-testing/scripts/gold_oracle.py \
             --builder-output artifacts/builder-replay/webapp-testing-builder-output \
             --pilots-root artifacts/pilots \
+            --pilot-matrix artifacts/builder-replay/pilot-matrix.json \
             --output artifacts/oracle-adjudication.json
           cat artifacts/oracle-adjudication.json
 

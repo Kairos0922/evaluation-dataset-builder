@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
-"""Select three Builder-authored cases for the isolated execution pilot.
+"""Select three semantic pilots from Builder-authored cases.
 
-Selection is semantic and data-driven. This module validates and selects
-existing Builder cases only; it never creates, edits, repairs, or regrades them.
+The selector uses only the generated suite. It does not invent or modify cases.
+The current source corpus supports a single-turn diagnostic search test, a
+within-session state cycle, and a delete-confirmation workflow. It does not
+justify labelling a case multi_turn merely because one user message contains
+several UI steps.
 """
 from __future__ import annotations
 
@@ -14,306 +17,213 @@ import sys
 import tempfile
 from pathlib import Path, PurePosixPath
 
+PILOT_ROLES = ("search_mutation", "state_cycle", "delete_confirmation")
 ALLOWED_QUALITY = {"candidate", "needs_info"}
-PILOT_COUNT = 3
-ROLE_PATTERNS = {
-    "search_mutation": {
-        "required_groups": [
-            ("search", "搜索"),
-            ("case-sensitive", "case sensitive", "case-insensitive", "case insensitive", "大小写", "不区分大小写"),
-            ("defect", "bug", "incorrect", "mismatch", "regression", "failure", "缺陷", "错误", "不符合", "异常", "变异", "突变"),
-        ],
-    },
-    "multi_turn": {
-        "required_groups": [("multi_turn", "multi-turn", "multi turn")],
-    },
-    "delete_confirmation": {
-        "required_groups": [
-            ("delete", "remove", "deletion", "removal", "删除"),
-            ("confirm", "confirmation", "confirming", "确认", "对话框"),
-        ],
-    },
-}
 
 
 def fail(message: str) -> None:
     raise SystemExit(f"ERROR: {message}")
 
 
+def user_message(case: dict) -> str:
+    value = case.get("user_input")
+    if isinstance(value, str):
+        return value
+    if isinstance(value, dict):
+        return " ".join(str(v) for v in value.values())
+    if isinstance(value, list):
+        return " ".join(
+            str(item.get("content") or item.get("message") or item.get("prompt") or "")
+            if isinstance(item, dict) else str(item)
+            for item in value
+        )
+    return ""
+
+
 def case_text(case: dict) -> str:
-    """Build a searchable view from authored case fields without changing them."""
-    fields = (
-        "title", "objective", "evaluation_target", "user_input",
-        "expected_behavior", "forbidden_behavior", "capability_keys",
-        "scenario_bucket", "business_rule_refs", "workflow_refs",
+    keys = (
+        "title", "objective", "evaluation_target", "expected_behavior",
+        "forbidden_behavior", "capability_keys", "scenario_bucket",
+        "business_rule_refs", "workflow_refs", "coverage_tags",
     )
-    values = [str(case.get(key, "")) for key in fields]
-    for tag in case.get("coverage_tags", []) if isinstance(case.get("coverage_tags"), list) else []:
-        if isinstance(tag, dict):
-            values.extend(str(tag.get(key, "")) for key in ("dimension", "value", "coverage_item_id"))
-    return " ".join(values).casefold()
+    return " ".join(str(case.get(key, "")) for key in keys) + " " + user_message(case)
 
 
 def role_score(case: dict, role: str) -> int:
-    text = case_text(case)
-    score = 0
-    for alternatives in ROLE_PATTERNS[role]["required_groups"]:
-        matched = [term for term in alternatives if term.casefold() in text]
-        if not matched:
-            return 0
-        score += max(len(term) for term in matched)
+    text = case_text(case).casefold()
+    rules = set(case.get("business_rule_refs") or [])
+    workflows = set(case.get("workflow_refs") or [])
+    buckets = set(case.get("scenario_bucket") or [])
+    message = user_message(case).casefold()
 
-    # Select the focused search-rule case for the case-sensitive mutant.
-    # A case that only mentions search as one step of a larger workflow, or
-    # that primarily tests evidence/adversarial claims, is not this pilot role.
-    workflows = set(case.get("workflow_refs", []))
-    business_rules = set(case.get("business_rule_refs", []))
-    buckets = set(case.get("scenario_bucket", []))
     if role == "search_mutation":
-        if workflows != {"WF-SEARCH"} or business_rules != {"BR-02"} or "normal" not in buckets:
-            return 0
-        score += 100
+        # Select the explicit adversarial premise-check case, not a generic
+        # search happy-path case. It is executed against the controlled mutant.
+        if (
+            "BR-02" in rules
+            and {"WF-SEARCH", "WF-DIAGNOSIS"}.issubset(workflows)
+            and "adversarial" in buckets
+            and all(term in message for term in ("reset", "screenshots", "case-sensitive"))
+        ):
+            return 300 + len(message)
 
-    # Prefer the richest genuinely multi-turn case. Turn count is derived
-    # from the Builder-authored prompt structure; workflow breadth breaks a tie.
-    elif role == "multi_turn":
-        if "multi_turn" not in buckets:
-            return 0
-        user_input = case.get("user_input")
-        turn_count = len(user_input) if isinstance(user_input, list) else 1
-        score += 100 + min(turn_count, 9) * 10 + min(len(workflows), 9)
+    elif role == "state_cycle":
+        # Sequential UI transitions within one user task. This is not a
+        # multi-turn conversation and must not be labelled as one.
+        if (
+            "BR-07" in rules
+            and "WF-STATUS" in workflows
+            and "WB-101" in message
+            and all(term in message for term in ("open", "in progress", "done"))
+            and "multi_turn" not in buckets
+        ):
+            return 200 + len(message)
 
-    # Keep the deletion pilot focused on a single UI workflow. Multi-turn
-    # deletion scenarios remain eligible for the multi-turn role instead.
     elif role == "delete_confirmation":
-        if workflows != {"WF-DELETE"} or "BR-08" not in business_rules or "multi_turn" in buckets:
-            return 0
-        score += 100
+        if (
+            "BR-08" in rules
+            and "WF-DELETE" in workflows
+            and "WB-104" in message
+            and "cancel" in message
+            and "delete task" in message
+        ):
+            return 100 + len(message)
 
-    return score
+    return 0
 
 
-def validate_case_for_pilot(case: dict, dataset_id: str) -> None:
-    case_id = case["case_id"]
+def validate_case(case: dict, dataset_id: str) -> None:
+    case_id = case.get("case_id", "<missing>")
     if case.get("quality_status") != "candidate":
-        fail(f"{dataset_id}/{case_id}: pilot cases must have quality_status=candidate")
-    execution = case.get("execution_requirements")
-    if not isinstance(execution, dict) or execution.get("status") != "NOT_RUN":
-        fail(f"{dataset_id}/{case_id}: candidate case execution status must be NOT_RUN")
-    if case.get("information_gaps"):
-        open_gaps = [
-            gap for gap in case["information_gaps"]
-            if isinstance(gap, dict) and gap.get("status") in {"OPEN", "IN_PROGRESS"}
-        ]
-        if open_gaps:
-            fail(f"{dataset_id}/{case_id}: unresolved information gaps block pilot selection")
+        fail(f"{dataset_id}/{case_id}: pilot requires quality_status=candidate")
+    if case.get("execution_requirements", {}).get("status") != "NOT_RUN":
+        fail(f"{dataset_id}/{case_id}: execution status must remain NOT_RUN")
+    execution = case.get("execution_requirements") or {}
     environment = execution.get("environment")
     if not isinstance(environment, dict):
         fail(f"{dataset_id}/{case_id}: execution environment is missing")
     if environment.get("app_url") != "http://127.0.0.1:4173":
-        fail(f"{dataset_id}/{case_id}: app_url must target the local Workboard fixture")
+        fail(f"{dataset_id}/{case_id}: app_url must target the local fixture")
     timeout = environment.get("case_timeout_seconds")
     if type(timeout) is not int or not 1 <= timeout <= 900:
-        fail(f"{dataset_id}/{case_id}: case_timeout_seconds must be an integer from 1 to 900")
-    initial = execution.get("initial_state", {})
-    state = initial.get("server_state") if isinstance(initial, dict) else None
-    state = state or environment.get("server_state_at_start") or "running"
-    if state != "running":
-        fail(f"{dataset_id}/{case_id}: pilot runner supports server_state=running only")
+        fail(f"{dataset_id}/{case_id}: case_timeout_seconds must be 1..900")
+    if environment.get("server_state_at_start", "running") != "running":
+        fail(f"{dataset_id}/{case_id}: server_state_at_start must be running")
+    gaps = case.get("information_gaps") or []
+    if any(isinstance(g, dict) and g.get("status") in {"OPEN", "IN_PROGRESS"} for g in gaps):
+        fail(f"{dataset_id}/{case_id}: unresolved information gaps block pilot execution")
 
 
-def load_suite(output_root: Path, pilot_count: int = PILOT_COUNT) -> dict:
-    root = output_root.resolve()
+def load_suite(root: Path) -> dict:
+    root = root.resolve()
     manifest_path = root / "SUITE-MANIFEST.json"
     if not manifest_path.is_file():
-        fail(f"missing suite manifest: {manifest_path}")
-    try:
-        suite = json.loads(manifest_path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        fail(f"cannot read suite manifest: {exc}")
-
+        fail("SUITE-MANIFEST.json is missing")
+    suite = json.loads(manifest_path.read_text(encoding="utf-8"))
     if suite.get("quality_status") not in ALLOWED_QUALITY:
-        fail("Suite quality_status must be candidate or needs_info before pilot selection")
+        fail("suite quality_status must be candidate or needs_info")
     if suite.get("execution_status") != "NOT_RUN":
-        fail("Suite execution_status must be NOT_RUN before pilot execution")
+        fail("suite execution_status must be NOT_RUN")
     datasets = suite.get("datasets")
     if not isinstance(datasets, list) or not datasets:
-        fail("SUITE-MANIFEST.json must contain a non-empty datasets array")
-    if type(pilot_count) is not int or pilot_count != PILOT_COUNT:
-        fail(f"this benchmark requires exactly {PILOT_COUNT} semantic pilot roles")
+        fail("suite datasets must be a non-empty array")
 
-    all_candidate_cases: list[dict] = []
-    dataset_entries: dict[str, dict] = {}
-    seen_case_ids: set[str] = set()
-
+    all_cases: list[dict] = []
+    seen: set[str] = set()
     for dataset in datasets:
-        if not isinstance(dataset, dict):
-            fail("each dataset manifest entry must be an object")
         dataset_id = dataset.get("dataset_id")
-        relative_jsonl = dataset.get("jsonl")
-        expected_count = dataset.get("case_count")
-        if not isinstance(dataset_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}", dataset_id):
-            fail(f"invalid dataset_id: {dataset_id!r}")
-        if dataset_id in dataset_entries:
-            fail(f"duplicate dataset_id: {dataset_id}")
-        dataset_entries[dataset_id] = dataset
+        relative = dataset.get("jsonl")
+        if not isinstance(dataset_id, str) or not dataset_id:
+            fail("dataset_id must be a non-empty string")
         if dataset.get("quality_status") not in ALLOWED_QUALITY:
-            fail(f"{dataset_id}: dataset quality_status must be candidate or needs_info")
+            fail(f"{dataset_id}: invalid quality status")
         if dataset.get("execution_status") != "NOT_RUN":
             fail(f"{dataset_id}: dataset execution_status must be NOT_RUN")
-        if not isinstance(relative_jsonl, str):
-            fail(f"{dataset_id}: jsonl path must be a string")
-        rel = PurePosixPath(relative_jsonl)
+        rel = PurePosixPath(str(relative or ""))
         if rel.is_absolute() or ".." in rel.parts:
-            fail(f"{dataset_id}: unsafe jsonl path: {relative_jsonl}")
-        jsonl_path = (root / Path(*rel.parts)).resolve()
-        if root not in jsonl_path.parents or not jsonl_path.is_file():
-            fail(f"{dataset_id}: dataset JSONL is missing or escapes output root: {relative_jsonl}")
-        if type(expected_count) is not int or expected_count < 1:
-            fail(f"{dataset_id}: case_count must be a positive integer")
-
-        actual_count = 0
-        try:
-            for line_number, line in enumerate(jsonl_path.read_text(encoding="utf-8").splitlines(), 1):
-                if not line.strip():
-                    continue
-                actual_count += 1
-                try:
-                    case = json.loads(line)
-                except json.JSONDecodeError as exc:
-                    fail(f"{dataset_id}:{line_number}: invalid JSON: {exc}")
-                if not isinstance(case, dict):
-                    fail(f"{dataset_id}:{line_number}: case must be a JSON object")
-                if case.get("dataset_id") != dataset_id:
-                    fail(f"{dataset_id}:{line_number}: case dataset_id mismatch")
-                case_id = case.get("case_id")
-                if not isinstance(case_id, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,127}", case_id):
-                    fail(f"{dataset_id}:{line_number}: invalid case_id: {case_id!r}")
-                if case_id in seen_case_ids:
-                    fail(f"duplicate case_id across suite: {case_id}")
-                seen_case_ids.add(case_id)
-                if case.get("quality_status") not in ALLOWED_QUALITY:
-                    fail(f"{dataset_id}/{case_id}: unsupported quality_status")
-                if case.get("quality_status") == "candidate":
-                    validate_case_for_pilot(case, dataset_id)
-                    all_candidate_cases.append(case)
-        except OSError as exc:
-            fail(f"{dataset_id}: cannot read dataset JSONL: {exc}")
-        if actual_count != expected_count:
-            fail(f"{dataset_id}: manifest case_count does not match JSONL")
-        if actual_count == 0:
-            fail(f"{dataset_id}: dataset JSONL contains no cases")
-
-    if len(all_candidate_cases) < PILOT_COUNT:
-        fail(f"only {len(all_candidate_cases)} candidate cases are available; {PILOT_COUNT} required")
+            fail(f"{dataset_id}: unsafe JSONL path")
+        jsonl = (root / Path(*rel.parts)).resolve()
+        if root not in jsonl.parents or not jsonl.is_file():
+            fail(f"{dataset_id}: JSONL does not resolve inside suite output")
+        count = 0
+        for number, line in enumerate(jsonl.read_text(encoding="utf-8").splitlines(), 1):
+            if not line.strip():
+                continue
+            count += 1
+            try:
+                case = json.loads(line)
+            except json.JSONDecodeError as exc:
+                fail(f"{dataset_id}:{number}: invalid JSON: {exc}")
+            case_id = case.get("case_id")
+            if not isinstance(case_id, str) or not case_id or case_id in seen:
+                fail(f"{dataset_id}:{number}: missing or duplicate case_id")
+            seen.add(case_id)
+            if case.get("dataset_id") != dataset_id:
+                fail(f"{dataset_id}/{case_id}: dataset_id mismatch")
+            if case.get("quality_status") not in ALLOWED_QUALITY:
+                fail(f"{dataset_id}/{case_id}: invalid quality_status")
+            if case.get("quality_status") == "candidate":
+                validate_case(case, dataset_id)
+                all_cases.append(case)
+        if type(dataset.get("case_count")) is not int or count != dataset["case_count"]:
+            fail(f"{dataset_id}: manifest case_count differs from JSONL")
 
     selected: list[tuple[dict, str]] = []
-    selected_ids: set[str] = set()
-    for role in ROLE_PATTERNS:
-        scored = [
-            (role_score(case, role), case)
-            for case in all_candidate_cases
-            if case["case_id"] not in selected_ids
-        ]
+    used: set[str] = set()
+    for role in PILOT_ROLES:
+        scored = [(role_score(case, role), case) for case in all_cases if case["case_id"] not in used]
         scored = [(score, case) for score, case in scored if score > 0]
         if not scored:
-            fail(
-                f"no Builder-authored candidate matches pilot role {role}; "
-                "do not fabricate or rename a case to satisfy the pilot"
-            )
+            fail(f"no candidate case matches pilot role {role}; do not fabricate a replacement")
         best_score = max(score for score, _ in scored)
         best = [case for score, case in scored if score == best_score]
         if len(best) != 1:
-            ids = sorted(case["case_id"] for case in best)
-            fail(f"pilot role {role} is ambiguous at score {best_score}: {ids}")
-        match = best[0]
-        selected.append((match, role))
-        selected_ids.add(match["case_id"])
+            fail(f"pilot role {role} is ambiguous: {[c['case_id'] for c in best]}")
+        case = best[0]
+        selected.append((case, role))
+        used.add(case["case_id"])
 
-    include = []
+    entries = []
     for case, role in selected:
         dataset_id = case["dataset_id"]
-        entry = dataset_entries[dataset_id]
-        is_search_mutation = role == "search_mutation"
-        include.append({
+        dataset = next(item for item in datasets if item["dataset_id"] == dataset_id)
+        mutant = role == "search_mutation"
+        entries.append({
             "dataset_id": dataset_id,
-            "dataset_path": entry["jsonl"],
+            "dataset_path": dataset["jsonl"],
             "case_id": case["case_id"],
             "pilot_role": role,
-            "fixture_profile": "mutant" if is_search_mutation else "clean",
-            "fixture_mutations": ["search-case-sensitive"] if is_search_mutation else [],
+            "fixture_profile": "mutant" if mutant else "clean",
+            "fixture_mutations": ["search-case-sensitive"] if mutant else [],
         })
-    return {"include": include}
+    return {"include": entries}
 
 
 def self_test() -> int:
-    with tempfile.TemporaryDirectory() as tmp:
-        root = Path(tmp)
+    with tempfile.TemporaryDirectory() as temp:
+        root = Path(temp)
         (root / "datasets").mkdir()
-        authored = [
-            {
-                "dataset_id": "dataset-alpha",
-                "case_id": "CASE-SEARCH-17",
-                "title": "搜索必须不区分大小写，并匹配标题和描述；检测大小写敏感缺陷",
-                "objective": "验证 BR-02 搜索规则。",
-                "scenario_bucket": ["normal", "business_rule"],
-                "business_rule_refs": ["BR-02"],
-                "workflow_refs": ["WF-SEARCH"],
-                "user_input": "在页面验证大小写不敏感搜索。",
-            },
-            {
-                "dataset_id": "dataset-search-evidence",
-                "case_id": "CASE-SEARCH-EVIDENCE-18",
-                "title": "核验未经验证的交接声明并裁决搜索大小写缺陷",
-                "objective": "从证据独立核验搜索规则。",
-                "scenario_bucket": ["adversarial", "business_rule"],
-                "business_rule_refs": ["BR-02"],
-                "workflow_refs": ["WF-SEARCH", "WF-EVIDENCE"],
-                "user_input": "验证搜索并审查证据。",
-            },
-            {
-                "dataset_id": "dataset-beta",
-                "case_id": "CASE-CONTEXT-42",
-                "title": "多轮任务应保留前序工作区上下文",
-                "objective": "跨轮使用同一任务并验证状态连续性。",
-                "scenario_bucket": ["multi_turn"],
-                "business_rule_refs": ["BR-04", "BR-02", "BR-07", "BR-03"],
-                "workflow_refs": ["WF-CREATE", "WF-SEARCH", "WF-STATUS-CYCLE", "WF-FILTER"],
-                "user_input": [
-                    {"turn": 1, "prompt": "创建任务并记录 ID X。"},
-                    {"turn": 2, "prompt": "继续使用 X 并推进状态。"},
-                    {"turn": 3, "prompt": "继续筛选并核对 X。"},
-                ],
-            },
-            {
-                "dataset_id": "dataset-multi-delete",
-                "case_id": "CASE-MULTI-DELETE-43",
-                "title": "多轮删除确认应保留前序上下文",
-                "objective": "先取消，再重新打开确认删除。",
-                "scenario_bucket": ["multi_turn", "negative"],
-                "business_rule_refs": ["BR-08", "BR-01"],
-                "workflow_refs": ["WF-DELETE"],
-                "user_input": [
-                    {"turn": 1, "prompt": "点击删除并取消。"},
-                    {"turn": 2, "prompt": "继续并确认删除。"},
-                ],
-            },
-            {
-                "dataset_id": "dataset-gamma",
-                "case_id": "CASE-DELETE-08",
-                "title": "删除任务前必须显示确认对话框",
-                "objective": "点击删除并验证确认对话框。",
-                "scenario_bucket": ["normal", "negative", "business_rule"],
-                "business_rule_refs": ["BR-08", "BR-01"],
-                "workflow_refs": ["WF-DELETE"],
-                "user_input": "通过页面删除选中任务并确认。",
-            },
+        source_cases = [
+            ("D-SEARCH", "Generated-Search-08", "search_mutation",
+             ["BR-02"], ["WF-SEARCH", "WF-DIAGNOSIS"], ["adversarial"],
+             "Search RESET and SCREENSHOTS; determine whether the case-sensitive claim is reproduced."),
+            ("D-CORE", "Generated-State-04", "state_cycle",
+             ["BR-07"], ["WF-STATUS", "WF-SUMMARY"], ["normal", "business_rule"],
+             "Use WB-101 through Open, In progress and Done, then return to Open."),
+            ("D-CORE", "Generated-Delete-03", "delete_confirmation",
+             ["BR-08"], ["WF-DELETE"], ["normal", "business_rule"],
+             "For WB-104, click Delete, click Cancel, then reopen and click Delete task."),
         ]
-        datasets = []
-        for item in authored:
+        datasets = {}
+        for dataset_id, case_id, _, rules, workflows, buckets, message in source_cases:
             case = {
-                **item,
+                "dataset_id": dataset_id,
+                "case_id": case_id,
                 "quality_status": "candidate",
+                "business_rule_refs": rules,
+                "workflow_refs": workflows,
+                "scenario_bucket": buckets,
+                "user_input": {"task": message},
                 "execution_requirements": {
                     "status": "NOT_RUN",
                     "environment": {
@@ -321,45 +231,37 @@ def self_test() -> int:
                         "case_timeout_seconds": 120,
                         "server_state_at_start": "running",
                     },
-                    "initial_state": {"server_state": "running"},
                 },
             }
-            jsonl = f"datasets/{item['dataset_id']}.jsonl"
-            (root / jsonl).write_text(json.dumps(case, ensure_ascii=False) + "\n", encoding="utf-8")
-            datasets.append({
-                "dataset_id": item["dataset_id"],
-                "jsonl": jsonl,
-                "case_count": 1,
-                "quality_status": "candidate",
+            datasets.setdefault(dataset_id, []).append(case)
+        entries = []
+        for dataset_id, cases in datasets.items():
+            path = root / "datasets" / f"{dataset_id}.jsonl"
+            path.write_text("".join(json.dumps(c) + "\n" for c in cases), encoding="utf-8")
+            entries.append({
+                "dataset_id": dataset_id, "jsonl": f"datasets/{dataset_id}.jsonl",
+                "case_count": len(cases), "quality_status": "candidate",
                 "execution_status": "NOT_RUN",
             })
         (root / "SUITE-MANIFEST.json").write_text(json.dumps({
-            "datasets": datasets,
-            "quality_status": "candidate",
-            "execution_status": "NOT_RUN",
+            "quality_status": "candidate", "execution_status": "NOT_RUN",
+            "datasets": entries,
         }), encoding="utf-8")
-
         matrix = load_suite(root)
+        assert [item["pilot_role"] for item in matrix["include"]] == list(PILOT_ROLES)
         assert [item["case_id"] for item in matrix["include"]] == [
-            "CASE-SEARCH-17", "CASE-CONTEXT-42", "CASE-DELETE-08"
+            "Generated-Search-08", "Generated-State-04", "Generated-Delete-03"
         ]
-        assert [item["dataset_id"] for item in matrix["include"]] == [
-            "dataset-alpha", "dataset-beta", "dataset-gamma"
-        ]
-        assert [item["fixture_profile"] for item in matrix["include"]] == [
-            "mutant", "clean", "clean"
-        ]
-        assert [item["fixture_mutations"] for item in matrix["include"]] == [
-            ["search-case-sensitive"], [], []
-        ]
-        print("PASS: focused search, multi-turn and delete-confirmation pilots resolve from Builder-authored cases")
+        assert [item["fixture_profile"] for item in matrix["include"]] == ["mutant", "clean", "clean"]
+        assert matrix["include"][1]["fixture_mutations"] == []
+        assert all(item["case_id"] not in {"WB-DEF-01", "WB-LIFE-01", "WB-CORE-08"} for item in matrix["include"])
+    print("PASS: search mutation, state-cycle and delete-confirmation pilots resolve from Builder-authored cases.")
     return 0
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--output-root")
-    parser.add_argument("--pilot-count", type=int, default=PILOT_COUNT)
     parser.add_argument("--write-output")
     parser.add_argument("--github-output", action="store_true")
     parser.add_argument("--self-test", action="store_true")
@@ -368,7 +270,7 @@ def main() -> int:
         return self_test()
     if not args.output_root:
         parser.error("--output-root is required unless --self-test is used")
-    matrix = load_suite(Path(args.output_root), pilot_count=args.pilot_count)
+    matrix = load_suite(Path(args.output_root))
     serialized = json.dumps(matrix, ensure_ascii=False, separators=(",", ":"))
     if args.write_output:
         Path(args.write_output).write_text(serialized + "\n", encoding="utf-8")

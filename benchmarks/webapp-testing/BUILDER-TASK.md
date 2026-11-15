@@ -10,7 +10,7 @@
 
 1. 先解析全部输入资产，建立来源、事实、规则、能力、风险和信息缺口。
 2. 规划覆盖范围和数据集划分。数据集数量和用例数量由你根据资产、目标能力、覆盖缺口、风险和执行成本决定。必须推荐数量并解释理由，不得按预设数量凑数。
-3. 仅在能力确实需要上下文承接或业务状态连续变化时设计多轮任务。
+3. 仅在能力确实需要跨用户消息承接上下文或跨轮业务状态连续变化时设计多轮任务。只有当 `user_input` 是至少包含两条独立 `{turn_id, content}` 消息的数组，并且预期行为依赖前一条用户消息时，才可将 `scenario_bucket` 标记为 `multi_turn`。一条消息中包含多个点击、查询或状态变更步骤，不属于多轮对话。若输入资产不支持真正的跨消息能力，不得为了试点数量强行生成多轮用例。
 4. 每条正式用例必须包含可执行任务、目标能力、前置状态、允许动作、预期行为、禁止行为、证据要求和 case-level grading contract。 每条 `source_refs` 必须包含可定位的 `title`、`locator` 和 `quoted_evidence`；`quoted_evidence` 必须是对应来源中的原文连续片段，不得写摘要、转述或自拟引文。
 5. 判定契约必须适配 Web 应用测试能力，并明确 PASS、FAIL 和 UNKNOWN 条件。应区分页面交互、业务状态、缺陷发现和证据完整性。
 6. 业务预期以 `assets/public/business-rules.md` 为准。应用源代码是被测实现，不是业务规则的替代来源。代码检查不能替代真实页面交互。
@@ -21,6 +21,7 @@
 11. 交付前清理 `__pycache__`、`*.pyc` 和临时文件。不要把缓存或临时文件放入最终套件。
 12. 覆盖矩阵中的每个 `applicable` capability/risk 项必须由至少一条用例覆盖，或在 `SUITE-MANIFEST.json.coverage.gap_priorities` 中记录 `gap_id`（必须等于对应的 `coverage_item_id`）、`priority`、`reason` 和 `planned_action`。若该行为由测试运行器负责，或当前 fixture 无法触发，应基于来源将其标记为 `not_applicable` 并说明理由。相关 capability 与 risk 项的适用性必须保持一致，不得一边标记适用、一边以运行器代管为由留空。
 13. 本轮执行器只支持已启动的本地 Workboard fixture。每条用例的 `execution_requirements.environment.app_url` 必须为 `http://127.0.0.1:4173`，`case_timeout_seconds` 必须为 1 至 900 的整数。若提供 `execution_requirements.environment.server_state_at_start`，其值必须严格等于字符串 `running`。若提供 `execution_requirements.initial_state.server_state`，其值也必须严格等于字符串 `running`，不得附加括号说明、中文解释或其他文字；补充说明请写入独立的 `notes` 字段或其他非状态字段。不要生成 stopped-server 用例。
+14. 运行器在每条用例开始前负责执行一次 `POST /api/reset`，并确认初始数据和摘要。被测 Skill 不得调用 `POST /api/reset`，也不得通过其他方式重置应用状态。每条用例使用独立的 Workboard 服务进程；用例结束后运行器会关闭该服务进程，不需要也不得执行第二次 reset。每条用例的 `reset_plan` 必须准确描述这一生命周期；`forbidden_behavior` 必须明确禁止 Skill 调用 reset。
 
 ## 机器验证契约（必须遵守）
 
