@@ -1,7 +1,11 @@
-run-name: Behavioral Skill Evaluation — ${{ inputs.candidate_sha }}
+run-name: Behavioral Skill Evaluation — ${{ inputs.candidate_sha || github.sha }}
 name: Behavioral Skill Evaluation
 
 on:
+  push:
+    branches: ["release/0.0.1-finalize"]
+    paths:
+      - ".github/behavioral-eval-trigger.txt"
   workflow_dispatch:
     inputs:
       release_pr_number:
@@ -35,7 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.candidate_sha }}
+          ref: ${{ inputs.candidate_sha || github.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -46,8 +50,8 @@ jobs:
       - name: 验证候选提交与开放 PR 的 head SHA 一致
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_PR_NUMBER: ${{ inputs.release_pr_number }}
-          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          RELEASE_PR_NUMBER: ${{ inputs.release_pr_number || '39' }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha || github.sha }}
         run: |
           set -euo pipefail
           if [[ ! "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
@@ -71,31 +75,46 @@ jobs:
       - name: 验证候选 SHA 的 CI 已完整通过
         env:
           GH_TOKEN: ${{ github.token }}
-          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha || github.sha }}
         run: |
           set -euo pipefail
 
-          RUNS_JSON="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$CANDIDATE_SHA&per_page=100")"
-          CI_RUN_ID="$(jq -r --arg sha "$CANDIDATE_SHA" '
-            [.workflow_runs[]
-             | select(.path == ".github/workflows/validate.yml")
-             | select(.event == "pull_request")
-             | select(.head_sha == $sha)]
-            | sort_by(.created_at)
-            | last
-            | .id // empty
-          ' <<< "$RUNS_JSON")"
+          CI_RUN_ID=""
+          CI_STATUS="unknown"
+          CI_CONCLUSION="unknown"
+          for attempt in $(seq 1 36); do
+            RUNS_JSON="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$CANDIDATE_SHA&per_page=100")"
+            CI_RUN_ID="$(jq -r --arg sha "$CANDIDATE_SHA" '
+              [.workflow_runs[]
+               | select(.path == ".github/workflows/validate.yml")
+               | select(.event == "pull_request")
+               | select(.head_sha == $sha)]
+              | sort_by(.created_at)
+              | last
+              | .id // empty
+            ' <<< "$RUNS_JSON")"
 
-          if [ -z "$CI_RUN_ID" ]; then
-            echo "没有找到该候选 SHA 对应的 PR 验证运行；拒绝重复执行测试或调用模型。"
-            exit 2
-          fi
+            if [ -n "$CI_RUN_ID" ]; then
+              CI_STATUS="$(jq -r --argjson id "$CI_RUN_ID" '
+                .workflow_runs[] | select(.id == $id) | .status // "unknown"
+              ' <<< "$RUNS_JSON")"
+              CI_CONCLUSION="$(jq -r --argjson id "$CI_RUN_ID" '
+                .workflow_runs[] | select(.id == $id) | .conclusion // "unknown"
+              ' <<< "$RUNS_JSON")"
+              if [ "$CI_STATUS" = "completed" ]; then
+                if [ "$CI_CONCLUSION" != "success" ]; then
+                  echo "候选 SHA 的 PR CI 已结束但未通过：$CI_CONCLUSION"
+                  exit 2
+                fi
+                break
+              fi
+            fi
+            echo "等待候选 SHA 对应的 PR CI 完成（检查 $attempt/36；状态=$CI_STATUS）。"
+            sleep 10
+          done
 
-          CI_CONCLUSION="$(jq -r --argjson id "$CI_RUN_ID" '
-            .workflow_runs[] | select(.id == $id) | .conclusion // "unknown"
-          ' <<< "$RUNS_JSON")"
-          if [ "$CI_CONCLUSION" != "success" ]; then
-            echo "候选 SHA 的最新 CI 结果不是 success：$CI_CONCLUSION"
+          if [ -z "$CI_RUN_ID" ] || [ "$CI_STATUS" != "completed" ] || [ "$CI_CONCLUSION" != "success" ]; then
+            echo "未在 6 分钟内取得候选 SHA 的成功 PR CI；拒绝调用模型。"
             exit 2
           fi
 
@@ -145,7 +164,7 @@ jobs:
       - name: 按需恢复匹配的评测检查点
         env:
           GH_TOKEN: ${{ github.token }}
-          RESUME_RUN_ID: ${{ inputs.resume_run_id }}
+          RESUME_RUN_ID: ${{ inputs.resume_run_id || '' }}
         run: |
           set -euo pipefail
           if [ -z "$RESUME_RUN_ID" ]; then
@@ -160,7 +179,7 @@ jobs:
       - name: 执行重复行为、对照基线和触发评测
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          DEEPSEEK_GENERATOR_MODEL: ${{ inputs.generator_model }}
+          DEEPSEEK_GENERATOR_MODEL: ${{ inputs.generator_model || 'deepseek-flash' }}
           EVAL_JUDGE_BASE_URL: ${{ vars.EVAL_JUDGE_BASE_URL || 'https://api.groq.com/openai/v1' }}
           EVAL_JUDGE_MODEL: ${{ vars.EVAL_JUDGE_MODEL || 'openai/gpt-oss-120b' }}
           EVAL_JUDGE_API_KEY: ${{ secrets.EVAL_JUDGE_API_KEY || secrets.GROQ_API_KEY }}
@@ -173,7 +192,7 @@ jobs:
           GROQ_JUDGE_RPM: ${{ vars.GROQ_JUDGE_RPM || '30' }}
           GROQ_JUDGE_TPM: ${{ vars.GROQ_JUDGE_TPM || '8000' }}
           GROQ_JUDGE_TPD: ${{ vars.GROQ_JUDGE_TPD || '180000' }}
-          EVAL_GIT_SHA: ${{ inputs.candidate_sha }}
+          EVAL_GIT_SHA: ${{ inputs.candidate_sha || github.sha }}
         run: |
           set -euo pipefail
           if [ -z "$DEEPSEEK_API_KEY" ] || [ -z "$EVAL_JUDGE_BASE_URL" ] || \
