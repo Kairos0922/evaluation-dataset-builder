@@ -73,7 +73,7 @@ def role_score(case: dict, role: str) -> int:
         if (
             "BR-07" in rules
             and "WF-STATUS" in workflows
-            and "WB-101" in message
+            and "wb-101" in message
             and all(term in message for term in ("open", "in progress", "done"))
             and "multi_turn" not in buckets
         ):
@@ -83,7 +83,7 @@ def role_score(case: dict, role: str) -> int:
         if (
             "BR-08" in rules
             and "WF-DELETE" in workflows
-            and "WB-104" in message
+            and "wb-104" in message
             and "cancel" in message
             and "delete task" in message
         ):

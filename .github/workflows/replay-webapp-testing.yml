@@ -126,8 +126,8 @@ jobs:
           deletion = selected["delete_confirmation"]
           if search["fixture_profile"] != "mutant" or search["fixture_mutations"] != ["search-case-sensitive"]:
               raise SystemExit("Search defect case must use the case-sensitive mutant fixture")
-          if lifecycle["fixture_profile"] != "clean" or lifecycle["fixture_mutations"]:
-              raise SystemExit("Multi-turn case must use the clean fixture")
+          if state_cycle["fixture_profile"] != "clean" or state_cycle["fixture_mutations"]:
+              raise SystemExit("State-cycle case must use the clean fixture")
           if deletion["fixture_profile"] != "clean" or deletion["fixture_mutations"]:
               raise SystemExit("Delete-confirmation case must use the clean fixture")
           print("PASS: three distinct Builder-authored cases selected by semantic role, without fixed IDs.")

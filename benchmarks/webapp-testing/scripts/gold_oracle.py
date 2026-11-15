@@ -336,13 +336,127 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
     }
 
 
+
+def self_test() -> int:
+    with tempfile.TemporaryDirectory() as temp:
+        root = Path(temp)
+        roles = {
+            "search_mutation": {
+                "case_id": "DYNAMIC-SEARCH-01",
+                "report": "BR-02: RESET returned no rows while Reset returned WB-101. SCREENSHOTS returned no rows while the expected row was WB-102. The case-sensitive defect is reproduced; verdict FAIL for the application rule.",
+                "profile": "mutant",
+                "mutations": ["search-case-sensitive"],
+            },
+            "state_cycle": {
+                "case_id": "DYNAMIC-STATE-02",
+                "report": "BR-07 PASS: WB-101 moved Open, In progress, Done, Open. Summary counts returned to 5/2/2/1.",
+                "profile": "clean",
+                "mutations": [],
+            },
+            "delete_confirmation": {
+                "case_id": "DYNAMIC-DELETE-03",
+                "report": "BR-08 PASS: WB-104 delete dialog opened; Cancel preserved the task. Delete task removed WB-104 after confirmation.",
+                "profile": "clean",
+                "mutations": [],
+            },
+        }
+        for role, spec in roles.items():
+            pilot = root / role
+            artifacts = pilot / "skill-artifacts"
+            artifacts.mkdir(parents=True)
+            (artifacts / "report.md").write_text(spec["report"], encoding="utf-8")
+            (artifacts / "evidence.json").write_text("{}", encoding="utf-8")
+            for index in range(3 if role == "delete_confirmation" else 1):
+                (artifacts / f"step-{index}.png").write_bytes(b"test-image")
+            trace_events = [
+                {"type": "session", "sessionId": "S-1"},
+                {"type": "status", "phase": "turn_start", "turn": 1},
+                {"type": "tool_call", "tool": "skill", "input": {"name": "webapp-testing"}, "callId": "C-1"},
+                {"type": "tool_result", "callId": "C-1", "status": "completed"},
+                {"type": "status", "phase": "turn_end", "turn": 1},
+                {"type": "final", "reason": {"kind": "completed"}},
+            ]
+            (pilot / "dsh-events.jsonl").write_text(
+                "".join(json.dumps(item) + "\n" for item in trace_events), encoding="utf-8"
+            )
+            audit = [{"method": "POST", "path": "/api/reset", "status": 200, "action": "reset"}]
+            if role == "search_mutation":
+                for query, count in {
+                    "RESET": 0, "Reset": 1, "reset": 0,
+                    "SCREENSHOTS": 0, "screenshots": 0,
+                }.items():
+                    audit.append({
+                        "method": "GET", "path": "/api/tasks", "query": "q=" + query,
+                        "status": 200, "result_count": count,
+                    })
+                post_state = {"items": INITIAL, "summary": INITIAL_SUMMARY}
+            elif role == "state_cycle":
+                for old_status, new_status in [
+                    ("open", "in_progress"), ("in_progress", "done"), ("done", "open")
+                ]:
+                    audit.append({
+                        "method": "PATCH", "path": "/api/tasks/WB-101", "status": 200,
+                        "action": "status-changed", "old_status": old_status, "new_status": new_status,
+                    })
+                post_state = {"items": INITIAL, "summary": INITIAL_SUMMARY}
+            else:
+                audit.append({
+                    "method": "DELETE", "path": "/api/tasks/WB-104", "status": 200,
+                    "action": "deleted", "item": INITIAL[3],
+                })
+                post_items = [item for item in INITIAL if item["id"] != "WB-104"]
+                post_state = {
+                    "items": post_items,
+                    "summary": {"all": 4, "open": 1, "in_progress": 2, "done": 1},
+                }
+            (pilot / "server-audit.jsonl").write_text(
+                "".join(json.dumps(item) + "\n" for item in audit), encoding="utf-8"
+            )
+            runner = {
+                "case_id": spec["case_id"],
+                "runner_status": "INVOCATION_OK",
+                "dsh_exit_code": 0,
+                "completed_user_turn_count": 1,
+                "session_turn_results": [{"turn_id": "T1", "dsh_exit_code": 0, "final_reason": "completed"}],
+                "server_port_closed": True,
+                "required_skill_evidence": {
+                    "markdown_report": True, "json_evidence_index": True, "screenshot": True,
+                },
+                "fixture_profile": spec["profile"],
+                "fixture_mutations": spec["mutations"],
+                "pre_state": {"items": INITIAL, "summary": INITIAL_SUMMARY},
+                "post_state": post_state,
+            }
+            (pilot / "runner-result.json").write_text(
+                json.dumps(runner, ensure_ascii=False), encoding="utf-8"
+            )
+        cases = {
+            "DYNAMIC-SEARCH-01": {"case_id": "DYNAMIC-SEARCH-01", "dataset_id": "generated", "user_input": {"task": "search"}},
+            "DYNAMIC-STATE-02": {"case_id": "DYNAMIC-STATE-02", "dataset_id": "generated", "user_input": {"task": "state"}},
+            "DYNAMIC-DELETE-03": {"case_id": "DYNAMIC-DELETE-03", "dataset_id": "generated", "user_input": {"task": "delete"}},
+        }
+        verdicts = {}
+        for role, spec in roles.items():
+            result = adjudicate(cases[spec["case_id"]], root / role, role)
+            verdicts[role] = result["oracle_verdict"]
+        assert verdicts == {role: "PASS" for role in roles}, verdicts
+    print("PASS: independent Oracle adjudicates dynamic search, state-cycle and delete pilots.")
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--builder-output", required=True)
-    parser.add_argument("--pilots-root", required=True)
-    parser.add_argument("--pilot-matrix", required=True)
-    parser.add_argument("--output", required=True)
+    parser.add_argument("--builder-output")
+    parser.add_argument("--pilots-root")
+    parser.add_argument("--pilot-matrix")
+    parser.add_argument("--output")
+    parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
+    if args.self_test:
+        return self_test()
+    missing = [name for name in ("builder_output", "pilots_root", "pilot_matrix", "output") if not getattr(args, name)]
+    if missing:
+        parser.error("missing required arguments: " + ", ".join("--" + name.replace("_", "-") for name in missing))
 
     builder_output = Path(args.builder_output).resolve()
     pilots_root = Path(args.pilots_root).resolve()
