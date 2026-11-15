@@ -78,6 +78,18 @@ def load_source_corpus() -> dict[str, str]:
                 continue
             if content.strip():
                 corpus[path.relative_to(ROOT).as_posix()] = normalize_source_text(content)
+    # The upstream review is a first-class Builder input source at the benchmark root,
+    # not under assets/public or fixtures. Include this exact file without broadening
+    # the corpus to every benchmark implementation/script file.
+    review_path = ROOT / "benchmarks/webapp-testing/UPSTREAM-ASSET-REVIEW.md"
+    if review_path.is_file() and not review_path.is_symlink():
+        try:
+            review_content = review_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            review_content = ""
+        if review_content.strip():
+            corpus[review_path.relative_to(ROOT).as_posix()] = normalize_source_text(review_content)
+
     if not corpus:
         raise SystemExit('No readable public source corpus is available for source-evidence verification')
     return corpus
