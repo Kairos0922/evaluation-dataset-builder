@@ -22,6 +22,11 @@ VERIFY_SPEC = importlib.util.spec_from_file_location(
 )
 VERIFY_RELEASE = importlib.util.module_from_spec(VERIFY_SPEC)
 VERIFY_SPEC.loader.exec_module(VERIFY_RELEASE)
+CREATE_SPEC = importlib.util.spec_from_file_location(
+    "create_release_tag", ROOT / "scripts" / "create_release_tag.py"
+)
+CREATE_RELEASE_TAG = importlib.util.module_from_spec(CREATE_SPEC)
+CREATE_SPEC.loader.exec_module(CREATE_RELEASE_TAG)
 TARGET_RUNTIME_SPEC = importlib.util.spec_from_file_location(
     "validate_target_runtime_report", ROOT / "scripts" / "validate_target_runtime_report.py"
 )
@@ -494,6 +499,37 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertTrue(path.is_file())
         compile(path.read_text(encoding="utf-8"), str(path), "exec")
 
+    def test_builder_evidence_requires_real_production_validation_and_three_trials(self):
+        summary = {"status": "PASS", "dataset_count": 3, "case_count": 24}
+        trace = {"status": "PASS", "dsh_exit_code": 0, "builder_skill_tool_calls": 1,
+                 "generated_files": ["SUITE-MANIFEST.json"]}
+        cases = [
+            {"case_id": "CASE-SEARCH", "pilot_role": "search_mutation", "adjudication_status": "PASS"},
+            {"case_id": "CASE-MULTI", "pilot_role": "multi_turn", "adjudication_status": "PASS"},
+            {"case_id": "CASE-DELETE", "pilot_role": "delete_confirmation", "adjudication_status": "PASS"},
+        ]
+        adjudication = {
+            "status": "PASS", "scope": "independent_three_case_pilot_adjudication",
+            "case_count": 3, "passed_cases": 3, "failed_cases": 0,
+            "formal_cases_created_or_modified": False,
+            "oracle_exposed_to_builder_or_target_skill": False, "cases": cases,
+        }
+        names = [
+            "webapp-testing-pilot-CASE-SEARCH",
+            "webapp-testing-pilot-CASE-MULTI",
+            "webapp-testing-pilot-CASE-DELETE",
+        ]
+        result = CREATE_RELEASE_TAG.validate_builder_evidence_payloads(
+            summary, trace, adjudication, names
+        )
+        self.assertEqual(result["status"], "PASS")
+        self.assertEqual(result["pilot_count"], 3)
+        with self.assertRaisesRegex(ValueError, "three real Skill trials"):
+            failed = dict(adjudication, passed_cases=2, failed_cases=1, status="FAIL")
+            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(summary, trace, failed, names)
+        with self.assertRaisesRegex(ValueError, "artifacts"):
+            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(summary, trace, adjudication, names[:2])
+
     def test_release_document_is_marked_published_only_with_evidence(self):
         current = (
             "# 0.0.1 发布候选说明\\n\\n"
@@ -514,6 +550,13 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 "trigger_recall": {"mean": 0.97, "spread": 0.01},
             },
             "baseline_comparison": {"mean_uplift": 0.04},
+            "builder_evidence": {
+                "status": "PASS", "pr_number": 38, "candidate_sha": "builder-sha",
+                "workflow_run_url": "https://github.com/example/repo/actions/runs/98765",
+                "dataset_count": 3, "case_count": 24, "pilot_count": 3,
+                "pilot_case_ids": ["CASE-DELETE", "CASE-MULTI", "CASE-SEARCH"],
+                "skill_tree_matches_release_candidate": True,
+            },
         }
         updated = UPDATE_RELEASE_DOC.build_published_release_doc(
             current, report, "candidate-sha", "release-merge-sha",
@@ -529,6 +572,8 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn("release-merge-sha", updated)
         self.assertIn("independent-reviewer", updated)
         self.assertIn("Matched baseline mean uplift: +4.0%", updated)
+        self.assertIn("Builder evidence PR: #38", updated)
+        self.assertIn("Real Skill trials: 3 PASS", updated)
         self.assertIn("does not claim that each documented host", updated)
 
     def test_judge_missing_pass_evidence_is_unknown_not_behavior_failure(self):
