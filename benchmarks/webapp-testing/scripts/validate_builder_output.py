@@ -5,6 +5,7 @@ This script validates only. It must never create, edit, repair, or select cases.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -95,7 +96,90 @@ def load_source_corpus() -> dict[str, str]:
     return corpus
 
 
-def verify_source_evidence(case_id: str, source: dict, corpus: dict[str, str]) -> None:
+def load_source_map(output: Path, corpus: dict[str, str]) -> dict[str, dict]:
+    """Resolve Builder source IDs to immutable files in the trusted input corpus.
+
+    SOURCE-MAP.json is not trusted as evidence by itself. Its path and SHA-256
+    must resolve to a file already present in the independently assembled
+    public source corpus. Case-level locator/quote pairs are checked against
+    the map and then the quote is searched in that exact file.
+    """
+    path = output / "SOURCE-MAP.json"
+    if not path.is_file():
+        raise SystemExit("Builder output lacks SOURCE-MAP.json")
+
+    source_map = load_json(path)
+    records = source_map.get("sources") if isinstance(source_map, dict) else None
+    if not isinstance(records, list) or not records:
+        raise SystemExit("SOURCE-MAP.json must contain a non-empty sources array")
+
+    index: dict[str, dict] = {}
+    for record in records:
+        if not isinstance(record, dict):
+            raise SystemExit("SOURCE-MAP.json sources must contain objects")
+        source_id = record.get("source_id")
+        require_nonempty_text(source_id, "SOURCE-MAP.json.sources[].source_id")
+        if source_id in index:
+            raise SystemExit(f"SOURCE-MAP.json contains duplicate source_id: {source_id}")
+
+        title = record.get("title")
+        source_type = record.get("source_type")
+        declared_path = record.get("path")
+        declared_sha = record.get("sha256")
+        require_nonempty_text(title, f"{source_id}.title")
+        require_nonempty_text(source_type, f"{source_id}.source_type")
+        require_nonempty_text(declared_path, f"{source_id}.path")
+        if not re.fullmatch(r"[0-9a-f]{64}", str(declared_sha or "")):
+            raise SystemExit(f"{source_id}: SOURCE-MAP.json must include a lowercase SHA-256")
+
+        relative = Path(declared_path)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise SystemExit(f"{source_id}: unsafe source path in SOURCE-MAP.json: {declared_path}")
+        relative_text = relative.as_posix()
+        candidate_paths = [
+            corpus_path for corpus_path in corpus
+            if corpus_path == relative_text or corpus_path.endswith("/" + relative_text)
+        ]
+        if not candidate_paths:
+            raise SystemExit(
+                f"{source_id}: SOURCE-MAP path does not resolve to the trusted input corpus: {declared_path}"
+            )
+
+        verified_paths = []
+        for corpus_path in candidate_paths:
+            try:
+                actual_sha = hashlib.sha256((ROOT / corpus_path).read_bytes()).hexdigest()
+            except OSError:
+                continue
+            if actual_sha == declared_sha:
+                verified_paths.append(corpus_path)
+        if not verified_paths:
+            raise SystemExit(
+                f"{source_id}: source file SHA-256 does not match SOURCE-MAP.json: {declared_path}"
+            )
+
+        locators = record.get("locators")
+        if not isinstance(locators, list) or not locators:
+            raise SystemExit(f"{source_id}: SOURCE-MAP.json lacks locator records")
+        for item in locators:
+            if not isinstance(item, dict):
+                raise SystemExit(f"{source_id}: source locator entries must be objects")
+            require_nonempty_text(item.get("locator"), f"{source_id}.locators[].locator")
+            require_nonempty_text(item.get("quoted_evidence"), f"{source_id}.locators[].quoted_evidence")
+
+        verified_record = dict(record)
+        verified_record["_verified_corpus_paths"] = verified_paths
+        index[source_id] = verified_record
+
+    return index
+
+
+def verify_source_evidence(
+    case_id: str,
+    source: dict,
+    corpus: dict[str, str],
+    source_map: dict[str, dict] | None = None,
+) -> None:
     title = source.get('title', '')
     locator = source.get('locator', '')
     quote = source.get('quoted_evidence')
@@ -103,6 +187,37 @@ def verify_source_evidence(case_id: str, source: dict, corpus: dict[str, str]) -
     normalized_quote = normalize_source_text(quote)
     if len(normalized_quote) < 6:
         raise SystemExit(f'{case_id}: source quote is too short to verify reliably')
+
+    source_id = source.get("source_id")
+    if source_id and source_map is not None:
+        mapped = source_map.get(source_id)
+        if mapped is None:
+            raise SystemExit(
+                f"{case_id}: source_id is not present in the verified SOURCE-MAP.json: {source_id}"
+            )
+        if normalize_source_text(str(source.get("title", ""))) != normalize_source_text(mapped["title"]):
+            raise SystemExit(f"{case_id}: source title does not match SOURCE-MAP.json for {source_id}")
+        if source.get("source_type") != mapped["source_type"]:
+            raise SystemExit(f"{case_id}: source_type does not match SOURCE-MAP.json for {source_id}")
+
+        normalized_locator = normalize_source_text(str(locator))
+        locator_quote_found = any(
+            normalize_source_text(str(item.get("locator", ""))) == normalized_locator
+            and normalize_source_text(str(item.get("quoted_evidence", ""))) == normalized_quote
+            for item in mapped["locators"]
+        )
+        if not locator_quote_found:
+            raise SystemExit(
+                f"{case_id}: locator/quoted_evidence pair is absent from SOURCE-MAP.json for {source_id}"
+            )
+
+        verified_paths = mapped["_verified_corpus_paths"]
+        if not any(normalized_quote in corpus[corpus_path] for corpus_path in verified_paths):
+            raise SystemExit(
+                f"{case_id}: quoted_evidence cannot be found in the SHA-256 verified source file "
+                f"({mapped['path']!r}, {locator!r})"
+            )
+        return
 
     title_locator = f'{title} {locator}'.casefold()
     candidates = {}
@@ -156,6 +271,7 @@ def main() -> int:
     )
 
     source_corpus = load_source_corpus()
+    source_map = load_source_map(OUTPUT, source_corpus)
     source_evidence_verified = 0
     dataset_files = sorted(OUTPUT.rglob("*.jsonl"))
     if not dataset_files:
@@ -243,7 +359,7 @@ def main() -> int:
             for source in case.get("source_refs", []):
                 require_nonempty_text(source.get("title"), f"{case_id}.source_refs.title")
                 require_nonempty_text(source.get("locator"), f"{case_id}.source_refs.locator")
-                verify_source_evidence(case_id, source, source_corpus)
+                verify_source_evidence(case_id, source, source_corpus, source_map)
                 source_evidence_verified += 1
 
             all_cases[case_id] = case
@@ -525,7 +641,7 @@ def main() -> int:
         "all_case_coverage_tag_counts": dict(sorted(coverage_tag_counts.items())),
         "schema_errors": 0,
         "source_evidence_refs_verified": source_evidence_verified,
-        "source_evidence_check": "exact normalized quote matched to source selected by title/locator",
+        "source_evidence_check": "locator/quote pair matched to SOURCE-MAP.json; source_id resolved to a trusted input file with matching SHA-256; exact normalized quote rechecked in that file",
         "quality_status_gate": "candidate/needs_info",
         "execution_status_gate": "NOT_RUN",
         "unknown_policy_gate": "present_in_every_case",
