@@ -112,7 +112,7 @@ def main():
     reviews = api_request(f"/repos/{repo}/pulls/{pr_number}/reviews?per_page=100", token)
     reviewer = latest_approved_review(
         reviews, (pr.get("user") or {}).get("login"), reviewed_head_sha,
-        report.get("workflow_run_id"),
+        report.get("workflow_run_id"), report.get("builder_evidence"),
     )
     current_file = api_request(f"/repos/{repo}/contents/RELEASE.md?ref=main", token)
     current = base64.b64decode(current_file["content"]).decode("utf-8")
