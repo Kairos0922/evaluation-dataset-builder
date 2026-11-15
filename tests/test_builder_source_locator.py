@@ -32,7 +32,7 @@ class BuilderSourceLocatorTests(unittest.TestCase):
         }
         corpus = {
             "upstream-skill/examples/static_html_automation.py":
-                "page.fill('#name', 'John Doe')"
+                VALIDATOR.normalize_source_text("page.fill('#name', 'John Doe')")
         }
         VALIDATOR.verify_source_evidence("WB-CORE-03", source, corpus)
 
