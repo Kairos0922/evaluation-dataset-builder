@@ -109,10 +109,12 @@ def verify_source_evidence(case_id: str, source: dict, corpus: dict[str, str]) -
 
     # Resolve an explicit filename in the locator before broad title matching.
     # Titles may contain "webapp-testing" even when the cited source is an
-    # upstream example rather than SKILL.md. Never fall back to the whole
+    # upstream example rather than SKILL.md. Accept section/line anchors after
+    # the filename (for example, file.md#Section or script.py#L21). Never
+    # fall back to the whole
     # corpus: that would allow a quotation from an unrelated file to pass.
     filename_match = re.search(
-        r'([A-Za-z0-9_.-]+\.(?:md|txt|py|html|js|css|json))(?=\s|$)',
+        r'([A-Za-z0-9_.-]+\.(?:md|txt|py|html|js|css|json))(?=$|[#\s])',
         locator,
         flags=re.IGNORECASE,
     )
