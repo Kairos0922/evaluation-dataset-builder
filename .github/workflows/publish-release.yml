@@ -16,6 +16,11 @@ on:
         description: Exact PR head SHA used by the successful evaluation report and independent approval
         required: true
         type: string
+      builder_evidence_pr_number:
+        description: Draft PR number containing the exact-SHA Builder production and three Skill trial workflow
+        required: true
+        type: string
+        default: "38"
 
 permissions:
   contents: write
@@ -42,6 +47,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           RELEASE_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
           RELEASE_PR_NUMBER: ${{ inputs.release_pr_number }}
+          RELEASE_BUILDER_PR_NUMBER: ${{ inputs.builder_evidence_pr_number }}
         run: python scripts/create_release_tag.py
       - name: Publish GitHub Release and attach the exact-run report
         env:
