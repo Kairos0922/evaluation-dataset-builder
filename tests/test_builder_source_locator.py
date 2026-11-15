@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 """Regression tests for source locators with section and line anchors."""
+import hashlib
 import importlib.util
+import json
+import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 VALIDATOR_PATH = ROOT / "benchmarks" / "webapp-testing" / "scripts" / "validate_builder_output.py"
@@ -54,6 +58,108 @@ class BuilderSourceLocatorTests(unittest.TestCase):
         with self.assertRaisesRegex(SystemExit, "does not resolve to an available source file"):
             VALIDATOR.verify_source_evidence("CASE-MISSING", source, {})
 
+
+
+    def test_source_id_resolves_heading_locator_through_sha_verified_source_map(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            relative = "artifacts/webapp-testing-builder-input/assets/public/application-overview.md"
+            source_path = root / relative
+            source_path.parent.mkdir(parents=True)
+            content = "## 3 初始数据\\n应用启动时提供五条合成任务。"
+            source_path.write_text(content, encoding="utf-8")
+            output = root / "output"
+            output.mkdir()
+            record = {
+                "source_id": "SRC-APP",
+                "title": "Workboard Lite 应用说明",
+                "source_type": "synthetic_scenario",
+                "path": "assets/public/application-overview.md",
+                "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+                "locators": [{
+                    "locator": "§3 初始数据",
+                    "quoted_evidence": "应用启动时提供五条合成任务。",
+                }],
+            }
+            (output / "SOURCE-MAP.json").write_text(
+                json.dumps({"sources": [record]}, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            corpus = {relative: VALIDATOR.normalize_source_text(content)}
+            source = {
+                "source_id": "SRC-APP",
+                "source_type": "synthetic_scenario",
+                "title": "Workboard Lite 应用说明",
+                "locator": "§3 初始数据",
+                "quoted_evidence": "应用启动时提供五条合成任务。",
+            }
+            with patch.object(VALIDATOR, "ROOT", root):
+                source_map = VALIDATOR.load_source_map(output, corpus)
+                VALIDATOR.verify_source_evidence("WB-C01", source, corpus, source_map)
+
+    def test_source_map_rejects_file_hash_mismatch(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            relative = "artifacts/webapp-testing-builder-input/assets/public/application-overview.md"
+            source_path = root / relative
+            source_path.parent.mkdir(parents=True)
+            source_path.write_text("真实来源文本。", encoding="utf-8")
+            output = root / "output"
+            output.mkdir()
+            record = {
+                "source_id": "SRC-APP",
+                "title": "应用说明",
+                "source_type": "synthetic_scenario",
+                "path": "assets/public/application-overview.md",
+                "sha256": "0" * 64,
+                "locators": [{"locator": "§3", "quoted_evidence": "真实来源文本。"}],
+            }
+            (output / "SOURCE-MAP.json").write_text(
+                json.dumps({"sources": [record]}, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            corpus = {relative: VALIDATOR.normalize_source_text("真实来源文本。")}
+            with patch.object(VALIDATOR, "ROOT", root):
+                with self.assertRaisesRegex(SystemExit, "SHA-256 does not match"):
+                    VALIDATOR.load_source_map(output, corpus)
+
+    def test_source_reference_must_match_the_mapped_locator_and_quote(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            relative = "artifacts/webapp-testing-builder-input/assets/public/application-overview.md"
+            source_path = root / relative
+            source_path.parent.mkdir(parents=True)
+            content = "## 3 初始数据\\n应用启动时提供五条合成任务。"
+            source_path.write_text(content, encoding="utf-8")
+            output = root / "output"
+            output.mkdir()
+            record = {
+                "source_id": "SRC-APP",
+                "title": "Workboard Lite 应用说明",
+                "source_type": "synthetic_scenario",
+                "path": "assets/public/application-overview.md",
+                "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+                "locators": [{
+                    "locator": "§3 初始数据",
+                    "quoted_evidence": "应用启动时提供五条合成任务。",
+                }],
+            }
+            (output / "SOURCE-MAP.json").write_text(
+                json.dumps({"sources": [record]}, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            corpus = {relative: VALIDATOR.normalize_source_text(content)}
+            source = {
+                "source_id": "SRC-APP",
+                "source_type": "synthetic_scenario",
+                "title": "Workboard Lite 应用说明",
+                "locator": "§4 不同章节",
+                "quoted_evidence": "应用启动时提供五条合成任务。",
+            }
+            with patch.object(VALIDATOR, "ROOT", root):
+                source_map = VALIDATOR.load_source_map(output, corpus)
+                with self.assertRaisesRegex(SystemExit, "locator/quoted_evidence pair"):
+                    VALIDATOR.verify_source_evidence("WB-C01", source, corpus, source_map)
 
 if __name__ == "__main__":
     unittest.main()
