@@ -657,11 +657,32 @@ jobs:
           dsh_exit=$?
           set -e
           printf '%s\n' "$dsh_exit" > artifacts/builder-dsh-exit-code.txt
+          # Preserve partial Builder output even when the model call fails. This
+          # keeps generated evidence available for diagnosis without treating it
+          # as a successful production run or allowing downstream validation.
+          mkdir -p artifacts/webapp-testing-builder-output
+          cp -a "$BUILDER_WORKSPACE/artifacts/webapp-testing-builder-output/." artifacts/webapp-testing-builder-output/
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          output = Path("artifacts/webapp-testing-builder-output")
+          files = sorted(p.relative_to(output).as_posix() for p in output.rglob("*") if p.is_file())
+          Path("artifacts/builder-output-capture.json").write_text(
+              json.dumps({
+                  "capture_status": "complete" if files else "empty",
+                  "builder_exit_code": int(Path("artifacts/builder-dsh-exit-code.txt").read_text().strip()),
+                  "file_count": len(files),
+                  "files": files,
+                  "independent_validation_allowed": False,
+              }, ensure_ascii=False, indent=2) + "\\n",
+              encoding="utf-8",
+          )
+          PY
           if [ "$dsh_exit" -ne 0 ]; then
-            echo "::error::DSH Builder invocation failed with exit code $dsh_exit"
+            echo "::error::DSH Builder invocation failed with exit code $dsh_exit; partial output was preserved for diagnosis"
             exit "$dsh_exit"
           fi
-          cp -a "$BUILDER_WORKSPACE/artifacts/webapp-testing-builder-output" artifacts/
           test -d artifacts/webapp-testing-builder-output
 
       - name: Check and redact any accidental credential disclosure
