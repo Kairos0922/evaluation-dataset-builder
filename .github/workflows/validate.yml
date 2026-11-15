@@ -675,7 +675,7 @@ jobs:
                   "file_count": len(files),
                   "files": files,
                   "independent_validation_allowed": False,
-              }, ensure_ascii=False, indent=2) + "\\n",
+              }, ensure_ascii=False, indent=2) + "\n",
               encoding="utf-8",
           )
           PY
