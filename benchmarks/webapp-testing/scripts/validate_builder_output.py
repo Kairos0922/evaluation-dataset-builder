@@ -93,17 +93,35 @@ def verify_source_evidence(case_id: str, source: dict, corpus: dict[str, str]) -
         raise SystemExit(f'{case_id}: source quote is too short to verify reliably')
 
     title_locator = f'{title} {locator}'.casefold()
-    candidates = corpus
-    if re.search(r'\bBR-\d+\b', title_locator) or '业务规则' in title_locator or 'business rule' in title_locator:
+    candidates = {}
+
+    # Resolve an explicit filename in the locator before broad title matching.
+    # Titles may contain "webapp-testing" even when the cited source is an
+    # upstream example rather than SKILL.md. Never fall back to the whole
+    # corpus: that would allow a quotation from an unrelated file to pass.
+    filename_match = re.search(
+        r'([A-Za-z0-9_.-]+\.(?:md|txt|py|html|js|css|json))(?=\s|$)',
+        locator,
+        flags=re.IGNORECASE,
+    )
+    if filename_match:
+        filename = filename_match.group(1).casefold()
+        candidates = {
+            path: text for path, text in corpus.items()
+            if Path(path).name.casefold() == filename
+        }
+        if not candidates:
+            raise SystemExit(
+                f'{case_id}: locator filename does not resolve to an available source file: {filename_match.group(1)}'
+            )
+    elif re.search(r'\bBR-\d+\b', title_locator) or '业务规则' in title_locator or 'business rule' in title_locator:
         candidates = {path: text for path, text in corpus.items() if path.endswith('business-rules.md')}
-    elif 'skill.md' in title_locator or 'webapp-testing' in title_locator:
-        candidates = {path: text for path, text in corpus.items() if path.endswith('SKILL.md')}
+    elif 'skill.md' in title_locator:
+        candidates = {path: text for path, text in corpus.items() if path.endswith('/SKILL.md')}
     else:
-        filename = Path(locator).name
-        if filename and '.' in filename:
-            matched = {path: text for path, text in corpus.items() if path.endswith(filename)}
-            if matched:
-                candidates = matched
+        raise SystemExit(
+            f'{case_id}: source locator must identify an explicit source filename: {locator}'
+        )
 
     if not candidates:
         raise SystemExit(f'{case_id}: source locator does not resolve to an available source file: {locator}')
