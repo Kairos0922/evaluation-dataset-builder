@@ -223,10 +223,10 @@ def create_release_tag():
     latest_run = max(matching_runs, key=lambda item: int(item.get("run_number", 0)))
     run_id = latest_run["id"]
 
-    review = latest_approved_review(reviews, author, pr_head_sha, run_id)
     report, artifact = report_from_run(repo, token, run_id, candidate_sha)
     builder_evidence = verify_builder_evidence(repo, token, builder_pr_number, candidate_sha)
     report["builder_evidence"] = builder_evidence
+    review = latest_approved_review(reviews, author, pr_head_sha, run_id, builder_evidence)
 
     tag_name = "v0.0.1"
     try:
