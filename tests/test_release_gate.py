@@ -297,74 +297,6 @@ class ReleaseGateUnitTests(unittest.TestCase):
                     evidence_dir=directory,
                 )
 
-    def test_target_runtime_review_requires_immutable_same_repository_report(self):
-        candidate_sha = "a" * 40
-        evidence_commit = "c" * 40
-        report_url = (
-            "https://github.com/Kairos0922/evaluation-dataset-builder/blob/"
-            f"{evidence_commit}/tests/runtime-evidence/{candidate_sha}.json"
-        )
-        review = {"body": "target-runtime: PASS " + report_url}
-        self.assertEqual(
-            VERIFY_RELEASE.target_runtime_evidence_url(
-                review, repo="Kairos0922/evaluation-dataset-builder",
-                candidate_sha=candidate_sha,
-            ),
-            report_url,
-        )
-        with self.assertRaisesRegex(ValueError, "immutable GitHub report permalink"):
-            VERIFY_RELEASE.target_runtime_evidence_url({
-                "body": "target-runtime: PASS https://example.com/runtime-report.json"
-            })
-        with self.assertRaisesRegex(ValueError, "release repository"):
-            VERIFY_RELEASE.target_runtime_evidence_url(
-                review, repo="another/repository", candidate_sha=candidate_sha
-            )
-
-    def test_target_runtime_report_is_fetched_from_the_pinned_repository_commit(self):
-        report = self._valid_target_runtime_report()
-        candidate_sha = report["candidate_sha"]
-        evidence_commit = "c" * 40
-        report_path = f"tests/runtime-evidence/{candidate_sha}.json"
-        url = (
-            "https://github.com/Kairos0922/evaluation-dataset-builder/blob/"
-            f"{evidence_commit}/{report_path}"
-        )
-        review = {"body": "target-runtime: PASS " + url}
-        payload = {
-            "type": "file", "encoding": "base64", "path": report_path,
-            "content": base64.b64encode(
-                json.dumps(report).encode("utf-8")
-            ).decode("ascii"),
-        }
-        with mock.patch.object(
-            VERIFY_RELEASE, "api_request",
-            side_effect=[{"status": "ahead"}, payload],
-        ) as api:
-            result, result_url, commit_sha = VERIFY_RELEASE.load_target_runtime_report(
-                review, "Kairos0922/evaluation-dataset-builder", "token",
-                candidate_sha, report["skill_tree_sha"],
-            )
-        self.assertEqual(result["overall_status"], "PASS")
-        self.assertEqual(result_url, url)
-        self.assertEqual(commit_sha, evidence_commit)
-        self.assertIn(report_path, api.call_args_list[1].args[0])
-
-    def test_skill_package_tree_sha_resolves_only_the_exact_directory_tree(self):
-        with mock.patch.object(
-            VERIFY_RELEASE, "api_request",
-            side_effect=[
-                {"tree": {"sha": "root-tree"}},
-                {"truncated": False, "tree": [
-                    {"path": "skills/evaluation-dataset-builder", "type": "tree", "sha": "skill-tree"}
-                ]},
-            ],
-        ):
-            self.assertEqual(
-                VERIFY_RELEASE.skill_package_tree_sha("owner/repo", "a" * 40, "token"),
-                "skill-tree",
-            )
-
     def test_release_verifier_accepts_complete_exact_sha_report(self):
         report = self._valid_release_report()
         result = VERIFY_RELEASE.verify_report(report, "candidate-sha", 12345)
@@ -434,7 +366,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "separately configured provider endpoint"):
             VERIFY_RELEASE.verify_report(report, "candidate-sha", 12345)
 
-    def test_release_verifier_requires_target_runtime_evidence_in_review(self):
+    def test_release_verifier_does_not_require_per_host_compatibility_evidence(self):
         critical = "SE03 SE04 SE05 SE08 SE09 SE11 SE12"
         body = (
             "Reviewed " + critical + " baseline and spread. "
@@ -447,10 +379,10 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "commit_id": "pr-head-sha",
             "body": body,
         }]
-        with self.assertRaisesRegex(ValueError, "No independent APPROVED review"):
-            VERIFY_RELEASE.latest_approved_review(
-                reviews, "pr-author", "pr-head-sha", 12345
-            )
+        result = VERIFY_RELEASE.latest_approved_review(
+            reviews, "pr-author", "pr-head-sha", 12345
+        )
+        self.assertEqual(result["user"]["login"], "independent-reviewer")
 
     def test_release_verifier_rejects_author_self_approval_and_changes_requested(self):
         critical = "SE03 SE04 SE05 SE08 SE09 SE11 SE12"
@@ -549,7 +481,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertEqual(release_sha, "merge-commit-sha")
         with self.assertRaisesRegex(ValueError, "PR head SHA"):
             VERIFY_RELEASE.release_pr_binding(pr, "merge-commit-sha", tree_signature, tree_signature)
-        with self.assertRaisesRegex(ValueError, "outside the separately committed"):
+        with self.assertRaisesRegex(ValueError, "differs from the reviewed candidate tree"):
             VERIFY_RELEASE.release_pr_binding(
                 pr, "pr-head-sha", tree_signature, {"README.md": ("100644", "blob", "changed")}
             )
@@ -561,49 +493,40 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
     def test_release_document_is_marked_published_only_with_evidence(self):
         current = (
-            "# Release 0.0.1 — Candidate (not yet published)\n\n"
-            "## Release gates\n"
-            "- [ ] Behavioral pass rate >= 90% on every run\n"
-            "- [ ] Trigger Precision >= 95% and Recall >= 95% on every run\n"
-            "- [ ] Baseline comparison reviewed and accepted\n"
-            "- [ ] Stability spread <= 5 percentage points for all three metrics\n"
-            "- [ ] Independent human review of critical cases and generated outputs\n"
-            "- [ ] Target-runtime validation\n"
-            "This is a release candidate only. Do not publish tag v0.0.1 until every "
-            "automated and human gate in RELEASE-GATE.md has passed on the exact release commit."
+            "# 0.0.1 发布候选说明\\n\\n"
+            "**状态：** 尚未正式发布\\n\\n"
+            "## 发布门禁\\n"
+            "- [ ] Builder 正式生成的评测套件通过独立验证。\\n"
+            "- [ ] 三条真实 Skill 试运行完成并有可复核证据。\\n"
+            "- [ ] 核心行为测试达到预设阈值，并提供可审查报告。\\n"
+            "- [ ] 匹配基线和重复运行稳定性检查通过。\\n"
+            "- [ ] 独立人工审查通过。\\n"
         )
         report = {
             "models": {"generator": "qwen-test", "judge_and_trigger": "judge-test"},
-            "policy": {"actual_runs": 2},
             "workflow_run_id": 12345,
             "stability": {
                 "behavior_pass_rate": {"mean": 0.92, "spread": 0.01},
                 "trigger_precision": {"mean": 0.96, "spread": 0.0},
                 "trigger_recall": {"mean": 0.97, "spread": 0.01},
             },
-            "baseline_comparison": {
-                "mean_baseline_behavior_pass_rate": 0.88,
-                "mean_skill_behavior_pass_rate": 0.92,
-                "mean_uplift": 0.04,
-            },
+            "baseline_comparison": {"mean_uplift": 0.04},
         }
         updated = UPDATE_RELEASE_DOC.build_published_release_doc(
             current, report, "candidate-sha", "release-merge-sha",
             "independent-reviewer",
-            "https://github.com/example/repo/blob/" + "c" * 40
-            + "/tests/runtime-evidence/" + "a" * 40 + ".json",
-            {"required_hosts": ["codex", "claude_code", "claude_ai", "claude_api"]},
         )
-        self.assertIn("# Release 0.0.1 — Published", updated)
-        self.assertIn("- [x] Behavioral pass rate", updated)
-        self.assertIn("- [x] Independent human review", updated)
-        self.assertIn("- [x] Target-runtime validation", updated)
-        self.assertIn("https://github.com/example/repo/blob/", updated)
-        self.assertIn("claude_ai, claude_api, claude_code, codex", updated)
+        self.assertIn("# Evaluation Dataset Builder 0.0.1", updated)
+        self.assertIn("**状态：** 已正式发布", updated)
+        self.assertIn("- [x] Builder 正式生成的评测套件", updated)
+        self.assertIn("- [x] 三条真实 Skill 试运行", updated)
+        self.assertIn("- [x] 独立人工审查", updated)
+        self.assertNotIn("Target-runtime validation", updated)
         self.assertIn("candidate-sha", updated)
         self.assertIn("release-merge-sha", updated)
         self.assertIn("independent-reviewer", updated)
         self.assertIn("Matched baseline mean uplift: +4.0%", updated)
+        self.assertIn("does not claim that each documented host", updated)
 
     def test_judge_missing_pass_evidence_is_unknown_not_behavior_failure(self):
         response = {
