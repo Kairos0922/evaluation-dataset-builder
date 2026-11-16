@@ -83,6 +83,59 @@ def fetch_model_metadata(
     return parse_model_metadata(payload, model_id=model_id)
 
 
+
+def fetch_account_balance(
+    api_key: str,
+    base_url: str = DEFAULT_BASE_URL,
+    timeout: float = 15.0,
+) -> dict[str, Any]:
+    """Fetch GET /user/balance and fail closed when the account cannot generate."""
+    if not api_key.strip():
+        raise ValueError("DEEPSEEK_API_KEY is empty")
+    url = base_url.rstrip("/") + "/user/balance"
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Accept": "application/json",
+            "User-Agent": "evaluation-dataset-builder-preflight/1.0",
+        },
+        method="GET",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(f"DeepSeek balance request failed with HTTP {exc.code}") from None
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"DeepSeek balance request failed: {exc.reason}") from None
+    except (TimeoutError, OSError) as exc:
+        raise RuntimeError(f"DeepSeek balance request failed: {exc}") from None
+    except json.JSONDecodeError:
+        raise RuntimeError("DeepSeek balance endpoint returned invalid JSON") from None
+
+    if not isinstance(payload, dict) or not isinstance(payload.get("is_available"), bool):
+        raise RuntimeError("DeepSeek balance endpoint returned an unexpected payload")
+    if not payload["is_available"]:
+        raise RuntimeError("DeepSeek account reports insufficient balance; no generation request was sent")
+    balances = payload.get("balance_infos")
+    if not isinstance(balances, list) or not balances:
+        raise RuntimeError("DeepSeek balance endpoint returned no balance entries")
+    return {
+        "is_available": True,
+        "balance_infos": [
+            {
+                "currency": item.get("currency"),
+                "total_balance": item.get("total_balance"),
+                "granted_balance": item.get("granted_balance"),
+                "topped_up_balance": item.get("topped_up_balance"),
+            }
+            for item in balances if isinstance(item, dict)
+        ],
+        "generation_call_made": False,
+    }
+
+
 def calculate_budget(
     model: dict[str, Any],
     estimated_input_tokens: int,
@@ -183,8 +236,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"PRECHECK FAILED: {exc}", file=sys.stderr)
         return 2
 
-    print(json.dumps({"model_metadata": model, "budget": budget}, ensure_ascii=False, indent=2))
-    print("PASS: metadata/budget preflight only; no generation request was sent.")
+    print(json.dumps({"account_balance": balance, "model_metadata": model, "budget": budget}, ensure_ascii=False, indent=2))
+    print("PASS: account balance, metadata, and budget preflight only; no generation request was sent.")
     return 0
 
 
