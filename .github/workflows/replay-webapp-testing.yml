@@ -104,6 +104,13 @@ jobs:
               raise SystemExit("Builder trace does not identify generated output files")
           if scan.get("secret_value_exposed_in_artifact") is not False:
               raise SystemExit("Builder artifact credential scan is missing or not clean")
+          probe_path = root / "builder-connectivity-probe.json"
+          if probe_path.exists():
+              probe = json.loads(probe_path.read_text(encoding="utf-8"))
+              if probe.get("status") != "PASS" or probe.get("builder_invocation_started") is not False:
+                  raise SystemExit("Builder artifact has no successful pre-production connectivity probe")
+          else:
+              print("Historical Builder artifact predates the connectivity-probe gate; replay is limited to independent validation of that completed run.")
           print("PASS: normal Builder completion, invocation trace and credential scan verified before independent validation.")
           PY
           echo "source_run_id=$source_run_id" >> "$GITHUB_OUTPUT"
