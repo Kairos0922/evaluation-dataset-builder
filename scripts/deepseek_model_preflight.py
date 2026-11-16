@@ -216,6 +216,11 @@ def main(argv: list[str] | None = None) -> int:
 
     api_key = os.getenv("DEEPSEEK_API_KEY", "")
     try:
+        balance = fetch_account_balance(
+            api_key=api_key,
+            base_url=args.base_url,
+            timeout=args.timeout,
+        )
         model = fetch_model_metadata(
             api_key=api_key,
             base_url=args.base_url,
