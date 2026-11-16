@@ -646,9 +646,9 @@ jobs:
                  if events_path.is_file() else "")
           stderr = (stderr_path.read_text(encoding="utf-8", errors="replace")
                     if stderr_path.is_file() else "")
-          combined = raw + "\\n" + stderr
+          combined = raw + "\n" + stderr
           quota_pattern = re.compile(
-              r"(?i)(HTTP\\s*402|\\b402\\b|QUOTA|INSUFFICIENT\\s+BALANCE|INSUFFICIENT_BALANCE)"
+              r"(?i)(HTTP\s*402|\b402\b|QUOTA|INSUFFICIENT\s+BALANCE|INSUFFICIENT_BALANCE)"
           )
           result = {
               "status": "BLOCKED",
@@ -694,7 +694,7 @@ jobs:
                   result["status"] = "PROBE_FAILED"
                   result["message"] = "Connectivity probe did not meet the completion contract; Builder production was not started."
           (root / "builder-connectivity-probe.json").write_text(
-              json.dumps(result, ensure_ascii=False, indent=2) + "\\n",
+              json.dumps(result, ensure_ascii=False, indent=2) + "\n",
               encoding="utf-8",
           )
           print(json.dumps(result, ensure_ascii=False, indent=2))
