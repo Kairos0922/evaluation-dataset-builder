@@ -45,7 +45,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Resolve and download the successful Builder production artifact
+      - name: Resolve and download the completed Builder artifact with passing invocation evidence
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -75,7 +75,7 @@ jobs:
             done
           fi
           [[ "$source_run_id" =~ ^[0-9]+$ ]] || {
-            echo "::error::No successful Builder production run was found for the candidate branch."
+            echo "::error::No Builder artifact with a passing DSH invocation trace and clean credential scan was found for the candidate branch."
             exit 2
           }
           echo "Resolved successful Builder run: $source_run_id"
