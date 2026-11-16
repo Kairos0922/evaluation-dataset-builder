@@ -289,5 +289,107 @@ class BuilderSourceLocatorTests(unittest.TestCase):
                 source_map = VALIDATOR.load_source_map(output, corpus)
                 VALIDATOR.verify_source_evidence("CASE-BR02", source, corpus, source_map)
 
+
+    def test_suite_directory_registry_files_map_resolves_archived_input_without_quote_map(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            relative = "artifacts/webapp-testing-builder-input/assets/public/application-overview.md"
+            content = "## 3 初始数据\\n应用启动时提供五条合成任务。"
+            source_path = root / relative
+            source_path.parent.mkdir(parents=True)
+            source_path.write_text(content, encoding="utf-8")
+            output = root / "output"
+            output.mkdir()
+            copied_source = output / "sources" / "assets" / "public" / "application-overview.md"
+            copied_source.parent.mkdir(parents=True)
+            copied_source.write_text("不可信的 Builder 副本。", encoding="utf-8")
+            digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
+            declared_path = "sources/assets/public/application-overview.md"
+            source_map = {
+                "path_base": "suite directory",
+                "sources": [{
+                    "source_id": "SRC-APP",
+                    "title": "Workboard Lite 应用说明",
+                    "source_type": "synthetic_scenario",
+                    "path": declared_path,
+                    "sha256": digest,
+                    "size_bytes": len(content.encode("utf-8")),
+                }],
+                "source_registry": [{
+                    "source_id": "SRC-APP",
+                    "title": "Workboard Lite 应用说明",
+                    "source_type": "synthetic_scenario",
+                    "path": declared_path,
+                }],
+                "files": [{
+                    "path": declared_path,
+                    "sha256": digest,
+                    "size_bytes": len(content.encode("utf-8")),
+                    "source_ids": ["SRC-APP"],
+                }],
+            }
+            (output / "SUITE-MANIFEST.json").write_text(
+                json.dumps({"source_map_json": "source-map.json"}),
+                encoding="utf-8",
+            )
+            (output / "source-map.json").write_text(
+                json.dumps(source_map, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            corpus = {relative: VALIDATOR.normalize_source_text(content)}
+            source = {
+                "source_id": "SRC-APP",
+                "source_type": "synthetic_scenario",
+                "title": "Workboard Lite 应用说明",
+                "path": "assets/public/application-overview.md",
+                "locator": "assets/public/application-overview.md#3",
+                "quoted_evidence": "应用启动时提供五条合成任务。",
+            }
+            with patch.object(VALIDATOR, "ROOT", root):
+                verified = VALIDATOR.load_source_map(output, corpus)
+                VALIDATOR.verify_source_evidence("WB-CORE-01", source, corpus, verified)
+                forged = dict(source, quoted_evidence="这段引文不存在于可信来源。")
+                with self.assertRaisesRegex(SystemExit, "cannot be found in the SHA-256 verified source file"):
+                    VALIDATOR.verify_source_evidence("WB-CORE-01", forged, corpus, verified)
+
+    def test_sources_array_without_quote_map_resolves_suite_relative_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            relative = "artifacts/webapp-testing-builder-input/upstream-skill/SKILL.md"
+            content = "# Web Application Testing\\nUse native Python Playwright scripts."
+            source_path = root / relative
+            source_path.parent.mkdir(parents=True)
+            source_path.write_text(content, encoding="utf-8")
+            output = root / "output"
+            output.mkdir()
+            declared_path = "sources/upstream-skill/SKILL.md"
+            record = {
+                "source_id": "SRC-SKILL",
+                "title": "Anthropic webapp-testing SKILL.md",
+                "source_type": "system_documentation",
+                "path": declared_path,
+                "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+            }
+            (output / "SUITE-MANIFEST.json").write_text(
+                json.dumps({"source_map_json": "source-map.json"}),
+                encoding="utf-8",
+            )
+            (output / "source-map.json").write_text(
+                json.dumps({"path_base": "suite directory", "sources": [record]}, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            corpus = {relative: VALIDATOR.normalize_source_text(content)}
+            source = {
+                "source_id": "SRC-SKILL",
+                "source_type": "system_documentation",
+                "title": "Anthropic webapp-testing SKILL.md",
+                "path": "upstream-skill/SKILL.md",
+                "locator": "upstream-skill/SKILL.md#Web Application Testing",
+                "quoted_evidence": "Use native Python Playwright scripts.",
+            }
+            with patch.object(VALIDATOR, "ROOT", root):
+                verified = VALIDATOR.load_source_map(output, corpus)
+                VALIDATOR.verify_source_evidence("WB-CORE-02", source, corpus, verified)
+
 if __name__ == "__main__":
     unittest.main()
