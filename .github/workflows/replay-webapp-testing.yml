@@ -51,6 +51,9 @@ jobs:
         run: |
           set -euo pipefail
           source_run_id="${{ inputs.builder_run_id || '' }}"
+          if [ -z "$source_run_id" ] && [ -f .github/replay-webapp-testing-trigger.txt ]; then
+            source_run_id="$(sed -n 's/^builder_run_id=//p' .github/replay-webapp-testing-trigger.txt | head -n 1)"
+          fi
           if [ -z "$source_run_id" ]; then
             runs_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?event=pull_request&per_page=100")"
             mapfile -t candidate_runs < <(jq -r '
