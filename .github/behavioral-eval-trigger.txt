@@ -1,0 +1,1 @@
+Trigger the v0.0.1 two-run behavioral evaluation for the exact current PR #39 head SHA. Use workflow defaults; do not bypass preflight, thresholds, baseline, or stability gates.
