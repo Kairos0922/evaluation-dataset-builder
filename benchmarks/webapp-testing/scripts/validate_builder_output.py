@@ -91,8 +91,20 @@ def load_source_corpus() -> dict[str, str]:
         if review_content.strip():
             corpus[review_path.relative_to(ROOT).as_posix()] = normalize_source_text(review_content)
 
-    # BUILDER-TASK.md is a public input asset. Cases may cite its execution
-    # contract, so include this one exact file rather than broadening the corpus.
+    # The archived Builder input bundle is the authoritative snapshot for a
+    # historical run. Include its exact task/review files so later repository
+    # edits cannot invalidate or silently rewrite the source evidence.
+    for filename in ("BUILDER-TASK.md", "UPSTREAM-ASSET-REVIEW.md"):
+        archived_path = ROOT / "artifacts/webapp-testing-builder-input" / filename
+        if archived_path.is_file() and not archived_path.is_symlink():
+            try:
+                archived_content = archived_path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                archived_content = ""
+            if archived_content.strip():
+                corpus[archived_path.relative_to(ROOT).as_posix()] = normalize_source_text(archived_content)
+
+    # The current task/review files remain available for non-replay validation.
     task_path = ROOT / "benchmarks/webapp-testing/BUILDER-TASK.md"
     if task_path.is_file() and not task_path.is_symlink():
         try:
