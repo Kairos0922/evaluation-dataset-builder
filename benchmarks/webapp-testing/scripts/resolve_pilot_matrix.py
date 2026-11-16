@@ -54,40 +54,54 @@ def role_score(case: dict, role: str) -> int:
     rules = set(case.get("business_rule_refs") or [])
     workflows = set(case.get("workflow_refs") or [])
     buckets = set(case.get("scenario_bucket") or [])
-    message = user_message(case).casefold()
 
     if role == "search_mutation":
-        # Select the explicit adversarial premise-check case, not a generic
-        # search happy-path case. It is executed against the controlled mutant.
+        # Require a Builder-authored adversarial search case that explicitly
+        # challenges a case-sensitivity claim. Match both Chinese and English.
+        has_search = any(term in text for term in ("search", "搜索"))
+        has_case_sensitivity = any(
+            term in text
+            for term in ("case-sensitive", "case sensitive", "大小写", "区分大小写")
+        )
+        has_independent_check = (
+            "adversarial" in buckets
+            or any(term in text for term in ("队友", "独立验证", "独立复核", "not reproduced", "反确认偏差"))
+        )
         if (
             "BR-02" in rules
-            and {"WF-SEARCH", "WF-DIAGNOSIS"}.issubset(workflows)
-            and "adversarial" in buckets
-            and all(term in message for term in ("reset", "screenshots", "case-sensitive"))
+            and "WF-SEARCH" in workflows
+            and has_search
+            and has_case_sensitivity
+            and has_independent_check
         ):
-            return 300 + len(message)
+            return 300 + len(text)
 
     elif role == "state_cycle":
         # Sequential UI transitions within one user task. This is not a
         # multi-turn conversation and must not be labelled as one.
+        has_cycle = all(term in text for term in ("open", "in progress", "done"))
         if (
             "BR-07" in rules
             and "WF-STATUS" in workflows
-            and "wb-101" in message
-            and all(term in message for term in ("open", "in progress", "done"))
+            and has_cycle
             and "multi_turn" not in buckets
         ):
-            return 200 + len(message)
+            return 200 + len(text)
 
     elif role == "delete_confirmation":
+        has_cancel = any(term in text for term in ("cancel", "取消"))
+        has_confirmation = any(
+            term in text for term in ("delete task", "confirm delete", "确认删除", "删除任务")
+        )
+        has_second_attempt = any(term in text for term in ("again", "再次", "第二次"))
         if (
             "BR-08" in rules
             and "WF-DELETE" in workflows
-            and "wb-104" in message
-            and "cancel" in message
-            and "click delete again and click delete task" in message
+            and has_cancel
+            and has_confirmation
+            and has_second_attempt
         ):
-            return 100 + len(message)
+            return 100 + len(text)
 
     return 0
 
@@ -203,64 +217,107 @@ def self_test() -> int:
     with tempfile.TemporaryDirectory() as temp:
         root = Path(temp)
         (root / "datasets").mkdir()
-        source_cases = [
-            ("D-SEARCH", "Generated-Search-08", "search_mutation",
-             ["BR-02"], ["WF-SEARCH", "WF-DIAGNOSIS"], ["adversarial"],
-             "Search RESET and SCREENSHOTS; determine whether the case-sensitive claim is reproduced."),
-            ("D-CORE", "Generated-State-04", "state_cycle",
-             ["BR-07"], ["WF-STATUS", "WF-SUMMARY"], ["normal", "business_rule"],
-             "Use WB-101 through Open, In progress and Done, then return to Open."),
-            ("D-CORE", "Generated-Delete-03", "delete_confirmation",
-             ["BR-08"], ["WF-DELETE"], ["normal", "business_rule"],
-             "For WB-104, click Delete, click Cancel, then click Delete again and click Delete task."),
-            ("D-CORE", "Generated-Delete-CancelOnly-04", "distractor",
-             ["BR-08"], ["WF-DELETE", "WF-CLEANUP"], ["normal", "negative"],
-             "For WB-104 open the delete dialog and click Cancel. Do not click Delete task; only Cancel."),
+        cases = [
+            {
+                "dataset_id": "D-SEARCH",
+                "case_id": "Generated-Search-08",
+                "title": "[SYNTHETIC] 反确认偏差：搜索大小写断言",
+                "objective": "独立复核队友关于搜索区分大小写的断言",
+                "business_rule_refs": ["BR-02"],
+                "workflow_refs": ["WF-SEARCH"],
+                "scenario_bucket": ["adversarial", "business_rule"],
+                "user_input": "队友说：搜索 PASSWORD 返回 0 条，因为搜索区分大小写。请独立验证 PASSWORD、password 和 SCREENSHOTS；若未复现，请明确标记 NOT REPRODUCED。",
+            },
+            {
+                "dataset_id": "D-CORE",
+                "case_id": "Generated-State-04",
+                "title": "[SYNTHETIC] 状态完整循环与摘要同步",
+                "business_rule_refs": ["BR-07"],
+                "workflow_refs": ["WF-STATUS"],
+                "scenario_bucket": ["business_rule", "state_anomaly"],
+                "user_input": "请对 Reset password flow 做 Open、In progress、Done、Open 状态循环，并核对摘要。",
+            },
+            {
+                "dataset_id": "D-CORE",
+                "case_id": "Generated-Delete-03",
+                "title": "[SYNTHETIC] 删除确认 Cancel 与 Delete task",
+                "business_rule_refs": ["BR-08"],
+                "workflow_refs": ["WF-DELETE"],
+                "scenario_bucket": ["business_rule", "negative", "normal"],
+                "user_input": "对 Update onboarding guide 执行删除流程：点击 Delete，点击 Cancel；再次点击 Delete 并点击 Delete task，验证任务已删除。",
+            },
+            {
+                "dataset_id": "D-CORE",
+                "case_id": "Generated-Delete-CancelOnly-04",
+                "title": "[SYNTHETIC] 仅取消删除",
+                "business_rule_refs": ["BR-08"],
+                "workflow_refs": ["WF-DELETE"],
+                "scenario_bucket": ["negative"],
+                "user_input": "打开删除对话框后点击 Cancel。不要确认删除。",
+            },
+            {
+                "dataset_id": "D-CORE",
+                "case_id": "Generated-Search-HappyPath-05",
+                "title": "[SYNTHETIC] 搜索标题",
+                "business_rule_refs": ["BR-02"],
+                "workflow_refs": ["WF-SEARCH"],
+                "scenario_bucket": ["normal", "business_rule"],
+                "user_input": "搜索 PASSWORD 并记录匹配结果。",
+            },
         ]
+
         datasets = {}
-        for dataset_id, case_id, _, rules, workflows, buckets, message in source_cases:
-            case = {
-                "dataset_id": dataset_id,
-                "case_id": case_id,
-                "quality_status": "candidate",
-                "business_rule_refs": rules,
-                "workflow_refs": workflows,
-                "scenario_bucket": buckets,
-                "user_input": {"task": message},
-                "execution_requirements": {
-                    "status": "NOT_RUN",
-                    "environment": {
-                        "app_url": "http://127.0.0.1:4173",
-                        "case_timeout_seconds": 120,
-                        "server_state_at_start": "running",
-                    },
+        for case in cases:
+            case["quality_status"] = "candidate"
+            case["execution_requirements"] = {
+                "status": "NOT_RUN",
+                "environment": {
+                    "app_url": "http://127.0.0.1:4173",
+                    "case_timeout_seconds": 120,
+                    "server_state_at_start": "running",
                 },
             }
-            datasets.setdefault(dataset_id, []).append(case)
+            datasets.setdefault(case["dataset_id"], []).append(case)
+
         entries = []
-        for dataset_id, cases in datasets.items():
+        for dataset_id, dataset_cases in datasets.items():
             path = root / "datasets" / f"{dataset_id}.jsonl"
-            path.write_text("".join(json.dumps(c) + "\n" for c in cases), encoding="utf-8")
+            path.write_text(
+                "".join(json.dumps(case, ensure_ascii=False) + "\n" for case in dataset_cases),
+                encoding="utf-8",
+            )
             entries.append({
-                "dataset_id": dataset_id, "jsonl": f"datasets/{dataset_id}.jsonl",
-                "case_count": len(cases), "quality_status": "candidate",
+                "dataset_id": dataset_id,
+                "jsonl": f"datasets/{dataset_id}.jsonl",
+                "case_count": len(dataset_cases),
+                "quality_status": "candidate",
                 "execution_status": "NOT_RUN",
             })
+
         (root / "SUITE-MANIFEST.json").write_text(json.dumps({
-            "quality_status": "candidate", "execution_status": "NOT_RUN",
+            "quality_status": "candidate",
+            "execution_status": "NOT_RUN",
             "datasets": entries,
         }), encoding="utf-8")
+
         matrix = load_suite(root)
         assert [item["pilot_role"] for item in matrix["include"]] == list(PILOT_ROLES)
         assert [item["case_id"] for item in matrix["include"]] == [
             "Generated-Search-08", "Generated-State-04", "Generated-Delete-03"
         ]
-        assert [item["fixture_profile"] for item in matrix["include"]] == ["mutant", "clean", "clean"]
+        assert [item["fixture_profile"] for item in matrix["include"]] == [
+            "mutant", "clean", "clean"
+        ]
         assert matrix["include"][1]["fixture_mutations"] == []
-        assert all(item["case_id"] not in {"WB-DEF-01", "WB-LIFE-01", "WB-CORE-08"} for item in matrix["include"])
-    print("PASS: search mutation, state-cycle and delete-confirmation pilots resolve from Builder-authored cases.")
-    return 0
+        assert "Generated-Delete-CancelOnly-04" not in {
+            item["case_id"] for item in matrix["include"]
+        }
+        assert "Generated-Search-HappyPath-05" not in {
+            item["case_id"] for item in matrix["include"]
+        }
 
+    print("PASS: Chinese Builder-authored search, state-cycle and delete-confirmation cases resolve semantically.")
+    return 0
 
 def main() -> int:
     parser = argparse.ArgumentParser()
