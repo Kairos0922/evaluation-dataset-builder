@@ -252,6 +252,91 @@ class BuilderSourceLocatorTests(unittest.TestCase):
                     VALIDATOR.verify_source_evidence("WB-C01", source, corpus, source_map)
 
 
+    def test_source_reference_accepts_exact_mapped_locator_title(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            relative = "artifacts/webapp-testing-builder-input/assets/public/business-rules.md"
+            content = "BR-01 任务摘要\\n首页必须显示当前工作区的任务总数。"
+            source_path = root / relative
+            source_path.parent.mkdir(parents=True)
+            source_path.write_text(content, encoding="utf-8")
+            output = root / "output"
+            output.mkdir()
+            record = {
+                "source_id": "SRC-BR",
+                "title": "Workboard Lite 业务规则 0.1.0",
+                "source_type": "authoritative_policy",
+                "path": "assets/public/business-rules.md",
+                "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+                "locators": [{
+                    "locator": "assets/public/business-rules.md#BR-01 任务摘要",
+                    "title": "业务规则 BR-01 任务摘要",
+                    "quoted_evidence": "首页必须显示当前工作区的任务总数。",
+                }],
+            }
+            (output / "SUITE-MANIFEST.json").write_text(
+                json.dumps({"source_map_json": "source-map.json"}),
+                encoding="utf-8",
+            )
+            (output / "source-map.json").write_text(
+                json.dumps({"sources": [record]}, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            corpus = {relative: VALIDATOR.normalize_source_text(content)}
+            source = {
+                "source_id": "SRC-BR",
+                "source_type": "authoritative_policy",
+                "title": "业务规则 BR-01 任务摘要",
+                "locator": "assets/public/business-rules.md#BR-01 任务摘要",
+                "quoted_evidence": "首页必须显示当前工作区的任务总数。",
+            }
+            with patch.object(VALIDATOR, "ROOT", root):
+                source_map = VALIDATOR.load_source_map(output, corpus)
+                VALIDATOR.verify_source_evidence("WB-CORE-01", source, corpus, source_map)
+
+    def test_source_reference_rejects_unmapped_locator_title(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            relative = "artifacts/webapp-testing-builder-input/assets/public/business-rules.md"
+            content = "BR-01 任务摘要\\n首页必须显示当前工作区的任务总数。"
+            source_path = root / relative
+            source_path.parent.mkdir(parents=True)
+            source_path.write_text(content, encoding="utf-8")
+            output = root / "output"
+            output.mkdir()
+            record = {
+                "source_id": "SRC-BR",
+                "title": "Workboard Lite 业务规则 0.1.0",
+                "source_type": "authoritative_policy",
+                "path": "assets/public/business-rules.md",
+                "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+                "locators": [{
+                    "locator": "assets/public/business-rules.md#BR-01 任务摘要",
+                    "title": "业务规则 BR-01 任务摘要",
+                    "quoted_evidence": "首页必须显示当前工作区的任务总数。",
+                }],
+            }
+            (output / "SUITE-MANIFEST.json").write_text(
+                json.dumps({"source_map_json": "source-map.json"}),
+                encoding="utf-8",
+            )
+            (output / "source-map.json").write_text(
+                json.dumps({"sources": [record]}, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            corpus = {relative: VALIDATOR.normalize_source_text(content)}
+            source = {
+                "source_id": "SRC-BR",
+                "source_type": "authoritative_policy",
+                "title": "业务规则 BR-02 搜索",
+                "locator": "assets/public/business-rules.md#BR-01 任务摘要",
+                "quoted_evidence": "首页必须显示当前工作区的任务总数。",
+            }
+            with patch.object(VALIDATOR, "ROOT", root):
+                source_map = VALIDATOR.load_source_map(output, corpus)
+                with self.assertRaisesRegex(SystemExit, "exact mapped locator title"):
+                    VALIDATOR.verify_source_evidence("WB-CORE-01", source, corpus, source_map)
+
     def test_source_map_accepts_canonical_quotes_field(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
