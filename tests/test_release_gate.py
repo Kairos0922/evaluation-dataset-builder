@@ -526,6 +526,17 @@ class ReleaseGateUnitTests(unittest.TestCase):
         summary = {"status": "PASS", "dataset_count": 3, "case_count": 24}
         trace = {"status": "PASS", "dsh_exit_code": 0, "builder_skill_tool_calls": 1,
                  "generated_files": ["SUITE-MANIFEST.json"]}
+        probe = {
+            "status": "PASS", "scope": "minimal_model_connectivity_probe",
+            "tool_calls": 0, "response_marker_present": True,
+            "quota_error_detected": False, "builder_invocation_started": False,
+        }
+        metadata = {
+            "candidate_sha": "builder-sha", "workspace_isolated": True,
+            "gold_oracle_mounted": False, "independent_validator_mounted": False,
+            "webapp_testing_skill_loaded": False,
+        }
+        credential_scan = {"secret_value_exposed_in_artifact": False}
         cases = [
             {"case_id": "CASE-SEARCH", "pilot_role": "search_mutation", "adjudication_status": "PASS"},
             {"case_id": "CASE-STATE", "pilot_role": "state_cycle", "adjudication_status": "PASS"},
@@ -543,15 +554,130 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "webapp-testing-pilot-CASE-DELETE",
         ]
         result = CREATE_RELEASE_TAG.validate_builder_evidence_payloads(
-            summary, trace, adjudication, names
+            summary, trace, probe, metadata, credential_scan,
+            adjudication, names, "builder-sha",
         )
         self.assertEqual(result["status"], "PASS")
         self.assertEqual(result["pilot_count"], 3)
+        self.assertEqual(result["connectivity_probe_status"], "PASS")
+        with self.assertRaisesRegex(ValueError, "connectivity probe"):
+            blocked_probe = dict(probe, status="EXTERNAL_MODEL_QUOTA_BLOCKED")
+            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(
+                summary, trace, blocked_probe, metadata, credential_scan,
+                adjudication, names, "builder-sha",
+            )
+        with self.assertRaisesRegex(ValueError, "candidate SHA"):
+            wrong_metadata = dict(metadata, candidate_sha="stale-sha")
+            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(
+                summary, trace, probe, wrong_metadata, credential_scan,
+                adjudication, names, "builder-sha",
+            )
+        with self.assertRaisesRegex(ValueError, "credential disclosure"):
+            leaked = {"secret_value_exposed_in_artifact": True}
+            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(
+                summary, trace, probe, metadata, leaked,
+                adjudication, names, "builder-sha",
+            )
         with self.assertRaisesRegex(ValueError, "three real Skill trials"):
             failed = dict(adjudication, passed_cases=2, failed_cases=1, status="FAIL")
-            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(summary, trace, failed, names)
+            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(
+                summary, trace, probe, metadata, credential_scan,
+                failed, names, "builder-sha",
+            )
         with self.assertRaisesRegex(ValueError, "artifacts"):
-            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(summary, trace, adjudication, names[:2])
+            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(
+                summary, trace, probe, metadata, credential_scan,
+                adjudication, names[:2], "builder-sha",
+            )
+
+    def test_builder_evidence_selects_latest_successful_production_run_on_exact_sha(self):
+        repo = "owner/repo"
+        builder_pr = {
+            "state": "open", "draft": True,
+            "base": {"ref": "main"},
+            "head": {"sha": "builder-sha", "ref": "experiment/builder"},
+        }
+        latest_validation_only = {
+            "id": 2, "run_number": 20, "name": "验证 Skill",
+            "head_sha": "builder-sha", "head_branch": "experiment/builder",
+            "event": "pull_request", "status": "completed", "conclusion": "success",
+        }
+        earlier_builder_run = {
+            "id": 1, "run_number": 19, "name": "验证 Skill",
+            "head_sha": "builder-sha", "head_branch": "experiment/builder",
+            "event": "pull_request", "status": "completed", "conclusion": "success",
+            "html_url": "https://github.com/owner/repo/actions/runs/1",
+        }
+        required = [
+            "validate", "audit-upstream-assets", "runtime-preflight",
+            "builder-production", "resolve-pilot-matrix", "adjudicate-pilot",
+        ]
+        jobs_latest = [{"name": name, "conclusion": ("skipped" if name == "builder-production" else "success")}
+                       for name in required]
+        jobs_earlier = [{"name": name, "conclusion": "success"} for name in required]
+        jobs_earlier.extend(
+            {"name": f"webapp-testing-pilot (CASE-{suffix})", "conclusion": "success"}
+            for suffix in ("SEARCH", "STATE", "DELETE")
+        )
+        artifacts = [
+            {"id": 10, "name": "webapp-testing-builder-result", "expired": False},
+            {"id": 11, "name": "webapp-testing-independent-adjudication", "expired": False},
+            {"id": 12, "name": "webapp-testing-pilot-CASE-SEARCH", "expired": False},
+            {"id": 13, "name": "webapp-testing-pilot-CASE-STATE", "expired": False},
+            {"id": 14, "name": "webapp-testing-pilot-CASE-DELETE", "expired": False},
+        ]
+        payloads = {
+            "builder-validation-summary.json": {"status": "PASS", "dataset_count": 3, "case_count": 24},
+            "builder-dsh-trace-verification.json": {
+                "status": "PASS", "dsh_exit_code": 0, "builder_skill_tool_calls": 1,
+                "generated_files": ["SUITE-MANIFEST.json"],
+            },
+            "builder-connectivity-probe.json": {
+                "status": "PASS", "scope": "minimal_model_connectivity_probe",
+                "tool_calls": 0, "response_marker_present": True,
+                "quota_error_detected": False, "builder_invocation_started": False,
+            },
+            "builder-run-metadata.json": {
+                "candidate_sha": "builder-sha", "workspace_isolated": True,
+                "gold_oracle_mounted": False, "independent_validator_mounted": False,
+                "webapp_testing_skill_loaded": False,
+            },
+            "credential-scan.json": {"secret_value_exposed_in_artifact": False},
+            "independent-adjudication.json": {
+                "status": "PASS", "scope": "independent_three_case_pilot_adjudication",
+                "case_count": 3, "passed_cases": 3, "failed_cases": 0,
+                "formal_cases_created_or_modified": False,
+                "oracle_exposed_to_builder_or_target_skill": False,
+                "cases": [
+                    {"case_id": "CASE-SEARCH", "pilot_role": "search_mutation", "adjudication_status": "PASS"},
+                    {"case_id": "CASE-STATE", "pilot_role": "state_cycle", "adjudication_status": "PASS"},
+                    {"case_id": "CASE-DELETE", "pilot_role": "delete_confirmation", "adjudication_status": "PASS"},
+                ],
+            },
+        }
+
+        def api(path, token):
+            if path.endswith("/pulls/38"):
+                return builder_pr
+            if path.endswith("/actions/runs?per_page=100"):
+                return {"workflow_runs": [latest_validation_only, earlier_builder_run]}
+            if path.endswith("/actions/runs/2/jobs?per_page=100"):
+                return {"jobs": jobs_latest}
+            if path.endswith("/actions/runs/1/jobs?per_page=100"):
+                return {"jobs": jobs_earlier}
+            if path.endswith("/actions/runs/1/artifacts"):
+                return {"artifacts": artifacts}
+            raise AssertionError(f"Unexpected API request: {path}")
+
+        with mock.patch.object(CREATE_RELEASE_TAG, "api_request", side_effect=api), \
+             mock.patch.object(CREATE_RELEASE_TAG, "skill_package_tree_signature", return_value={"SKILL.md": "same-tree"}), \
+             mock.patch.object(CREATE_RELEASE_TAG, "artifact_json",
+                               side_effect=lambda _repo, _token, _artifact, filename: payloads[filename]):
+            result = CREATE_RELEASE_TAG.verify_builder_evidence(repo, "token", 38, "release-sha")
+        self.assertEqual(result["workflow_run_id"], 1)
+        self.assertEqual(result["candidate_sha"], "builder-sha")
+        self.assertEqual(result["connectivity_probe_status"], "PASS")
+
 
     def test_release_document_is_marked_published_only_with_evidence(self):
         current = (

@@ -74,7 +74,10 @@ def artifact_json(repo, token, artifact, filename):
         return json.loads(zf.read(matches[0]).decode("utf-8"))
 
 
-def validate_builder_evidence_payloads(summary, trace, adjudication, pilot_artifact_names):
+def validate_builder_evidence_payloads(
+    summary, trace, connectivity_probe, metadata, credential_scan,
+    adjudication, pilot_artifact_names, builder_sha,
+):
     require(summary.get("status") == "PASS", "Independent Builder output validation did not pass.")
     require(int(summary.get("dataset_count", 0)) > 0 and int(summary.get("case_count", 0)) > 0,
             "Builder validation summary has no generated datasets or cases.")
@@ -82,6 +85,26 @@ def validate_builder_evidence_payloads(summary, trace, adjudication, pilot_artif
             "DSH trace does not prove a successful Builder invocation.")
     require(int(trace.get("builder_skill_tool_calls", 0)) > 0 and bool(trace.get("generated_files")),
             "DSH trace lacks a completed Builder Skill call or generated files.")
+    require(
+        connectivity_probe.get("status") == "PASS"
+        and connectivity_probe.get("scope") == "minimal_model_connectivity_probe"
+        and connectivity_probe.get("tool_calls") == 0
+        and connectivity_probe.get("response_marker_present") is True
+        and connectivity_probe.get("quota_error_detected") is False
+        and connectivity_probe.get("builder_invocation_started") is False,
+        "The minimal DeepSeek connectivity probe did not pass its no-tool/no-quota contract.",
+    )
+    require(metadata.get("candidate_sha") == builder_sha,
+            "Builder run metadata is not bound to the exact current Builder PR head SHA.")
+    require(
+        metadata.get("workspace_isolated") is True
+        and metadata.get("gold_oracle_mounted") is False
+        and metadata.get("independent_validator_mounted") is False
+        and metadata.get("webapp_testing_skill_loaded") is False,
+        "Builder workspace isolation or independent-oracle boundary was not preserved.",
+    )
+    require(credential_scan.get("secret_value_exposed_in_artifact") is False,
+            "Builder evidence artifact contains a credential disclosure.")
     require(adjudication.get("status") == "PASS"
             and adjudication.get("scope") == "independent_three_case_pilot_adjudication"
             and adjudication.get("case_count") == 3
@@ -108,6 +131,8 @@ def validate_builder_evidence_payloads(summary, trace, adjudication, pilot_artif
         "pilot_count": 3,
         "pilot_case_ids": sorted(case_ids),
         "adjudication_status": adjudication["status"],
+        "connectivity_probe_status": connectivity_probe["status"],
+        "credential_scan_status": "PASS",
     }
 
 
@@ -133,29 +158,50 @@ def verify_builder_evidence(repo, token, builder_pr_number, release_candidate_sh
         "Builder evidence used a different Skill package tree than the release candidate.",
     )
     runs_response = api_request(f"/repos/{repo}/actions/runs?per_page=100", token)
-    matching = [
-        run for run in (runs_response.get("workflow_runs") or [])
-        if run.get("name") == "验证 Skill"
-        and run.get("head_sha") == builder_sha
-        and run.get("head_branch") == builder_branch
-        and run.get("event") in ("pull_request", "workflow_dispatch")
-    ]
+    matching = sorted(
+        [
+            run for run in (runs_response.get("workflow_runs") or [])
+            if run.get("name") == "验证 Skill"
+            and run.get("head_sha") == builder_sha
+            and run.get("head_branch") == builder_branch
+            and run.get("event") in ("pull_request", "workflow_dispatch")
+        ],
+        key=lambda item: int(item.get("run_number", 0)),
+        reverse=True,
+    )
     require(bool(matching), "No Builder workflow run exists for the current Builder PR head SHA.")
-    run = max(matching, key=lambda item: int(item.get("run_number", 0)))
-    require(run.get("status") == "completed" and run.get("conclusion") == "success",
-            "Latest Builder workflow run for the exact SHA did not succeed.")
+
+    required = (
+        "validate", "audit-upstream-assets", "runtime-preflight",
+        "builder-production", "resolve-pilot-matrix", "adjudicate-pilot",
+    )
+    selected = None
+    for candidate in matching:
+        if candidate.get("status") != "completed" or candidate.get("conclusion") != "success":
+            continue
+        candidate_id = candidate.get("id")
+        jobs_response = api_request(
+            f"/repos/{repo}/actions/runs/{candidate_id}/jobs?per_page=100", token
+        )
+        jobs = jobs_response.get("jobs") or []
+        by_name = {item.get("name"): item for item in jobs}
+        if any(name not in by_name or by_name[name].get("conclusion") != "success"
+               for name in required):
+            continue
+        pilot_jobs = [
+            item for item in jobs
+            if str(item.get("name", "")).startswith("webapp-testing-pilot")
+        ]
+        if len(pilot_jobs) != 3 or any(item.get("conclusion") != "success" for item in pilot_jobs):
+            continue
+        selected = (candidate, jobs)
+        break
+
+    require(selected is not None,
+            "No completed Builder production run on the exact current SHA has all required jobs and three successful pilots.")
+    run, jobs = selected
     run_id = run["id"]
-    jobs_response = api_request(f"/repos/{repo}/actions/runs/{run_id}/jobs?per_page=100", token)
-    jobs = jobs_response.get("jobs") or []
-    by_name = {item.get("name"): item for item in jobs}
-    required = ("validate", "audit-upstream-assets", "runtime-preflight",
-                "builder-production", "resolve-pilot-matrix", "adjudicate-pilot")
-    for name in required:
-        require(name in by_name and by_name[name].get("conclusion") == "success",
-                "Required Builder evidence job did not succeed: " + name)
-    pilot_jobs = [item for item in jobs if str(item.get("name", "")).startswith("webapp-testing-pilot")]
-    require(len(pilot_jobs) == 3 and all(item.get("conclusion") == "success" for item in pilot_jobs),
-            "Exactly three real Skill pilot jobs must succeed.")
+
     artifacts_response = api_request(f"/repos/{repo}/actions/runs/{run_id}/artifacts", token)
     artifacts = [item for item in (artifacts_response.get("artifacts") or []) if not item.get("expired")]
     by_name = {item.get("name"): item for item in artifacts}
@@ -163,13 +209,21 @@ def verify_builder_evidence(repo, token, builder_pr_number, release_candidate_sh
         require(name in by_name, "Required Builder evidence artifact is missing: " + name)
     pilot_names = sorted(name for name in by_name if name.startswith("webapp-testing-pilot-"))
     require(len(pilot_names) == 3, "Exactly three real Skill pilot evidence artifacts are required.")
-    summary = artifact_json(repo, token, by_name["webapp-testing-builder-result"],
-                            "builder-validation-summary.json")
-    trace = artifact_json(repo, token, by_name["webapp-testing-builder-result"],
-                          "builder-dsh-trace-verification.json")
-    adjudication = artifact_json(repo, token, by_name["webapp-testing-independent-adjudication"],
-                                 "independent-adjudication.json")
-    result = validate_builder_evidence_payloads(summary, trace, adjudication, pilot_names)
+
+    builder_artifact = by_name["webapp-testing-builder-result"]
+    summary = artifact_json(repo, token, builder_artifact, "builder-validation-summary.json")
+    trace = artifact_json(repo, token, builder_artifact, "builder-dsh-trace-verification.json")
+    connectivity_probe = artifact_json(repo, token, builder_artifact, "builder-connectivity-probe.json")
+    metadata = artifact_json(repo, token, builder_artifact, "builder-run-metadata.json")
+    credential_scan = artifact_json(repo, token, builder_artifact, "credential-scan.json")
+    adjudication = artifact_json(
+        repo, token, by_name["webapp-testing-independent-adjudication"],
+        "independent-adjudication.json",
+    )
+    result = validate_builder_evidence_payloads(
+        summary, trace, connectivity_probe, metadata, credential_scan,
+        adjudication, pilot_names, builder_sha,
+    )
     result.update({
         "pr_number": builder_pr_number,
         "candidate_sha": builder_sha,
