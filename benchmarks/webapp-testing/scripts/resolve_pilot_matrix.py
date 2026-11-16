@@ -51,21 +51,22 @@ def case_text(case: dict) -> str:
 
 def role_score(case: dict, role: str) -> int:
     text = case_text(case).casefold()
+    message = user_message(case).casefold()
     rules = set(case.get("business_rule_refs") or [])
     workflows = set(case.get("workflow_refs") or [])
     buckets = set(case.get("scenario_bucket") or [])
 
     if role == "search_mutation":
-        # Require a Builder-authored adversarial search case that explicitly
-        # challenges a case-sensitivity claim. Match both Chinese and English.
-        has_search = any(term in text for term in ("search", "搜索"))
+        # Require the user request itself to challenge a case-sensitivity
+        # claim. Metadata alone must not turn a broad audit into this pilot.
+        has_search = any(term in message for term in ("search", "搜索"))
         has_case_sensitivity = any(
-            term in text
+            term in message
             for term in ("case-sensitive", "case sensitive", "大小写", "区分大小写")
         )
         has_independent_check = (
             "adversarial" in buckets
-            or any(term in text for term in ("队友", "独立验证", "独立复核", "not reproduced", "反确认偏差"))
+            or any(term in message for term in ("队友", "独立验证", "独立复核", "not reproduced", "反确认偏差"))
         )
         if (
             "BR-02" in rules
@@ -74,26 +75,26 @@ def role_score(case: dict, role: str) -> int:
             and has_case_sensitivity
             and has_independent_check
         ):
-            return 300 + len(text)
+            return 300 + len(message)
 
     elif role == "state_cycle":
-        # Sequential UI transitions within one user task. This is not a
-        # multi-turn conversation and must not be labelled as one.
-        has_cycle = all(term in text for term in ("open", "in progress", "done"))
+        # The user request must explicitly require the three-state sequence.
+        # This is a within-message UI workflow, not a multi-turn conversation.
+        has_cycle = all(term in message for term in ("open", "in progress", "done"))
         if (
             "BR-07" in rules
             and "WF-STATUS" in workflows
             and has_cycle
             and "multi_turn" not in buckets
         ):
-            return 200 + len(text)
+            return 200 + len(message)
 
     elif role == "delete_confirmation":
-        has_cancel = any(term in text for term in ("cancel", "取消"))
+        has_cancel = any(term in message for term in ("cancel", "取消"))
         has_confirmation = any(
-            term in text for term in ("delete task", "confirm delete", "确认删除", "删除任务")
+            term in message for term in ("delete task", "confirm delete", "确认删除", "删除任务")
         )
-        has_second_attempt = any(term in text for term in ("again", "再次", "第二次"))
+        has_second_attempt = any(term in message for term in ("again", "再次", "第二次"))
         if (
             "BR-08" in rules
             and "WF-DELETE" in workflows
@@ -101,7 +102,7 @@ def role_score(case: dict, role: str) -> int:
             and has_confirmation
             and has_second_attempt
         ):
-            return 100 + len(text)
+            return 100 + len(message)
 
     return 0
 
