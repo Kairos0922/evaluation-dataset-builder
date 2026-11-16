@@ -57,13 +57,19 @@ jobs:
             mapfile -t candidate_runs < <(jq -r '
               [.workflow_runs[]
                | select(.path == ".github/workflows/validate.yml")
-               | select(.head_branch == "experiment/webapp-testing-contract")
-               | select(.conclusion == "success")]
+               | select(.head_branch == "experiment/webapp-testing-contract")]
               | sort_by(.created_at) | reverse | .[].id
             ' <<< "$runs_json")
             for run_id in "${candidate_runs[@]}"; do
               jobs_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id/jobs?per_page=100")"
-              if jq -e 'any(.jobs[]; .name == "builder-production" and .conclusion == "success")' <<< "$jobs_json" >/dev/null; then
+              # The Builder-production job can fail later because independent
+              # validation rejected the output. Reuse its artifact only when
+              # the actual DSH invocation trace and credential scan both passed.
+              if jq -e 'any(.jobs[];
+                .name == "builder-production"
+                and any(.steps[]?; .name == "Verify actual Builder invocation in DSH trace" and .conclusion == "success")
+                and any(.steps[]?; .name == "Check and redact any accidental credential disclosure" and .conclusion == "success")
+              )' <<< "$jobs_json" >/dev/null; then
                 source_run_id="$run_id"
                 break
               fi
