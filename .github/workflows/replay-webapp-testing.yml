@@ -52,7 +52,7 @@ jobs:
           set -euo pipefail
           source_run_id="${{ inputs.builder_run_id || '' }}"
           if [ -z "$source_run_id" ]; then
-            runs_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=experiment/webapp-testing-contract&event=pull_request&per_page=100")"
+            runs_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?event=pull_request&per_page=100")"
             mapfile -t candidate_runs < <(jq -r '
               [.workflow_runs[]
                | select(.path == ".github/workflows/validate.yml")
