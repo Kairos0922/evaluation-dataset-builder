@@ -91,6 +91,17 @@ def load_source_corpus() -> dict[str, str]:
         if review_content.strip():
             corpus[review_path.relative_to(ROOT).as_posix()] = normalize_source_text(review_content)
 
+    # BUILDER-TASK.md is a public input asset. Cases may cite its execution
+    # contract, so include this one exact file rather than broadening the corpus.
+    task_path = ROOT / "benchmarks/webapp-testing/BUILDER-TASK.md"
+    if task_path.is_file() and not task_path.is_symlink():
+        try:
+            task_content = task_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError):
+            task_content = ""
+        if task_content.strip():
+            corpus[task_path.relative_to(ROOT).as_posix()] = normalize_source_text(task_content)
+
     if not corpus:
         raise SystemExit('No readable public source corpus is available for source-evidence verification')
     return corpus
@@ -130,24 +141,66 @@ def resolve_source_map_path(output: Path) -> Path:
 def load_source_map(output: Path, corpus: dict[str, str]) -> dict[str, dict]:
     """Resolve Builder source IDs to immutable files in the trusted input corpus.
 
-    The Suite Manifest declares the source-map JSON path. The map is not trusted
-    as evidence by itself: its path and SHA-256 must resolve to a file already
-    present in the independently assembled public source corpus. Case-level
-    locator/quote pairs are checked against the map and then the quote is
-    searched in that exact file.
+    Both the explicit sources[] form and the Builder's source_registry[] +
+    files[] form are supported. In either form, source paths and SHA-256 values
+    must resolve to the independently assembled public corpus. Case-level
+    quotations are then verified directly against that exact source file.
     """
     path = resolve_source_map_path(output)
     source_map = load_json(path)
-    records = source_map.get("sources") if isinstance(source_map, dict) else None
+    if not isinstance(source_map, dict):
+        raise SystemExit("source-map JSON must be an object")
+
+    require_quote_map = True
+    records = source_map.get("sources")
     if not isinstance(records, list) or not records:
-        raise SystemExit("source-map JSON must contain a non-empty sources array")
+        registry = source_map.get("source_registry")
+        file_records = source_map.get("files")
+        if not isinstance(registry, list) or not registry:
+            raise SystemExit("source-map JSON must contain sources[] or source_registry[]")
+        if not isinstance(file_records, list) or not file_records:
+            raise SystemExit("source-map JSON source_registry[] requires a non-empty files[] array")
+
+        files_by_path = {}
+        for file_record in file_records:
+            if not isinstance(file_record, dict):
+                raise SystemExit("source-map JSON files[] must contain objects")
+            file_path = file_record.get("path")
+            require_nonempty_text(file_path, "source-map JSON files[].path")
+            if file_path in files_by_path:
+                raise SystemExit(f"source-map JSON contains duplicate file path: {file_path}")
+            files_by_path[file_path] = file_record
+
+        records = []
+        require_quote_map = False
+        for registry_record in registry:
+            if not isinstance(registry_record, dict):
+                raise SystemExit("source-map JSON source_registry[] must contain objects")
+            source_id = registry_record.get("source_id")
+            declared_path = registry_record.get("path")
+            require_nonempty_text(source_id, "source-map JSON source_registry[].source_id")
+            require_nonempty_text(declared_path, f"{source_id}.path")
+            file_record = files_by_path.get(declared_path)
+            if file_record is None:
+                raise SystemExit(f"{source_id}: source_registry path is absent from files[]: {declared_path}")
+            source_ids = file_record.get("source_ids")
+            if not isinstance(source_ids, list) or source_id not in source_ids:
+                raise SystemExit(f"{source_id}: files[].source_ids does not include this source ID")
+            records.append({
+                "source_id": source_id,
+                "title": registry_record.get("title"),
+                "source_type": registry_record.get("source_type"),
+                "path": declared_path,
+                "sha256": file_record.get("sha256"),
+                "_require_quote_map": False,
+            })
 
     index: dict[str, dict] = {}
     for record in records:
         if not isinstance(record, dict):
-            raise SystemExit("source-map JSON sources must contain objects")
+            raise SystemExit("source-map JSON source records must be objects")
         source_id = record.get("source_id")
-        require_nonempty_text(source_id, "source-map JSON sources[].source_id")
+        require_nonempty_text(source_id, "source-map JSON source_id")
         if source_id in index:
             raise SystemExit(f"source-map JSON contains duplicate source_id: {source_id}")
 
@@ -169,10 +222,10 @@ def load_source_map(output: Path, corpus: dict[str, str]) -> dict[str, dict]:
             corpus_path for corpus_path in corpus
             if corpus_path == relative_text or corpus_path.endswith("/" + relative_text)
         ]
+        # Some provenance-only input records are not in the validator's trusted
+        # evidence corpus. They remain unmapped and cannot be cited by a case.
         if not candidate_paths:
-            raise SystemExit(
-                f"{source_id}: SOURCE-MAP path does not resolve to the trusted input corpus: {declared_path}"
-            )
+            continue
 
         verified_paths = []
         for corpus_path in candidate_paths:
@@ -187,13 +240,16 @@ def load_source_map(output: Path, corpus: dict[str, str]) -> dict[str, dict]:
                 f"{source_id}: source file SHA-256 does not match source-map JSON: {declared_path}"
             )
 
-        # "quotes" is the current Builder source-map contract. Accept
-        # "locators" only as a compatibility alias for earlier artifacts.
         quote_records = record.get("quotes")
         if quote_records is None:
             quote_records = record.get("locators")
-        if not isinstance(quote_records, list) or not quote_records:
-            raise SystemExit(f"{source_id}: source-map JSON lacks quote records")
+        record_requires_quotes = record.get("_require_quote_map", require_quote_map)
+        if quote_records is None:
+            if record_requires_quotes:
+                raise SystemExit(f"{source_id}: source-map JSON lacks quote records")
+            quote_records = []
+        if not isinstance(quote_records, list):
+            raise SystemExit(f"{source_id}: source quote records must be a list")
         for item in quote_records:
             if not isinstance(item, dict):
                 raise SystemExit(f"{source_id}: source quote entries must be objects")
@@ -203,10 +259,12 @@ def load_source_map(output: Path, corpus: dict[str, str]) -> dict[str, dict]:
         verified_record = dict(record)
         verified_record["_verified_corpus_paths"] = verified_paths
         verified_record["_verified_quotes"] = quote_records
+        verified_record["_require_quote_map"] = bool(record_requires_quotes)
         index[source_id] = verified_record
 
+    if not index:
+        raise SystemExit("source-map JSON has no source IDs that resolve to the trusted input corpus")
     return index
-
 
 def verify_source_evidence(
     case_id: str,
@@ -233,17 +291,20 @@ def verify_source_evidence(
             raise SystemExit(f"{case_id}: source title does not match source-map JSON for {source_id}")
         if source.get("source_type") != mapped["source_type"]:
             raise SystemExit(f"{case_id}: source_type does not match source-map JSON for {source_id}")
+        if source.get("path") and source.get("path") != mapped["path"]:
+            raise SystemExit(f"{case_id}: source path does not match source-map JSON for {source_id}")
 
         normalized_locator = normalize_source_text(str(locator))
-        locator_quote_found = any(
-            normalize_source_text(str(item.get("locator", ""))) == normalized_locator
-            and normalize_source_text(str(item.get("quoted_evidence", ""))) == normalized_quote
-            for item in mapped["_verified_quotes"]
-        )
-        if not locator_quote_found:
-            raise SystemExit(
-                f"{case_id}: locator/quoted_evidence pair is absent from source-map JSON for {source_id}"
+        if mapped.get("_require_quote_map"):
+            locator_quote_found = any(
+                normalize_source_text(str(item.get("locator", ""))) == normalized_locator
+                and normalize_source_text(str(item.get("quoted_evidence", ""))) == normalized_quote
+                for item in mapped["_verified_quotes"]
             )
+            if not locator_quote_found:
+                raise SystemExit(
+                    f"{case_id}: locator/quoted_evidence pair is absent from source-map JSON for {source_id}"
+                )
 
         verified_paths = mapped["_verified_corpus_paths"]
         if not any(normalized_quote in corpus[corpus_path] for corpus_path in verified_paths):
