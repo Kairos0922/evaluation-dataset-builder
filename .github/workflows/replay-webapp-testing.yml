@@ -28,7 +28,6 @@ jobs:
     outputs:
       matrix: ${{ steps.resolve.outputs.matrix }}
     env:
-      SOURCE_RUN_ID: ${{ inputs.builder_run_id || '' }}
       GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout benchmark repository
@@ -49,10 +48,9 @@ jobs:
       - name: Resolve and download the successful Builder production artifact
         env:
           GH_TOKEN: ${{ github.token }}
-          SOURCE_RUN_ID: ${{ inputs.builder_run_id || '' }}
         run: |
           set -euo pipefail
-          source_run_id="$SOURCE_RUN_ID"
+          source_run_id="${{ inputs.builder_run_id || '' }}"
           if [ -z "$source_run_id" ]; then
             runs_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?branch=experiment/webapp-testing-contract&event=pull_request&per_page=100")"
             mapfile -t candidate_runs < <(jq -r '
