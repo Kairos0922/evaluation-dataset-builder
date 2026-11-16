@@ -83,7 +83,13 @@ jobs:
             --repo "$GITHUB_REPOSITORY" \
             --name webapp-testing-builder-result \
             --dir artifacts/builder-result
+          gh run download "$source_run_id" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name webapp-testing-builder-input \
+            --dir artifacts/webapp-testing-builder-input
           test -s artifacts/builder-result/webapp-testing-builder-output/SUITE-MANIFEST.json
+          test -s artifacts/webapp-testing-builder-input/BUILDER-TASK.md
+          python benchmarks/webapp-testing/scripts/verify_builder_input.py
           test -s artifacts/builder-result/builder-dsh-exit-code.txt
           test "$(cat artifacts/builder-result/builder-dsh-exit-code.txt)" = "0"
           python - <<'PY'
@@ -171,6 +177,7 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts/replay-input
           cp -R artifacts/builder-result/webapp-testing-builder-output artifacts/replay-input/
+          cp -R artifacts/webapp-testing-builder-input artifacts/replay-input/
           cp artifacts/builder-replay-validation.json artifacts/replay-input/
           cp pilot-matrix.json artifacts/replay-input/
 
