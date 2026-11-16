@@ -95,7 +95,7 @@ def validate_builder_evidence_payloads(
         "The minimal DeepSeek connectivity probe did not pass its no-tool/no-quota contract.",
     )
     require(metadata.get("candidate_sha") == builder_sha,
-            "Builder run metadata is not bound to the exact current Builder PR head SHA.")
+            "Builder run metadata candidate SHA does not match the exact current Builder PR head SHA.")
     require(
         metadata.get("workspace_isolated") is True
         and metadata.get("gold_oracle_mounted") is False
