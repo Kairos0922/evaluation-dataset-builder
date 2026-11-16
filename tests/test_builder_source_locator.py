@@ -268,18 +268,19 @@ class BuilderSourceLocatorTests(unittest.TestCase):
                 "source_type": "authoritative_policy",
                 "path": "assets/public/business-rules.md",
                 "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
-                "locators": [{
-                    "locator": "assets/public/business-rules.md#BR-01 任务摘要",
-                    "title": "业务规则 BR-01 任务摘要",
-                    "quoted_evidence": "首页必须显示当前工作区的任务总数。",
-                }],
+            }
+            locator_record = {
+                "source_id": "SRC-BR",
+                "locator": "assets/public/business-rules.md#BR-01 任务摘要",
+                "title": "业务规则 BR-01 任务摘要",
+                "quoted_evidence": "首页必须显示当前工作区的任务总数。",
             }
             (output / "SUITE-MANIFEST.json").write_text(
                 json.dumps({"source_map_json": "source-map.json"}),
                 encoding="utf-8",
             )
             (output / "source-map.json").write_text(
-                json.dumps({"sources": [record]}, ensure_ascii=False),
+                json.dumps({"sources": [record], "locators": [locator_record]}, ensure_ascii=False),
                 encoding="utf-8",
             )
             corpus = {relative: VALIDATOR.normalize_source_text(content)}
@@ -310,18 +311,19 @@ class BuilderSourceLocatorTests(unittest.TestCase):
                 "source_type": "authoritative_policy",
                 "path": "assets/public/business-rules.md",
                 "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
-                "locators": [{
-                    "locator": "assets/public/business-rules.md#BR-01 任务摘要",
-                    "title": "业务规则 BR-01 任务摘要",
-                    "quoted_evidence": "首页必须显示当前工作区的任务总数。",
-                }],
+            }
+            locator_record = {
+                "source_id": "SRC-BR",
+                "locator": "assets/public/business-rules.md#BR-01 任务摘要",
+                "title": "业务规则 BR-01 任务摘要",
+                "quoted_evidence": "首页必须显示当前工作区的任务总数。",
             }
             (output / "SUITE-MANIFEST.json").write_text(
                 json.dumps({"source_map_json": "source-map.json"}),
                 encoding="utf-8",
             )
             (output / "source-map.json").write_text(
-                json.dumps({"sources": [record]}, ensure_ascii=False),
+                json.dumps({"sources": [record], "locators": [locator_record]}, ensure_ascii=False),
                 encoding="utf-8",
             )
             corpus = {relative: VALIDATOR.normalize_source_text(content)}
