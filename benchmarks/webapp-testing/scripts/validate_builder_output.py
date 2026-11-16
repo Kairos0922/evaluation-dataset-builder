@@ -167,6 +167,16 @@ def load_source_map(output: Path, corpus: dict[str, str]) -> dict[str, dict]:
                 raise SystemExit("source-map JSON files[] must contain objects")
             file_path = file_record.get("path")
             require_nonempty_text(file_path, "source-map JSON files[].path")
+            relative_file_path = Path(file_path)
+            if relative_file_path.is_absolute() or ".." in relative_file_path.parts or "\\" in file_path:
+                raise SystemExit(f"Unsafe source-map file path: {file_path}")
+            if not re.fullmatch(r"[0-9a-f]{64}", str(file_record.get("sha256") or "")):
+                raise SystemExit(f"source-map file record lacks a lowercase SHA-256: {file_path}")
+            source_ids = file_record.get("source_ids")
+            if not isinstance(source_ids, list) or not source_ids or any(
+                not isinstance(item, str) or not item.strip() for item in source_ids
+            ):
+                raise SystemExit(f"source-map file record has invalid source_ids: {file_path}")
             if file_path in files_by_path:
                 raise SystemExit(f"source-map JSON contains duplicate file path: {file_path}")
             files_by_path[file_path] = file_record
@@ -196,13 +206,15 @@ def load_source_map(output: Path, corpus: dict[str, str]) -> dict[str, dict]:
             })
 
     index: dict[str, dict] = {}
+    seen_source_ids: set[str] = set()
     for record in records:
         if not isinstance(record, dict):
             raise SystemExit("source-map JSON source records must be objects")
         source_id = record.get("source_id")
         require_nonempty_text(source_id, "source-map JSON source_id")
-        if source_id in index:
+        if source_id in seen_source_ids:
             raise SystemExit(f"source-map JSON contains duplicate source_id: {source_id}")
+        seen_source_ids.add(source_id)
 
         title = record.get("title")
         source_type = record.get("source_type")
