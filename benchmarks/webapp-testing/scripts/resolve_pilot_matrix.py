@@ -64,16 +64,21 @@ def role_score(case: dict, role: str) -> int:
             term in message
             for term in ("case-sensitive", "case sensitive", "大小写", "区分大小写")
         )
-        has_independent_check = (
-            "adversarial" in buckets
-            or any(term in message for term in ("队友", "独立验证", "独立复核", "not reproduced", "反确认偏差"))
+        # A case-sensitivity mutant is valid when the Builder-authored
+        # request searches an uppercase token and its expected behavior
+        # independently names the lowercase form. Requiring adversarial
+        # framing would reject ordinary but decisive regression cases.
+        uppercase_terms = re.findall(r"\\b[A-Z]{3,}\\b", case_text(case))
+        has_case_variant_pair = any(
+            re.search(rf"\\b{re.escape(term.lower())}\\b", case_text(case))
+            for term in uppercase_terms
         )
         if (
             "BR-02" in rules
             and "WF-SEARCH" in workflows
             and has_search
             and has_case_sensitivity
-            and has_independent_check
+            and has_case_variant_pair
         ):
             return 300 + len(message)
 
@@ -222,12 +227,13 @@ def self_test() -> int:
             {
                 "dataset_id": "D-SEARCH",
                 "case_id": "Generated-Search-08",
-                "title": "[SYNTHETIC] 反确认偏差：搜索大小写断言",
-                "objective": "独立复核队友关于搜索区分大小写的断言",
+                "title": "搜索大小写与描述匹配",
+                "objective": "验证搜索不区分大小写并匹配描述",
+                "expected_behavior": {"expected": "ONBOARDING matches Update onboarding guide"},
                 "business_rule_refs": ["BR-02"],
                 "workflow_refs": ["WF-SEARCH"],
-                "scenario_bucket": ["adversarial", "business_rule"],
-                "user_input": "队友说：搜索 PASSWORD 返回 0 条，因为搜索区分大小写。请独立验证 PASSWORD、password 和 SCREENSHOTS；若未复现，请明确标记 NOT REPRODUCED。",
+                "scenario_bucket": ["business_rule", "boundary"],
+                "user_input": "验证搜索。查询 ONBOARDING 应不区分大小写命中标题 Update onboarding guide；查询 screenshots 应命中描述。",
             },
             {
                 "dataset_id": "D-CORE",
@@ -317,7 +323,7 @@ def self_test() -> int:
             item["case_id"] for item in matrix["include"]
         }
 
-    print("PASS: Chinese Builder-authored search, state-cycle and delete-confirmation cases resolve semantically.")
+    print("PASS: ordinary Builder-authored search, state-cycle and delete-confirmation cases resolve semantically.")
     return 0
 
 def main() -> int:
