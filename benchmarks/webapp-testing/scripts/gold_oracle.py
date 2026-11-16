@@ -366,7 +366,10 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
             if isinstance(step, dict)
         ]
         if not expected:
-            sequence = (case.get("expected_behavior") or {}).get("expected_status_sequence") or []
+            expected_behavior = case.get("expected_behavior")
+            if not isinstance(expected_behavior, dict):
+                expected_behavior = {}
+            sequence = expected_behavior.get("expected_status_sequence") or []
             if target and sequence:
                 previous = normalize_status(target.get("status"))
                 for next_status in sequence:
