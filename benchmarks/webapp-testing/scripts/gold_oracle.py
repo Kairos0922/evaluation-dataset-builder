@@ -413,7 +413,8 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
         )
         report_ok = (
             skill_report_exists and "BR-07" in report_text
-            and bool(target_title) and target_title in report_text
+            and ((bool(target_id) and target_id in report_text)
+                 or (bool(target_title) and target_title in report_text))
             and all(term in report_text for term in ("Open", "In progress", "Done"))
             and re.search(r"PASS|CONFORMS|通过", report_text, re.I) is not None
         )
