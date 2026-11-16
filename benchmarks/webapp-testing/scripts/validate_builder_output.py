@@ -331,8 +331,24 @@ def verify_source_evidence(
             raise SystemExit(
                 f"{case_id}: source_id is not present in the verified source-map JSON: {source_id}"
             )
-        if normalize_source_text(str(source.get("title", ""))) != normalize_source_text(mapped["title"]):
-            raise SystemExit(f"{case_id}: source title does not match source-map JSON for {source_id}")
+        normalized_title = normalize_source_text(str(source.get("title", "")))
+        normalized_document_title = normalize_source_text(mapped["title"])
+        matching_locator_records = [
+            item for item in mapped.get("_verified_quotes", [])
+            if normalize_source_text(str(item.get("locator", ""))) == normalize_source_text(str(locator))
+            and normalize_source_text(str(item.get("quoted_evidence", ""))) == normalized_quote
+        ]
+        allowed_titles = {normalized_document_title}
+        allowed_titles.update(
+            normalize_source_text(str(item.get("title", "")))
+            for item in matching_locator_records
+            if isinstance(item.get("title"), str) and item.get("title", "").strip()
+        )
+        if normalized_title not in allowed_titles:
+            raise SystemExit(
+                f"{case_id}: source title does not match the source document or "
+                f"the exact mapped locator title for {source_id}"
+            )
         if source.get("source_type") != mapped["source_type"]:
             raise SystemExit(f"{case_id}: source_type does not match source-map JSON for {source_id}")
         if source.get("path"):
