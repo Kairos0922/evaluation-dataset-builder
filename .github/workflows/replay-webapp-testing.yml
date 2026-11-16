@@ -79,6 +79,27 @@ jobs:
             --name webapp-testing-builder-result \
             --dir artifacts/builder-result
           test -s artifacts/builder-result/webapp-testing-builder-output/SUITE-MANIFEST.json
+          test -s artifacts/builder-result/builder-dsh-exit-code.txt
+          test "$(cat artifacts/builder-result/builder-dsh-exit-code.txt)" = "0"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("artifacts/builder-result")
+          trace = json.loads((root / "builder-dsh-trace-verification.json").read_text(encoding="utf-8"))
+          scan = json.loads((root / "credential-scan.json").read_text(encoding="utf-8"))
+          if trace.get("status") != "PASS":
+              raise SystemExit("Builder DSH trace verification did not PASS")
+          if trace.get("dsh_exit_code") != 0 or trace.get("final_reason") != "completed":
+              raise SystemExit("Builder DSH invocation did not complete successfully")
+          if type(trace.get("builder_skill_tool_calls")) is not int or trace["builder_skill_tool_calls"] < 1:
+              raise SystemExit("Builder Skill invocation is not proven by the DSH trace")
+          if not trace.get("generated_files"):
+              raise SystemExit("Builder trace does not identify generated output files")
+          if scan.get("secret_value_exposed_in_artifact") is not False:
+              raise SystemExit("Builder artifact credential scan is missing or not clean")
+          print("PASS: normal Builder completion, invocation trace and credential scan verified before independent validation.")
+          PY
           echo "source_run_id=$source_run_id" >> "$GITHUB_OUTPUT"
 
       - name: Validate the original Builder output with candidate-only coverage
