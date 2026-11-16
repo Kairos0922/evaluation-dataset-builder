@@ -451,6 +451,52 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
 
 
 
+def build_report(suite: dict, entries: list[dict], results: list[dict]) -> dict:
+    verdicts = [item.get("oracle_verdict", "UNKNOWN") for item in results]
+    passed = sum(value == "PASS" for value in verdicts)
+    if passed == len(results) and len(results) == 3:
+        status = "PASS"
+        completion_status = "COMPLETED"
+    elif "FAIL" in verdicts:
+        status = "FAIL"
+        completion_status = "COMPLETED_WITH_FAIL"
+    else:
+        status = "UNKNOWN"
+        completion_status = "COMPLETED_WITH_UNKNOWN"
+    cases = [
+        {**item, "adjudication_status": item.get("oracle_verdict", "UNKNOWN")}
+        for item in results
+    ]
+    return {
+        "status": status,
+        "completion_status": completion_status,
+        "scope": "independent_three_case_pilot_adjudication",
+        "formal_cases_created_or_modified": False,
+        "oracle_exposed_to_builder_or_target_skill": False,
+        "builder_suite_id": suite.get("suite_id"),
+        "builder_version": suite.get("version"),
+        "case_count": len(results),
+        "passed_cases": passed,
+        "failed_cases": len(results) - passed,
+        "required_pilot_roles": [item.get("pilot_role") for item in entries],
+        "required_case_ids": [item.get("case_id") for item in entries],
+        "observed_case_ids": [
+            item["case_id"] for item in results if item.get("execution_valid")
+        ],
+        "verdict_counts": dict(Counter(verdicts)),
+        "business_behavior_verdict_counts": dict(
+            Counter(item.get("business_behavior_verdict", "UNKNOWN") for item in results)
+        ),
+        "cases": cases,
+        "results": results,
+        "limitations": [
+            "Only the three selected pilot cases are adjudicated; the other generated cases are not all executed.",
+            "The search mutation is a controlled synthetic defect, not a production defect.",
+            "A PASS applies to the selected pilot cases, not to the full generated suite or the 0.0.1 release gates.",
+        ],
+    }
+
+
 def self_test() -> int:
     with tempfile.TemporaryDirectory() as temp:
         root = Path(temp)
@@ -571,13 +617,30 @@ def self_test() -> int:
             }
 
         verdicts = {}
+        results = []
+        entries = []
         for role, spec in roles.items():
             result = adjudicate(cases[spec["case_id"]], root / role, role)
+            results.append(result)
+            entries.append({
+                "case_id": spec["case_id"],
+                "dataset_id": "generated",
+                "pilot_role": role,
+            })
             verdicts[role] = result["oracle_verdict"]
-            assert result["business_behavior_verdict"] in (
-                "EXPECTED_VIOLATION_DETECTED" if role == "search_mutation" else "PASS",
+            assert result["business_behavior_verdict"] == (
+                "EXPECTED_VIOLATION_DETECTED" if role == "search_mutation" else "PASS"
             ), (role, result)
         assert verdicts == {role: "PASS" for role in roles}, verdicts
+        contract = build_report({"suite_id": "self-test", "version": "0.0.1"}, entries, results)
+        assert contract["status"] == "PASS"
+        assert contract["scope"] == "independent_three_case_pilot_adjudication"
+        assert contract["passed_cases"] == 3 and contract["failed_cases"] == 0
+        assert contract["formal_cases_created_or_modified"] is False
+        assert contract["oracle_exposed_to_builder_or_target_skill"] is False
+        assert {item["pilot_role"] for item in contract["cases"]} == {
+            "search_mutation", "state_cycle", "delete_confirmation"
+        }
     print("PASS: independent Oracle derives targets from Builder cases and accepts reproduced synthetic violations.")
     return 0
 
@@ -648,36 +711,17 @@ def main() -> int:
         else:
             results.append(adjudicate(case, pilot, entry["pilot_role"]))
 
-    verdicts = [item["oracle_verdict"] for item in results]
-    overall = (
-        "COMPLETED_WITH_FAIL" if "FAIL" in verdicts
-        else "COMPLETED_WITH_UNKNOWN" if "UNKNOWN" in verdicts
-        else "COMPLETED"
-    )
     suite = load_json(builder_output / "SUITE-MANIFEST.json")
-    output = {
-        "status": overall,
-        "scope": "independent adjudication of three semantic Builder-authored pilots; not approval of the full suite",
-        "builder_suite_id": suite.get("suite_id"),
-        "builder_version": suite.get("version"),
-        "case_count": len(results),
-        "required_pilot_roles": list(roles),
-        "required_case_ids": [item["case_id"] for item in entries],
-        "observed_case_ids": [item["case_id"] for item in results if item.get("execution_valid")],
-        "verdict_counts": dict(Counter(verdicts)),
-        "business_behavior_verdict_counts": dict(Counter(item["business_behavior_verdict"] for item in results)),
-        "results": results,
-        "limitations": [
-            "Only the three selected pilot cases are adjudicated; the other generated cases are not all executed.",
-            "The search mutation is a controlled synthetic defect, not a production defect.",
-        ],
-    }
+    output = build_report(suite, entries, results)
     output_path = Path(args.output).resolve()
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(output, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(json.dumps({
         "status": output["status"],
+        "completion_status": output["completion_status"],
         "case_count": output["case_count"],
+        "passed_cases": output["passed_cases"],
+        "failed_cases": output["failed_cases"],
         "verdict_counts": output["verdict_counts"],
         "output": str(output_path),
     }, ensure_ascii=False))

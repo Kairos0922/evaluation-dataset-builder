@@ -125,8 +125,10 @@ jobs:
           set -euo pipefail
           python -m py_compile \
             benchmarks/webapp-testing/oracle/adjudicate_pilot.py \
+            benchmarks/webapp-testing/scripts/gold_oracle.py \
             benchmarks/webapp-testing/scripts/validate_builder_output.py
           python benchmarks/webapp-testing/oracle/adjudicate_pilot.py --self-test
+          python benchmarks/webapp-testing/scripts/gold_oracle.py --self-test
           PYTHONPATH=benchmarks/webapp-testing/scripts python - <<'PY'
           import validate_builder_output as validator
 
@@ -1063,11 +1065,11 @@ jobs:
         run: |
           set -euo pipefail
           printf '%s' "$PILOT_MATRIX" > "$RUNNER_TEMP/pilot-matrix.json"
-          python -m py_compile benchmarks/webapp-testing/oracle/adjudicate_pilot.py
-          python benchmarks/webapp-testing/oracle/adjudicate_pilot.py \
-            --suite-root artifacts/builder-result/webapp-testing-builder-output \
-            --pilot-root artifacts/pilot-results \
-            --matrix "$RUNNER_TEMP/pilot-matrix.json" \
+          python -m py_compile benchmarks/webapp-testing/scripts/gold_oracle.py
+          python benchmarks/webapp-testing/scripts/gold_oracle.py \
+            --builder-output artifacts/builder-result/webapp-testing-builder-output \
+            --pilots-root artifacts/pilot-results \
+            --pilot-matrix "$RUNNER_TEMP/pilot-matrix.json" \
             --output artifacts/independent-adjudication.json
 
       - name: Archive independent adjudication
