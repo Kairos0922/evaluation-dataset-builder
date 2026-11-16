@@ -94,9 +94,31 @@ def case_initial_state(case: dict) -> tuple[list[dict], dict]:
     return tasks, summary
 
 
+def tasks_match_declared(actual: list[dict], declared: list[dict]) -> bool:
+    """Compare only fields the Builder actually declared; omitted optional fields are not mismatches."""
+    if len(actual) != len(declared):
+        return False
+    actual_by_id = {item.get("id"): item for item in actual}
+    if len(actual_by_id) != len(actual):
+        return False
+    for expected in declared:
+        observed = actual_by_id.get(expected.get("id"))
+        if observed is None:
+            return False
+        for key in ("title", "description", "priority", "status"):
+            value = expected.get(key)
+            if value is not None and observed.get(key) != value:
+                return False
+    return True
+
+
 def target_task(case: dict, tasks: list[dict]) -> dict | None:
     rule_expected = ((case.get("reference_outcome") or {}).get("rule_expected") or {})
     target = rule_expected.get("target")
+    if target is None:
+        test_data = ((case.get("execution_requirements") or {}).get("test_data") or [])
+        if test_data and isinstance(test_data[0], dict):
+            target = test_data[0].get("target_task")
     if isinstance(target, dict):
         target_id = target.get("id")
         target_title = target.get("title")
@@ -249,7 +271,10 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
     pre_tasks = normalized_tasks(pre)
     post_tasks = normalized_tasks(post)
     initial_tasks, initial_summary = case_initial_state(case)
-    pre_is_initial = pre_tasks == initial_tasks and pre.get("summary") == initial_summary
+    declared_initial = (((case.get("execution_requirements") or {}).get("initial_state") or {}).get("tasks") or [])
+    if not declared_initial:
+        declared_initial = INITIAL
+    pre_is_initial = tasks_match_declared(pre_tasks, initial_tasks) and pre.get("summary") == initial_summary
     skill_report_exists = bool(report_text.strip())
 
     if role == "search_mutation":
@@ -265,12 +290,14 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
             and event.get("path") == "/api/tasks"
             and "q=" in event.get("query", "")
         ]
+        expected_behavior = case.get("expected_behavior") or {}
+        required_queries = expected_behavior.get("required_queries") or []
+        possible = expected_behavior.get("possible_observations") or {}
+        branch_name = "case_sensitive_title_only" if is_mutant else "conforming"
+        expected_branch = possible.get(branch_name) or {}
         expected_counts = {
-            "RESET": 0,
-            "Reset": 1,
-            "reset": 0,
-            "SCREENSHOTS": 0,
-            "screenshots": 0,
+            query: len(expected_branch.get(query, []))
+            for query in required_queries
         }
         observed: dict[str, list[int]] = {}
         for event in query_events:
@@ -278,37 +305,36 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
             query = unquote_plus(values[0]) if values else ""
             if query in expected_counts:
                 observed.setdefault(query, []).append(event.get("result_count"))
-        all_seen = all(query in observed for query in expected_counts)
+        all_seen = bool(required_queries) and all(query in observed for query in required_queries)
         all_match = all(
             query in observed and all(value == expected for value in observed[query])
             for query, expected in expected_counts.items()
         )
-        add_check(checks, "All five case-variant title/description probes reached the application", all_seen, json.dumps(observed, ensure_ascii=False))
-        add_check(checks, "Observed mutant results match the independently derived behavior", all_match, json.dumps({"expected": expected_counts, "observed": observed}, ensure_ascii=False))
+        add_check(checks, "All Builder-required search probes reached the application", all_seen, json.dumps(observed, ensure_ascii=False))
+        add_check(checks, "Observed search results match the independently derived fixture branch", all_match, json.dumps({"branch": branch_name, "expected": expected_counts, "observed": observed}, ensure_ascii=False))
         add_check(checks, "Search did not mutate the task set", not audit_writes(audit), json.dumps(audit_writes(audit), ensure_ascii=False))
-        add_check(checks, "Search preserved the initial task set and summary", pre_is_initial and post_tasks == INITIAL and post.get("summary") == INITIAL_SUMMARY, f"pre_initial={pre_is_initial}; post_ids={[item['id'] for item in post_tasks]}; summary={post.get('summary')}")
-        rule_expected = ((case.get("reference_outcome") or {}).get("rule_expected") or {})
-        expected_tasks = [
-            item
-            for value in rule_expected.values()
-            for item in initial_tasks
-            if item.get("title") and item["title"] in str(value)
-        ]
-        expected_tasks = list({item["id"]: item for item in expected_tasks}.values())
+        add_check(checks, "Search preserved the initial task set and summary", pre_is_initial and tasks_match_declared(post_tasks, initial_tasks) and post.get("summary") == initial_summary, f"pre_initial={pre_is_initial}; post_ids={[item['id'] for item in post_tasks]}; summary={post.get('summary')}")
+        expected_ids = {
+            item_id
+            for values in expected_branch.values() if isinstance(values, list)
+            for item_id in values
+        }
+        expected_tasks = [item for item in initial_tasks if item.get("id") in expected_ids]
         report_mentions_expected_tasks = bool(expected_tasks) and all(
             item["id"] in report_text or item["title"] in report_text
             for item in expected_tasks
         )
+        report_mentions_queries = all(query in report_text for query in required_queries)
         report_ok = (
             skill_report_exists
             and "BR-02" in report_text
-            and "SCREENSHOTS" in report_text
+            and report_mentions_queries
             and report_mentions_expected_tasks
             and re.search(r"大小写敏感|case-sensitive|case sensitive", report_text, re.I) is not None
-            and re.search(r"复现|reproduced", report_text, re.I) is not None
-            and re.search(r"FAIL|违反|不符合|缺陷", report_text, re.I) is not None
+            and re.search(r"描述.{0,12}(未参与|不匹配|未匹配)|description.{0,20}(not matched|unmatched)", report_text, re.I) is not None
+            and re.search(r"VIOLATED|FAIL|违反|不符合|缺陷", report_text, re.I) is not None
         )
-        add_check(checks, "Target report correctly identifies and supports the BR-02 violation", report_ok, "BR-02, query variants, affected task IDs and reproduced defect language inspected")
+        add_check(checks, "Target report correctly identifies and supports the BR-02 violation", report_ok, "BR-02, Builder-required query variants, affected task IDs and both defect classes inspected")
         behavior = "EXPECTED_VIOLATION_DETECTED" if all_match and report_ok else "UNKNOWN"
 
     elif role == "state_cycle":
@@ -323,6 +349,14 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
             for step in rule_expected.get("steps", [])
             if isinstance(step, dict)
         ]
+        if not expected:
+            sequence = (case.get("expected_behavior") or {}).get("expected_status_sequence") or []
+            if target and sequence:
+                previous = normalize_status(target.get("status"))
+                for next_status in sequence:
+                    normalized = normalize_status(next_status)
+                    expected.append((previous, normalized))
+                    previous = normalized
         updates = [
             event for event in audit
             if event.get("method") == "PATCH" and event.get("path", "").startswith("/api/tasks/")
@@ -355,7 +389,7 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
         )
         add_check(
             checks, "Task rows and summary returned to the Builder-declared initial state",
-            pre_is_initial and post_tasks == initial_tasks and post.get("summary") == initial_summary,
+            pre_is_initial and tasks_match_declared(post_tasks, initial_tasks) and post.get("summary") == initial_summary,
             f"pre_initial={pre_is_initial}; post_ids={[item['id'] for item in post_tasks]}; summary={post.get('summary')}",
         )
         report_ok = (
@@ -400,7 +434,7 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
         state_matches = (
             target_id is not None
             and pre_is_initial
-            and post_tasks == expected_after
+            and tasks_match_declared(post_tasks, expected_after)
             and post.get("summary") == expected_summary
         )
         add_check(
