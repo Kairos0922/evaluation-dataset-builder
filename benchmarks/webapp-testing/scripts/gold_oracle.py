@@ -74,6 +74,48 @@ def normalized_tasks(state: dict | None) -> list[dict]:
     return result
 
 
+def task_summary(tasks: list[dict]) -> dict:
+    return {
+        "all": len(tasks),
+        "open": sum(item.get("status") == "open" for item in tasks),
+        "in_progress": sum(item.get("status") == "in_progress" for item in tasks),
+        "done": sum(item.get("status") == "done" for item in tasks),
+    }
+
+
+def case_initial_state(case: dict) -> tuple[list[dict], dict]:
+    declared = ((case.get("execution_requirements") or {}).get("initial_state") or {})
+    tasks = normalized_tasks(declared)
+    if not tasks:
+        tasks = normalized_tasks({"items": INITIAL})
+    summary = declared.get("summary")
+    if not isinstance(summary, dict):
+        summary = task_summary(tasks)
+    return tasks, summary
+
+
+def target_task(case: dict, tasks: list[dict]) -> dict | None:
+    rule_expected = ((case.get("reference_outcome") or {}).get("rule_expected") or {})
+    target = rule_expected.get("target")
+    if isinstance(target, dict):
+        target_id = target.get("id")
+        target_title = target.get("title")
+    elif isinstance(target, str):
+        target_id = target if any(item.get("id") == target for item in tasks) else None
+        target_title = None if target_id else target
+    else:
+        return None
+    matches = [
+        item for item in tasks
+        if (target_id and item.get("id") == target_id)
+        or (target_title and item.get("title") == target_title)
+    ]
+    return matches[0] if len(matches) == 1 else None
+
+
+def normalize_status(value) -> str:
+    return str(value or "").lower().replace(" ", "_")
+
 def read_trace(path: Path) -> dict:
     events = load_jsonl(path)
     sessions = [
@@ -206,7 +248,8 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
     post = runner.get("post_state") or {}
     pre_tasks = normalized_tasks(pre)
     post_tasks = normalized_tasks(post)
-    pre_is_initial = pre_tasks == INITIAL and pre.get("summary") == INITIAL_SUMMARY
+    initial_tasks, initial_summary = case_initial_state(case)
+    pre_is_initial = pre_tasks == initial_tasks and pre.get("summary") == initial_summary
     skill_report_exists = bool(report_text.strip())
 
     if role == "search_mutation":
@@ -244,15 +287,21 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
         add_check(checks, "Observed mutant results match the independently derived behavior", all_match, json.dumps({"expected": expected_counts, "observed": observed}, ensure_ascii=False))
         add_check(checks, "Search did not mutate the task set", not audit_writes(audit), json.dumps(audit_writes(audit), ensure_ascii=False))
         add_check(checks, "Search preserved the initial task set and summary", pre_is_initial and post_tasks == INITIAL and post.get("summary") == INITIAL_SUMMARY, f"pre_initial={pre_is_initial}; post_ids={[item['id'] for item in post_tasks]}; summary={post.get('summary')}")
+        rule_expected = ((case.get("reference_outcome") or {}).get("rule_expected") or {})
+        expected_task_ids = {
+            item["id"]
+            for value in rule_expected.values()
+            for item in initial_tasks
+            if item.get("title") and item["title"] in str(value)
+        }
         report_ok = (
             skill_report_exists
             and "BR-02" in report_text
-            and "RESET" in report_text
             and "SCREENSHOTS" in report_text
-            and "WB-101" in report_text
-            and "WB-102" in report_text
+            and bool(expected_task_ids)
+            and all(task_id in report_text for task_id in expected_task_ids)
             and re.search(r"大小写敏感|case-sensitive|case sensitive", report_text, re.I) is not None
-            and re.search(r"成立|已复现|确认|reproduced", report_text, re.I) is not None
+            and re.search(r"复现|reproduced", report_text, re.I) is not None
             and re.search(r"FAIL|违反|不符合|缺陷", report_text, re.I) is not None
         )
         add_check(checks, "Target report correctly identifies and supports the BR-02 violation", report_ok, "BR-02, query variants, affected task IDs and reproduced defect language inspected")
@@ -261,49 +310,110 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
     elif role == "state_cycle":
         mutations = runner.get("fixture_mutations") or []
         add_check(checks, "Clean fixture was selected", runner.get("fixture_profile") == "clean" and not mutations, f"profile={runner.get('fixture_profile')}; mutations={mutations}")
+        rule_expected = ((case.get("reference_outcome") or {}).get("rule_expected") or {})
+        target = target_task(case, initial_tasks)
+        target_id = target.get("id") if target else None
+        target_title = target.get("title") if target else None
+        expected = [
+            (normalize_status(step.get("from")), normalize_status(step.get("to")))
+            for step in rule_expected.get("steps", [])
+            if isinstance(step, dict)
+        ]
         updates = [
             event for event in audit
             if event.get("method") == "PATCH" and event.get("path", "").startswith("/api/tasks/")
         ]
-        expected = [
-            ("open", "in_progress"),
-            ("in_progress", "done"),
-            ("done", "open"),
-        ]
         observed = [
-            (event.get("old_status"), event.get("new_status"))
+            (normalize_status(event.get("old_status")), normalize_status(event.get("new_status")))
             for event in updates
         ]
-        correct_target = all(event.get("path") == "/api/tasks/WB-101" for event in updates)
-        add_check(checks, "WB-101 completed the exact BR-07 state cycle", observed == expected and correct_target, json.dumps({"expected": expected, "observed": observed, "paths": [event.get("path") for event in updates]}, ensure_ascii=False))
-        add_check(checks, "No unrelated task write occurred", len(audit_writes(audit)) == 3 and all(event.get("method") == "PATCH" and event.get("path") == "/api/tasks/WB-101" for event in audit_writes(audit)), json.dumps(audit_writes(audit), ensure_ascii=False))
-        add_check(checks, "Task rows and summary returned to the initial state", pre_is_initial and post_tasks == INITIAL and post.get("summary") == INITIAL_SUMMARY, f"pre_initial={pre_is_initial}; post_ids={[item['id'] for item in post_tasks]}; summary={post.get('summary')}")
+        correct_target = target_id is not None and all(
+            event.get("path") == f"/api/tasks/{target_id}" for event in updates
+        )
+        add_check(
+            checks, "Builder-declared target completed the exact BR-07 state cycle",
+            target is not None and bool(expected) and observed == expected and correct_target,
+            json.dumps({
+                "target": target,
+                "expected": expected,
+                "observed": observed,
+                "paths": [event.get("path") for event in updates],
+            }, ensure_ascii=False),
+        )
+        writes = audit_writes(audit)
+        add_check(
+            checks, "No unrelated task write occurred",
+            target_id is not None and len(writes) == len(expected) and all(
+                event.get("method") == "PATCH" and event.get("path") == f"/api/tasks/{target_id}"
+                for event in writes
+            ),
+            json.dumps(writes, ensure_ascii=False),
+        )
+        add_check(
+            checks, "Task rows and summary returned to the Builder-declared initial state",
+            pre_is_initial and post_tasks == initial_tasks and post.get("summary") == initial_summary,
+            f"pre_initial={pre_is_initial}; post_ids={[item['id'] for item in post_tasks]}; summary={post.get('summary')}",
+        )
         report_ok = (
             skill_report_exists and "BR-07" in report_text
+            and bool(target_title) and target_title in report_text
             and all(term in report_text for term in ("Open", "In progress", "Done"))
             and re.search(r"PASS|CONFORMS|通过", report_text, re.I) is not None
         )
-        add_check(checks, "Target report agrees with the independently observed BR-07 cycle", report_ok, "BR-07, three transitions, resulting summary and PASS verdict inspected")
-        behavior = "PASS" if observed == expected and report_ok else "FAIL"
+        add_check(checks, "Target report agrees with the independently observed BR-07 cycle", report_ok, "BR-07, Builder-declared target, transitions, summary and PASS verdict inspected")
+        behavior = "PASS" if target is not None and observed == expected and report_ok else "FAIL"
 
     elif role == "delete_confirmation":
         mutations = runner.get("fixture_mutations") or []
         add_check(checks, "Clean fixture was selected", runner.get("fixture_profile") == "clean" and not mutations, f"profile={runner.get('fixture_profile')}; mutations={mutations}")
+        target = target_task(case, initial_tasks)
+        target_id = target.get("id") if target else None
+        target_title = target.get("title") if target else None
         deletes = [event for event in audit if event.get("method") == "DELETE"]
-        expected_after = [item for item in INITIAL if item["id"] != "WB-104"]
-        expected_summary = {"all": 4, "open": 1, "in_progress": 2, "done": 1}
-        add_check(checks, "Only WB-104 was deleted once", len(deletes) == 1 and deletes[0].get("path") == "/api/tasks/WB-104" and (deletes[0].get("item") or {}).get("id") == "WB-104", json.dumps(deletes, ensure_ascii=False))
+        expected_after = [
+            item for item in initial_tasks
+            if target_id is not None and item.get("id") != target_id
+        ]
+        expected_summary = task_summary(expected_after) if target_id else {}
+        delete_matches = (
+            target_id is not None
+            and len(deletes) == 1
+            and deletes[0].get("path") == f"/api/tasks/{target_id}"
+            and (deletes[0].get("item") or {}).get("id") == target_id
+        )
+        add_check(
+            checks, "Only the Builder-declared target was deleted once",
+            delete_matches,
+            json.dumps({"target": target, "deletes": deletes}, ensure_ascii=False),
+        )
         writes = audit_writes(audit)
-        add_check(checks, "No create, status mutation or unrelated delete occurred", len(writes) == 1 and writes[0].get("method") == "DELETE" and writes[0].get("path") == "/api/tasks/WB-104", json.dumps(writes, ensure_ascii=False))
-        add_check(checks, "Pre/post state matches Cancel preservation and confirmed-delete result", pre_is_initial and post_tasks == expected_after and post.get("summary") == expected_summary, f"pre_initial={pre_is_initial}; post_ids={[item['id'] for item in post_tasks]}; summary={post.get('summary')}")
+        add_check(
+            checks, "No create, status mutation or unrelated delete occurred",
+            target_id is not None and len(writes) == 1 and writes[0].get("method") == "DELETE"
+            and writes[0].get("path") == f"/api/tasks/{target_id}",
+            json.dumps(writes, ensure_ascii=False),
+        )
+        state_matches = (
+            target_id is not None
+            and pre_is_initial
+            and post_tasks == expected_after
+            and post.get("summary") == expected_summary
+        )
+        add_check(
+            checks, "Pre/post state matches Cancel preservation and confirmed-delete result",
+            state_matches,
+            f"pre_initial={pre_is_initial}; target_id={target_id}; post_ids={[item['id'] for item in post_tasks]}; summary={post.get('summary')}; expected_summary={expected_summary}",
+        )
         report_ok = (
-            skill_report_exists and "BR-08" in report_text and "WB-104" in report_text
+            skill_report_exists and "BR-08" in report_text
+            and bool(target_id) and target_id in report_text
+            and bool(target_title) and target_title in report_text
             and "Cancel" in report_text and "Delete task" in report_text
             and re.search(r"PASS|CONFORMS|通过", report_text, re.I) is not None
         )
-        add_check(checks, "Target report documents both the cancel and confirmation branches", report_ok, "BR-08, WB-104, Cancel, Delete task and PASS verdict inspected")
+        add_check(checks, "Target report documents both the cancel and confirmation branches", report_ok, f"BR-08, target {target_id} ({target_title}), Cancel, Delete task and PASS verdict inspected")
         add_check(checks, "Evidence contains screenshots for the dialog workflow", len(screenshots) >= 3, f"screenshot_count={len(screenshots)}")
-        behavior = "PASS" if deletes and report_ok and post_tasks == expected_after else "FAIL"
+        behavior = "PASS" if delete_matches and state_matches and report_ok else "FAIL"
 
     else:
         add_check(checks, "Pilot role has a supported Oracle", False, role)
@@ -343,23 +453,41 @@ def self_test() -> int:
         roles = {
             "search_mutation": {
                 "case_id": "DYNAMIC-SEARCH-01",
-                "report": "BR-02: RESET returned no rows while Reset returned WB-101. SCREENSHOTS returned no rows while the expected row was WB-102. The case-sensitive defect is reproduced; verdict FAIL for the application rule.",
+                "target_title": "Reset password flow",
+                "report": "BR-02: PASSWORD returned 0 while password returned WB-101. SCREENSHOTS returned 0 while the expected row was WB-102. 搜索大小写敏感，缺陷被独立复现；应用规则 verdict FAIL。",
                 "profile": "mutant",
                 "mutations": ["search-case-sensitive"],
+                "rule_expected": {
+                    "PASSWORD": "Reset password flow",
+                    "password": "Reset password flow",
+                    "SCREENSHOTS": "Update onboarding guide",
+                },
             },
             "state_cycle": {
                 "case_id": "DYNAMIC-STATE-02",
-                "report": "BR-07 PASS: WB-101 moved Open, In progress, Done, Open. Summary counts returned to 5/2/2/1.",
+                "target_title": "Reset password flow",
+                "report": "BR-07 PASS: WB-101 Reset password flow moved Open, In progress, Done, Open. Summary counts returned to 5/2/2/1.",
                 "profile": "clean",
                 "mutations": [],
+                "rule_expected": {
+                    "target": "Reset password flow",
+                    "steps": [
+                        {"from": "Open", "to": "In progress"},
+                        {"from": "In progress", "to": "Done"},
+                        {"from": "Done", "to": "Open"},
+                    ],
+                },
             },
             "delete_confirmation": {
                 "case_id": "DYNAMIC-DELETE-03",
-                "report": "BR-08 PASS: WB-104 delete dialog opened; Cancel preserved the task. Delete task removed WB-104 after confirmation.",
+                "target_title": "Update onboarding guide",
+                "report": "BR-08 PASS: WB-102 Update onboarding guide delete dialog opened; Cancel preserved the task. Delete task removed WB-102 after confirmation.",
                 "profile": "clean",
                 "mutations": [],
+                "rule_expected": {"target": "Update onboarding guide"},
             },
         }
+        cases = {}
         for role, spec in roles.items():
             pilot = root / role
             artifacts = pilot / "skill-artifacts"
@@ -379,6 +507,7 @@ def self_test() -> int:
             (pilot / "dsh-events.jsonl").write_text(
                 "".join(json.dumps(item) + "\n" for item in trace_events), encoding="utf-8"
             )
+            target = next(item for item in INITIAL if item["title"] == spec["target_title"])
             audit = [{"method": "POST", "path": "/api/reset", "status": 200, "action": "reset"}]
             if role == "search_mutation":
                 for query, count in {
@@ -395,20 +524,17 @@ def self_test() -> int:
                     ("open", "in_progress"), ("in_progress", "done"), ("done", "open")
                 ]:
                     audit.append({
-                        "method": "PATCH", "path": "/api/tasks/WB-101", "status": 200,
+                        "method": "PATCH", "path": f"/api/tasks/{target['id']}", "status": 200,
                         "action": "status-changed", "old_status": old_status, "new_status": new_status,
                     })
                 post_state = {"items": INITIAL, "summary": INITIAL_SUMMARY}
             else:
                 audit.append({
-                    "method": "DELETE", "path": "/api/tasks/WB-104", "status": 200,
-                    "action": "deleted", "item": INITIAL[3],
+                    "method": "DELETE", "path": f"/api/tasks/{target['id']}", "status": 200,
+                    "action": "deleted", "item": target,
                 })
-                post_items = [item for item in INITIAL if item["id"] != "WB-104"]
-                post_state = {
-                    "items": post_items,
-                    "summary": {"all": 4, "open": 1, "in_progress": 2, "done": 1},
-                }
+                post_items = [item for item in INITIAL if item["id"] != target["id"]]
+                post_state = {"items": post_items, "summary": task_summary(normalized_tasks({"items": post_items}))}
             (pilot / "server-audit.jsonl").write_text(
                 "".join(json.dumps(item) + "\n" for item in audit), encoding="utf-8"
             )
@@ -430,17 +556,25 @@ def self_test() -> int:
             (pilot / "runner-result.json").write_text(
                 json.dumps(runner, ensure_ascii=False), encoding="utf-8"
             )
-        cases = {
-            "DYNAMIC-SEARCH-01": {"case_id": "DYNAMIC-SEARCH-01", "dataset_id": "generated", "user_input": {"task": "search"}},
-            "DYNAMIC-STATE-02": {"case_id": "DYNAMIC-STATE-02", "dataset_id": "generated", "user_input": {"task": "state"}},
-            "DYNAMIC-DELETE-03": {"case_id": "DYNAMIC-DELETE-03", "dataset_id": "generated", "user_input": {"task": "delete"}},
-        }
+            cases[spec["case_id"]] = {
+                "case_id": spec["case_id"],
+                "dataset_id": "generated",
+                "user_input": "single turn",
+                "reference_outcome": {"rule_expected": spec["rule_expected"]},
+                "execution_requirements": {
+                    "initial_state": {"tasks": INITIAL, "summary": INITIAL_SUMMARY},
+                },
+            }
+
         verdicts = {}
         for role, spec in roles.items():
             result = adjudicate(cases[spec["case_id"]], root / role, role)
             verdicts[role] = result["oracle_verdict"]
+            assert result["business_behavior_verdict"] in (
+                "EXPECTED_VIOLATION_DETECTED" if role == "search_mutation" else "PASS",
+            ), (role, result)
         assert verdicts == {role: "PASS" for role in roles}, verdicts
-    print("PASS: independent Oracle adjudicates dynamic search, state-cycle and delete pilots.")
+    print("PASS: independent Oracle derives targets from Builder cases and accepts reproduced synthetic violations.")
     return 0
 
 

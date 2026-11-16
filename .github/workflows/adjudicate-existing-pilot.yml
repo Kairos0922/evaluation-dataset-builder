@@ -6,6 +6,13 @@ on:
     paths:
       - "benchmarks/webapp-testing/scripts/gold_oracle.py"
       - ".github/workflows/adjudicate-existing-pilot.yml"
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Completed replay run containing the Builder suite and all three pilot artifacts"
+        required: true
+        type: string
+        default: "43800543694"
 
 permissions:
   actions: read
@@ -16,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      SOURCE_RUN_ID: "43038478841"
+      SOURCE_RUN_ID: ${{ inputs.source_run_id || '43800543694' }}
     steps:
       - name: Checkout benchmark repository
         uses: actions/checkout@v4
@@ -28,6 +35,27 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12.16"
+
+      - name: Verify completed source run and archived artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID")"
+          jq -e '.status == "completed"' <<< "$run_json" >/dev/null
+          artifacts_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100")"
+          for artifact_name in \
+            webapp-testing-replay-builder-input \
+            webapp-testing-pilot-WBA-02 \
+            webapp-testing-pilot-WBC-08 \
+            webapp-testing-pilot-WBC-09; do
+            jq -e --arg name "$artifact_name" 'any(.artifacts[]; .name == $name and .expired == false)' \
+              <<< "$artifacts_json" >/dev/null || {
+                echo "::error::Required archived artifact is missing or expired: $artifact_name"
+                exit 2
+              }
+          done
+          echo "PASS: source run $SOURCE_RUN_ID is complete and all four immutable artifacts are available."
 
       - name: Download immutable Builder input from the completed replay
         uses: actions/download-artifact@v4
@@ -52,9 +80,11 @@ jobs:
         run: |
           set -euo pipefail
           python -m py_compile benchmarks/webapp-testing/scripts/gold_oracle.py
+          python benchmarks/webapp-testing/scripts/gold_oracle.py --self-test
           python benchmarks/webapp-testing/scripts/gold_oracle.py \
             --builder-output artifacts/builder-replay/webapp-testing-builder-output \
             --pilots-root artifacts/pilots \
+            --pilot-matrix artifacts/builder-replay/pilot-matrix.json \
             --output artifacts/oracle-adjudication-corrected.json
           cat artifacts/oracle-adjudication-corrected.json
 
