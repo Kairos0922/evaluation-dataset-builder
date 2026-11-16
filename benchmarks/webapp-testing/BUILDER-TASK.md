@@ -35,6 +35,7 @@
 6. `SUITE-MANIFEST.json.coverage.dimensions` 与 `coverage-matrix.json.dimensions` 必须使用相同的维度集合和汇总值。两处 `uncovered` 均使用 `<coverage_item_id> <value>` 格式。每个未覆盖的 applicable 项都必须在 `coverage.gap_priorities` 中有唯一记录，且 `gap_id` 必须等于 `coverage_item_id`，并提供 `priority`、`reason`、`planned_action`。
 7. `coverage-matrix.json.version` 必须等于 `SUITE-MANIFEST.json.version`。不要用 `suite_version` 替代 `version`。
 8. 用例覆盖统计以正式 JSONL 中的 `coverage_tags` 为准。只有 candidate 用例才计入 fully covered；needs_info 用例不得让覆盖率虚高。
+9. `SUITE-MANIFEST.json.source_map_json` 必须提供相对套件目录的 JSON 文件路径，并指向实际来源映射文件；该文件必须包含非空 `sources` 数组。优先使用 `source-map.json`。独立验证器必须按该字段解析路径，不得仅依赖文件名大小写。
 
 
 ## 输出
