@@ -288,18 +288,22 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
         add_check(checks, "Search did not mutate the task set", not audit_writes(audit), json.dumps(audit_writes(audit), ensure_ascii=False))
         add_check(checks, "Search preserved the initial task set and summary", pre_is_initial and post_tasks == INITIAL and post.get("summary") == INITIAL_SUMMARY, f"pre_initial={pre_is_initial}; post_ids={[item['id'] for item in post_tasks]}; summary={post.get('summary')}")
         rule_expected = ((case.get("reference_outcome") or {}).get("rule_expected") or {})
-        expected_task_ids = {
-            item["id"]
+        expected_tasks = [
+            item
             for value in rule_expected.values()
             for item in initial_tasks
             if item.get("title") and item["title"] in str(value)
-        }
+        ]
+        expected_tasks = list({item["id"]: item for item in expected_tasks}.values())
+        report_mentions_expected_tasks = bool(expected_tasks) and all(
+            item["id"] in report_text or item["title"] in report_text
+            for item in expected_tasks
+        )
         report_ok = (
             skill_report_exists
             and "BR-02" in report_text
             and "SCREENSHOTS" in report_text
-            and bool(expected_task_ids)
-            and all(task_id in report_text for task_id in expected_task_ids)
+            and report_mentions_expected_tasks
             and re.search(r"大小写敏感|case-sensitive|case sensitive", report_text, re.I) is not None
             and re.search(r"复现|reproduced", report_text, re.I) is not None
             and re.search(r"FAIL|违反|不符合|缺陷", report_text, re.I) is not None
@@ -454,7 +458,7 @@ def self_test() -> int:
             "search_mutation": {
                 "case_id": "DYNAMIC-SEARCH-01",
                 "target_title": "Reset password flow",
-                "report": "BR-02: PASSWORD returned 0 while password returned WB-101. SCREENSHOTS returned 0 while the expected row was WB-102. 搜索大小写敏感，缺陷被独立复现；应用规则 verdict FAIL。",
+                "report": "BR-02: PASSWORD returned 0 while password returned Reset password flow. SCREENSHOTS returned 0 while Update onboarding guide was expected. 搜索大小写敏感，缺陷被独立复现；应用规则 verdict FAIL。",
                 "profile": "mutant",
                 "mutations": ["search-case-sensitive"],
                 "rule_expected": {
