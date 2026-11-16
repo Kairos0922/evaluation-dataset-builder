@@ -68,7 +68,7 @@ def role_score(case: dict, role: str) -> int:
         # request searches an uppercase token and its expected behavior
         # independently names the lowercase form. Requiring adversarial
         # framing would reject ordinary but decisive regression cases.
-        uppercase_terms = re.findall(r"\\b[A-Z]{3,}\\b", case_text(case))
+        uppercase_terms = re.findall(r"\b[A-Z]{3,}\\b", case_text(case))
         has_case_variant_pair = any(
             re.search(rf"\\b{re.escape(term.lower())}\\b", case_text(case))
             for term in uppercase_terms
