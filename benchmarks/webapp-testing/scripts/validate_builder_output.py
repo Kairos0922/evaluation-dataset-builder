@@ -164,6 +164,22 @@ def load_source_map(output: Path, corpus: dict[str, str]) -> dict[str, dict]:
         raise SystemExit("source-map JSON must be an object")
 
     path_base = str(source_map.get("path_base") or "").strip().casefold()
+    top_level_locators = source_map.get("locators", [])
+    if not isinstance(top_level_locators, list):
+        raise SystemExit("source-map JSON locators must be a list when present")
+    locators_by_source_id: dict[str, list[dict]] = defaultdict(list)
+    for locator_record in top_level_locators:
+        if not isinstance(locator_record, dict):
+            raise SystemExit("source-map JSON locators[] must contain objects")
+        locator_source_id = locator_record.get("source_id")
+        require_nonempty_text(locator_source_id, "source-map JSON locators[].source_id")
+        require_nonempty_text(locator_record.get("locator"), f"{locator_source_id}.locators[].locator")
+        require_nonempty_text(
+            locator_record.get("quoted_evidence"),
+            f"{locator_source_id}.locators[].quoted_evidence",
+        )
+        locators_by_source_id[locator_source_id].append(locator_record)
+
     records = source_map.get("sources")
     registry = source_map.get("source_registry")
     file_records = source_map.get("files")
@@ -280,6 +296,12 @@ def load_source_map(output: Path, corpus: dict[str, str]) -> dict[str, dict]:
         quote_records = record.get("quotes")
         if quote_records is None:
             quote_records = record.get("locators")
+        if quote_records is None and source_id in locators_by_source_id:
+            # Some Builders normalize source metadata in sources[] and keep
+            # section-level citation records in a top-level locators[] array.
+            # Bind those records back to the source ID before validating titles
+            # and exact locator/quotation pairs.
+            quote_records = locators_by_source_id[source_id]
         # A quote map is optional. If the Builder supplies one, enforce the
         # locator/quote pair; otherwise verify each case quote directly against
         # the SHA-256-verified trusted source file below.
