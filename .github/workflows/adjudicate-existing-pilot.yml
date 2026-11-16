@@ -12,7 +12,7 @@ on:
         description: "Completed replay run containing the Builder suite and all three pilot artifacts"
         required: true
         type: string
-        default: "43800543694"
+        default: "43977432769"
 
 permissions:
   actions: read
@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      SOURCE_RUN_ID: ${{ inputs.source_run_id || '43800543694' }}
+      SOURCE_RUN_ID: ${{ inputs.source_run_id || '43977432769' }}
     steps:
       - name: Checkout benchmark repository
         uses: actions/checkout@v4
@@ -46,9 +46,9 @@ jobs:
           artifacts_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100")"
           for artifact_name in \
             webapp-testing-replay-builder-input \
-            webapp-testing-pilot-WBA-02 \
-            webapp-testing-pilot-WBC-08 \
-            webapp-testing-pilot-WBC-09; do
+            webapp-testing-pilot-WBC-02 \
+            webapp-testing-pilot-WBC-06 \
+            webapp-testing-pilot-WBC-07; do
             jq -e --arg name "$artifact_name" 'any(.artifacts[]; .name == $name and .expired == false)' \
               <<< "$artifacts_json" >/dev/null || {
                 echo "::error::Required archived artifact is missing or expired: $artifact_name"
