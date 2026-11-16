@@ -365,7 +365,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         builder_url = "https://github.com/example/repo/actions/runs/67890"
         evidence = {
             "workflow_run_url": builder_url,
-            "pilot_case_ids": ["CASE-SEARCH", "CASE-MULTI", "CASE-DELETE"],
+            "pilot_case_ids": ["CASE-SEARCH", "CASE-STATE", "CASE-DELETE"],
         }
         base_body = (
             "Reviewed " + critical + " baseline and spread. "
@@ -382,7 +382,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
             VERIFY_RELEASE.latest_approved_review(
                 [review], "pr-author", "pr-head-sha", 12345, evidence
             )
-        review["body"] = base_body + builder_url + " CASE-SEARCH CASE-MULTI CASE-DELETE"
+        review["body"] = base_body + builder_url + " CASE-SEARCH CASE-STATE CASE-DELETE"
         result = VERIFY_RELEASE.latest_approved_review(
             [review], "pr-author", "pr-head-sha", 12345, evidence
         )
@@ -528,7 +528,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
                  "generated_files": ["SUITE-MANIFEST.json"]}
         cases = [
             {"case_id": "CASE-SEARCH", "pilot_role": "search_mutation", "adjudication_status": "PASS"},
-            {"case_id": "CASE-MULTI", "pilot_role": "multi_turn", "adjudication_status": "PASS"},
+            {"case_id": "CASE-STATE", "pilot_role": "state_cycle", "adjudication_status": "PASS"},
             {"case_id": "CASE-DELETE", "pilot_role": "delete_confirmation", "adjudication_status": "PASS"},
         ]
         adjudication = {
@@ -539,7 +539,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         }
         names = [
             "webapp-testing-pilot-CASE-SEARCH",
-            "webapp-testing-pilot-CASE-MULTI",
+            "webapp-testing-pilot-CASE-STATE",
             "webapp-testing-pilot-CASE-DELETE",
         ]
         result = CREATE_RELEASE_TAG.validate_builder_evidence_payloads(
@@ -577,7 +577,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 "status": "PASS", "pr_number": 38, "candidate_sha": "builder-sha",
                 "workflow_run_url": "https://github.com/example/repo/actions/runs/98765",
                 "dataset_count": 3, "case_count": 24, "pilot_count": 3,
-                "pilot_case_ids": ["CASE-DELETE", "CASE-MULTI", "CASE-SEARCH"],
+                "pilot_case_ids": ["CASE-DELETE", "CASE-STATE", "CASE-SEARCH"],
                 "skill_tree_matches_release_candidate": True,
             },
         }

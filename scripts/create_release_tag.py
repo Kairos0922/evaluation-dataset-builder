@@ -96,7 +96,7 @@ def validate_builder_evidence_payloads(summary, trace, adjudication, pilot_artif
             "Pilot adjudication must contain exactly three passing case results.")
     case_ids = {item.get("case_id") for item in cases}
     roles = {item.get("pilot_role") for item in cases}
-    require(None not in case_ids and roles == {"search_mutation", "multi_turn", "delete_confirmation"},
+    require(None not in case_ids and roles == {"search_mutation", "state_cycle", "delete_confirmation"},
             "Pilot adjudication does not cover the three required real-task roles.")
     expected = {"webapp-testing-pilot-" + case_id for case_id in case_ids}
     require(set(pilot_artifact_names) == expected,
