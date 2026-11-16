@@ -49,6 +49,7 @@ jobs:
       - name: Resolve and download the successful Builder production artifact
         env:
           GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN_ID: ${{ inputs.builder_run_id || '' }}
         run: |
           set -euo pipefail
           source_run_id="$SOURCE_RUN_ID"
