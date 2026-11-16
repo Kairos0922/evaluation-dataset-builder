@@ -89,6 +89,7 @@ jobs:
           cat artifacts/oracle-adjudication-corrected.json
 
       - name: Archive corrected independent adjudication
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: webapp-testing-oracle-adjudication-corrected

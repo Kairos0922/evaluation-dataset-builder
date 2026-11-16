@@ -725,7 +725,7 @@ def main() -> int:
         "verdict_counts": output["verdict_counts"],
         "output": str(output_path),
     }, ensure_ascii=False))
-    return 0
+    return 0 if output["status"] == "PASS" else 1
 
 
 if __name__ == "__main__":
