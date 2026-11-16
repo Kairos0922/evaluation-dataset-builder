@@ -94,6 +94,51 @@ class BuilderSourceLocatorTests(unittest.TestCase):
                 source_map = VALIDATOR.load_source_map(output, corpus)
             self.assertIn("SRC-APP", source_map)
 
+    def test_source_registry_files_schema_verifies_case_quote_against_exact_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            relative = "artifacts/webapp-testing-builder-input/assets/public/application-overview.md"
+            content = "## 3 初始数据\\n应用启动时提供五条合成任务。"
+            source_path = root / relative
+            source_path.parent.mkdir(parents=True)
+            source_path.write_text(content, encoding="utf-8")
+            output = root / "output"
+            output.mkdir()
+            record = {
+                "source_registry": [{
+                    "source_id": "SRC-APP",
+                    "title": "Workboard Lite 应用说明",
+                    "source_type": "synthetic_scenario",
+                    "path": "assets/public/application-overview.md",
+                }],
+                "files": [{
+                    "path": "assets/public/application-overview.md",
+                    "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+                    "source_ids": ["SRC-APP"],
+                }],
+            }
+            (output / "SUITE-MANIFEST.json").write_text(
+                json.dumps({"source_map_json": "source-map.json"}),
+                encoding="utf-8",
+            )
+            (output / "source-map.json").write_text(
+                json.dumps(record, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            corpus = {relative: VALIDATOR.normalize_source_text(content)}
+            source = {
+                "source_id": "SRC-APP",
+                "source_type": "synthetic_scenario",
+                "title": "Workboard Lite 应用说明",
+                "path": "assets/public/application-overview.md",
+                "locator": "§3 初始数据",
+                "quoted_evidence": "应用启动时提供五条合成任务。",
+            }
+            with patch.object(VALIDATOR, "ROOT", root):
+                source_map = VALIDATOR.load_source_map(output, corpus)
+                VALIDATOR.verify_source_evidence("WB-CORE-01", source, corpus, source_map)
+            self.assertIn("SRC-APP", source_map)
+
     def test_source_map_rejects_unsafe_manifest_path(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "output"
