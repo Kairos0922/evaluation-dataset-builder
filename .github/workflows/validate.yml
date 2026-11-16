@@ -613,6 +613,95 @@ jobs:
           )
           PY
 
+      - name: Probe DeepSeek model connectivity before Builder production
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          set -euo pipefail
+          prompt="$RUNNER_TEMP/builder-connectivity-probe.txt"
+          cat > "$prompt" <<'PROMPT'
+          Reply with exactly CONNECTION_OK.
+          Do not use tools, skills, file access, or network access.
+          This is a minimal model connectivity probe only.
+          PROMPT
+          set +e
+          dsh --profile headless --json --permission-mode workspace-write - \
+            < "$prompt" \
+            > artifacts/builder-connectivity-probe-events.jsonl \
+            2> artifacts/builder-connectivity-probe-stderr.log
+          probe_exit=$?
+          set -e
+          printf '%s\n' "$probe_exit" > artifacts/builder-connectivity-probe-exit-code.txt
+          python - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          root = Path("artifacts")
+          events_path = root / "builder-connectivity-probe-events.jsonl"
+          stderr_path = root / "builder-connectivity-probe-stderr.log"
+          exit_path = root / "builder-connectivity-probe-exit-code.txt"
+          exit_code = int(exit_path.read_text(encoding="utf-8").strip())
+          raw = (events_path.read_text(encoding="utf-8", errors="replace")
+                 if events_path.is_file() else "")
+          stderr = (stderr_path.read_text(encoding="utf-8", errors="replace")
+                    if stderr_path.is_file() else "")
+          combined = raw + "\\n" + stderr
+          quota_pattern = re.compile(
+              r"(?i)(HTTP\\s*402|\\b402\\b|QUOTA|INSUFFICIENT\\s+BALANCE|INSUFFICIENT_BALANCE)"
+          )
+          result = {
+              "status": "BLOCKED",
+              "scope": "minimal_model_connectivity_probe",
+              "dsh_exit_code": exit_code,
+              "tool_calls": 0,
+              "final_reason": None,
+              "response_marker_present": False,
+              "quota_error_detected": bool(quota_pattern.search(combined)),
+              "builder_invocation_started": False,
+          }
+          if result["quota_error_detected"]:
+              result["status"] = "EXTERNAL_MODEL_QUOTA_BLOCKED"
+              result["message"] = "DeepSeek API quota/balance error; stop model calls and inspect the configured account balance."
+          else:
+              events = []
+              for line_no, line in enumerate(raw.splitlines(), 1):
+                  if not line.strip():
+                      continue
+                  try:
+                      event = json.loads(line)
+                  except json.JSONDecodeError as exc:
+                      raise SystemExit(f"Invalid probe NDJSON at line {line_no}: {exc}")
+                  if not isinstance(event, dict):
+                      raise SystemExit(f"Probe event at line {line_no} is not an object")
+                  events.append(event)
+              finals = [event for event in events if event.get("type") == "final"]
+              tool_calls = [event for event in events if event.get("type") == "tool_call"]
+              result["tool_calls"] = len(tool_calls)
+              if finals:
+                  reason = finals[-1].get("reason", {})
+                  result["final_reason"] = reason.get("kind") if isinstance(reason, dict) else reason
+                  result["response_marker_present"] = "CONNECTION_OK" in str(finals[-1].get("text", ""))
+              if (
+                  exit_code == 0
+                  and result["final_reason"] == "completed"
+                  and result["response_marker_present"]
+                  and not tool_calls
+              ):
+                  result["status"] = "PASS"
+                  result["message"] = "Minimal model connectivity probe completed; no tools or Builder Skill were invoked."
+              else:
+                  result["status"] = "PROBE_FAILED"
+                  result["message"] = "Connectivity probe did not meet the completion contract; Builder production was not started."
+          (root / "builder-connectivity-probe.json").write_text(
+              json.dumps(result, ensure_ascii=False, indent=2) + "\\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(result, ensure_ascii=False, indent=2))
+          if result["status"] != "PASS":
+              raise SystemExit(78 if result["status"] == "EXTERNAL_MODEL_QUOTA_BLOCKED" else 1)
+          PY
+
       - name: Invoke Evaluation Dataset Builder through DSH
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
@@ -698,6 +787,8 @@ jobs:
 
           secret = os.environ.get("DEEPSEEK_API_KEY", "").encode()
           targets = [
+              Path("artifacts/builder-connectivity-probe-events.jsonl"),
+              Path("artifacts/builder-connectivity-probe-stderr.log"),
               Path("artifacts/builder-dsh-events.jsonl"),
               Path("artifacts/builder-dsh-stderr.log"),
               Path("artifacts/webapp-testing-builder-output"),
@@ -761,6 +852,10 @@ jobs:
           name: webapp-testing-builder-result
           path: |
             artifacts/webapp-testing-builder-output/
+            artifacts/builder-connectivity-probe-events.jsonl
+            artifacts/builder-connectivity-probe-stderr.log
+            artifacts/builder-connectivity-probe-exit-code.txt
+            artifacts/builder-connectivity-probe.json
             artifacts/builder-dsh-events.jsonl
             artifacts/builder-dsh-stderr.log
             artifacts/builder-dsh-exit-code.txt
