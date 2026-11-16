@@ -60,6 +60,51 @@ class BuilderSourceLocatorTests(unittest.TestCase):
 
 
 
+    def test_source_map_uses_manifest_declared_lowercase_filename(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            relative = "artifacts/webapp-testing-builder-input/assets/public/application-overview.md"
+            content = "## 3 初始数据\\n应用启动时提供五条合成任务。"
+            source_path = root / relative
+            source_path.parent.mkdir(parents=True)
+            source_path.write_text(content, encoding="utf-8")
+            output = root / "output"
+            output.mkdir()
+            record = {
+                "source_id": "SRC-APP",
+                "title": "Workboard Lite 应用说明",
+                "source_type": "synthetic_scenario",
+                "path": "assets/public/application-overview.md",
+                "sha256": hashlib.sha256(content.encode("utf-8")).hexdigest(),
+                "quotes": [{
+                    "locator": "§3 初始数据",
+                    "quoted_evidence": "应用启动时提供五条合成任务。",
+                }],
+            }
+            (output / "SUITE-MANIFEST.json").write_text(
+                json.dumps({"source_map_json": "source-map.json"}),
+                encoding="utf-8",
+            )
+            (output / "source-map.json").write_text(
+                json.dumps({"sources": [record]}, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            corpus = {relative: VALIDATOR.normalize_source_text(content)}
+            with patch.object(VALIDATOR, "ROOT", root):
+                source_map = VALIDATOR.load_source_map(output, corpus)
+            self.assertIn("SRC-APP", source_map)
+
+    def test_source_map_rejects_unsafe_manifest_path(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "output"
+            output.mkdir()
+            (output / "SUITE-MANIFEST.json").write_text(
+                json.dumps({"source_map_json": "../source-map.json"}),
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(SystemExit, "Unsafe source_map_json path"):
+                VALIDATOR.resolve_source_map_path(output)
+
     def test_source_id_resolves_heading_locator_through_sha_verified_source_map(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
