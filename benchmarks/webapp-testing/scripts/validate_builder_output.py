@@ -760,7 +760,7 @@ def main() -> int:
         "all_case_coverage_tag_counts": dict(sorted(coverage_tag_counts.items())),
         "schema_errors": 0,
         "source_evidence_refs_verified": source_evidence_verified,
-        "source_evidence_check": "locator/quote pair matched to SOURCE-MAP.json; source_id resolved to a trusted input file with matching SHA-256; exact normalized quote rechecked in that file",
+        "source_evidence_check": "source_id resolved through the manifest-declared source map; source path/title/type matched; source SHA-256 verified against the exact archived Builder input; exact normalized quote rechecked in that source file",
         "quality_status_gate": "candidate/needs_info",
         "execution_status_gate": "NOT_RUN",
         "unknown_policy_gate": "present_in_every_case",
