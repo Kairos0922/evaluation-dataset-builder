@@ -131,6 +131,11 @@ JSONL 文件必须每行包含一个完整且符合 Schema 的 JSON 对象。清
 - needs_info：权威依据缺失或存在尚未解决的冲突。
 - rejected：无效、不安全、不可测或无法修复。
 
+质量状态必须按交付层级汇总，不得只复制单条用例的状态：
+- 只要套件范围内存在未解决的权威依据缺口、`needs_info` 用例，或 `coverage-matrix.json` 中 `applicability=needs_info` 的覆盖项，套件 Manifest 的 `quality_status` 必须为 `needs_info`。
+- 数据集范围内存在未解决的 `needs_info` 用例或覆盖缺口时，该数据集 Manifest 的 `quality_status` 必须为 `needs_info`。
+- 只有不存在上述未解决事项时，才可将对应层级标记为 `candidate`；不得以大多数用例为 candidate 为由覆盖少数未解决缺口。
+
 执行状态独立记录，只能使用 DESIGN_ONLY、READY_TO_RUN、EXECUTION_VERIFIED 或 NOT_RUN。
 
 approved 不代表 EXECUTION_VERIFIED。不得把设计完成、结构校验通过或人工认可的方案描述为真实执行成功。
