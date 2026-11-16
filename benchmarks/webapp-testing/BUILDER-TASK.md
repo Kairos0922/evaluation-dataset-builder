@@ -50,3 +50,16 @@
 - 报告模板。
 
 输出数量、数据集划分和用例分布由你决定并论证。不要手工预设用例列表，不要把任务说明本身当作正式评测用例。
+
+## 来源定位格式补充（强制）
+
+为保证每条来源引用可以脱离上下文独立追溯，所有 case-level `source_refs[].locator` 以及 `SOURCE-MAP.json` 中的 `locators[].locator`，必须同时包含**来源文件名和章节/行号定位**。统一格式：
+
+`<相对于输入资产根目录的文件路径>#<章节标题、规则编号或行号>`
+
+示例：
+- `assets/public/application-overview.md#§3 初始数据 表`
+- `assets/public/business-rules.md#BR-01 任务摘要`
+- `upstream-skill/SKILL.md#L9`
+
+不得只填写 `§3 初始数据 表`、`BR-01`、`第 3 节` 等脱离文件名的定位。来源文件路径必须与 `SOURCE-MAP.json` 中该 source_id 对应的 path 完全一致；引文仍须是该文件中的连续原文。不得为了通过验证而修改、缩短或转述引文。
