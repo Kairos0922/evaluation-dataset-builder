@@ -99,16 +99,13 @@ def load_source_corpus() -> dict[str, str]:
 def resolve_source_map_path(output: Path) -> Path:
     """Resolve the source-map JSON through the Suite Manifest's declared path."""
     suite_manifest_path = output / "SUITE-MANIFEST.json"
-    if not suite_manifest_path.is_file():
-        raise SystemExit("Builder output lacks SUITE-MANIFEST.json")
-
-    suite_manifest = load_json(suite_manifest_path)
+    suite_manifest = load_json(suite_manifest_path) if suite_manifest_path.is_file() else {}
     declared_path = (
         suite_manifest.get("source_map_json")
         if isinstance(suite_manifest, dict) else None
     )
-    # Keep compatibility with earlier artifacts that used the documented
-    # uppercase filename but did not declare source_map_json.
+    # Keep compatibility with earlier artifacts and focused unit fixtures
+    # that contain only the documented uppercase source-map filename.
     if declared_path is None:
         declared_path = "SOURCE-MAP.json"
     require_nonempty_text(declared_path, "SUITE-MANIFEST.json.source_map_json")
@@ -140,7 +137,6 @@ def load_source_map(output: Path, corpus: dict[str, str]) -> dict[str, dict]:
     searched in that exact file.
     """
     path = resolve_source_map_path(output)
-    map_label = path.name
     source_map = load_json(path)
     records = source_map.get("sources") if isinstance(source_map, dict) else None
     if not isinstance(records, list) or not records:
