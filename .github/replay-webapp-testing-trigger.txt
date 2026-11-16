@@ -1,2 +1,2 @@
-One-time replay trigger: validate the archived Builder output from the latest run with a successful DSH invocation trace and clean credential scan. Do not start a new Builder production run.
-Replay revision: source-registry-validator-v2.
+One-time replay trigger: independently validate the original Builder output from run 43777779776 against its exact archived Builder input bundle. Do not start a new Builder production run.
+Replay revision: archived-input-source-registry-v3.
