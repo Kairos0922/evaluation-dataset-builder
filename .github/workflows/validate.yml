@@ -491,6 +491,11 @@ jobs:
             exit 2
           }
 
+      - name: Check DeepSeek account balance before any model request
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: python scripts/deepseek_model_preflight.py --model deepseek-flash
+
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
