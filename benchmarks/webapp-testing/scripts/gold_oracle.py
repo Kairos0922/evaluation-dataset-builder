@@ -319,9 +319,10 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
         add_check(checks, "Observed search results match the independently derived fixture branch", all_match, json.dumps({"branch": branch_name, "expected": expected_counts, "observed": observed}, ensure_ascii=False))
         add_check(checks, "Search did not mutate the task set", not audit_writes(audit), json.dumps(audit_writes(audit), ensure_ascii=False))
         add_check(checks, "Search preserved the initial task set and summary", pre_is_initial and tasks_match_declared(post_tasks, initial_tasks) and post.get("summary") == initial_summary, f"pre_initial={pre_is_initial}; post_ids={[item['id'] for item in post_tasks]}; summary={post.get('summary')}")
+        reference_branch = possible.get("conforming") or expected_branch
         expected_ids = {
             item_id
-            for values in expected_branch.values() if isinstance(values, list)
+            for values in reference_branch.values() if isinstance(values, list)
             for item_id in values
         }
         expected_tasks = [item for item in initial_tasks if item.get("id") in expected_ids]
