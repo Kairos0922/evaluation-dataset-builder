@@ -163,11 +163,16 @@ def load_source_map(output: Path, corpus: dict[str, str]) -> dict[str, dict]:
     if not isinstance(source_map, dict):
         raise SystemExit("source-map JSON must be an object")
 
-    require_quote_map = True
+    path_base = str(source_map.get("path_base") or "").strip().casefold()
     records = source_map.get("sources")
+    registry = source_map.get("source_registry")
+    file_records = source_map.get("files")
+    # Prefer source_registry + files when both are present. This form binds
+    # each source ID to a SHA-256-verified file without requiring a duplicate
+    # quote map; every case-level quotation is checked against that exact file.
+    if isinstance(registry, list) and registry and isinstance(file_records, list) and file_records:
+        records = None
     if not isinstance(records, list) or not records:
-        registry = source_map.get("source_registry")
-        file_records = source_map.get("files")
         if not isinstance(registry, list) or not registry:
             raise SystemExit("source-map JSON must contain sources[] or source_registry[]")
         if not isinstance(file_records, list) or not file_records:
@@ -194,7 +199,6 @@ def load_source_map(output: Path, corpus: dict[str, str]) -> dict[str, dict]:
             files_by_path[file_path] = file_record
 
         records = []
-        require_quote_map = False
         for registry_record in registry:
             if not isinstance(registry_record, dict):
                 raise SystemExit("source-map JSON source_registry[] must contain objects")
@@ -239,12 +243,21 @@ def load_source_map(output: Path, corpus: dict[str, str]) -> dict[str, dict]:
             raise SystemExit(f"{source_id}: source-map JSON must include a lowercase SHA-256")
 
         relative = Path(declared_path)
-        if relative.is_absolute() or ".." in relative.parts:
+        if relative.is_absolute() or ".." in relative.parts or "\\" in declared_path:
             raise SystemExit(f"{source_id}: unsafe source path in source-map JSON: {declared_path}")
         relative_text = relative.as_posix()
+        path_candidates = [relative_text]
+        # Builder source maps may use paths relative to the suite directory,
+        # for example sources/assets/public/business-rules.md. Resolve that
+        # prefix to the exact archived input path, never to the Builder's copy.
+        if path_base == "suite directory" and relative_text.startswith("sources/"):
+            path_candidates.append(relative_text[len("sources/"):])
         candidate_paths = [
             corpus_path for corpus_path in corpus
-            if corpus_path == relative_text or corpus_path.endswith("/" + relative_text)
+            if any(
+                corpus_path == candidate or corpus_path.endswith("/" + candidate)
+                for candidate in path_candidates
+            )
         ]
         # Some provenance-only input records are not in the validator's trusted
         # evidence corpus. They remain unmapped and cannot be cited by a case.
@@ -267,7 +280,10 @@ def load_source_map(output: Path, corpus: dict[str, str]) -> dict[str, dict]:
         quote_records = record.get("quotes")
         if quote_records is None:
             quote_records = record.get("locators")
-        record_requires_quotes = record.get("_require_quote_map", require_quote_map)
+        # A quote map is optional. If the Builder supplies one, enforce the
+        # locator/quote pair; otherwise verify each case quote directly against
+        # the SHA-256-verified trusted source file below.
+        record_requires_quotes = record.get("_require_quote_map", quote_records is not None)
         if quote_records is None:
             if record_requires_quotes:
                 raise SystemExit(f"{source_id}: source-map JSON lacks quote records")
@@ -281,6 +297,10 @@ def load_source_map(output: Path, corpus: dict[str, str]) -> dict[str, dict]:
             require_nonempty_text(item.get("quoted_evidence"), f"{source_id}.quotes[].quoted_evidence")
 
         verified_record = dict(record)
+        normalized_declared_path = relative_text
+        if path_base == "suite directory" and normalized_declared_path.startswith("sources/"):
+            normalized_declared_path = normalized_declared_path[len("sources/"):]
+        verified_record["_normalized_path"] = normalized_declared_path
         verified_record["_verified_corpus_paths"] = verified_paths
         verified_record["_verified_quotes"] = quote_records
         verified_record["_require_quote_map"] = bool(record_requires_quotes)
@@ -315,8 +335,17 @@ def verify_source_evidence(
             raise SystemExit(f"{case_id}: source title does not match source-map JSON for {source_id}")
         if source.get("source_type") != mapped["source_type"]:
             raise SystemExit(f"{case_id}: source_type does not match source-map JSON for {source_id}")
-        if source.get("path") and source.get("path") != mapped["path"]:
-            raise SystemExit(f"{case_id}: source path does not match source-map JSON for {source_id}")
+        if source.get("path"):
+            source_path = str(source["path"])
+            source_relative = Path(source_path)
+            if source_relative.is_absolute() or ".." in source_relative.parts or "\\" in source_path:
+                raise SystemExit(f"{case_id}: unsafe source path for {source_id}: {source_path}")
+            source_path_text = source_relative.as_posix()
+            mapped_path_text = mapped.get("_normalized_path", mapped["path"])
+            if source_path_text.startswith("sources/") and not mapped_path_text.startswith("sources/"):
+                source_path_text = source_path_text[len("sources/"):]
+            if source_path_text != mapped_path_text:
+                raise SystemExit(f"{case_id}: source path does not match source-map JSON for {source_id}")
 
         normalized_locator = normalize_source_text(str(locator))
         if mapped.get("_require_quote_map"):
