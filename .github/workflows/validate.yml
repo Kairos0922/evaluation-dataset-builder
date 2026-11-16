@@ -625,7 +625,7 @@ jobs:
           This is a minimal model connectivity probe only.
           PROMPT
           set +e
-          dsh --profile headless --json --permission-mode workspace-write - \
+          timeout 90s dsh --profile headless --json --permission-mode workspace-write - \
             < "$prompt" \
             > artifacts/builder-connectivity-probe-events.jsonl \
             2> artifacts/builder-connectivity-probe-stderr.log
