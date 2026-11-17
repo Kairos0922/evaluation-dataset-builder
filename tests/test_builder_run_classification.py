@@ -50,6 +50,19 @@ class BuilderRunClassificationTests(unittest.TestCase):
             self.assertEqual(result["quota_error_sources"], ["connectivity_probe"])
             self.assertFalse(result["builder_invocation_started"])
 
+    def test_bare_402_in_token_usage_is_not_a_quota_error(self):
+        with tempfile.TemporaryDirectory() as directory:
+            artifacts = self.make_artifacts(Path(directory))
+            self.write_exit(artifacts, 0)
+            (artifacts / "builder-dsh-events.jsonl").write_text(
+                '{"type":"status","usage":{"inputTokens":402,"outputTokens":104}}\\n',
+                encoding="utf-8",
+            )
+            result = CLASSIFIER.classify_builder_run(artifacts)
+            self.assertEqual(result["status"], "DSH_EXIT_ZERO")
+            self.assertFalse(result["quota_error_detected"])
+            self.assertTrue(result["trace_verification_allowed"])
+
     def test_quota_keyword_in_builder_event_is_classified(self):
         with tempfile.TemporaryDirectory() as directory:
             artifacts = self.make_artifacts(Path(directory))
