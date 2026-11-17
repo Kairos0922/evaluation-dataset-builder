@@ -154,7 +154,6 @@ jobs:
           DEEPSEEK_EVIDENCE_REPAIR: "1"
           DEEPSEEK_BASE_URL: https://api.deepseek.com
           DEEPSEEK_MAX_ESTIMATED_COST_USD: "10.00"
-          DEEPSEEK_MAX_API_REQUESTS: "220"
           DEEPSEEK_MAX_TOKENS: ${{ vars.DEEPSEEK_MAX_TOKENS || '16384' }}
           EVAL_GIT_SHA: ${{ inputs.candidate_sha || github.sha }}
         run: |
