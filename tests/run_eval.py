@@ -44,7 +44,7 @@ MODEL_RATE_LIMITS = {}
 MODEL_RATE_HISTORY = {}
 MODEL_PRICING_USD_PER_MILLION = {
     "deepseek-flash": {"input": 0.30, "output": 1.20},
-    "deepseek-v4-pro": {"input": 0.30, "output": 1.20},
+    "deepseek-v4-pro": {"input": 1.32, "output": 3.96},
 }
 USAGE_BY_MODEL = {}
 API_REQUEST_COUNT = 0
