@@ -1,5 +1,4 @@
-Run the v3 evidence-grounded evaluation against the exact current PR #39 head SHA.
-The Skill package tree is unchanged from the previously evaluated candidate.
-Use the updated Judge prompt with mandatory verbatim quotes and the clarified SE10/SE11 observable criteria.
-Retain the strict local evidence verifier, 100% behavior evaluability gate, two-run requirement, matched baseline, and stability thresholds.
-Do not merge or publish. Archive the full report and checkpoint, including any budget-interrupted partial progress.
+Resume the existing checkpoint from failed run 44098897918 against the exact current PR #39 head SHA 841fc09a41667bb35a43e3140a454be3059adaec.
+The Judge completion cap is now 4800 tokens. Preserve all previous responses and the uncertain truncated Judge request in the checkpoint; retry only the incomplete request with the higher cap.
+Do not restart the completed generation calls. Keep all release thresholds unchanged: 100% behavior evaluability, behavior pass >=90%, Trigger Precision/Recall >=95%, two full repeats, baseline comparison, and <=5 percentage-point spread.
+Archive the complete report and checkpoint. Do not merge or publish.
