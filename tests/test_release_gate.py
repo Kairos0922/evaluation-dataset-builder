@@ -1448,7 +1448,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 "Target: Billing Support. Objective: verify monthly totals.",
             )
         self.assertIn("1-3 short VERBATIM substrings", call.call_args.args[2])
-        self.assertEqual(call.call_args.kwargs["max_completion_tokens"], 2400)
+        self.assertEqual(call.call_args.kwargs["max_completion_tokens"], 4800)
         self.assertLessEqual(call.call_args.kwargs["max_completion_tokens"], RUN_EVAL.MAX_COMPLETION_TOKENS)
         self.assertEqual(results[0]["score"], 1)
         self.assertTrue(results[0]["evidence_validated"])
@@ -1466,7 +1466,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 "key", "openai/gpt-oss-120b", ["criterion"], "Closest available sentence.",
                 api_url="https://api.groq.com/openai/v1/chat/completions",
             )
-        self.assertEqual(call.call_args.kwargs["max_completion_tokens"], 2400)
+        self.assertEqual(call.call_args.kwargs["max_completion_tokens"], 4800)
         self.assertEqual(call.call_args.kwargs["api_url"], "https://api.groq.com/openai/v1/chat/completions")
         self.assertFalse(call.call_args.kwargs["thinking"])
         self.assertEqual(call.call_args.kwargs["temperature"], 0.0)
