@@ -55,7 +55,7 @@ class BuilderRunClassificationTests(unittest.TestCase):
             artifacts = self.make_artifacts(Path(directory))
             self.write_exit(artifacts, 1)
             (artifacts / "builder-dsh-events.jsonl").write_text(
-                '{"type":"error","message":"QUOTA_EXCEEDED"}\\n',
+                '{"type":"error","message":"QUOTA_EXCEEDED"}\n',
                 encoding="utf-8",
             )
             result = CLASSIFIER.classify_builder_run(artifacts)
@@ -78,7 +78,7 @@ class BuilderRunClassificationTests(unittest.TestCase):
             artifacts = self.make_artifacts(Path(directory))
             self.write_exit(artifacts, 0)
             (artifacts / "builder-dsh-events.jsonl").write_text(
-                '{"type":"final","reason":{"kind":"completed"}}\\n',
+                '{"type":"final","reason":{"kind":"completed"}}\n',
                 encoding="utf-8",
             )
             result = CLASSIFIER.classify_builder_run(artifacts)
