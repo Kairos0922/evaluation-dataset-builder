@@ -1,0 +1,11 @@
+# One-time Builder production request
+
+This file records the explicit opt-in for one full Builder production run on the next PR #38 head commit.
+
+- Requested operation: run the existing `validate.yml` workflow with the `run-builder-production` label.
+- Required order: runtime preflight, one minimal DeepSeek connectivity probe through the same DSH headless profile, formal Evaluation Dataset Builder production, trace and credential checks, independent validation of the exact Builder output, then three real Skill trials only if validation explicitly passes.
+- Quota rule: HTTP 402, QUOTA, or Insufficient Balance is an external DeepSeek account blocker. Stop immediately. Do not retry the full Builder, switch providers, or validate partial output.
+- Evidence rule: archive DSH events, stderr, exit code, and partial output after the credential scan even on non-zero exit. Partial output is diagnostic only.
+- PR boundary: PR #38 must remain Draft/Open and unmerged.
+
+This request does not authorize any PR state transition, release tag, or GitHub Release.
