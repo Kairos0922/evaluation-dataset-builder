@@ -232,7 +232,7 @@ def self_test() -> int:
                 "business_rule_refs": ["BR-02"],
                 "workflow_refs": ["WF-SEARCH"],
                 "scenario_bucket": ["business_rule", "boundary"],
-                "user_input": "验证搜索。查询 ONBOARDING 应不区分大小写命中标题 Update onboarding guide；查询 screenshots 应命中描述。",
+                "user_input": "验证搜索。查询 ONBOARDING 应不区分大小写命中标题 Update onboarding guide；查询 screenshots 应命中描述；再用不同的大小写搜索同一描述词。",
             },
             {
                 "dataset_id": "D-CORE",
