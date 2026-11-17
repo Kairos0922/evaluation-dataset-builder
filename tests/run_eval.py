@@ -46,14 +46,9 @@ MAX_COMPLETION_TOKENS = int(os.getenv("DEEPSEEK_MAX_TOKENS", "16384"))
 MAX_ESTIMATED_COST_USD = float(os.getenv("DEEPSEEK_MAX_ESTIMATED_COST_USD", "1.50"))
 MAX_API_REQUESTS = int(os.getenv("DEEPSEEK_MAX_API_REQUESTS", "220"))
 MAX_ESTIMATED_REQUEST_TOKENS = int(os.getenv("DEEPSEEK_MAX_ESTIMATED_REQUEST_TOKENS", "950000"))
-MODEL_CONTEXT_LIMITS = {"openai/gpt-oss-120b": 131072}
-MODEL_RATE_LIMITS = {
-    "openai/gpt-oss-120b": {
-        "rpm": int(os.getenv("GROQ_JUDGE_RPM", "30")),
-        "tpm": int(os.getenv("GROQ_JUDGE_TPM", "8000")),
-        "tpd": int(os.getenv("GROQ_JUDGE_TPD", "200000")),
-    }
-}
+MODEL_CONTEXT_LIMITS = {}
+# DeepSeek model capacity is checked live by scripts/deepseek_model_preflight.py.
+MODEL_RATE_LIMITS = {}
 MODEL_RATE_HISTORY = {}
 MODEL_PRICING_USD_PER_MILLION = {
     "deepseek-flash": {"input": 0.30, "output": 1.20},
@@ -71,13 +66,11 @@ CHECKPOINT_STORE = {"schema_version": 6, "signature": None, "responses": {}, "pe
 def effective_model_identity(base_url, model):
     """Resolve documented provider aliases before claiming model independence."""
     normalized_base = base_url.rstrip("/")
-    if normalized_base == "https://api.deepseek.com" and model in {
-        "deepseek-flash", "deepseek-v4-pro", "deepseek-v4-flash",
-        "deepseek-v4-flash-vision-exp",
-    }:
-        # DeepSeek announced all deepseek-v4-pro requests route to V4.1 Flash
-        # from 2026-09-14 until V4.1-Pro is launched.
-        return "deepseek:DeepSeek-V4.1-Flash-1017"
+    if normalized_base == "https://api.deepseek.com":
+        return {
+            "deepseek-flash": "deepseek:DeepSeek-V4.1-Flash-1017",
+            "deepseek-v4-pro": "deepseek:DeepSeek-V4-Pro-0813",
+        }.get(model, normalized_base + "::" + model)
     return normalized_base + "::" + model
 
 
@@ -118,22 +111,9 @@ def build_payload(model, system, user, max_completion_tokens=900,
 def estimate_request_tokens(system, user, max_completion_tokens, model=None):
     """Estimate complete prompt plus reserved output before sending a request.
 
-    GPT-OSS uses the o200k_harmony tokenizer, which extends o200k_base with
-    Harmony control tokens. Count the plain-text system/user content using
-    o200k_base, then add framing overhead and a 10% margin for the chat template,
-    provider serialization, and estimator variance. Reserve the full requested
-    completion budget. Other providers retain the conservative UTF-8 fallback.
+    Use a conservative UTF-8 estimate plus the complete requested output budget.
+    DeepSeek context and output limits are checked from live model metadata. Other providers retain the conservative UTF-8 fallback.
     """
-    global GROQ_TOKEN_ENCODER
-    if model == "openai/gpt-oss-120b" and tiktoken is not None:
-        if GROQ_TOKEN_ENCODER is None:
-            GROQ_TOKEN_ENCODER = tiktoken.get_encoding("o200k_base")
-        prompt_tokens = (
-            len(GROQ_TOKEN_ENCODER.encode(system, disallowed_special=()))
-            + len(GROQ_TOKEN_ENCODER.encode(user, disallowed_special=()))
-        )
-        guarded_prompt = math.ceil(prompt_tokens * (1 + GROQ_TOKENIZER_MARGIN))
-        return guarded_prompt + GROQ_CHAT_FRAMING_TOKENS + max_completion_tokens
     prompt_bytes = len(system.encode("utf-8")) + len(user.encode("utf-8"))
     return math.ceil(prompt_bytes / 2) + max_completion_tokens
 
@@ -1016,9 +996,7 @@ def main():
         judge_api_base_url, args.judge_model
     ):
         print(
-            "ERROR: Generator and Judge resolve to the same deployed model. "
-            "DeepSeek routes deepseek-v4-pro to V4.1 Flash, so configure a genuinely "
-            "independent Judge provider/model before spending evaluation quota.",
+            "ERROR: Generator and Judge must use distinct deployed model identities. Use DeepSeek V4.1 Flash for generation and DeepSeek V4 Pro for judging.",
             file=sys.stderr,
         )
         return 2
@@ -1070,7 +1048,7 @@ def main():
             partial_report = {
                 "schema_version": "1.2",
                 "status": "INCOMPLETE",
-                "provider": "multi-provider",
+                "provider": "deepseek-only",
                 "api_base_url": DEEPSEEK_BASE_URL,
                 "judge_api_base_url": judge_api_base_url,
                 "git_sha": evaluation_git_sha(),
