@@ -1,4 +1,5 @@
-Resume the existing checkpoint from failed run 44098897918 against the exact current PR #39 head SHA 841fc09a41667bb35a43e3140a454be3059adaec.
-The Judge completion cap is now 4800 tokens. Preserve all previous responses and the uncertain truncated Judge request in the checkpoint; retry only the incomplete request with the higher cap.
-Do not restart the completed generation calls. Keep all release thresholds unchanged: 100% behavior evaluability, behavior pass >=90%, Trigger Precision/Recall >=95%, two full repeats, baseline comparison, and <=5 percentage-point spread.
+resume_run_id=44098897918
+Resume the existing checkpoint from run 44098897918 against the exact current PR #39 head SHA from this push.
+Retry the one truncated Judge request with the 4800-token completion cap; preserve all previously cached responses and do not restart completed generation calls.
+Keep all release thresholds unchanged: 100% behavior evaluability, behavior pass >=90%, Trigger Precision/Recall >=95%, two full repeats, matched baseline, and <=5 percentage-point spread.
 Archive the complete report and checkpoint. Do not merge or publish.
