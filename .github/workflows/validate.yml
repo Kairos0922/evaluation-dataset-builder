@@ -215,7 +215,10 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  # Runtime setup and fixture checks are prerequisites for paid production only.
+  # Keep them out of ordinary CI; they still run before every opted-in Builder run.
   runtime-preflight:
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production)
     needs: audit-upstream-assets
     runs-on: ubuntu-latest
     timeout-minutes: 15
