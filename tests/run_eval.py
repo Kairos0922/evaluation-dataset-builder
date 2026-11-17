@@ -55,7 +55,7 @@ CHECKPOINT_STORE = {"schema_version": 6, "signature": None, "responses": {}, "pe
 
 
 def effective_model_identity(base_url, model):
-    """Resolve documented provider aliases before claiming model independence."""
+    """Return the canonical deployed model identity for evaluation configuration."""
     normalized_base = base_url.rstrip("/")
     if normalized_base == "https://api.deepseek.com":
         return {
