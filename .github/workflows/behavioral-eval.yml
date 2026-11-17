@@ -167,6 +167,9 @@ jobs:
           RESUME_RUN_ID: ${{ inputs.resume_run_id || '' }}
         run: |
           set -euo pipefail
+          if [ -z "$RESUME_RUN_ID" ] && [ -f .github/behavioral-eval-trigger.txt ]; then
+            RESUME_RUN_ID="$(sed -n 's/^resume_run_id=//p' .github/behavioral-eval-trigger.txt | head -n 1)"
+          fi
           if [ -z "$RESUME_RUN_ID" ]; then
             echo "未指定恢复运行 ID，将从全新检查点开始。"
             exit 0
@@ -188,7 +191,7 @@ jobs:
           DEEPSEEK_MAX_ESTIMATED_COST_USD: "1.50"
           DEEPSEEK_MAX_API_REQUESTS: "220"
           DEEPSEEK_MAX_TOKENS: "16384"
-          EVAL_JUDGE_MAX_COMPLETION_TOKENS: ${{ vars.EVAL_JUDGE_MAX_COMPLETION_TOKENS || '2400' }}
+          EVAL_JUDGE_MAX_COMPLETION_TOKENS: ${{ vars.EVAL_JUDGE_MAX_COMPLETION_TOKENS || '4800' }}
           GROQ_JUDGE_RPM: ${{ vars.GROQ_JUDGE_RPM || '30' }}
           GROQ_JUDGE_TPM: ${{ vars.GROQ_JUDGE_TPM || '8000' }}
           GROQ_JUDGE_TPD: ${{ vars.GROQ_JUDGE_TPD || '180000' }}
