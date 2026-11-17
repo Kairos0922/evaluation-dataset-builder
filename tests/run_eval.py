@@ -17,7 +17,7 @@ import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com").rstrip("/")
+DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 API_URL = DEEPSEEK_BASE_URL + "/chat/completions"
 POLICY = {
     "behavior_pass_rate": 0.90,
@@ -29,7 +29,7 @@ POLICY = {
 CRITICAL_CASE_IDS = ["SE03", "SE04", "SE05", "SE08", "SE09", "SE11", "SE12"]
 DEFAULT_GENERATOR_MODEL = "deepseek-flash"
 DEFAULT_JUDGE_MODEL = "deepseek-v4-pro"
-JUDGE_BASE_URL = (os.getenv("EVAL_JUDGE_BASE_URL") or DEEPSEEK_BASE_URL).rstrip("/")
+JUDGE_BASE_URL = DEEPSEEK_BASE_URL
 JUDGE_API_URL = JUDGE_BASE_URL + "/chat/completions"
 DEFAULT_USER_AGENT = "evaluation-dataset-builder/0.0.1 (+https://github.com/Kairos0922/evaluation-dataset-builder)"
 # Paid API safety controls. Price estimates use peak-hour cache-miss rates so
@@ -582,7 +582,7 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
     try:
         raw = api_call(
             api_key, model, system, user,
-            max_completion_tokens=int(os.getenv("EVAL_JUDGE_MAX_COMPLETION_TOKENS", "4800")), json_mode=True, temperature=0.0,
+            max_completion_tokens=int(os.getenv("DEEPSEEK_JUDGE_MAX_COMPLETION_TOKENS", "4800")), json_mode=True, temperature=0.0,
             thinking=False, api_url=api_url,
         )
     except ProviderStopError:
@@ -939,7 +939,7 @@ def main():
     )
     parser.add_argument(
         "--judge-model",
-        default=(os.getenv("EVAL_JUDGE_MODEL") or os.getenv("DEEPSEEK_JUDGE_MODEL") or DEFAULT_JUDGE_MODEL),
+        default=(os.getenv("DEEPSEEK_JUDGE_MODEL") or DEFAULT_JUDGE_MODEL),
     )
     parser.add_argument("--output", default="artifacts/eval-report.json")
     parser.add_argument("--checkpoint", default="artifacts/eval-checkpoint.json")
@@ -950,31 +950,7 @@ def main():
     generator_api_key = os.getenv("DEEPSEEK_GENERATOR_API_KEY", shared_api_key)
     judge_api_base_url = JUDGE_BASE_URL
     judge_api_url = JUDGE_API_URL
-    external_judge = judge_api_base_url != DEEPSEEK_BASE_URL
-    if external_judge:
-        judge_api_key = os.getenv("EVAL_JUDGE_API_KEY", "")
-        input_price = os.getenv("EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION", "")
-        output_price = os.getenv("EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION", "")
-        if not judge_api_key or not input_price or not output_price:
-            print(
-                "ERROR: external Judge requires EVAL_JUDGE_API_KEY, EVAL_JUDGE_BASE_URL, "
-                "EVAL_JUDGE_MODEL, and explicit input/output USD-per-million-token prices.",
-                file=sys.stderr,
-            )
-            return 2
-        if not os.getenv("EVAL_JUDGE_MODEL") and args.judge_model == DEFAULT_JUDGE_MODEL:
-            print("ERROR: set EVAL_JUDGE_MODEL for the external Judge provider.", file=sys.stderr)
-            return 2
-        try:
-            MODEL_PRICING_USD_PER_MILLION[args.judge_model] = {
-                "input": float(input_price),
-                "output": float(output_price),
-            }
-        except ValueError:
-            print("ERROR: external Judge token prices must be numeric.", file=sys.stderr)
-            return 2
-    else:
-        judge_api_key = os.getenv("DEEPSEEK_JUDGE_API_KEY", shared_api_key)
+    judge_api_key = os.getenv("DEEPSEEK_JUDGE_API_KEY", shared_api_key)
     if not generator_api_key or not judge_api_key:
         print(
             "ERROR: set DEEPSEEK_GENERATOR_API_KEY and DEEPSEEK_JUDGE_API_KEY, "
