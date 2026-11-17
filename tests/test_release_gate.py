@@ -320,7 +320,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
     def test_release_verifier_rejects_missing_or_unverifiable_suite_evidence(self):
         report = self._valid_release_report()
         report["models"]["judge_and_trigger"] = report["models"]["generator"]
-        with self.assertRaisesRegex(ValueError, "distinct"):
+        with self.assertRaisesRegex(ValueError, "deepseek-flash"):
             VERIFY_RELEASE.verify_report(report, "candidate-sha", 12345)
         report = self._valid_release_report()
         report["runs"][0]["skill_cases"][0]["checks"][0]["evidence_validated"] = False
@@ -388,7 +388,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         )
         self.assertEqual(result["user"]["login"], "independent-reviewer")
 
-    def test_release_verifier_accepts_distinct_deepseek_models_on_shared_endpoint(self):
+    def test_release_verifier_requires_flash_for_every_evaluation_role(self):
         report = self._valid_release_report()
         self.assertEqual(report["models"]["generator"], "deepseek-flash")
         self.assertEqual(report["models"]["judge_and_trigger"], "deepseek-flash")
@@ -463,7 +463,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn("pull-requests: read", workflow)
         self.assertIn("actions: read", workflow)
 
-    def test_manual_behavior_workflow_is_exact_sha_and_independent_judge_gated(self):
+    def test_manual_behavior_workflow_is_exact_sha_and_flash_only(self):
         workflow = (ROOT / ".github" / "workflows" / "behavioral-eval.yml").read_text(encoding="utf-8")
         source = (ROOT / "tests" / "run_eval.py").read_text(encoding="utf-8")
         self.assertIn("run-name: Behavioral Skill Evaluation", workflow)
@@ -477,9 +477,9 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn('"SKILL_ENTRYPOINT_TEXT_PROXY"', source)
         self.assertIn('"references/*"', source)
         self.assertIn("DEEPSEEK_BASE_URL: https://api.deepseek.com", workflow)
-        self.assertIn("DEEPSEEK_JUDGE_MODEL: deepseek-flash", workflow)
-        self.assertIn("DEEPSEEK_JUDGE_API_KEY", workflow)
-        self.assertIn("--model deepseek-flash", workflow)
+        self.assertNotIn("DEEPSEEK_JUDGE_MODEL", workflow)
+        self.assertNotIn("DEEPSEEK_JUDGE_API_KEY", workflow)
+        self.assertNotIn("deepseek-v4-pro", workflow)
         self.assertIn("DEEPSEEK_MAX_TOKENS", workflow)
         self.assertNotIn("GROQ_API_KEY", workflow)
         self.assertNotIn("api.groq.com", workflow)
@@ -1391,7 +1391,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
             with self.assertRaises(RUN_EVAL.EvaluationBudgetExceeded):
                 RUN_EVAL.judge_case("key", "deepseek-flash", ["criterion"], "candidate")
             with self.assertRaises(RUN_EVAL.EvaluationBudgetExceeded):
-                RUN_EVAL.classify_trigger("key", "deepseek-v4-pro", "query")
+                RUN_EVAL.classify_trigger("key", "deepseek-flash", "query")
 
     def test_judge_accepts_multiple_short_quotes_for_compound_criteria(self):
         response = {"checks": [{
@@ -1485,7 +1485,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         }
         with mock.patch.object(RUN_EVAL, "api_call", side_effect=RuntimeError("provider unavailable")):
             result = RUN_EVAL.evaluate_once(
-                1, "generator-key", "judge-key", "deepseek-flash", "deepseek-v4-pro",
+                1, "generator-key", "judge-key", "deepseek-flash", "deepseek-flash",
                 "skill text", "baseline text", suite, trigger_suite,
             )
         self.assertTrue(result["skill_cases"][0]["generation_error"])
