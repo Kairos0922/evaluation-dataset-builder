@@ -319,7 +319,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
     def test_release_verifier_rejects_missing_or_unverifiable_suite_evidence(self):
         report = self._valid_release_report()
-        report["models"]["judge_and_trigger"] = report["models"]["generator"]
+        report["models"]["judge_and_trigger"] = "deepseek-v4-pro"
         with self.assertRaisesRegex(ValueError, "deepseek-flash"):
             VERIFY_RELEASE.verify_report(report, "candidate-sha", 12345)
         report = self._valid_release_report()
@@ -477,7 +477,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn('"SKILL_ENTRYPOINT_TEXT_PROXY"', source)
         self.assertIn('"references/*"', source)
         self.assertIn("DEEPSEEK_BASE_URL: https://api.deepseek.com", workflow)
-        self.assertNotIn("DEEPSEEK_JUDGE_MODEL", workflow)
+        self.assertIn("DEEPSEEK_JUDGE_MODEL: deepseek-flash", workflow)
         self.assertNotIn("DEEPSEEK_JUDGE_API_KEY", workflow)
         self.assertNotIn("deepseek-v4-pro", workflow)
         self.assertIn("DEEPSEEK_MAX_TOKENS", workflow)
@@ -791,7 +791,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
     def test_all_evaluation_roles_use_the_same_deepseek_flash_model(self):
         self.assertEqual(
             RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-flash"),
-            RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-flash"),
+            "deepseek:DeepSeek-V4.1-Flash-1017",
         )
         self.assertNotEqual(
             RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-flash"),
