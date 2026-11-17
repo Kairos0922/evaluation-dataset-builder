@@ -16,11 +16,6 @@ on:
         description: 该开放 PR 的精确 head SHA（评测与独立审批绑定的提交）
         required: true
         type: string
-      generator_model:
-        description: 行为评测生成端配置（仅开发评测设施使用）
-        required: true
-        default: deepseek-flash
-        type: string
       resume_run_id:
         description: 可选的中断运行 ID；恢复前会校验候选 SHA 与评测签名
         required: false
