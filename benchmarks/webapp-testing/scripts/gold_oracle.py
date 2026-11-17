@@ -606,8 +606,8 @@ def self_test() -> int:
             },
             "delete_confirmation": {
                 "case_id": "DYNAMIC-DELETE-03",
-                "target_title": "Update onboarding guide",
-                "report": "BR-08 PASS: WB-102 Update onboarding guide delete dialog opened; Cancel preserved the task. Delete task removed WB-102 after confirmation.",
+                "target_title": "Verify email notification",
+                "report": "BR-08 PASS: WB-104 Verify email notification delete dialog opened; Cancel preserved the task. Delete task removed WB-104 after confirmation.",
                 "profile": "clean",
                 "mutations": [],
                 "rule_expected": {"target": "Update onboarding guide"},
