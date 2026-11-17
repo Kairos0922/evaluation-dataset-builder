@@ -1,1 +1,5 @@
-Trigger the v0.0.1 two-run behavioral evaluation for the exact current PR #39 head SHA. DeepSeek balance has been restored. Use workflow defaults; do not bypass preflight, thresholds, baseline, or stability gates. Run both required complete runs and archive the report and evidence.
+Run the v3 evidence-grounded evaluation against the exact current PR #39 head SHA.
+The Skill package tree is unchanged from the previously evaluated candidate.
+Use the updated Judge prompt with mandatory verbatim quotes and the clarified SE10/SE11 observable criteria.
+Retain the strict local evidence verifier, 100% behavior evaluability gate, two-run requirement, matched baseline, and stability thresholds.
+Do not merge or publish. Archive the full report and checkpoint, including any budget-interrupted partial progress.
