@@ -1,5 +1,8 @@
-resume_run_id=44098897918
-Resume the existing checkpoint from run 44098897918 against the exact current PR #39 head SHA from this push.
-Retry the one truncated Judge request with the 4800-token completion cap; preserve all previously cached responses and do not restart completed generation calls.
-Keep all release thresholds unchanged: 100% behavior evaluability, behavior pass >=90%, Trigger Precision/Recall >=95%, two full repeats, matched baseline, and <=5 percentage-point spread.
-Archive the complete report and checkpoint. Do not merge or publish.
+Run a fresh exact-SHA behavioral evaluation using DeepSeek only.
+Generator: deepseek-flash (DeepSeek V4.1 Flash).
+Independent Judge and trigger classifier: deepseek-v4-pro (DeepSeek V4 Pro).
+Use the shared DEEPSEEK_API_KEY and https://api.deepseek.com for every LLM request.
+Do not use Groq, OpenAI, or any other third-party model endpoint or credential.
+Do not resume the old Groq checkpoint: its Judge responses are provider-specific and cannot be reused as DeepSeek Judge evidence.
+Run two complete repetitions, matched baseline, all trigger cases, 100% evaluability, behavior pass >=90%, Trigger Precision/Recall >=95%, and stability spread <=5 percentage points.
+Keep all release thresholds unchanged. Archive the full report and checkpoint. Do not merge or publish.
