@@ -36,7 +36,7 @@ DEFAULT_USER_AGENT = "evaluation-dataset-builder/0.0.1 (+https://github.com/Kair
 # the guard remains conservative even when actual cache/off-peak billing is cheaper.
 MAX_COMPLETION_TOKENS = int(os.getenv("DEEPSEEK_MAX_TOKENS", "16384"))
 MAX_ESTIMATED_COST_USD = float(os.getenv("DEEPSEEK_MAX_ESTIMATED_COST_USD", "1.50"))
-MAX_API_REQUESTS = int(os.getenv("DEEPSEEK_MAX_API_REQUESTS", "220"))
+MAX_API_REQUESTS = int(os.getenv("DEEPSEEK_MAX_API_REQUESTS", "0"))
 MAX_ESTIMATED_REQUEST_TOKENS = int(os.getenv("DEEPSEEK_MAX_ESTIMATED_REQUEST_TOKENS", "950000"))
 MODEL_CONTEXT_LIMITS = {}
 # DeepSeek model capacity is checked live by scripts/deepseek_model_preflight.py.
@@ -330,9 +330,9 @@ def api_call(api_key, model, system, user, max_completion_tokens=900,
     request = make_request(payload)
     for attempt in range(3):
         # Reserve every physical HTTP attempt (including retries) before sending it.
-        if API_REQUEST_COUNT >= MAX_API_REQUESTS:
+        if MAX_API_REQUESTS > 0 and API_REQUEST_COUNT >= MAX_API_REQUESTS:
             raise EvaluationBudgetExceeded(
-                f"API request cap reached ({MAX_API_REQUESTS}); stopping before another paid request."
+                f"Optional API request cap reached ({MAX_API_REQUESTS}); stopping before another paid request."
             )
         if ESTIMATED_COST_RESERVED_USD + estimated_cost > MAX_ESTIMATED_COST_USD:
             raise EvaluationBudgetExceeded(
@@ -1077,7 +1077,7 @@ def main():
                 "cost_control": {
                     "max_estimated_cost_usd": MAX_ESTIMATED_COST_USD,
                     "estimated_cost_reserved_usd": round(ESTIMATED_COST_RESERVED_USD, 6),
-                    "max_api_requests": MAX_API_REQUESTS,
+                    "max_api_requests": MAX_API_REQUESTS if MAX_API_REQUESTS > 0 else None,
                     "api_requests": API_REQUEST_COUNT,
                     "checkpoint_cache_hits": CACHE_HITS_BY_MODEL,
                     "checkpoint_path": args.checkpoint,
