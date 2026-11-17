@@ -133,10 +133,6 @@ jobs:
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: python scripts/deepseek_model_preflight.py
-      - name: 调用前验证 DeepSeek V4 Pro Judge 模型元数据
-        env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-        run: python scripts/deepseek_model_preflight.py --model deepseek-v4-pro
       - name: 按需恢复匹配的评测检查点
         env:
           GH_TOKEN: ${{ github.token }}
@@ -159,14 +155,14 @@ jobs:
       - name: 执行重复行为、对照基线和触发评测
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          DEEPSEEK_GENERATOR_MODEL: ${{ inputs.generator_model || 'deepseek-flash' }}
+          DEEPSEEK_GENERATOR_MODEL: deepseek-flash
           DEEPSEEK_BASE_URL: https://api.deepseek.com
-          DEEPSEEK_JUDGE_MODEL: deepseek-v4-pro
+          DEEPSEEK_JUDGE_MODEL: deepseek-flash
           DEEPSEEK_JUDGE_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          DEEPSEEK_JUDGE_MAX_COMPLETION_TOKENS: "4800"
+          DEEPSEEK_JUDGE_MAX_COMPLETION_TOKENS: "16384"
           DEEPSEEK_MAX_ESTIMATED_COST_USD: "10.00"
           DEEPSEEK_MAX_API_REQUESTS: "220"
-          DEEPSEEK_MAX_TOKENS: ${{ vars.DEEPSEEK_MAX_TOKENS || '393216' }}
+          DEEPSEEK_MAX_TOKENS: ${{ vars.DEEPSEEK_MAX_TOKENS || '16384' }}
           EVAL_GIT_SHA: ${{ inputs.candidate_sha || github.sha }}
         run: |
           set -euo pipefail
