@@ -790,6 +790,30 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertEqual(result[0]["evidence"], ["Target: Billing Support."])
         self.assertIn("strict evidence extraction retry", api.call_args_list[1].args[2])
 
+    def test_evidence_repair_does_not_upgrade_when_quote_is_not_verifiable(self):
+        initial = {"checks": [{
+            "index": 0, "score": 1,
+            "rationale": "The criterion appears satisfied.",
+            "evidence": [],
+        }]}
+        repair = {
+            "supported": True,
+            "evidence": ["This quote is not in the candidate."],
+        }
+        with mock.patch.dict(RUN_EVAL.os.environ, {"DEEPSEEK_EVIDENCE_REPAIR": "1"}):
+            with mock.patch.object(
+                RUN_EVAL, "api_call",
+                side_effect=[json.dumps(initial), json.dumps(repair)],
+            ):
+                result = RUN_EVAL.judge_case(
+                    "test-key", "deepseek-flash", ["states the target"],
+                    "Target: Billing Support.",
+                )
+        self.assertEqual(result[0]["status"], "UNKNOWN")
+        self.assertIsNone(result[0]["score"])
+        self.assertFalse(result[0]["evidence_validated"])
+        self.assertFalse(result[0]["evidence_repair_used"])
+
     def test_judge_can_report_failure_by_specific_absence_without_fake_quote(self):
         response = {
             "checks": [{
@@ -1440,7 +1464,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "Target: Billing Support.", "Objective: verify monthly totals."
         ])
 
-    def test_judge_uses_deepseek_v4_pro_non_thinking_mode_with_bounded_json_output(self):
+    def test_judge_uses_deepseek_flash_non_thinking_mode_with_bounded_json_output(self):
         response = {"checks": [{
             "index": 0, "score": 0, "rationale": "Missing evidence.",
             "evidence": ["Closest available sentence."],
