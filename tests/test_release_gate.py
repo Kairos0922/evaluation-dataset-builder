@@ -802,6 +802,12 @@ class ReleaseGateUnitTests(unittest.TestCase):
         with mock.patch.dict("os.environ", {"EVAL_GIT_SHA": "candidate-sha"}):
             self.assertEqual(RUN_EVAL.evaluation_git_sha(), "candidate-sha")
 
+    def test_api_call_rejects_non_deepseek_endpoints(self):
+        with self.assertRaisesRegex(RUN_EVAL.ProviderStopError, "official DeepSeek API endpoint"):
+            RUN_EVAL.api_call(
+                "key", "some-model", "system", "user",
+                api_url="https://api.groq.com/openai/v1/chat/completions",
+            )
     def test_api_retries_are_reserved_as_separate_physical_requests(self):
         saved = {
             "api_requests": RUN_EVAL.API_REQUEST_COUNT,
