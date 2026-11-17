@@ -170,6 +170,7 @@ jobs:
           if [ -z "$RESUME_RUN_ID" ] && [ -f .github/behavioral-eval-trigger.txt ]; then
             RESUME_RUN_ID="$(sed -n 's/^resume_run_id=//p' .github/behavioral-eval-trigger.txt | head -n 1)"
           fi
+          echo "RESUME_RUN_ID=$RESUME_RUN_ID" >> "$GITHUB_ENV"
           if [ -z "$RESUME_RUN_ID" ]; then
             echo "未指定恢复运行 ID，将从全新检查点开始。"
             exit 0
