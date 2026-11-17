@@ -1436,6 +1436,21 @@ class ReleaseGateUnitTests(unittest.TestCase):
         second = RUN_EVAL.checkpoint_key(payload)
         self.assertNotEqual(first, second)
 
+    def test_generator_and_judge_use_distinct_deepseek_models_without_groq_limits(self):
+        self.assertEqual(
+            RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-flash"),
+            "deepseek:DeepSeek-V4.1-Flash-1017",
+        )
+        self.assertEqual(
+            RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-v4-pro"),
+            "deepseek:DeepSeek-V4-Pro-0813",
+        )
+        self.assertNotEqual(
+            RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-flash"),
+            RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-v4-pro"),
+        )
+        self.assertEqual(RUN_EVAL.MODEL_RATE_LIMITS, {})
+
     def test_judge_and_trigger_propagate_paid_budget_stop_errors(self):
         with mock.patch.object(RUN_EVAL, "api_call", side_effect=RUN_EVAL.EvaluationBudgetExceeded("budget cap")):
             with self.assertRaises(RUN_EVAL.EvaluationBudgetExceeded):
