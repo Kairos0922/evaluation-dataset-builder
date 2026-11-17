@@ -1016,95 +1016,21 @@ class ReleaseGateUnitTests(unittest.TestCase):
             RUN_EVAL.MAX_API_REQUESTS = saved["max_requests"]
             RUN_EVAL.MAX_ESTIMATED_COST_USD = saved["max_cost"]
 
-    def test_external_judge_payload_omits_deepseek_specific_fields(self):
+    def test_all_evaluation_calls_use_deepseek_models_and_no_provider_daily_quota(self):
         payload = RUN_EVAL.build_payload(
-            "openai/gpt-oss-120b", "system prompt", "candidate output",
+            "deepseek-v4-pro", "system prompt", "candidate output",
             max_completion_tokens=1200, json_mode=True, thinking=False,
-            deepseek_fields=False,
         )
-        self.assertEqual(payload["model"], "openai/gpt-oss-120b")
+        self.assertEqual(payload["model"], "deepseek-v4-pro")
         self.assertEqual(payload["max_tokens"], 1200)
         self.assertIn("response_format", payload)
-        self.assertNotIn("thinking", payload)
-        self.assertNotIn("reasoning_effort", payload)
-
-    def test_groq_token_estimator_uses_o200k_with_margin_and_output_reservation(self):
-        if RUN_EVAL.tiktoken is None:
-            self.skipTest("当前离线环境未安装可选分词库；回退估算由独立测试覆盖。")
-        encoding = RUN_EVAL.tiktoken.get_encoding("o200k_base")
-        system = "You are a strict evaluation judge. " * 30
-        user = "Candidate output and grading criteria. " * 140
-        prompt_tokens = (
-            len(encoding.encode(system, disallowed_special=()))
-            + len(encoding.encode(user, disallowed_special=()))
-        )
-        expected = (
-            __import__("math").ceil(prompt_tokens * 1.10)
-            + 32 + 2400
-        )
-        estimated = RUN_EVAL.estimate_request_tokens(
-            system, user, 2400, model="openai/gpt-oss-120b"
-        )
-        self.assertEqual(estimated, expected)
-        self.assertLess(estimated, 8000)
-        self.assertGreaterEqual(estimated, prompt_tokens + 2400)
-
-    def test_groq_token_estimator_falls_back_conservatively_without_tokenizer(self):
-        saved = RUN_EVAL.tiktoken
-        try:
-            RUN_EVAL.tiktoken = None
-            estimate = RUN_EVAL.estimate_request_tokens(
-                "系统" * 500, "候选输出" * 500, 2400,
-                model="openai/gpt-oss-120b",
-            )
-            self.assertEqual(
-                estimate,
-                __import__("math").ceil(
-                    (len(("系统" * 500).encode("utf-8"))
-                     + len(("候选输出" * 500).encode("utf-8"))) / 2
-                ) + 2400,
-            )
-        finally:
-            RUN_EVAL.tiktoken = saved
-
-    def test_groq_judge_context_and_rate_budgets_fail_closed(self):
-        saved_history = RUN_EVAL.MODEL_RATE_HISTORY
-        saved_store = RUN_EVAL.CHECKPOINT_STORE
-        try:
-            RUN_EVAL.MODEL_RATE_HISTORY = {}
-            with self.assertRaisesRegex(
-                RUN_EVAL.EvaluationBudgetExceeded, "context safety limit"
-            ):
-                RUN_EVAL.throttle_model("openai/gpt-oss-120b", 131073)
-            with self.assertRaisesRegex(
-                RUN_EVAL.EvaluationBudgetExceeded, "per-minute token allowance"
-            ):
-                RUN_EVAL.throttle_model("openai/gpt-oss-120b", 8001)
-            RUN_EVAL.CHECKPOINT_STORE = {
-                "estimated_tokens_reserved_by_model": {"openai/gpt-oss-120b": 199500},
-                "estimated_tokens_reserved_by_model_by_day": {
-                    "2026-11-02": {"openai/gpt-oss-120b": 199500}
-                },
-            }
-            with mock.patch.object(RUN_EVAL, "utc_date_key", return_value="2026-11-02"):
-                with self.assertRaisesRegex(
-                    RUN_EVAL.EvaluationBudgetExceeded, "UTC-day token reservation"
-                ):
-                    RUN_EVAL.reserve_model_daily_tokens("openai/gpt-oss-120b", 1000)
-            with mock.patch.object(RUN_EVAL, "utc_date_key", return_value="2026-11-03"):
-                RUN_EVAL.reserve_model_daily_tokens("openai/gpt-oss-120b", 1000)
-            self.assertEqual(
-                RUN_EVAL.CHECKPOINT_STORE["estimated_tokens_reserved_by_model_by_day"]["2026-11-03"]["openai/gpt-oss-120b"],
-                1000,
-            )
-            self.assertEqual(
-                RUN_EVAL.CHECKPOINT_STORE["estimated_tokens_reserved_by_model"]["openai/gpt-oss-120b"],
-                200500,
-            )
-        finally:
-            RUN_EVAL.MODEL_RATE_HISTORY = saved_history
-            RUN_EVAL.CHECKPOINT_STORE = saved_store
-
+        self.assertIn("thinking", payload)
+        self.assertIn("reasoning_effort", payload)
+        self.assertEqual(RUN_EVAL.MODEL_RATE_LIMITS, {})
+        self.assertEqual(RUN_EVAL.MODEL_PRICING_USD_PER_MILLION["deepseek-v4-pro"], {
+            "input": 1.32, "output": 3.96,
+        })
+        self.assertGreater(RUN_EVAL.MAX_ESTIMATED_COST_USD, 0)
     def test_payload_uses_deepseek_openai_chat_compatibility(self):
         payload = RUN_EVAL.build_payload(
             "deepseek-v4-pro", "system prompt", "user prompt",
@@ -1158,9 +1084,9 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
     def test_paid_model_peak_prices_and_spend_guard_are_configured(self):
         self.assertEqual(RUN_EVAL.MODEL_PRICING_USD_PER_MILLION["deepseek-flash"]["input"], 0.30)
-        self.assertEqual(RUN_EVAL.MODEL_PRICING_USD_PER_MILLION["deepseek-v4-pro"]["output"], 1.20)
+        self.assertEqual(RUN_EVAL.MODEL_PRICING_USD_PER_MILLION["deepseek-v4-pro"]["output"], 3.96)
         self.assertGreater(RUN_EVAL.MAX_ESTIMATED_COST_USD, 0)
-        self.assertLessEqual(RUN_EVAL.MAX_ESTIMATED_COST_USD, 2.0)
+        self.assertLessEqual(RUN_EVAL.MAX_ESTIMATED_COST_USD, 10.0)
         self.assertLessEqual(RUN_EVAL.MAX_API_REQUESTS, 250)
 
     def test_json_extraction(self):
@@ -1481,18 +1407,18 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "Target: Billing Support.", "Objective: verify monthly totals."
         ])
 
-    def test_judge_uses_independent_non_thinking_mode_with_bounded_json_output(self):
+    def test_judge_uses_deepseek_v4_pro_non_thinking_mode_with_bounded_json_output(self):
         response = {"checks": [{
             "index": 0, "score": 0, "rationale": "Missing evidence.",
             "evidence": ["Closest available sentence."],
         }]}
         with mock.patch.object(RUN_EVAL, "api_call", return_value=json.dumps(response)) as call:
             RUN_EVAL.judge_case(
-                "key", "openai/gpt-oss-120b", ["criterion"], "Closest available sentence.",
-                api_url="https://api.groq.com/openai/v1/chat/completions",
+                "key", "deepseek-v4-pro", ["criterion"], "Closest available sentence.",
+                api_url="https://api.deepseek.com/chat/completions",
             )
         self.assertEqual(call.call_args.kwargs["max_completion_tokens"], 4800)
-        self.assertEqual(call.call_args.kwargs["api_url"], "https://api.groq.com/openai/v1/chat/completions")
+        self.assertEqual(call.call_args.kwargs["api_url"], "https://api.deepseek.com/chat/completions")
         self.assertFalse(call.call_args.kwargs["thinking"])
         self.assertEqual(call.call_args.kwargs["temperature"], 0.0)
 
