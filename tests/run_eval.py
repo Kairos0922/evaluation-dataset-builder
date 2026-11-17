@@ -28,7 +28,7 @@ POLICY = {
 }
 CRITICAL_CASE_IDS = ["SE03", "SE04", "SE05", "SE08", "SE09", "SE11", "SE12"]
 DEFAULT_GENERATOR_MODEL = "deepseek-flash"
-DEFAULT_JUDGE_MODEL = "deepseek-v4-pro"
+DEFAULT_JUDGE_MODEL = "deepseek-flash"
 JUDGE_BASE_URL = DEEPSEEK_BASE_URL
 JUDGE_API_URL = JUDGE_BASE_URL + "/chat/completions"
 DEFAULT_USER_AGENT = "evaluation-dataset-builder/0.0.1 (+https://github.com/Kairos0922/evaluation-dataset-builder)"
@@ -44,7 +44,6 @@ MODEL_RATE_LIMITS = {}
 MODEL_RATE_HISTORY = {}
 MODEL_PRICING_USD_PER_MILLION = {
     "deepseek-flash": {"input": 0.30, "output": 1.20},
-    "deepseek-v4-pro": {"input": 1.32, "output": 3.96},
 }
 USAGE_BY_MODEL = {}
 API_REQUEST_COUNT = 0
@@ -61,7 +60,6 @@ def effective_model_identity(base_url, model):
     if normalized_base == "https://api.deepseek.com":
         return {
             "deepseek-flash": "deepseek:DeepSeek-V4.1-Flash-1017",
-            "deepseek-v4-pro": "deepseek:DeepSeek-V4-Pro-0813",
         }.get(model, normalized_base + "::" + model)
     return normalized_base + "::" + model
 
@@ -964,13 +962,8 @@ def main():
         return 2
     if args.runs < POLICY["minimum_runs"]:
         parser.error("at least two complete runs are required")
-    if effective_model_identity(DEEPSEEK_BASE_URL, args.generator_model) == effective_model_identity(
-        judge_api_base_url, args.judge_model
-    ):
-        print(
-            "ERROR: Generator and Judge must use distinct deployed model identities. Use DeepSeek V4.1 Flash for generation and DeepSeek V4 Pro for judging.",
-            file=sys.stderr,
-        )
+    if args.generator_model != "deepseek-flash" or args.judge_model != "deepseek-flash":
+        print("ERROR: All evaluation LLM roles must use deepseek-flash.", file=sys.stderr)
         return 2
 
     suite = json.loads(
