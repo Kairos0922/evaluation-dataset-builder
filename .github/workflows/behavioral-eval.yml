@@ -158,7 +158,6 @@ jobs:
           DEEPSEEK_GENERATOR_MODEL: deepseek-flash
           DEEPSEEK_BASE_URL: https://api.deepseek.com
           DEEPSEEK_JUDGE_MODEL: deepseek-flash
-          DEEPSEEK_JUDGE_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           DEEPSEEK_JUDGE_MAX_COMPLETION_TOKENS: "16384"
           DEEPSEEK_MAX_ESTIMATED_COST_USD: "10.00"
           DEEPSEEK_MAX_API_REQUESTS: "220"
@@ -166,8 +165,8 @@ jobs:
           EVAL_GIT_SHA: ${{ inputs.candidate_sha || github.sha }}
         run: |
           set -euo pipefail
-          if [ -z "$DEEPSEEK_API_KEY" ] || [ -z "$DEEPSEEK_JUDGE_API_KEY" ]; then
-            echo "缺少 DeepSeek 生成或 Judge 凭证。"
+          if [ -z "$DEEPSEEK_API_KEY" ]; then
+            echo "缺少 DeepSeek Flash 评测凭证。"
             exit 2
           fi
           python tests/run_eval.py --runs 2 --output artifacts/eval-report.json
