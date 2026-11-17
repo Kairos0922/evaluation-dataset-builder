@@ -119,8 +119,24 @@ def load_source_corpus() -> dict[str, str]:
     return corpus
 
 
+def reject_case_insensitive_path_collisions(output: Path) -> None:
+    """Reject paths that collide on case-insensitive filesystems."""
+    seen: dict[str, str] = {}
+    for path in sorted(output.rglob("*")):
+        relative = path.relative_to(output).as_posix()
+        key = relative.casefold()
+        previous = seen.get(key)
+        if previous is not None and previous != relative:
+            raise SystemExit(
+                "Builder output contains case-insensitive path collision: "
+                f"{previous!r} and {relative!r}"
+            )
+        seen[key] = relative
+
+
 def resolve_source_map_path(output: Path) -> Path:
     """Resolve the source-map JSON through the Suite Manifest's declared path."""
+    reject_case_insensitive_path_collisions(output)
     suite_manifest_path = output / "SUITE-MANIFEST.json"
     suite_manifest = load_json(suite_manifest_path) if suite_manifest_path.is_file() else {}
     declared_path = (
