@@ -476,10 +476,13 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertNotIn("41369272868", workflow)
         self.assertIn('"SKILL_ENTRYPOINT_TEXT_PROXY"', source)
         self.assertIn('"references/*"', source)
-        self.assertIn("EVAL_JUDGE_BASE_URL", workflow)
-        self.assertIn("EVAL_JUDGE_API_KEY", workflow)
-        self.assertIn('DEEPSEEK_MAX_TOKENS: "16384"', workflow)
-        self.assertIn("EVAL_JUDGE_MAX_COMPLETION_TOKENS", workflow)
+        self.assertIn("DEEPSEEK_BASE_URL: https://api.deepseek.com", workflow)
+        self.assertIn("DEEPSEEK_JUDGE_MODEL: deepseek-v4-pro", workflow)
+        self.assertIn("DEEPSEEK_JUDGE_API_KEY", workflow)
+        self.assertIn("--model deepseek-v4-pro", workflow)
+        self.assertIn("DEEPSEEK_MAX_TOKENS", workflow)
+        self.assertNotIn("GROQ_API_KEY", workflow)
+        self.assertNotIn("api.groq.com", workflow)
         self.assertIn("candidate-evaluation-report-", workflow)
         self.assertIn("actions/runs?head_sha=$CANDIDATE_SHA", workflow)
         self.assertIn("验证 Benchmark 贯通样例", workflow)
@@ -785,8 +788,8 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertEqual(RUN_EVAL.DEFAULT_GENERATOR_MODEL, "deepseek-flash")
         self.assertEqual(RUN_EVAL.DEFAULT_JUDGE_MODEL, "deepseek-v4-pro")
 
-    def test_deepseek_pro_alias_is_not_treated_as_an_independent_judge(self):
-        self.assertEqual(
+    def test_deepseek_v4_pro_is_distinct_from_flash_for_independent_judging(self):
+        self.assertNotEqual(
             RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-flash"),
             RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-v4-pro"),
         )
