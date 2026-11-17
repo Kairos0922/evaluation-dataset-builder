@@ -1213,7 +1213,7 @@ jobs:
           retention-days: 30
 
   adjudicate-pilot:
-    if: ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production)) && needs.independent-validation.outputs.validation_status == 'PASS'
+    if: always() && ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production)) && needs.builder-production.result == 'success' && needs.independent-validation.outputs.validation_status == 'PASS' && needs.resolve-pilot-matrix.result == 'success'
     needs: [builder-production, independent-validation, resolve-pilot-matrix, webapp-testing-pilot]
     runs-on: ubuntu-latest
     timeout-minutes: 10
