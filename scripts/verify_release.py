@@ -102,7 +102,7 @@ def verify_report(report, candidate_sha, run_id):
     require(bool(generator_endpoint) and bool(judge_endpoint)
             and generator_endpoint == "https://api.deepseek.com"
             and judge_endpoint == "https://api.deepseek.com",
-            "Generator and independent Judge must both use the approved DeepSeek API endpoint.")
+            "All evaluation roles must use the approved DeepSeek API endpoint.")
     trigger_count = int(policy.get("trigger_eval_count", 0))
     require(trigger_count >= 40,
             "At least 40 trigger evaluation examples are required.")
