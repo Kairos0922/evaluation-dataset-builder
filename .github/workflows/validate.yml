@@ -826,7 +826,7 @@ jobs:
               "independent_validation_allowed": False,
           }
           Path("artifacts/builder-output-capture.json").write_text(
-              json.dumps(payload, ensure_ascii=False, indent=2) + "\\n",
+              json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
               encoding="utf-8",
           )
           print(json.dumps(payload, ensure_ascii=False, indent=2))
