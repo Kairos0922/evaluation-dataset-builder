@@ -1,4 +1,5 @@
 Run a fresh exact-SHA behavioral evaluation using DeepSeek Flash only.
+This trigger commit is the candidate revision; bind the report to the exact open PR head SHA.
 Generator, behavior Judge, and trigger classifier: deepseek-flash (DeepSeek V4.1 Flash).
 Use the shared DEEPSEEK_API_KEY and official endpoint https://api.deepseek.com for every LLM request.
 Non-DeepSeek endpoints and non-Flash model IDs are rejected by the evaluator. Do not use V4 Pro, Groq, OpenAI, or any other model.
