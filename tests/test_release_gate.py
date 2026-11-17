@@ -764,6 +764,32 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn('"score":1', prompt)
         self.assertIn("never return it literally", prompt)
 
+    def test_judge_retries_missing_pass_evidence_and_validates_the_quote_locally(self):
+        initial = {"checks": [{
+            "index": 0, "score": 1,
+            "rationale": "The criterion appears satisfied.",
+            "evidence": [],
+        }]}
+        repair = {
+            "supported": True,
+            "evidence": ["Target: Billing Support."],
+        }
+        with mock.patch.dict(RUN_EVAL.os.environ, {"DEEPSEEK_EVIDENCE_REPAIR": "1"}):
+            with mock.patch.object(
+                RUN_EVAL, "api_call",
+                side_effect=[json.dumps(initial), json.dumps(repair)],
+            ) as api:
+                result = RUN_EVAL.judge_case(
+                    "test-key", "deepseek-flash", ["states the target"],
+                    "Target: Billing Support. Objective: verify monthly totals.",
+                )
+        self.assertEqual(api.call_count, 2)
+        self.assertEqual(result[0]["status"], "PASS")
+        self.assertTrue(result[0]["evidence_validated"])
+        self.assertTrue(result[0]["evidence_repair_used"])
+        self.assertEqual(result[0]["evidence"], ["Target: Billing Support."])
+        self.assertIn("strict evidence extraction retry", api.call_args_list[1].args[2])
+
     def test_judge_can_report_failure_by_specific_absence_without_fake_quote(self):
         response = {
             "checks": [{
