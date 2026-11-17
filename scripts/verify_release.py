@@ -95,8 +95,8 @@ def verify_report(report, candidate_sha, run_id):
     models = report.get("models") or {}
     generator = models.get("generator")
     judge = models.get("judge_and_trigger")
-    require(bool(generator) and bool(judge) and generator != judge,
-            "Generator and independent Judge model IDs must be present and distinct.")
+    require(generator == "deepseek-flash" and judge == "deepseek-flash",
+            "Generator, Judge, and trigger classifier must all use deepseek-flash.")
     generator_endpoint = str(report.get("api_base_url") or "").rstrip("/")
     judge_endpoint = str(report.get("judge_api_base_url") or "").rstrip("/")
     require(bool(generator_endpoint) and bool(judge_endpoint)
