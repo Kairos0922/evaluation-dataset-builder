@@ -742,11 +742,16 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 "absence_reason": None,
             }]
         }
-        with mock.patch.object(RUN_EVAL, "api_call", return_value=json.dumps(response)):
+        with mock.patch.object(RUN_EVAL, "api_call", return_value=json.dumps(response)) as api:
             result = RUN_EVAL.judge_case("test-key", "test-judge", ["criterion"], "The criterion is present.")
         self.assertEqual(result[0]["status"], "UNKNOWN")
         self.assertIsNone(result[0]["score"])
         self.assertEqual(result[0]["judge_basis"], "passing_claim_without_verifiable_evidence")
+        prompt = api.call_args.args[2]
+        self.assertIn("every PASS MUST have score=1", prompt)
+        self.assertIn("A PASS with evidence=[] or an invalid quote is not allowed", prompt)
+        self.assertIn('"score":1', prompt)
+        self.assertIn("never return it literally", prompt)
 
     def test_judge_can_report_failure_by_specific_absence_without_fake_quote(self):
         response = {
