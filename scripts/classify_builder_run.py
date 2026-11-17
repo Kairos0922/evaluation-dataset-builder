@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 QUOTA_PATTERN = re.compile(
-    r"(?i)(HTTP\s*402|\b402\b|\bQUOTA\b|"
+    r"(?i)(HTTP\s*402|\b402\b|QUOTA|"
     r"INSUFFICIENT\s+BALANCE|INSUFFICIENT_BALANCE)"
 )
 
