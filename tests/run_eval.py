@@ -678,8 +678,8 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
                 'Return JSON only: {"supported":true,"evidence":["exact quote"]}.'
             )
             repair_user = (
-                "CRITERION:\\n" + criterion + 
-                "\\n\\nCANDIDATE OUTPUT (source of quotes):\\n" + candidate
+                "CRITERION:\n" + criterion + 
+                "\n\nCANDIDATE OUTPUT (source of quotes):\n" + candidate
             )
             try:
                 repair_raw = api_call(
