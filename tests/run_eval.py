@@ -1095,7 +1095,7 @@ def main():
     report = {
         "schema_version": "1.2",
         "status": "COMPLETE",
-        "provider": "multi-provider",
+        "provider": "deepseek-only",
         "api_base_url": DEEPSEEK_BASE_URL,
         "judge_api_base_url": judge_api_base_url,
         "suite_id": suite["suite_id"],
