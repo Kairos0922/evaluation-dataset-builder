@@ -710,6 +710,7 @@ jobs:
           PY
 
       - name: Invoke Evaluation Dataset Builder through DSH
+        id: builder_dsh
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: |
@@ -781,6 +782,60 @@ jobs:
             exit "$dsh_exit"
           fi
           test -d artifacts/webapp-testing-builder-output
+
+      - name: Capture partial Builder output after DSH invocation
+        if: always()
+        env:
+          DSH_STEP_OUTCOME: ${{ steps.builder_dsh.outcome }}
+        run: |
+          mkdir -p artifacts
+          python - <<'PY'
+          import json
+          import os
+          import shutil
+          from pathlib import Path
+
+          workspace = Path(os.environ["RUNNER_TEMP"]) / "builder-workspace"
+          source = workspace / "artifacts" / "webapp-testing-builder-output"
+          target = Path("artifacts/webapp-testing-builder-output")
+          found = source.is_dir()
+          copied = False
+          if found:
+              if target.is_dir():
+                  shutil.rmtree(target)
+              elif target.exists():
+                  target.unlink()
+              target.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copytree(source, target)
+              copied = True
+          files = (
+              sorted(path.relative_to(target).as_posix() for path in target.rglob("*") if path.is_file())
+              if target.is_dir()
+              else []
+          )
+          outcome = os.environ.get("DSH_STEP_OUTCOME", "unknown")
+          payload = {
+              "dsh_step_outcome": outcome,
+              "partial_output_directory_found": found,
+              "copied_to_artifacts": copied,
+              "file_count": len(files),
+              "files": files,
+              "partial_output_disposition": (
+                  "AWAITING_TRACE_VERIFICATION" if outcome == "success" else "DIAGNOSTIC_ONLY"
+              ),
+              "independent_validation_allowed": False,
+          }
+          Path("artifacts/builder-output-capture.json").write_text(
+              json.dumps(payload, ensure_ascii=False, indent=2) + "\\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(payload, ensure_ascii=False, indent=2))
+          PY
+
+      - name: Classify Builder invocation and external quota failures
+        if: always()
+        run: |
+          python scripts/classify_builder_run.py --artifacts-dir artifacts
 
       - name: Check and redact any accidental credential disclosure
         if: always()
@@ -872,6 +927,8 @@ jobs:
             artifacts/builder-skill-sha256.txt
             artifacts/builder-output-sha256.txt
             artifacts/builder-run-metadata.json
+            artifacts/builder-output-capture.json
+            artifacts/builder-run-failure-classification.json
             artifacts/builder-workspace-boundary.json
             artifacts/credential-scan.json
           if-no-files-found: warn
