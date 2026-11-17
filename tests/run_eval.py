@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Multi-provider release-gate evaluator with matched baseline and repeat-run checks."""
+"""DeepSeek Flash-only release-gate evaluator with matched baseline and repeat-run checks."""
 import argparse
 import json
 import hashlib
