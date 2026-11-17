@@ -139,6 +139,19 @@ class BuilderSourceLocatorTests(unittest.TestCase):
                 VALIDATOR.verify_source_evidence("WB-CORE-01", source, corpus, source_map)
             self.assertIn("SRC-APP", source_map)
 
+    def test_source_map_rejects_case_insensitive_duplicate_output_paths(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "output"
+            output.mkdir()
+            (output / "SUITE-MANIFEST.json").write_text(
+                json.dumps({"source_map_json": "source-map.json"}),
+                encoding="utf-8",
+            )
+            (output / "source-map.json").write_text("{}", encoding="utf-8")
+            (output / "SOURCE-MAP.json").write_text("{}", encoding="utf-8")
+            with self.assertRaisesRegex(SystemExit, "case-insensitive path collision"):
+                VALIDATOR.resolve_source_map_path(output)
+
     def test_source_map_rejects_unsafe_manifest_path(self):
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "output"
