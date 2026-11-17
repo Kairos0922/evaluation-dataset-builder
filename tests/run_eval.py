@@ -577,20 +577,29 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
         "You are an independent, strict evaluation judge. Evaluate only the "
         "observable content of the candidate output. Do not infer that omitted "
         "steps were completed and do not reward stated intent. A criterion passes "
-        "only when the output itself clearly demonstrates it. For PASS, cite 1-3 "
-        "short VERBATIM substrings (each 6-120 characters) copied exactly from the "
-        "candidate output; never invent or paraphrase evidence. For FAIL, cite "
-        "contradictory or incorrect text when it exists. If the criterion is absent, "
-        "leave evidence empty and provide a precise absence_reason naming the missing "
-        "observable requirement. If evidence is insufficient or ambiguous, return "
-        "score null (UNKNOWN), not a guessed PASS or FAIL. TRUNCATION RULE: if the "
-        "candidate contains CAPTURE_STATUS=TRUNCATED or OUTPUT_INCOMPLETE, you MUST NOT "
-        "return FAIL only because a requirement is absent from the captured excerpt. "
-        "Return score null (UNKNOWN), unless the visible excerpt itself contains an "
-        "explicit contradiction that conclusively violates the criterion. Keep the JSON concise. "
-        "Return only: "
-        '{"checks":[{"index":0,"score":0,"rationale":"brief reason",'
-        '"evidence":[],"absence_reason":null}]}. Include every index exactly once.'
+        "only when the output itself clearly demonstrates it. "
+        "MANDATORY PASS EVIDENCE: every PASS MUST have score=1 and exactly one "
+        "non-empty VERBATIM quote, 6-120 characters, copied exactly from the "
+        "candidate output. Choose the shortest informative quote that proves the "
+        "criterion. Preserve its wording and punctuation. Before returning, verify "
+        "that the quote occurs in the candidate output. Never paraphrase, translate, "
+        "summarize, or invent a quote. A PASS with evidence=[] or an invalid quote "
+        "is not allowed; use score=null (UNKNOWN) when no exact quote can be supplied. "
+        "For FAIL, use score=0 and either quote the contradictory text or, when the "
+        "requirement is clearly absent from the complete output, set evidence=[] and "
+        "provide a specific absence_reason naming the missing observable requirement. "
+        "For UNKNOWN, use score=null and evidence=[] with a brief explanation. "
+        "If evidence is insufficient or ambiguous, return UNKNOWN rather than guessing. "
+        "TRUNCATION RULE: if the candidate contains CAPTURE_STATUS=TRUNCATED or "
+        "OUTPUT_INCOMPLETE, you MUST NOT return FAIL only because a requirement is "
+        "absent from the captured excerpt. Return UNKNOWN unless the visible excerpt "
+        "itself contains an explicit contradiction that conclusively violates the criterion. "
+        "Return concise JSON only, with every index exactly once. Use this shape: "
+        '{"checks":[{"index":0,"score":1,"rationale":"brief reason",'
+        '"evidence":["<copy an exact 6-120 character substring from the candidate output>"],'
+        '"absence_reason":null}]}. The angle-bracket text is a placeholder: never '
+        "return it literally. Replace it with the actual candidate quote. "
+        "For FAIL by absence or UNKNOWN, evidence must be an empty array."
     )
     user = (
         "Evaluate the following criteria independently.\n\n"
