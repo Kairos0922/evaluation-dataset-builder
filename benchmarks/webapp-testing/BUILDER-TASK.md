@@ -36,7 +36,7 @@
 7. `coverage-matrix.json.version` 必须等于 `SUITE-MANIFEST.json.version`。不要用 `suite_version` 替代 `version`。
 8. 用例覆盖统计以正式 JSONL 中的 `coverage_tags` 为准。只有 candidate 用例才计入 fully covered；needs_info 用例不得让覆盖率虚高。
 9. 质量状态必须按交付层级汇总：只要套件范围内存在未解决的权威依据缺口、`needs_info` 用例，或 `coverage-matrix.json` 中 `applicability=needs_info` 的覆盖项，套件 Manifest 的 `quality_status` 必须为 `needs_info`。数据集范围内存在未解决的 `needs_info` 用例或覆盖缺口时，该数据集 Manifest 的 `quality_status` 必须为 `needs_info`。只有不存在上述未解决事项时，才可将对应层级标记为 `candidate`；不得以大多数用例为 candidate 为由覆盖少数未解决缺口。 例如，只要 `BR-09-RF` 仍为 `needs_info`，即使其余 14 条用例均为 `candidate`，套件 Manifest 也必须为 `needs_info`。
-9. `SUITE-MANIFEST.json.source_map_json` 必须提供相对套件目录的 JSON 文件路径，并指向实际来源映射文件。优先使用 `source-map.json`。来源映射可以使用 `sources` 数组，或使用 `source_registry` 与 `files` 两个数组。后者必须为每个 `source_id` 提供 `title`、`source_type`、`path`，并在 `files` 中提供相同路径、SHA-256 和对应的 `source_ids`。独立验证器按 Manifest 路径定位文件，独立核对来源文件哈希，并将每条用例的 `quoted_evidence` 直接与映射的可信来源文件比对；不得仅信任 Builder 自报的引文或依赖文件名大小写。
+10. `SUITE-MANIFEST.json.source_map_json` 必须指向套件目录中的唯一来源映射文件，文件名必须严格为 `source-map.json`。只允许输出这一份来源映射文件；不得另行输出 `source-map.json` 或任何仅大小写不同的副本。来源映射可以使用 `sources` 数组，或使用 `source_registry` 与 `files` 两个数组。后者必须为每个 `source_id` 提供 `title`、`source_type`、`path`，并在 `files` 中提供相同路径、SHA-256 和对应的 `source_ids`。独立验证器按 Manifest 路径定位文件，独立核对来源文件哈希，并将每条用例的 `quoted_evidence` 直接与映射的可信来源文件比对；不得仅信任 Builder 自报的引文或依赖文件名大小写。
 
 
 ## 输出
@@ -54,7 +54,7 @@
 
 ## 来源定位格式补充（强制）
 
-为保证每条来源引用可以脱离上下文独立追溯，所有 case-level `source_refs[].locator` 以及 `SOURCE-MAP.json` 中的 `locators[].locator`，必须同时包含**来源文件名和章节/行号定位**。统一格式：
+为保证每条来源引用可以脱离上下文独立追溯，所有 case-level `source_refs[].locator` 以及 `source-map.json` 中的 `locators[].locator`，必须同时包含**来源文件名和章节/行号定位**。统一格式：
 
 `<相对于输入资产根目录的文件路径>#<章节标题、规则编号或行号>`
 
@@ -63,4 +63,4 @@
 - `assets/public/business-rules.md#BR-01 任务摘要`
 - `upstream-skill/SKILL.md#L9`
 
-不得只填写 `§3 初始数据 表`、`BR-01`、`第 3 节` 等脱离文件名的定位。来源文件路径必须与 `SOURCE-MAP.json` 中该 source_id 对应的 path 完全一致；引文仍须是该文件中的连续原文。不得为了通过验证而修改、缩短或转述引文。
+不得只填写 `§3 初始数据 表`、`BR-01`、`第 3 节` 等脱离文件名的定位。来源文件路径必须与 `source-map.json` 中该 source_id 对应的 path 完全一致；引文仍须是该文件中的连续原文。不得为了通过验证而修改、缩短或转述引文。
