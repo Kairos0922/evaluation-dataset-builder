@@ -46,7 +46,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "git_sha": "candidate-sha",
             "workflow_run_id": 12345,
             "automated_gate_pass": True,
-            "models": {"generator": "deepseek-flash", "judge_and_trigger": "deepseek-v4-pro"},
+            "models": {"generator": "deepseek-flash", "judge_and_trigger": "deepseek-flash"},
             "api_base_url": "https://api.deepseek.com",
             "judge_api_base_url": "https://api.deepseek.com",
             "automated_gates": {
@@ -391,7 +391,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
     def test_release_verifier_accepts_distinct_deepseek_models_on_shared_endpoint(self):
         report = self._valid_release_report()
         self.assertEqual(report["models"]["generator"], "deepseek-flash")
-        self.assertEqual(report["models"]["judge_and_trigger"], "deepseek-v4-pro")
+        self.assertEqual(report["models"]["judge_and_trigger"], "deepseek-flash")
         self.assertEqual(report["api_base_url"], report["judge_api_base_url"])
         VERIFY_RELEASE.verify_report(report, "candidate-sha", 12345)
 
@@ -477,9 +477,9 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn('"SKILL_ENTRYPOINT_TEXT_PROXY"', source)
         self.assertIn('"references/*"', source)
         self.assertIn("DEEPSEEK_BASE_URL: https://api.deepseek.com", workflow)
-        self.assertIn("DEEPSEEK_JUDGE_MODEL: deepseek-v4-pro", workflow)
+        self.assertIn("DEEPSEEK_JUDGE_MODEL: deepseek-flash", workflow)
         self.assertIn("DEEPSEEK_JUDGE_API_KEY", workflow)
-        self.assertIn("--model deepseek-v4-pro", workflow)
+        self.assertIn("--model deepseek-flash", workflow)
         self.assertIn("DEEPSEEK_MAX_TOKENS", workflow)
         self.assertNotIn("GROQ_API_KEY", workflow)
         self.assertNotIn("api.groq.com", workflow)
@@ -786,12 +786,12 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertEqual(RUN_EVAL.POLICY["max_stability_spread"], 0.05)
         self.assertGreaterEqual(RUN_EVAL.POLICY["minimum_runs"], 2)
         self.assertEqual(RUN_EVAL.DEFAULT_GENERATOR_MODEL, "deepseek-flash")
-        self.assertEqual(RUN_EVAL.DEFAULT_JUDGE_MODEL, "deepseek-v4-pro")
+        self.assertEqual(RUN_EVAL.DEFAULT_JUDGE_MODEL, "deepseek-flash")
 
-    def test_deepseek_v4_pro_is_distinct_from_flash_for_independent_judging(self):
-        self.assertNotEqual(
+    def test_all_evaluation_roles_use_the_same_deepseek_flash_model(self):
+        self.assertEqual(
             RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-flash"),
-            RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-v4-pro"),
+            RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-flash"),
         )
         self.assertNotEqual(
             RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-flash"),
@@ -1024,25 +1024,25 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
     def test_all_evaluation_calls_use_deepseek_models_and_no_provider_daily_quota(self):
         payload = RUN_EVAL.build_payload(
-            "deepseek-v4-pro", "system prompt", "candidate output",
+            "deepseek-flash", "system prompt", "candidate output",
             max_completion_tokens=1200, json_mode=True, thinking=False,
         )
-        self.assertEqual(payload["model"], "deepseek-v4-pro")
+        self.assertEqual(payload["model"], "deepseek-flash")
         self.assertEqual(payload["max_tokens"], 1200)
         self.assertIn("response_format", payload)
         self.assertIn("thinking", payload)
         self.assertIn("reasoning_effort", payload)
         self.assertEqual(RUN_EVAL.MODEL_RATE_LIMITS, {})
-        self.assertEqual(RUN_EVAL.MODEL_PRICING_USD_PER_MILLION["deepseek-v4-pro"], {
-            "input": 1.32, "output": 3.96,
+        self.assertEqual(RUN_EVAL.MODEL_PRICING_USD_PER_MILLION["deepseek-flash"], {
+            "input": 0.30, "output": 1.20,
         })
         self.assertGreater(RUN_EVAL.MAX_ESTIMATED_COST_USD, 0)
     def test_payload_uses_deepseek_openai_chat_compatibility(self):
         payload = RUN_EVAL.build_payload(
-            "deepseek-v4-pro", "system prompt", "user prompt",
+            "deepseek-flash", "system prompt", "user prompt",
             max_completion_tokens=321, json_mode=True, thinking=True,
         )
-        self.assertEqual(payload["model"], "deepseek-v4-pro")
+        self.assertEqual(payload["model"], "deepseek-flash")
         self.assertEqual(payload["max_tokens"], 321)
         self.assertEqual(payload["messages"][0]["role"], "system")
         self.assertEqual(payload["messages"][1]["role"], "user")
@@ -1090,7 +1090,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
     def test_paid_model_peak_prices_and_spend_guard_are_configured(self):
         self.assertEqual(RUN_EVAL.MODEL_PRICING_USD_PER_MILLION["deepseek-flash"]["input"], 0.30)
-        self.assertEqual(RUN_EVAL.MODEL_PRICING_USD_PER_MILLION["deepseek-v4-pro"]["output"], 3.96)
+        self.assertEqual(RUN_EVAL.MODEL_PRICING_USD_PER_MILLION["deepseek-flash"]["output"], 1.20)
         self.assertGreater(RUN_EVAL.MAX_ESTIMATED_COST_USD, 0)
         self.assertLessEqual(RUN_EVAL.MAX_ESTIMATED_COST_USD, 10.0)
         self.assertLessEqual(RUN_EVAL.MAX_API_REQUESTS, 250)
@@ -1297,7 +1297,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         with mock.patch.object(RUN_EVAL, "throttle_model"):
             with mock.patch.object(RUN_EVAL.urllib.request, "urlopen", side_effect=fake_urlopen):
                 result = RUN_EVAL.api_call(
-                    "test-key", "deepseek-v4-pro", "return JSON", "classify",
+                    "test-key", "deepseek-flash", "return JSON", "classify",
                     max_completion_tokens=180, json_mode=True, temperature=0.0,
                 )
         self.assertEqual(result, '{"should_trigger": true}')
@@ -1358,7 +1358,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
                     with mock.patch.object(RUN_EVAL.urllib.request, "urlopen") as urlopen:
                         with self.assertRaises(RUN_EVAL.EvaluationBudgetExceeded):
                             RUN_EVAL.api_call(
-                                "key", "deepseek-v4-pro", "system", "user",
+                                "key", "deepseek-flash", "system", "user",
                                 max_completion_tokens=900,
                             )
                         urlopen.assert_not_called()
@@ -1371,25 +1371,25 @@ class ReleaseGateUnitTests(unittest.TestCase):
         second = RUN_EVAL.checkpoint_key(payload)
         self.assertNotEqual(first, second)
 
-    def test_generator_and_judge_use_distinct_deepseek_models_without_groq_limits(self):
+    def test_generator_judge_and_trigger_share_deepseek_flash_without_provider_quotas(self):
         self.assertEqual(
             RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-flash"),
             "deepseek:DeepSeek-V4.1-Flash-1017",
         )
         self.assertEqual(
-            RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-v4-pro"),
-            "deepseek:DeepSeek-V4-Pro-0813",
-        )
-        self.assertNotEqual(
             RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-flash"),
-            RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-v4-pro"),
+            "deepseek:DeepSeek-V4.1-Flash-1017",
+        )
+        self.assertEqual(
+            RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-flash"),
+            RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-flash"),
         )
         self.assertEqual(RUN_EVAL.MODEL_RATE_LIMITS, {})
 
     def test_judge_and_trigger_propagate_paid_budget_stop_errors(self):
         with mock.patch.object(RUN_EVAL, "api_call", side_effect=RUN_EVAL.EvaluationBudgetExceeded("budget cap")):
             with self.assertRaises(RUN_EVAL.EvaluationBudgetExceeded):
-                RUN_EVAL.judge_case("key", "deepseek-v4-pro", ["criterion"], "candidate")
+                RUN_EVAL.judge_case("key", "deepseek-flash", ["criterion"], "candidate")
             with self.assertRaises(RUN_EVAL.EvaluationBudgetExceeded):
                 RUN_EVAL.classify_trigger("key", "deepseek-v4-pro", "query")
 
@@ -1420,7 +1420,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         }]}
         with mock.patch.object(RUN_EVAL, "api_call", return_value=json.dumps(response)) as call:
             RUN_EVAL.judge_case(
-                "key", "deepseek-v4-pro", ["criterion"], "Closest available sentence.",
+                "key", "deepseek-flash", ["criterion"], "Closest available sentence.",
                 api_url="https://api.deepseek.com/chat/completions",
             )
         self.assertEqual(call.call_args.kwargs["max_completion_tokens"], 4800)
