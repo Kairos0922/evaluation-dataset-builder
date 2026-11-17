@@ -1144,7 +1144,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertEqual(RUN_EVAL.MODEL_PRICING_USD_PER_MILLION["deepseek-flash"]["output"], 1.20)
         self.assertGreater(RUN_EVAL.MAX_ESTIMATED_COST_USD, 0)
         self.assertLessEqual(RUN_EVAL.MAX_ESTIMATED_COST_USD, 10.0)
-        self.assertLessEqual(RUN_EVAL.MAX_API_REQUESTS, 250)
+        self.assertEqual(RUN_EVAL.MAX_API_REQUESTS, 0)
 
     def test_json_extraction(self):
         self.assertEqual(RUN_EVAL.extract_json('prefix {"ok": true} suffix'), {"ok": True})
