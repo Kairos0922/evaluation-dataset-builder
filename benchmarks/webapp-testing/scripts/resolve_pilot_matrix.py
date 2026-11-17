@@ -64,21 +64,20 @@ def role_score(case: dict, role: str) -> int:
             term in message
             for term in ("case-sensitive", "case sensitive", "大小写", "区分大小写")
         )
-        # A case-sensitivity mutant is valid when the Builder-authored
-        # request searches an uppercase token and its expected behavior
-        # independently names the lowercase form. Requiring adversarial
-        # framing would reject ordinary but decisive regression cases.
-        uppercase_terms = re.findall(r"\b[A-Z]{3,}\b", case_text(case))
-        has_case_variant_pair = any(
-            re.search(rf"\b{re.escape(term.lower())}\b", case_text(case))
-            for term in uppercase_terms
-        )
+        # A Builder-authored request may instruct the Skill to select a
+        # description-only token and compare its original spelling with a
+        # case variant. Requiring a hard-coded token pair would reject this
+        # valid, executable probe even though the Skill can derive the token
+        # from the live UI before testing the mutant.
+        has_description_probe = "描述" in message
+        has_case_variant = "不同" in message and "大小写" in message
         if (
             "BR-02" in rules
-            and "WF-SEARCH" in workflows
+            and any(ref.startswith("WF-SEARCH") for ref in workflows)
             and has_search
             and has_case_sensitivity
-            and has_case_variant_pair
+            and has_description_probe
+            and has_case_variant
         ):
             return 300 + len(message)
 
@@ -88,7 +87,7 @@ def role_score(case: dict, role: str) -> int:
         has_cycle = all(term in message for term in ("open", "in progress", "done"))
         if (
             "BR-07" in rules
-            and "WF-STATUS" in workflows
+            and any(ref.startswith("WF-STATUS") for ref in workflows)
             and has_cycle
             and "multi_turn" not in buckets
         ):
@@ -102,7 +101,7 @@ def role_score(case: dict, role: str) -> int:
         has_second_attempt = any(term in message for term in ("again", "再次", "第二次"))
         if (
             "BR-08" in rules
-            and "WF-DELETE" in workflows
+            and any(ref.startswith("WF-DELETE") for ref in workflows)
             and has_cancel
             and has_confirmation
             and has_second_attempt
@@ -240,7 +239,7 @@ def self_test() -> int:
                 "case_id": "Generated-State-04",
                 "title": "[SYNTHETIC] 状态完整循环与摘要同步",
                 "business_rule_refs": ["BR-07"],
-                "workflow_refs": ["WF-STATUS"],
+                "workflow_refs": ["WF-STATUS-CYCLE", "WF-SUMMARY-READ"],
                 "scenario_bucket": ["business_rule", "state_anomaly"],
                 "user_input": "请对 Reset password flow 做 Open、In progress、Done、Open 状态循环，并核对摘要。",
             },
@@ -249,7 +248,7 @@ def self_test() -> int:
                 "case_id": "Generated-Delete-03",
                 "title": "[SYNTHETIC] 删除确认 Cancel 与 Delete task",
                 "business_rule_refs": ["BR-08"],
-                "workflow_refs": ["WF-DELETE"],
+                "workflow_refs": ["WF-DELETE-DIALOG", "WF-DELETE-CONFIRM", "WF-SUMMARY-READ"],
                 "scenario_bucket": ["business_rule", "negative", "normal"],
                 "user_input": "对 Update onboarding guide 执行删除流程：点击 Delete，点击 Cancel；再次点击 Delete 并点击 Delete task，验证任务已删除。",
             },
