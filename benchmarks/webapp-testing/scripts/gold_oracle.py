@@ -138,6 +138,44 @@ def target_task(case: dict, tasks: list[dict]) -> dict | None:
 def normalize_status(value) -> str:
     return str(value or "").lower().replace(" ", "_")
 
+
+def expected_status_transitions(case: dict, target: dict | None) -> list[tuple[str, str]]:
+    """Derive the state cycle from the Builder-authored case contract."""
+    rule_expected = ((case.get("reference_outcome") or {}).get("rule_expected") or {})
+    steps = rule_expected.get("steps") or []
+    expected = [
+        (normalize_status(step.get("from")), normalize_status(step.get("to")))
+        for step in steps
+        if isinstance(step, dict)
+    ]
+    if expected:
+        return expected
+
+    execution = case.get("execution_requirements") or {}
+    test_data = execution.get("test_data") or []
+    test_sequence = []
+    if test_data and isinstance(test_data[0], dict):
+        test_sequence = test_data[0].get("expected_sequence") or []
+    expected_behavior = case.get("expected_behavior") or {}
+    if not isinstance(expected_behavior, dict):
+        expected_behavior = {}
+    conforming = ((case.get("reference_outcome") or {}).get("conforming_branch") or {})
+    sequence = (
+        expected_behavior.get("expected_status_sequence")
+        or test_sequence
+        or conforming.get("statuses")
+        or []
+    )
+    if not target or not isinstance(sequence, list) or not sequence:
+        return []
+
+    previous = normalize_status(target.get("status"))
+    for next_status in sequence:
+        normalized = normalize_status(next_status)
+        expected.append((previous, normalized))
+        previous = normalized
+    return expected
+
 def read_trace(path: Path) -> dict:
     events = load_jsonl(path)
     sessions = [
@@ -356,26 +394,10 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
     elif role == "state_cycle":
         mutations = runner.get("fixture_mutations") or []
         add_check(checks, "Clean fixture was selected", runner.get("fixture_profile") == "clean" and not mutations, f"profile={runner.get('fixture_profile')}; mutations={mutations}")
-        rule_expected = ((case.get("reference_outcome") or {}).get("rule_expected") or {})
         target = target_task(case, initial_tasks)
         target_id = target.get("id") if target else None
         target_title = target.get("title") if target else None
-        expected = [
-            (normalize_status(step.get("from")), normalize_status(step.get("to")))
-            for step in rule_expected.get("steps", [])
-            if isinstance(step, dict)
-        ]
-        if not expected:
-            expected_behavior = case.get("expected_behavior")
-            if not isinstance(expected_behavior, dict):
-                expected_behavior = {}
-            sequence = expected_behavior.get("expected_status_sequence") or []
-            if target and sequence:
-                previous = normalize_status(target.get("status"))
-                for next_status in sequence:
-                    normalized = normalize_status(next_status)
-                    expected.append((previous, normalized))
-                    previous = normalized
+        expected = expected_status_transitions(case, target)
         updates = [
             event for event in audit
             if event.get("method") == "PATCH" and event.get("path", "").startswith("/api/tasks/")
@@ -558,7 +580,7 @@ def self_test() -> int:
             "search_mutation": {
                 "case_id": "DYNAMIC-SEARCH-01",
                 "target_title": "Reset password flow",
-                "report": "BR-02: PASSWORD returned 0 while password returned Reset password flow. SCREENSHOTS returned 0 while Update onboarding guide was expected. 搜索大小写敏感，缺陷被独立复现；应用规则 verdict FAIL。",
+                "report": "BR-02: ONBOARDING returned 0 while WB-102 Update onboarding guide was expected. screenshots returned 0 while WB-102 description contained screenshots. 搜索大小写敏感，描述未参与匹配；VIOLATED.",
                 "profile": "mutant",
                 "mutations": ["search-case-sensitive"],
                 "rule_expected": {
@@ -615,8 +637,7 @@ def self_test() -> int:
             audit = [{"method": "POST", "path": "/api/reset", "status": 200, "action": "reset"}]
             if role == "search_mutation":
                 for query, count in {
-                    "RESET": 0, "Reset": 1, "reset": 0,
-                    "SCREENSHOTS": 0, "screenshots": 0,
+                    "ONBOARDING": 0, "screenshots": 0,
                 }.items():
                     audit.append({
                         "method": "GET", "path": "/api/tasks", "query": "q=" + query,
@@ -669,6 +690,39 @@ def self_test() -> int:
                     "initial_state": {"tasks": INITIAL, "summary": INITIAL_SUMMARY},
                 },
             }
+            if role == "search_mutation":
+                cases[spec["case_id"]]["expected_behavior"] = {
+                    "required_queries": ["ONBOARDING", "screenshots"],
+                    "possible_observations": {
+                        "conforming": {"ONBOARDING": ["WB-102"], "screenshots": ["WB-102"]},
+                        "case_sensitive_title_only": {"ONBOARDING": [], "screenshots": []},
+                    },
+                }
+                cases[spec["case_id"]]["reference_outcome"] = {
+                    "conforming_branch": {"ONBOARDING": ["WB-102"], "screenshots": ["WB-102"]}
+                }
+                cases[spec["case_id"]]["execution_requirements"]["test_data"] = [{
+                    "target_task": "WB-102",
+                }]
+            elif role == "state_cycle":
+                cases[spec["case_id"]]["reference_outcome"] = {
+                    "conforming_branch": {"statuses": ["In progress", "Done", "Open"]}
+                }
+                cases[spec["case_id"]]["execution_requirements"]["test_data"] = [{
+                    "target_task": "WB-101",
+                    "expected_sequence": ["In progress", "Done", "Open"],
+                }]
+            elif role == "delete_confirmation":
+                cases[spec["case_id"]]["reference_outcome"] = {
+                    "conforming": {
+                        "dialog_shown": True,
+                        "cancel_keeps_all": True,
+                        "confirm_removes_only": "WB-104",
+                    }
+                }
+                cases[spec["case_id"]]["execution_requirements"]["test_data"] = [{
+                    "target_task": "WB-104",
+                }]
 
         verdicts = {}
         results = []
