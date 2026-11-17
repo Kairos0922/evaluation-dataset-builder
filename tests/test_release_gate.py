@@ -46,9 +46,9 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "git_sha": "candidate-sha",
             "workflow_run_id": 12345,
             "automated_gate_pass": True,
-            "models": {"generator": "deepseek-flash", "judge_and_trigger": "openai/gpt-oss-120b"},
+            "models": {"generator": "deepseek-flash", "judge_and_trigger": "deepseek-v4-pro"},
             "api_base_url": "https://api.deepseek.com",
-            "judge_api_base_url": "https://api.groq.com/openai/v1",
+            "judge_api_base_url": "https://api.deepseek.com",
             "automated_gates": {
                 "all_repeated_runs_pass": {"pass": True},
                 "baseline_comparison_complete": {"pass": True},
@@ -388,10 +388,17 @@ class ReleaseGateUnitTests(unittest.TestCase):
         )
         self.assertEqual(result["user"]["login"], "independent-reviewer")
 
-    def test_release_verifier_requires_independent_judge_endpoint(self):
+    def test_release_verifier_accepts_distinct_deepseek_models_on_shared_endpoint(self):
         report = self._valid_release_report()
-        report["judge_api_base_url"] = report["api_base_url"]
-        with self.assertRaisesRegex(ValueError, "separately configured provider endpoint"):
+        self.assertEqual(report["models"]["generator"], "deepseek-flash")
+        self.assertEqual(report["models"]["judge_and_trigger"], "deepseek-v4-pro")
+        self.assertEqual(report["api_base_url"], report["judge_api_base_url"])
+        VERIFY_RELEASE.verify_report(report, "candidate-sha", 12345)
+
+    def test_release_verifier_rejects_non_deepseek_judge_endpoint(self):
+        report = self._valid_release_report()
+        report["judge_api_base_url"] = "https://api.groq.com/openai/v1"
+        with self.assertRaisesRegex(ValueError, "approved DeepSeek API endpoint"):
             VERIFY_RELEASE.verify_report(report, "candidate-sha", 12345)
 
     def test_release_verifier_does_not_require_per_host_compatibility_evidence(self):
