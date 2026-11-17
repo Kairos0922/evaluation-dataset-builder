@@ -165,7 +165,6 @@ jobs:
           DEEPSEEK_JUDGE_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           DEEPSEEK_MAX_ESTIMATED_COST_USD: "1.50"
           DEEPSEEK_MAX_API_REQUESTS: "220"
-          DEEPSEEK_MAX_TOKENS: "16384"
           DEEPSEEK_MAX_TOKENS: ${{ vars.DEEPSEEK_MAX_TOKENS || '393216' }}
           EVAL_GIT_SHA: ${{ inputs.candidate_sha || github.sha }}
         run: |
