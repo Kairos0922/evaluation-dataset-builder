@@ -265,7 +265,11 @@ def checkpoint_key(payload):
 def api_call(api_key, model, system, user, max_completion_tokens=900,
              json_mode=False, temperature=0.2, thinking=False, api_url=API_URL):
     global API_REQUEST_COUNT, ESTIMATED_COST_RESERVED_USD
-    deepseek_fields = api_url.rstrip("/").startswith(DEEPSEEK_BASE_URL)
+    if not api_url.startswith(DEEPSEEK_BASE_URL + "/"):
+        raise ProviderStopError(
+            "Evaluation LLM calls are restricted to the official DeepSeek API endpoint."
+        )
+    deepseek_fields = True
     payload = build_payload(
         model, system, user,
         max_completion_tokens=max_completion_tokens,
