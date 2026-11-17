@@ -662,6 +662,8 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
         if (
             not evidence_validated
             and (score is True or score == 1)
+            and bool(rationale)
+            and index not in duplicates
             and os.getenv("DEEPSEEK_EVIDENCE_REPAIR", "0").strip() == "1"
         ):
             # Retry only the evidence extraction for this one criterion. The
