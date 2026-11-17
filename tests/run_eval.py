@@ -610,7 +610,7 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
     try:
         raw = api_call(
             api_key, model, system, user,
-            max_completion_tokens=int(os.getenv("EVAL_JUDGE_MAX_COMPLETION_TOKENS", "2400")), json_mode=True, temperature=0.0,
+            max_completion_tokens=int(os.getenv("EVAL_JUDGE_MAX_COMPLETION_TOKENS", "4800")), json_mode=True, temperature=0.0,
             thinking=False, api_url=api_url,
         )
     except ProviderStopError:
