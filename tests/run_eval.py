@@ -658,6 +658,53 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
             1 <= len(evidence) <= 3
             and len(valid_evidence) == len(evidence)
         )
+        evidence_repair_used = False
+        if (
+            not evidence_validated
+            and (score is True or score == 1)
+            and os.getenv("DEEPSEEK_EVIDENCE_REPAIR", "0").strip() == "1"
+        ):
+            # Retry only the evidence extraction for this one criterion. The
+            # original semantic decision is not upgraded unless the same
+            # Flash model returns a supported=true claim plus locally verified
+            # verbatim quotes. Empty/invalid evidence remains UNKNOWN.
+            repair_system = (
+                "You are performing a strict evidence extraction retry. Do not "
+                "re-evaluate or assume the earlier decision is correct. Return "
+                "supported=true only if the candidate itself directly demonstrates "
+                "the criterion. If supported, provide 1-3 exact verbatim substrings "
+                "of 6-120 characters copied from the candidate. If no exact quote "
+                "proves it, return supported=false and evidence=[]. Never paraphrase. "
+                'Return JSON only: {"supported":true,"evidence":["exact quote"]}.'
+            )
+            repair_user = (
+                "CRITERION:\\n" + criterion + 
+                "\\n\\nCANDIDATE OUTPUT (source of quotes):\\n" + candidate
+            )
+            try:
+                repair_raw = api_call(
+                    api_key, model, repair_system, repair_user,
+                    max_completion_tokens=600, json_mode=True, temperature=0.0,
+                    thinking=False, api_url=api_url,
+                )
+                repair_obj = extract_json(repair_raw)
+                repair_quotes = repair_obj.get("evidence", [])
+                if repair_obj.get("supported") is True and isinstance(repair_quotes, list):
+                    repair_quotes = [str(value).strip() for value in repair_quotes if str(value).strip()]
+                    checked_quotes = [
+                        quote for quote in repair_quotes[:3]
+                        if 6 <= len(compact(quote)) <= 120
+                        and compact(quote) in candidate_compact
+                    ]
+                    if 1 <= len(repair_quotes) <= 3 and len(checked_quotes) == len(repair_quotes):
+                        valid_evidence = checked_quotes
+                        evidence_validated = True
+                        evidence_repair_used = True
+            except ProviderStopError:
+                raise
+            except Exception:
+                # Preserve the original fail-closed UNKNOWN outcome.
+                pass
         reasons = []
         if index in duplicates:
             reasons.append("Judge returned a duplicate result for this criterion.")
@@ -692,6 +739,7 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
             "evidence_validated": evidence_validated,
             "judge_basis": judge_basis,
             "absence_reason": absence_reason if judge_basis == "reported_absence" else None,
+            "evidence_repair_used": evidence_repair_used,
         })
     return results
 
