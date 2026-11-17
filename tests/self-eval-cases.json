@@ -1,5 +1,5 @@
 {
-  "suite_id": "edb-self-eval-v2-evidence-grounded",
+  "suite_id": "edb-self-eval-v3-evidence-grounded",
   "purpose": "Scenario-grounded behavioral evaluation of the Evaluation Dataset Builder Skill. All business examples below are synthetic and intended only for this self-evaluation.",
   "cases": [
     {
@@ -117,7 +117,7 @@
       "expected": [
         "uses stable case and dataset identifiers and includes the required schema fields",
         "provides a manifest with purpose, version, case count, and coverage",
-        "includes case-level grading contracts with observable pass/fail evidence rather than standalone case-level grading contract definitions",
+        "each case's grading contract defines concrete checks, pass and fail conditions, required evidence, and UNKNOWN handling",
         "provides source mapping and quality report without fabricated sources or business outcomes",
         "labels unsupported cases needs_info or synthetic rather than approved"
       ]
@@ -128,7 +128,7 @@
       "prompt": "请写一首描写秋天雨夜的现代短诗，四行即可，不要涉及软件测试、评测集或 AI。",
       "expected": [
         "does not force evaluation dataset or benchmark construction into the response",
-        "recognizes the request as unrelated to evaluation dataset building and responds to the actual creative request"
+        "writes a poem about an autumn rainy night in response to the creative-writing request"
       ]
     },
     {
