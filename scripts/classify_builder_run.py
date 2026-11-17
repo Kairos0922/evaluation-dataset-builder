@@ -9,8 +9,8 @@ from pathlib import Path
 from typing import Any
 
 QUOTA_PATTERN = re.compile(
-    r"(?i)(HTTP\\s*402|\\b402\\b|\\bQUOTA\\b|"
-    r"INSUFFICIENT\\s+BALANCE|INSUFFICIENT_BALANCE)"
+    r"(?i)(HTTP\s*402|\b402\b|\bQUOTA\b|"
+    r"INSUFFICIENT\s+BALANCE|INSUFFICIENT_BALANCE)"
 )
 
 
@@ -43,13 +43,13 @@ def classify_builder_run(artifacts_dir: Path) -> dict[str, Any]:
     artifacts_dir.mkdir(parents=True, exist_ok=True)
 
     probe_report = read_json(artifacts_dir / "builder-connectivity-probe.json")
-    probe_text = "\\n".join(
+    probe_text = "\n".join(
         (
             read_text(artifacts_dir / "builder-connectivity-probe-events.jsonl"),
             read_text(artifacts_dir / "builder-connectivity-probe-stderr.log"),
         )
     )
-    builder_text = "\\n".join(
+    builder_text = "\n".join(
         (
             read_text(artifacts_dir / "builder-dsh-events.jsonl"),
             read_text(artifacts_dir / "builder-dsh-stderr.log"),
@@ -125,7 +125,7 @@ def classify_builder_run(artifacts_dir: Path) -> dict[str, Any]:
         "automatic_full_builder_retry": False,
     }
     (artifacts_dir / "builder-run-failure-classification.json").write_text(
-        json.dumps(result, ensure_ascii=False, indent=2) + "\\n",
+        json.dumps(result, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
     return result
