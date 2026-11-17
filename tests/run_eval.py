@@ -1205,7 +1205,7 @@ def main():
                 item.get("peak_price_cost_usd_estimate", 0.0)
                 for item in USAGE_BY_MODEL.values()
             ), 6),
-            "max_api_requests": MAX_API_REQUESTS,
+            "max_api_requests": MAX_API_REQUESTS if MAX_API_REQUESTS > 0 else None,
             "api_requests": API_REQUEST_COUNT,
             "checkpoint_cache_hits": CACHE_HITS_BY_MODEL,
             "checkpoint_path": args.checkpoint,
