@@ -157,8 +157,6 @@ jobs:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           DEEPSEEK_GENERATOR_MODEL: deepseek-flash
           DEEPSEEK_BASE_URL: https://api.deepseek.com
-          DEEPSEEK_JUDGE_MODEL: deepseek-flash
-          DEEPSEEK_JUDGE_MAX_COMPLETION_TOKENS: "16384"
           DEEPSEEK_MAX_ESTIMATED_COST_USD: "10.00"
           DEEPSEEK_MAX_API_REQUESTS: "220"
           DEEPSEEK_MAX_TOKENS: ${{ vars.DEEPSEEK_MAX_TOKENS || '16384' }}
