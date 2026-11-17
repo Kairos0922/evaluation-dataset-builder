@@ -12,14 +12,6 @@ import time
 from datetime import datetime, timezone
 from collections import deque
 
-try:
-    import tiktoken
-except ImportError:  # pragma: no cover - production workflow installs this dependency
-    tiktoken = None
-
-GROQ_TOKENIZER_MARGIN = 0.10
-GROQ_CHAT_FRAMING_TOKENS = 32
-GROQ_TOKEN_ENCODER = None
 import urllib.error
 import urllib.request
 from pathlib import Path
