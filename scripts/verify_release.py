@@ -99,8 +99,10 @@ def verify_report(report, candidate_sha, run_id):
             "Generator and independent Judge model IDs must be present and distinct.")
     generator_endpoint = str(report.get("api_base_url") or "").rstrip("/")
     judge_endpoint = str(report.get("judge_api_base_url") or "").rstrip("/")
-    require(bool(generator_endpoint) and bool(judge_endpoint) and generator_endpoint != judge_endpoint,
-            "The independent Judge must use a separately configured provider endpoint.")
+    require(bool(generator_endpoint) and bool(judge_endpoint)
+            and generator_endpoint == "https://api.deepseek.com"
+            and judge_endpoint == "https://api.deepseek.com",
+            "Generator and independent Judge must both use the approved DeepSeek API endpoint.")
     trigger_count = int(policy.get("trigger_eval_count", 0))
     require(trigger_count >= 40,
             "At least 40 trigger evaluation examples are required.")
