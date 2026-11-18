@@ -338,15 +338,31 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
         branch_name = "case_sensitive_title_only" if is_mutant else "conforming"
         expected_branch = possible.get(branch_name) or {}
         if legacy_contract:
-            required_queries = [
-                item.get("query") for item in reference_queries
-                if isinstance(item, dict) and isinstance(item.get("query"), str)
-            ]
-            expected_counts = {
+            # Builder cases may encode expected behavior as prose/list rather
+            # than the older structured search contract. Derive concrete probes
+            # from quoted query literals in the authored request and reference
+            # outcomes, excluding descriptive placeholders.
+            request_queries = re.findall(r"`([^`]+)`", user_message(case))
+            reference_query_map = {
                 item["query"]: len(item.get("expected_matches") or [])
                 for item in reference_queries
-                if isinstance(item, dict) and isinstance(item.get("query"), str)
+                if isinstance(item, dict)
+                and isinstance(item.get("query"), str)
+                and not item["query"].startswith("<")
             }
+            required_queries = list(dict.fromkeys(
+                [query for query in request_queries if query in reference_query_map]
+                + list(reference_query_map)
+            ))
+            expected_counts = dict(reference_query_map)
+            if is_mutant:
+                expected_counts = {
+                    query: (
+                        len([task for task in initial_tasks if query in task.get("title", "")])
+                        if query else len(initial_tasks)
+                    )
+                    for query in required_queries
+                }
         else:
             expected_counts = {
                 query: len(expected_branch.get(query, []))
