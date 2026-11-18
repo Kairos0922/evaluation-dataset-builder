@@ -350,19 +350,19 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
                 and isinstance(item.get("query"), str)
                 and not item["query"].startswith("<")
             }
-            required_queries = list(dict.fromkeys(
-                [query for query in request_queries if query in reference_query_map]
-                + list(reference_query_map)
-            ))
-            expected_counts = dict(reference_query_map)
-            if is_mutant:
-                expected_counts = {
-                    query: (
-                        len([task for task in initial_tasks if query in task.get("title", "")])
-                        if query else len(initial_tasks)
-                    )
-                    for query in required_queries
-                }
+            required_queries = [
+                query for query in request_queries
+                if query and not query.startswith("<")
+            ]
+            if not required_queries:
+                required_queries = list(reference_query_map)
+            expected_counts = {
+                query: len([
+                    task for task in initial_tasks
+                    if query in task.get("title", "")
+                ])
+                for query in required_queries
+            }
         else:
             expected_counts = {
                 query: len(expected_branch.get(query, []))
@@ -403,16 +403,10 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
             skill_report_exists
             and "BR-02" in report_text
             and report_mentions_expected_tasks
-            and (
-                ("SCREENSHOTS" in report_text
-                 and re.search(r"大小写敏感|case-sensitive|case sensitive", report_text, re.I) is not None
-                 and re.search(r"FAIL|违反|不符合|缺陷", report_text, re.I) is not None)
-                if legacy_contract else
-                (report_mentions_queries
-                 and re.search(r"大小写敏感|case-sensitive|case sensitive", report_text, re.I) is not None
-                 and re.search(r"描述.{0,12}(未参与|不匹配|未匹配)|description.{0,20}(not matched|unmatched)", report_text, re.I) is not None
-                 and re.search(r"VIOLATED|FAIL|违反|不符合|缺陷", report_text, re.I) is not None)
-            )
+            and report_mentions_queries
+            and re.search(r"大小写敏感|case-sensitive|case sensitive", report_text, re.I) is not None
+            and re.search(r"描述.{0,12}(未参与|不匹配|未匹配)|description.{0,20}(not matched|unmatched)", report_text, re.I) is not None
+            and re.search(r"VIOLATED|FAIL|违反|不符合|缺陷", report_text, re.I) is not None
         )
         add_check(checks, "Target report correctly identifies and supports the BR-02 violation", report_ok, "BR-02, Builder-required query variants, affected task IDs and both defect classes inspected")
         behavior = "EXPECTED_VIOLATION_DETECTED" if all_match and report_ok else "UNKNOWN"
