@@ -80,7 +80,8 @@ def role_score(case: dict, role: str) -> int:
     elif role == "state_cycle":
         # The user request must explicitly require the three-state sequence.
         # This is a within-message UI workflow, not a multi-turn conversation.
-        has_cycle = ("open → in progress → done → open" in message) or ("open -> in progress -> done -> open" in message) or ("三次" in message and "循环" in message)
+        normalized_message = re.sub(r"\\s+", "", message).replace("->", "→")
+        has_cycle = ("open→inprogress→done→open" in normalized_message) or ("三次" in message and "循环" in message)
         if (
             has_rule("BR-07")
             and (not workflows or any(ref.startswith(("WF-STATUS", "WF-05")) for ref in workflows))
@@ -235,7 +236,7 @@ def self_test() -> int:
                 "business_rule_refs": ["BR-07A", "BR-07B"],
                 "workflow_refs": ["WF-STATUS"],
                 "scenario_bucket": ["state_anomaly", "business_rule"],
-                "user_input": "验证 BR-07：对同一任务连续点击状态按钮，状态按 Open → In progress → Done → Open 推进，且每次状态和摘要同步更新。定位 WB-101（Reset password flow），连续点击其状态按钮三次，每次记录状态、按钮文本和摘要。",
+                "user_input": "验证 BR-07：对同一任务连续点击状态按钮，预期状态依次为 Open→In progress→Done→Open，且每次状态和摘要同步更新。定位 WB-101（Reset password flow），连续点击其状态按钮三次，每次记录状态、按钮文本和摘要。",
             },
             {
                 "dataset_id": "D-CORE",
