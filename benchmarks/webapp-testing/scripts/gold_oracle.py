@@ -299,6 +299,52 @@ def audit_writes(audit: list[dict]) -> list[dict]:
     ]
 
 
+def user_message(case: dict) -> str:
+    """Return Builder-authored user input without assuming a single-turn shape."""
+    value = case.get("user_input")
+    if isinstance(value, str):
+        return value
+    if isinstance(value, list):
+        return "\\n".join(str(item) for item in value if item is not None)
+    return ""
+
+
+def extract_search_queries(case: dict, tasks: list[dict]) -> list[str]:
+    """Extract explicit search probes from a Builder-authored natural-language request."""
+    message = user_message(case)
+    queries = re.findall(r"`([^`]+)`", message)
+    if not queries:
+        sequence = re.search(r"(?:依次输入|依次键入)(.*?)(?:。|$)", message, re.S)
+        segment = sequence.group(1) if sequence else message
+        candidates = re.findall(r"[A-Za-z][A-Za-z0-9-]*", segment)
+        searchable_text = [
+            " ".join(str(task.get(field) or "") for field in ("title", "description"))
+            for task in tasks
+        ]
+        queries = [
+            token for token in candidates
+            if token.lower().startswith("zzz-")
+            or any(token.casefold() in text.casefold() for text in searchable_text)
+        ]
+    return list(dict.fromkeys(query for query in queries if query and not query.startswith("<")))
+
+
+def expected_search_counts(queries: list[str], tasks: list[dict], branch_name: str) -> dict[str, int]:
+    """Model the independently specified fixture branch, not target-reported counts."""
+    counts = {}
+    for query in queries:
+        if branch_name == "case_sensitive_title_only":
+            counts[query] = sum(query in str(task.get("title") or "") for task in tasks)
+        else:
+            counts[query] = sum(
+                query.casefold() in (
+                    str(task.get("title") or "") + " " + str(task.get("description") or "")
+                ).casefold()
+                for task in tasks
+            )
+    return counts
+
+
 def adjudicate(case: dict, pilot: Path, role: str) -> dict:
     checks: list[dict] = []
     runner, audit, runtime = base_checks(case, pilot, checks)
@@ -342,7 +388,6 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
             # than the older structured search contract. Derive concrete probes
             # from quoted query literals in the authored request and reference
             # outcomes, excluding descriptive placeholders.
-            request_queries = re.findall(r"`([^`]+)`", user_message(case))
             reference_query_map = {
                 item["query"]: len(item.get("expected_matches") or [])
                 for item in reference_queries
@@ -350,19 +395,10 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
                 and isinstance(item.get("query"), str)
                 and not item["query"].startswith("<")
             }
-            required_queries = [
-                query for query in request_queries
-                if query and not query.startswith("<")
-            ]
+            required_queries = extract_search_queries(case, initial_tasks)
             if not required_queries:
                 required_queries = list(reference_query_map)
-            expected_counts = {
-                query: len([
-                    task for task in initial_tasks
-                    if query in task.get("title", "")
-                ])
-                for query in required_queries
-            }
+            expected_counts = expected_search_counts(required_queries, initial_tasks, branch_name)
         else:
             expected_counts = {
                 query: len(expected_branch.get(query, []))
@@ -391,9 +427,15 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
         }
         expected_tasks = [item for item in initial_tasks if item.get("id") in expected_ids]
         if legacy_contract:
-            rule_expected = ((case.get("reference_outcome") or {}).get("rule_expected") or {})
-            legacy_text = " ".join(str(value) for value in rule_expected.values())
-            expected_tasks = [item for item in initial_tasks if item.get("title") and item["title"] in legacy_text]
+            expected_tasks = [
+                task for task in initial_tasks
+                if any(
+                    query.casefold() in (
+                        str(task.get("title") or "") + " " + str(task.get("description") or "")
+                    ).casefold()
+                    for query in required_queries
+                )
+            ]
         report_mentions_expected_tasks = bool(expected_tasks) and all(
             item["id"] in report_text or item["title"] in report_text
             for item in expected_tasks
@@ -405,7 +447,7 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
             and report_mentions_expected_tasks
             and report_mentions_queries
             and re.search(r"大小写敏感|case-sensitive|case sensitive", report_text, re.I) is not None
-            and re.search(r"描述.{0,12}(未参与|不匹配|未匹配)|description.{0,20}(not matched|unmatched)", report_text, re.I) is not None
+            and re.search(r"描述.{0,12}(未参与|不匹配|未匹配|未生效|未被搜索|未被匹配)|description.{0,20}(not matched|unmatched)", report_text, re.I) is not None
             and re.search(r"VIOLATED|FAIL|违反|不符合|缺陷", report_text, re.I) is not None
         )
         add_check(checks, "Target report correctly identifies and supports the BR-02 violation", report_ok, "BR-02, Builder-required query variants, affected task IDs and both defect classes inspected")
@@ -594,6 +636,18 @@ def build_report(suite: dict, entries: list[dict], results: list[dict]) -> dict:
 
 
 def self_test() -> int:
+    production_style_case = {
+        "user_input": "请依次输入 reset、RESET、一个只出现在某条任务描述中的英文词（例如 CSV），以及 zzz-no-match。",
+    }
+    extracted = extract_search_queries(production_style_case, INITIAL)
+    assert extracted == ["reset", "RESET", "CSV", "zzz-no-match"], extracted
+    assert expected_search_counts(extracted, INITIAL, "case_sensitive_title_only") == {
+        "reset": 0, "RESET": 0, "CSV": 0, "zzz-no-match": 0,
+    }
+    assert expected_search_counts(extracted, INITIAL, "conforming") == {
+        "reset": 1, "RESET": 1, "CSV": 1, "zzz-no-match": 0,
+    }
+
     with tempfile.TemporaryDirectory() as temp:
         root = Path(temp)
         roles = {
