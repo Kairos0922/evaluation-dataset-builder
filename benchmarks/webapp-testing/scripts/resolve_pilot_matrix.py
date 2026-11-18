@@ -66,7 +66,7 @@ def role_score(case: dict, role: str) -> int:
         has_uppercase_probe = bool(re.search(r"\b[A-Z]{2,}\b", user_message(case)))
         if (
             "BR-02" in rules
-            and any(ref.startswith(("WF-SEARCH", "WF-02")) for ref in workflows)
+            and (not workflows or any(ref.startswith(("WF-SEARCH", "WF-02")) for ref in workflows))
             and has_search
             and has_uppercase_probe
         ):
@@ -78,7 +78,7 @@ def role_score(case: dict, role: str) -> int:
         has_cycle = all(term in message for term in ("open", "in progress", "done")) or ("三次" in message and "循环" in message)
         if (
             "BR-07" in rules
-            and any(ref.startswith(("WF-STATUS", "WF-05")) for ref in workflows)
+            and (not workflows or any(ref.startswith(("WF-STATUS", "WF-05")) for ref in workflows))
             and has_cycle
             and "multi_turn" not in buckets
         ):
@@ -91,7 +91,7 @@ def role_score(case: dict, role: str) -> int:
         has_delete_action = any(term in message for term in ("点击 delete", "click delete", "删除"))
         if (
             "BR-08" in rules
-            and any(ref.startswith(("WF-DELETE", "WF-08")) for ref in workflows)
+            and (not workflows or any(ref.startswith(("WF-DELETE", "WF-08")) for ref in workflows))
             and has_confirmation
             and has_delete_action
         ):
@@ -214,41 +214,37 @@ def self_test() -> int:
         cases = [
             {
                 "dataset_id": "D-SEARCH",
-                "case_id": "Generated-Search-08",
+                "case_id": "WB-CORE-02",
                 "title": "搜索大小写与描述匹配",
                 "objective": "验证搜索不区分大小写并匹配描述",
                 "expected_behavior": {"expected": "ONBOARDING matches Update onboarding guide"},
                 "business_rule_refs": ["BR-02"],
-                "workflow_refs": ["WF-02"],
-                "scenario_bucket": ["business_rule", "boundary"],
-                "user_input": "验证搜索。用大写查询 ONBOARDING 验证标题搜索不区分大小写；查询 screenshots 应命中描述。",
+                "scenario_bucket": ["boundary", "business_rule"],
+                "user_input": "验证 BR-02：搜索不区分大小写，并同时匹配任务标题和描述；搜索结果必须符合查询文本，并覆盖无结果状态。依次使用搜索词 RESET、screenshots、EMAIL、no-such-task-xyz，记录每次返回的任务 ID 集合和空状态。",
             },
             {
                 "dataset_id": "D-CORE",
-                "case_id": "wb-core-005",
+                "case_id": "WB-CORE-07",
                 "title": "[SYNTHETIC] 状态完整循环与摘要同步",
                 "business_rule_refs": ["BR-07"],
-                "workflow_refs": ["WF-05"],
-                "scenario_bucket": ["business_rule", "state_anomaly"],
-                "user_input": "状态按钮三次循环，验证任务状态顺序与摘要同步。",
+                "scenario_bucket": ["state_anomaly", "business_rule"],
+                "user_input": "验证 BR-07：对同一任务连续点击状态按钮，状态按 Open → In progress → Done → Open 推进，且每次状态和摘要同步更新。定位 WB-101（Reset password flow），连续点击其状态按钮三次，每次记录状态、按钮文本和摘要。",
             },
             {
                 "dataset_id": "D-CORE",
-                "case_id": "wb-core-007",
+                "case_id": "WB-CORE-09",
                 "title": "[SYNTHETIC] 删除确认 Cancel 与 Delete task",
                 "business_rule_refs": ["BR-08"],
-                "workflow_refs": ["WF-08"],
-                "scenario_bucket": ["business_rule", "negative", "normal"],
-                "user_input": "对 Update onboarding guide 执行删除流程：点击 Delete，点击 Cancel；再次点击 Delete 并点击 Delete task，验证任务已删除。",
+                "scenario_bucket": ["negative", "business_rule"],
+                "user_input": "验证 BR-08 的确认删除分支：只有点击 Delete task 才删除所选任务，并验证任务列表和摘要同步更新。定位 WB-105（Review accessibility），点击其 Delete 按钮，在确认对话框中点击 Delete task，记录剩余任务和摘要。",
             },
             {
                 "dataset_id": "D-CORE",
-                "case_id": "wb-core-006",
+                "case_id": "WB-CORE-08",
                 "title": "[SYNTHETIC] 仅取消删除",
                 "business_rule_refs": ["BR-08"],
-                "workflow_refs": ["WF-DELETE"],
-                "scenario_bucket": ["negative"],
-                "user_input": "打开删除对话框后点击 Cancel。不要确认删除。",
+                "scenario_bucket": ["negative", "business_rule"],
+                "user_input": "验证 BR-08 的 Cancel 分支：点击 Delete 必须显示确认对话框；点击 Cancel 必须关闭对话框并保持任务集合与摘要不变。定位 WB-104，点击 Delete 按钮，在确认对话框中点击 Cancel。",
             },
             {
                 "dataset_id": "D-CORE",
@@ -298,13 +294,13 @@ def self_test() -> int:
         matrix = load_suite(root)
         assert [item["pilot_role"] for item in matrix["include"]] == list(PILOT_ROLES)
         assert [item["case_id"] for item in matrix["include"]] == [
-            "wb-diagnostics-001", "wb-core-005", "wb-core-007"
+            "WB-CORE-02", "WB-CORE-07", "WB-CORE-09"
         ]
         assert [item["fixture_profile"] for item in matrix["include"]] == [
             "mutant", "clean", "clean"
         ]
         assert matrix["include"][1]["fixture_mutations"] == []
-        assert "wb-core-006" not in {
+        assert "WB-CORE-08" not in {
             item["case_id"] for item in matrix["include"]
         }
 
