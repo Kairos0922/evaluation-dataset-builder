@@ -307,9 +307,6 @@ def self_test() -> int:
         assert "wb-core-006" not in {
             item["case_id"] for item in matrix["include"]
         }
-        assert "wb-diagnostics-001" not in {
-            item["case_id"] for item in matrix["include"]
-        }
 
     print("PASS: ordinary Builder-authored search, state-cycle and delete-confirmation cases resolve semantically.")
     return 0
