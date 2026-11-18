@@ -80,7 +80,7 @@ def role_score(case: dict, role: str) -> int:
     elif role == "state_cycle":
         # The user request must explicitly require the three-state sequence.
         # This is a within-message UI workflow, not a multi-turn conversation.
-        normalized_message = re.sub(r"\\s+", "", message).replace("->", "→")
+        normalized_message = re.sub(r"\s+", "", message).replace("->", "→")
         has_cycle = ("open→inprogress→done→open" in normalized_message) or ("三次" in message and "循环" in message)
         if (
             has_rule("BR-07")
