@@ -168,7 +168,7 @@ def expected_status_transitions(case: dict, target: dict | None) -> list[tuple[s
     elif isinstance(expected_behavior, list):
         for item in expected_behavior:
             match = re.search(
-                r"从\s*(Open|In progress|Done)\s*变为\s*(Open|In progress|Done)",
+                r"从\s*(Open|In progress|Done)\s*(?:变为|回到)\s*(Open|In progress|Done)",
                 str(item),
                 re.I,
             )
@@ -656,7 +656,7 @@ def self_test() -> int:
         "expected_behavior": [
             "第一次点击后 WB-101 从 Open 变为 In progress。",
             "第二次点击后 WB-101 从 In progress 变为 Done。",
-            "第三次点击后 WB-101 从 Done 变为 Open。",
+            "第三次点击后 WB-101 从 Done 回到 Open。",
         ],
         "execution_requirements": {"test_data": ["WB-101 Reset password flow，初始 Open"]},
     }
