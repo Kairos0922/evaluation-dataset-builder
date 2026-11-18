@@ -66,7 +66,7 @@ def role_score(case: dict, role: str) -> int:
         has_uppercase_probe = bool(re.search(r"\b[A-Z]{2,}\b", user_message(case)))
         if (
             "BR-02" in rules
-            and any(ref.startswith("WF-SEARCH") for ref in workflows)
+            and any(ref.startswith(("WF-SEARCH", "WF-02")) for ref in workflows)
             and has_search
             and has_uppercase_probe
         ):
@@ -75,10 +75,10 @@ def role_score(case: dict, role: str) -> int:
     elif role == "state_cycle":
         # The user request must explicitly require the three-state sequence.
         # This is a within-message UI workflow, not a multi-turn conversation.
-        has_cycle = all(term in message for term in ("open", "in progress", "done"))
+        has_cycle = all(term in message for term in ("open", "in progress", "done")) or ("三次" in message and "循环" in message)
         if (
             "BR-07" in rules
-            and any(ref.startswith("WF-STATUS") for ref in workflows)
+            and any(ref.startswith(("WF-STATUS", "WF-05")) for ref in workflows)
             and has_cycle
             and "multi_turn" not in buckets
         ):
@@ -91,7 +91,7 @@ def role_score(case: dict, role: str) -> int:
         has_delete_action = any(term in message for term in ("点击 delete", "click delete", "删除"))
         if (
             "BR-08" in rules
-            and any(ref.startswith("WF-DELETE") for ref in workflows)
+            and any(ref.startswith(("WF-DELETE", "WF-08")) for ref in workflows)
             and has_confirmation
             and has_delete_action
         ):
@@ -219,31 +219,31 @@ def self_test() -> int:
                 "objective": "验证搜索不区分大小写并匹配描述",
                 "expected_behavior": {"expected": "ONBOARDING matches Update onboarding guide"},
                 "business_rule_refs": ["BR-02"],
-                "workflow_refs": ["WF-SEARCH"],
+                "workflow_refs": ["WF-02"],
                 "scenario_bucket": ["business_rule", "boundary"],
                 "user_input": "验证搜索。用大写查询 ONBOARDING 验证标题搜索不区分大小写；查询 screenshots 应命中描述。",
             },
             {
                 "dataset_id": "D-CORE",
-                "case_id": "Generated-State-04",
+                "case_id": "wb-core-005",
                 "title": "[SYNTHETIC] 状态完整循环与摘要同步",
                 "business_rule_refs": ["BR-07"],
-                "workflow_refs": ["WF-STATUS-CYCLE", "WF-SUMMARY-READ"],
+                "workflow_refs": ["WF-05"],
                 "scenario_bucket": ["business_rule", "state_anomaly"],
-                "user_input": "请对 Reset password flow 做 Open、In progress、Done、Open 状态循环，并核对摘要。",
+                "user_input": "状态按钮三次循环，验证任务状态顺序与摘要同步。",
             },
             {
                 "dataset_id": "D-CORE",
-                "case_id": "Generated-Delete-03",
+                "case_id": "wb-core-007",
                 "title": "[SYNTHETIC] 删除确认 Cancel 与 Delete task",
                 "business_rule_refs": ["BR-08"],
-                "workflow_refs": ["WF-DELETE-DIALOG", "WF-DELETE-CONFIRM", "WF-SUMMARY-READ"],
+                "workflow_refs": ["WF-08"],
                 "scenario_bucket": ["business_rule", "negative", "normal"],
                 "user_input": "对 Update onboarding guide 执行删除流程：点击 Delete，点击 Cancel；再次点击 Delete 并点击 Delete task，验证任务已删除。",
             },
             {
                 "dataset_id": "D-CORE",
-                "case_id": "Generated-Delete-CancelOnly-04",
+                "case_id": "wb-core-006",
                 "title": "[SYNTHETIC] 仅取消删除",
                 "business_rule_refs": ["BR-08"],
                 "workflow_refs": ["WF-DELETE"],
@@ -252,12 +252,12 @@ def self_test() -> int:
             },
             {
                 "dataset_id": "D-CORE",
-                "case_id": "Generated-Search-HappyPath-05",
+                "case_id": "wb-diagnostics-001",
                 "title": "[SYNTHETIC] 搜索标题",
                 "business_rule_refs": ["BR-02"],
-                "workflow_refs": ["WF-SEARCH"],
+                "workflow_refs": ["WF-02"],
                 "scenario_bucket": ["normal", "business_rule"],
-                "user_input": "搜索 PASSWORD 并记录匹配结果。",
+                "user_input": "搜索矩阵：大小写、标题、描述与无匹配。查询 reset、RESET、token expiry、SCREENSHOTS，记录结果。",
             },
         ]
 
@@ -298,16 +298,16 @@ def self_test() -> int:
         matrix = load_suite(root)
         assert [item["pilot_role"] for item in matrix["include"]] == list(PILOT_ROLES)
         assert [item["case_id"] for item in matrix["include"]] == [
-            "Generated-Search-08", "Generated-State-04", "Generated-Delete-03"
+            "Generated-Search-08", "wb-core-005", "wb-core-007"
         ]
         assert [item["fixture_profile"] for item in matrix["include"]] == [
             "mutant", "clean", "clean"
         ]
         assert matrix["include"][1]["fixture_mutations"] == []
-        assert "Generated-Delete-CancelOnly-04" not in {
+        assert "wb-core-006" not in {
             item["case_id"] for item in matrix["include"]
         }
-        assert "Generated-Search-HappyPath-05" not in {
+        assert "wb-diagnostics-001" not in {
             item["case_id"] for item in matrix["include"]
         }
 
