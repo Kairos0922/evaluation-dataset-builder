@@ -120,7 +120,7 @@ def target_task(case: dict, tasks: list[dict]) -> dict | None:
         if test_data and isinstance(test_data[0], dict):
             target = test_data[0].get("target_task")
         elif test_data and isinstance(test_data[0], str):
-            match = re.search(r"\\b(WB-\\d+)\\b", test_data[0])
+            match = re.search(r"\b(WB-\d+)\b", test_data[0])
             if match:
                 target = match.group(1)
     if isinstance(target, dict):
@@ -168,7 +168,7 @@ def expected_status_transitions(case: dict, target: dict | None) -> list[tuple[s
     elif isinstance(expected_behavior, list):
         for item in expected_behavior:
             match = re.search(
-                r"从\\s*(Open|In progress|Done)\\s*变为\\s*(Open|In progress|Done)",
+                r"从\s*(Open|In progress|Done)\s*变为\s*(Open|In progress|Done)",
                 str(item),
                 re.I,
             )
