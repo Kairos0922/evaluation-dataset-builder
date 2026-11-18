@@ -1,18 +1,12 @@
 name: Re-adjudicate archived Webapp Testing pilot
 
 on:
-  push:
-    branches: ["experiment/webapp-testing-contract"]
-    paths:
-      - "benchmarks/webapp-testing/scripts/gold_oracle.py"
-      - ".github/workflows/adjudicate-existing-pilot.yml"
   workflow_dispatch:
     inputs:
       source_run_id:
         description: "Completed replay run containing the Builder suite and all three pilot artifacts"
         required: true
         type: string
-        default: "43977432769"
 
 permissions:
   actions: read
@@ -23,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      SOURCE_RUN_ID: ${{ inputs.source_run_id || '43977432769' }}
+      SOURCE_RUN_ID: ${{ inputs.source_run_id }}
     steps:
       - name: Checkout benchmark repository
         uses: actions/checkout@v4
