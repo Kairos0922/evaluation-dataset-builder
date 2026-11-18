@@ -60,24 +60,17 @@ def role_score(case: dict, role: str) -> int:
         # Require the user request itself to challenge a case-sensitivity
         # claim. Metadata alone must not turn a broad audit into this pilot.
         has_search = any(term in message for term in ("search", "搜索"))
-        has_case_sensitivity = any(
+        has_case_insensitive_claim = any(
             term in message
-            for term in ("case-sensitive", "case sensitive", "大小写", "区分大小写")
+            for term in ("不区分大小写", "大小写不敏感", "case-insensitive", "case insensitive")
         )
-        # A Builder-authored request may instruct the Skill to select a
-        # description-only token and compare its original spelling with a
-        # case variant. Requiring a hard-coded token pair would reject this
-        # valid, executable probe even though the Skill can derive the token
-        # from the live UI before testing the mutant.
-        has_description_probe = "描述" in message
-        has_case_variant = "不同" in message and "大小写" in message
+        has_uppercase_probe = any(term in message for term in ("大写查询", "uppercase", "upper-case"))
         if (
             "BR-02" in rules
             and any(ref.startswith("WF-SEARCH") for ref in workflows)
             and has_search
-            and has_case_sensitivity
-            and has_description_probe
-            and has_case_variant
+            and has_case_insensitive_claim
+            and has_uppercase_probe
         ):
             return 300 + len(message)
 
@@ -94,17 +87,15 @@ def role_score(case: dict, role: str) -> int:
             return 200 + len(message)
 
     elif role == "delete_confirmation":
-        has_cancel = any(term in message for term in ("cancel", "取消"))
         has_confirmation = any(
             term in message for term in ("delete task", "confirm delete", "确认删除", "删除任务")
         )
-        has_second_attempt = any(term in message for term in ("again", "再次", "第二次"))
+        has_delete_action = any(term in message for term in ("点击 delete", "click delete", "删除"))
         if (
             "BR-08" in rules
             and any(ref.startswith("WF-DELETE") for ref in workflows)
-            and has_cancel
             and has_confirmation
-            and has_second_attempt
+            and has_delete_action
         ):
             return 100 + len(message)
 
