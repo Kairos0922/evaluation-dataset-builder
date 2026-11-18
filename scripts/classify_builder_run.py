@@ -30,6 +30,30 @@ def read_json(path: Path) -> dict[str, Any]:
     return value if isinstance(value, dict) else {}
 
 
+def structured_provider_errors(path: Path) -> str:
+    """Extract explicit provider/API error fields, never arbitrary model/tool text."""
+    if not path.is_file():
+        return ""
+    errors: list[str] = []
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(event, dict):
+            continue
+        event_type = str(event.get("type", event.get("event", ""))).lower()
+        if not any(token in event_type for token in ("error", "exception", "provider_failure", "api_error")):
+            continue
+        for key in ("error", "error_message", "message", "details", "status"):
+            value = event.get(key)
+            if isinstance(value, str):
+                errors.append(value)
+            elif isinstance(value, dict):
+                errors.append(json.dumps(value, ensure_ascii=False))
+    return "\\n".join(errors)
+
+
 def read_exit_code(path: Path) -> int | None:
     if not path.is_file():
         return None
@@ -45,13 +69,13 @@ def classify_builder_run(artifacts_dir: Path) -> dict[str, Any]:
     probe_report = read_json(artifacts_dir / "builder-connectivity-probe.json")
     probe_text = "\n".join(
         (
-            read_text(artifacts_dir / "builder-connectivity-probe-events.jsonl"),
+            structured_provider_errors(artifacts_dir / "builder-connectivity-probe-events.jsonl"),
             read_text(artifacts_dir / "builder-connectivity-probe-stderr.log"),
         )
     )
     builder_text = "\n".join(
         (
-            read_text(artifacts_dir / "builder-dsh-events.jsonl"),
+            structured_provider_errors(artifacts_dir / "builder-dsh-events.jsonl"),
             read_text(artifacts_dir / "builder-dsh-stderr.log"),
         )
     )
