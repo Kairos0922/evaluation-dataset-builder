@@ -329,14 +329,24 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
             and "q=" in event.get("query", "")
         ]
         expected_behavior = case.get("expected_behavior") or {}
+        if not isinstance(expected_behavior, dict):
+            expected_behavior = {}
         required_queries = expected_behavior.get("required_queries") or []
         possible = expected_behavior.get("possible_observations") or {}
-        legacy_contract = not required_queries
+        reference_queries = ((case.get("reference_outcome") or {}).get("queries") or [])
+        legacy_contract = not required_queries and not possible
         branch_name = "case_sensitive_title_only" if is_mutant else "conforming"
         expected_branch = possible.get(branch_name) or {}
         if legacy_contract:
-            required_queries = ["RESET", "Reset", "reset", "SCREENSHOTS", "screenshots"]
-            expected_counts = {"RESET": 0, "Reset": 1, "reset": 0, "SCREENSHOTS": 0, "screenshots": 0}
+            required_queries = [
+                item.get("query") for item in reference_queries
+                if isinstance(item, dict) and isinstance(item.get("query"), str)
+            ]
+            expected_counts = {
+                item["query"]: len(item.get("expected_matches") or [])
+                for item in reference_queries
+                if isinstance(item, dict) and isinstance(item.get("query"), str)
+            }
         else:
             expected_counts = {
                 query: len(expected_branch.get(query, []))
