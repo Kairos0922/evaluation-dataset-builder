@@ -64,13 +64,13 @@ def role_score(case: dict, role: str) -> int:
         # rather than the exact phrase "大写查询". BR-02 is authoritative,
         # and an uppercase token is sufficient evidence of the case-sensitivity probe.
         probe_tail = re.split(
-            r"(?:搜索词|查询词|search terms?|search for)\\s*",
+            r"(?:搜索词|查询词|search terms?|search for)\s*",
             user_message(case),
             maxsplit=1,
             flags=re.IGNORECASE,
         )
         has_uppercase_probe = len(probe_tail) > 1 and bool(
-            re.search(r"\\b[A-Z]{2,}\\b", probe_tail[1])
+            re.search(r"\b[A-Z]{2,}\b", probe_tail[1])
         )
         explicitly_tests_case_sensitivity = "不区分大小写" in message or "case-insensitive" in message
         if (
