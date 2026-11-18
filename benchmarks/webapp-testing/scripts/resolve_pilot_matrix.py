@@ -55,6 +55,7 @@ def role_score(case: dict, role: str) -> int:
     rules = set(case.get("business_rule_refs") or [])
     workflows = set(case.get("workflow_refs") or [])
     buckets = set(case.get("scenario_bucket") or [])
+    has_rule = lambda prefix: any(isinstance(rule, str) and rule.startswith(prefix) for rule in rules)
 
     if role == "search_mutation":
         # Require the user request itself to challenge a case-sensitivity
@@ -63,18 +64,10 @@ def role_score(case: dict, role: str) -> int:
         # Builder-generated requests may express the probe as "大写形式查询 TOKEN"
         # rather than the exact phrase "大写查询". BR-02 is authoritative,
         # and an uppercase token is sufficient evidence of the case-sensitivity probe.
-        probe_tail = re.split(
-            r"(?:搜索词|查询词|search terms?|search for)\s*",
-            user_message(case),
-            maxsplit=1,
-            flags=re.IGNORECASE,
-        )
-        has_uppercase_probe = len(probe_tail) > 1 and bool(
-            re.search(r"\b[A-Z]{2,}\b", probe_tail[1])
-        )
+        has_uppercase_probe = bool(re.search(r"\b[A-Z]{2,}\b", user_message(case)))
         explicitly_tests_case_sensitivity = "不区分大小写" in message or "case-insensitive" in message
         if (
-            "BR-02" in rules
+            has_rule("BR-02")
             and (not workflows or any(ref.startswith(("WF-SEARCH", "WF-02")) for ref in workflows))
             and has_search
             and has_uppercase_probe
@@ -87,7 +80,7 @@ def role_score(case: dict, role: str) -> int:
         # This is a within-message UI workflow, not a multi-turn conversation.
         has_cycle = all(term in message for term in ("open", "in progress", "done")) or ("三次" in message and "循环" in message)
         if (
-            "BR-07" in rules
+            has_rule("BR-07")
             and (not workflows or any(ref.startswith(("WF-STATUS", "WF-05")) for ref in workflows))
             and has_cycle
             and "multi_turn" not in buckets
@@ -100,7 +93,7 @@ def role_score(case: dict, role: str) -> int:
         )
         has_delete_action = any(term in message for term in ("点击 delete", "click delete", "删除"))
         if (
-            "BR-08" in rules
+            has_rule("BR-08")
             and (not workflows or any(ref.startswith(("WF-DELETE", "WF-08")) for ref in workflows))
             and has_confirmation
             and has_delete_action
