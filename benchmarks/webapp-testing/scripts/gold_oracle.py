@@ -88,7 +88,7 @@ def case_initial_state(case: dict) -> tuple[list[dict], dict]:
     tasks = normalized_tasks(declared)
     if not tasks:
         tasks = normalized_tasks({"items": INITIAL})
-    summary = declared.get("summary")
+    summary = declared.get("summary") or declared.get("initial_summary")
     if not isinstance(summary, dict):
         summary = task_summary(tasks)
     return tasks, summary
@@ -119,6 +119,10 @@ def target_task(case: dict, tasks: list[dict]) -> dict | None:
         test_data = ((case.get("execution_requirements") or {}).get("test_data") or [])
         if test_data and isinstance(test_data[0], dict):
             target = test_data[0].get("target_task")
+        elif test_data and isinstance(test_data[0], str):
+            match = re.search(r"\\b(WB-\\d+)\\b", test_data[0])
+            if match:
+                target = match.group(1)
     if isinstance(target, dict):
         target_id = target.get("id")
         target_title = target.get("title")
@@ -157,15 +161,20 @@ def expected_status_transitions(case: dict, target: dict | None) -> list[tuple[s
     if test_data and isinstance(test_data[0], dict):
         test_sequence = test_data[0].get("expected_sequence") or []
     expected_behavior = case.get("expected_behavior") or {}
-    if not isinstance(expected_behavior, dict):
-        expected_behavior = {}
     conforming = ((case.get("reference_outcome") or {}).get("conforming_branch") or {})
-    sequence = (
-        expected_behavior.get("expected_status_sequence")
-        or test_sequence
-        or conforming.get("statuses")
-        or []
-    )
+    sequence = []
+    if isinstance(expected_behavior, dict):
+        sequence = expected_behavior.get("expected_status_sequence") or []
+    elif isinstance(expected_behavior, list):
+        for item in expected_behavior:
+            match = re.search(
+                r"从\\s*(Open|In progress|Done)\\s*变为\\s*(Open|In progress|Done)",
+                str(item),
+                re.I,
+            )
+            if match:
+                sequence.append(match.group(2))
+    sequence = sequence or test_sequence or conforming.get("statuses") or []
     if not target or not isinstance(sequence, list) or not sequence:
         return []
 
@@ -641,6 +650,26 @@ def self_test() -> int:
     }
     extracted = extract_search_queries(production_style_case, INITIAL)
     assert extracted == ["reset", "RESET", "CSV", "zzz-no-match"], extracted
+
+    builder_state_case = {
+        "user_input": "定位初始状态为 Open 的 WB-101，预期顺序为 Open → In progress → Done → Open。",
+        "expected_behavior": [
+            "第一次点击后 WB-101 从 Open 变为 In progress。",
+            "第二次点击后 WB-101 从 In progress 变为 Done。",
+            "第三次点击后 WB-101 从 Done 变为 Open。",
+        ],
+        "execution_requirements": {"test_data": ["WB-101 Reset password flow，初始 Open"]},
+    }
+    state_target = target_task(builder_state_case, INITIAL)
+    assert state_target and state_target["id"] == "WB-101", state_target
+    assert expected_status_transitions(builder_state_case, state_target) == [
+        ("open", "in_progress"), ("in_progress", "done"), ("done", "open"),
+    ]
+    builder_delete_case = {
+        "execution_requirements": {"test_data": ["WB-103 Fix export timeout，初始 Done"]},
+    }
+    delete_target = target_task(builder_delete_case, INITIAL)
+    assert delete_target and delete_target["id"] == "WB-103", delete_target
     assert expected_search_counts(extracted, INITIAL, "case_sensitive_title_only") == {
         "reset": 0, "RESET": 0, "CSV": 0, "zzz-no-match": 0,
     }
