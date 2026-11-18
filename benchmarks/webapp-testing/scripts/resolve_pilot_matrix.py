@@ -60,16 +60,14 @@ def role_score(case: dict, role: str) -> int:
         # Require the user request itself to challenge a case-sensitivity
         # claim. Metadata alone must not turn a broad audit into this pilot.
         has_search = any(term in message for term in ("search", "搜索"))
-        has_case_insensitive_claim = any(
-            term in message
-            for term in ("不区分大小写", "大小写不敏感", "case-insensitive", "case insensitive")
-        )
-        has_uppercase_probe = any(term in message for term in ("大写查询", "uppercase", "upper-case"))
+        # Builder-generated requests may express the probe as "大写形式查询 TOKEN"
+        # rather than the exact phrase "大写查询". BR-02 is authoritative,
+        # and an uppercase token is sufficient evidence of the case-sensitivity probe.
+        has_uppercase_probe = bool(re.search(r"\b[A-Z]{2,}\b", user_message(case)))
         if (
             "BR-02" in rules
             and any(ref.startswith("WF-SEARCH") for ref in workflows)
             and has_search
-            and has_case_insensitive_claim
             and has_uppercase_probe
         ):
             return 300 + len(message)
