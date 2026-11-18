@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   replay:
-    if: github.event.label.name == 'replay-gold-oracle' && github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout PR source
