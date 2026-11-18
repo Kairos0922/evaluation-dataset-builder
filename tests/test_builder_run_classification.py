@@ -74,6 +74,19 @@ class BuilderRunClassificationTests(unittest.TestCase):
             result = CLASSIFIER.classify_builder_run(artifacts)
             self.assertEqual(result["status"], "EXTERNAL_MODEL_QUOTA_BLOCKED")
 
+    def test_quota_text_in_non_error_event_is_not_classified(self):
+        with tempfile.TemporaryDirectory() as directory:
+            artifacts = self.make_artifacts(Path(directory))
+            self.write_exit(artifacts, 0)
+            (artifacts / "builder-dsh-events.jsonl").write_text(
+                '{"type":"thinking","text":"quota is mentioned in a normal thought"}\\n'
+                '{"type":"tool_result","text":"HTTP 402 appears in fixture documentation"}\\n',
+                encoding="utf-8",
+            )
+            result = CLASSIFIER.classify_builder_run(artifacts)
+            self.assertEqual(result["status"], "DSH_EXIT_ZERO")
+            self.assertFalse(result["quota_error_detected"])
+
     def test_non_quota_failure_remains_an_invocation_failure(self):
         with tempfile.TemporaryDirectory() as directory:
             artifacts = self.make_artifacts(Path(directory))
