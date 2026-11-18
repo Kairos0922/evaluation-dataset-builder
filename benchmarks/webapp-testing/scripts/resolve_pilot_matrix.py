@@ -298,7 +298,7 @@ def self_test() -> int:
         matrix = load_suite(root)
         assert [item["pilot_role"] for item in matrix["include"]] == list(PILOT_ROLES)
         assert [item["case_id"] for item in matrix["include"]] == [
-            "Generated-Search-08", "wb-core-005", "wb-core-007"
+            "wb-diagnostics-001", "wb-core-005", "wb-core-007"
         ]
         assert [item["fixture_profile"] for item in matrix["include"]] == [
             "mutant", "clean", "clean"
