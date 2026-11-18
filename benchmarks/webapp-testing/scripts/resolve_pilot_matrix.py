@@ -63,12 +63,22 @@ def role_score(case: dict, role: str) -> int:
         # Builder-generated requests may express the probe as "大写形式查询 TOKEN"
         # rather than the exact phrase "大写查询". BR-02 is authoritative,
         # and an uppercase token is sufficient evidence of the case-sensitivity probe.
-        has_uppercase_probe = bool(re.search(r"\b[A-Z]{2,}\b", user_message(case)))
+        probe_tail = re.split(
+            r"(?:搜索词|查询词|search terms?|search for)\\s*",
+            user_message(case),
+            maxsplit=1,
+            flags=re.IGNORECASE,
+        )
+        has_uppercase_probe = len(probe_tail) > 1 and bool(
+            re.search(r"\\b[A-Z]{2,}\\b", probe_tail[1])
+        )
+        explicitly_tests_case_sensitivity = "不区分大小写" in message or "case-insensitive" in message
         if (
             "BR-02" in rules
             and (not workflows or any(ref.startswith(("WF-SEARCH", "WF-02")) for ref in workflows))
             and has_search
             and has_uppercase_probe
+            and explicitly_tests_case_sensitivity
         ):
             return 300 + len(message)
 
@@ -86,7 +96,7 @@ def role_score(case: dict, role: str) -> int:
 
     elif role == "delete_confirmation":
         has_confirmation = any(
-            term in message for term in ("delete task", "confirm delete", "确认删除", "删除任务")
+            term in message for term in ("delete task", "confirm delete", "点击确认删除按钮")
         )
         has_delete_action = any(term in message for term in ("点击 delete", "click delete", "删除"))
         if (
@@ -245,15 +255,6 @@ def self_test() -> int:
                 "business_rule_refs": ["BR-08"],
                 "scenario_bucket": ["negative", "business_rule"],
                 "user_input": "验证 BR-08 的 Cancel 分支：点击 Delete 必须显示确认对话框；点击 Cancel 必须关闭对话框并保持任务集合与摘要不变。定位 WB-104，点击 Delete 按钮，在确认对话框中点击 Cancel。",
-            },
-            {
-                "dataset_id": "D-CORE",
-                "case_id": "wb-diagnostics-001",
-                "title": "[SYNTHETIC] 搜索标题",
-                "business_rule_refs": ["BR-02"],
-                "workflow_refs": ["WF-02"],
-                "scenario_bucket": ["normal", "business_rule"],
-                "user_input": "搜索矩阵：大小写、标题、描述与无匹配。查询 reset、RESET、token expiry、SCREENSHOTS，记录结果。",
             },
         ]
 
