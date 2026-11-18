@@ -61,6 +61,7 @@ def role_score(case: dict, role: str) -> int:
         # Require the user request itself to challenge a case-sensitivity
         # claim. Metadata alone must not turn a broad audit into this pilot.
         has_search = any(term in message for term in ("search", "搜索"))
+        is_focused_search_case = not any(term in message for term in ("分诊", "连续操作", "回归"))
         # Builder-generated requests may express the probe as "大写形式查询 TOKEN"
         # rather than the exact phrase "大写查询". BR-02 is authoritative,
         # and an uppercase token is sufficient evidence of the case-sensitivity probe.
@@ -70,6 +71,7 @@ def role_score(case: dict, role: str) -> int:
             has_rule("BR-02")
             and (not workflows or any(ref.startswith(("WF-SEARCH", "WF-02")) for ref in workflows))
             and has_search
+            and is_focused_search_case
             and has_uppercase_probe
             and explicitly_tests_case_sensitivity
         ):
@@ -78,7 +80,7 @@ def role_score(case: dict, role: str) -> int:
     elif role == "state_cycle":
         # The user request must explicitly require the three-state sequence.
         # This is a within-message UI workflow, not a multi-turn conversation.
-        has_cycle = all(term in message for term in ("open", "in progress", "done")) or ("三次" in message and "循环" in message)
+        has_cycle = ("open → in progress → done → open" in message) or ("open -> in progress -> done -> open" in message) or ("三次" in message and "循环" in message)
         if (
             has_rule("BR-07")
             and (not workflows or any(ref.startswith(("WF-STATUS", "WF-05")) for ref in workflows))
