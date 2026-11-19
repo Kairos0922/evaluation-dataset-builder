@@ -1,0 +1,123 @@
+name: Validate Archived Builder Artifact
+
+on:
+  push:
+    branches: ["experiment/webapp-testing-contract"]
+    paths:
+      - ".github/workflows/validate-existing-builder-artifact.yml"
+      - "benchmarks/webapp-testing/scripts/validate_builder_output.py"
+  workflow_dispatch:
+    inputs:
+      builder_run_id:
+        description: "Existing Builder production run ID. No Builder or model calls are made."
+        required: true
+        type: string
+        default: "44554258000"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  validate-archived-artifact:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      BUILDER_RUN_ID: ${{ github.event.inputs.builder_run_id || '44554258000' }}
+      BUILDER_OUTPUT_DIR: artifacts/builder-result/webapp-testing-builder-output
+    steps:
+      - name: Checkout current validator
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Validate Builder run ID input
+        run: |
+          set -euo pipefail
+          [[ "$BUILDER_RUN_ID" =~ ^[0-9]+$ ]]
+          echo "Validating archived Builder artifact from run $BUILDER_RUN_ID"
+
+      - name: Download archived Builder result
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-builder-result
+          run-id: ${{ github.event.inputs.builder_run_id || '44554258000' }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifacts/builder-result
+
+      - name: Download frozen Builder input
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-builder-input
+          run-id: ${{ github.event.inputs.builder_run_id || '44554258000' }}
+          repository: ${{ github.repository }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifacts/webapp-testing-builder-input
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install independent validation dependency
+        run: python -m pip install --disable-pip-version-check jsonschema
+
+      - name: Verify frozen input and actual Builder trace
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/verify_builder_input.py \
+            | tee artifacts/independent-builder-input-verification.json
+          test -s artifacts/builder-result/builder-dsh-exit-code.txt
+          test "$(cat artifacts/builder-result/builder-dsh-exit-code.txt)" = "0"
+          python benchmarks/webapp-testing/scripts/verify_builder_dsh_trace.py \
+            --events artifacts/builder-result/builder-dsh-events.jsonl \
+            --exit-code "$(cat artifacts/builder-result/builder-dsh-exit-code.txt)" \
+            --output-dir "$BUILDER_OUTPUT_DIR" \
+            | tee artifacts/independent-builder-trace-verification.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("artifacts/builder-result")
+          probe = json.loads((root / "builder-connectivity-probe.json").read_text(encoding="utf-8"))
+          scan = json.loads((root / "credential-scan.json").read_text(encoding="utf-8"))
+          capture = json.loads((root / "builder-output-capture.json").read_text(encoding="utf-8"))
+          trace = json.loads(Path("artifacts/independent-builder-trace-verification.json").read_text(encoding="utf-8"))
+          if probe.get("status") != "PASS" or probe.get("builder_invocation_started") is not False or probe.get("quota_error_detected") is not False:
+              raise SystemExit("Builder connectivity probe evidence invalid")
+          if scan.get("secret_value_exposed_in_artifact") is not False:
+              raise SystemExit("Credential scan is missing or not clean")
+          if capture.get("dsh_step_outcome") != "success" or capture.get("partial_output_disposition") != "AWAITING_TRACE_VERIFICATION":
+              raise SystemExit("Output capture metadata does not match a completed invocation awaiting validation")
+          if trace.get("status") != "PASS" or trace.get("builder_skill_tool_calls") != 1:
+              raise SystemExit("Actual Builder invocation trace did not independently PASS")
+          print("PASS: archived Builder execution, frozen input, trace, and credential safety verified")
+          PY
+
+      - name: Run official independent Builder output validator
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/validate_builder_output.py \
+            | tee artifacts/independent-builder-output-validation.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("artifacts/independent-builder-output-validation.json").read_text(encoding="utf-8"))
+          if report.get("status") != "PASS":
+              raise SystemExit("Official independent Builder output validator did not PASS")
+          print("PASS: official validator accepted the archived Builder output")
+          PY
+
+      - name: Archive archived-output validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: archived-builder-independent-validation
+          path: |
+            artifacts/independent-builder-input-verification.json
+            artifacts/independent-builder-trace-verification.json
+            artifacts/independent-builder-output-validation.json
+          if-no-files-found: warn
+          retention-days: 90
