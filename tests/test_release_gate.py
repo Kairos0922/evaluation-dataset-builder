@@ -1666,6 +1666,13 @@ class ReleaseGateUnitTests(unittest.TestCase):
             for term in forbidden_terms:
                 self.assertNotIn(term.lower(), content.lower(), f"{relative_path} contains {term}")
 
+    def test_eval_report_has_no_manual_review_stage(self):
+        source = (ROOT / "tests" / "run_eval.py").read_text(encoding="utf-8")
+        self.assertNotIn('report["human_review"]', source)
+        self.assertNotIn("human_interpretation_required", source)
+        self.assertNotIn("critical_case_ids_for_human_review", source)
+        self.assertNotIn("Independent human critical-case review", source)
+
     def test_critical_cases_exist(self):
         fixture = json.loads((ROOT / "tests" / "self-eval-cases.json").read_text(encoding="utf-8"))
         available = {item["id"] for item in fixture["cases"]}
