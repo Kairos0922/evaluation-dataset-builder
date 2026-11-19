@@ -228,7 +228,10 @@ def expected_status_transitions(case: dict, target: dict | None) -> list[tuple[s
             for item in expected_behavior:
                 text = str(item)
                 if re.search(ordinal, text):
-                    match = re.search(r"(Open|In progress|Done)", text, re.I)
+                    match = re.search(
+                        r"(?:变为|回到|状态(?:为|回到))\s*(Open|In progress|Done)",
+                        text, re.I,
+                    ) or re.search(r"(Open|In progress|Done)", text, re.I)
                     if match:
                         matched_state = match.group(1)
                         break
