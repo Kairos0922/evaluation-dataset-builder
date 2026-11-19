@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/workflows/validate-existing-builder-artifact.yml"
       - "benchmarks/webapp-testing/scripts/validate_builder_output.py"
+      - "benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py"
   workflow_dispatch:
     inputs:
       builder_run_id:
