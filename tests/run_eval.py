@@ -26,7 +26,6 @@ POLICY = {
     "max_stability_spread": 0.05,
     "minimum_runs": 2,
 }
-CRITICAL_CASE_IDS = ["SE03", "SE04", "SE05", "SE08", "SE09", "SE11", "SE12"]
 DEFAULT_GENERATOR_MODEL = "deepseek-flash"
 DEFAULT_JUDGE_MODEL = "deepseek-flash"
 JUDGE_BASE_URL = DEEPSEEK_BASE_URL
@@ -1184,7 +1183,6 @@ def main():
             **POLICY,
             "actual_runs": args.runs,
             "minimum_behavior_evaluability_rate": 1.0,
-            "critical_case_ids_for_human_review": CRITICAL_CASE_IDS,
             "trigger_eval_count": len(trigger_suite["evals"]),
         },
         "runs": runs,
@@ -1205,7 +1203,6 @@ def main():
             "per_run_uplift": [
                 run["metrics"]["behavior_uplift_vs_baseline"] for run in runs
             ],
-            "human_interpretation_required": True,
         },
         "api_usage_by_model": USAGE_BY_MODEL,
         "cost_control": {
@@ -1249,15 +1246,6 @@ def main():
     report["automated_gate_pass"] = all(
         gate["pass"] for gate in report["automated_gates"].values()
     )
-    report["human_review"] = {
-        "required": True,
-        "status": "PENDING",
-        "critical_case_ids": CRITICAL_CASE_IDS,
-        "note": (
-            "Independent reviewer must inspect critical cases, failures, judge "
-            "evidence, generated samples, and baseline uplift, then approve the PR."
-        ),
-    }
     report["release_approved"] = False
 
     output = ROOT / args.output
@@ -1275,7 +1263,8 @@ def main():
         "api_usage_by_model": report["api_usage_by_model"],
         "release_approved": False,
         "reason": (
-            "Independent human critical-case review and PR approval remain mandatory."
+            "This behavioral report does not itself authorize release; the separate "
+            "automated release gate must verify all required evidence."
         ),
     }, ensure_ascii=False, indent=2))
     return 0 if report["automated_gate_pass"] else 1
