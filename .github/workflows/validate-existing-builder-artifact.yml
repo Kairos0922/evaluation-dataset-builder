@@ -115,15 +115,7 @@ jobs:
         run: |
           set -euo pipefail
           python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py --output-root "$BUILDER_OUTPUT_DIR" --write-output artifacts/pilot-matrix.json
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          matrix = json.loads(Path("artifacts/pilot-matrix.json").read_text(encoding="utf-8"))
-          selected = matrix.get("include", [])
-          if len(selected) != 3 or len({item.get("case_id") for item in selected}) != 3:
-              raise SystemExit("Pilot resolver did not produce exactly three unique cases")
-          print("PASS: 3 cases selected from Builder-authored output; no trial was executed")
-          PY
+          python -c 'import json; from pathlib import Path; matrix=json.loads(Path("artifacts/pilot-matrix.json").read_text(encoding="utf-8")); selected=matrix.get("include", []); assert len(selected)==3 and len({item.get("case_id") for item in selected})==3; print("PASS: 3 unique Builder-authored cases selected; no trial executed")'
 
       - name: Archive archived-output validation evidence
         if: always()
