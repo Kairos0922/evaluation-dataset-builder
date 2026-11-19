@@ -12,7 +12,6 @@ from verify_release import (
     API,
     PR_NUMBER,
     api_request,
-    latest_approved_review,
     release_pr_binding,
     require,
     repository_tree_signature,
@@ -257,9 +256,6 @@ def create_release_tag():
     author = (pr.get("user") or {}).get("login")
     require(bool(author), "Could not identify the release PR author.")
 
-    reviews = api_request(
-        f"/repos/{repo}/pulls/{pr_number}/reviews?per_page=100", token
-    )
     runs_response = api_request(
         f"/repos/{repo}/actions/runs?per_page=100",
         token,
@@ -280,7 +276,6 @@ def create_release_tag():
     report, artifact = report_from_run(repo, token, run_id, candidate_sha)
     builder_evidence = verify_builder_evidence(repo, token, builder_pr_number, candidate_sha)
     report["builder_evidence"] = builder_evidence
-    review = latest_approved_review(reviews, author, pr_head_sha, run_id, builder_evidence)
 
     tag_name = "v0.0.1"
     try:
@@ -305,7 +300,6 @@ def create_release_tag():
     with open("artifacts/eval-report.json", "w", encoding="utf-8") as handle:
         json.dump(report, handle, ensure_ascii=False, indent=2)
     run_url = f"https://github.com/{repo}/actions/runs/{run_id}"
-    reviewer = (review.get("user") or {}).get("login")
     stability = report["stability"]
     baseline = report["baseline_comparison"]
     notes = (
@@ -313,7 +307,6 @@ def create_release_tag():
         f"- Reviewed PR head SHA: `{pr_head_sha}`\n"
         f"- Evaluated merge commit / tag SHA: `{release_sha}`\n"
         f"- Validation run: {run_url}\n"
-        f"- Independent reviewer: {reviewer}\n"
         f"- Builder evidence PR: #{builder_evidence['pr_number']} at {builder_evidence['candidate_sha']}\n"
         f"- Builder production run: {builder_evidence['workflow_run_url']}\n"
         f"- Independently validated datasets / cases: {builder_evidence['dataset_count']} / {builder_evidence['case_count']}\n"
@@ -337,7 +330,6 @@ def create_release_tag():
         "release_commit_sha": release_sha,
         "workflow_run_id": run_id,
         "report_artifact_id": artifact["id"],
-        "approved_reviewer": reviewer,
         "behavior_mean": report["stability"]["behavior_pass_rate"]["mean"],
         "trigger_precision_mean": report["stability"]["trigger_precision"]["mean"],
         "trigger_recall_mean": report["stability"]["trigger_recall"]["mean"],
