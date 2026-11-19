@@ -7,3 +7,5 @@ Do not resume checkpoints created with another model configuration.
 Run two complete repetitions, matched baseline, all trigger cases, 100% evaluability, behavior pass >=90%, Trigger Precision/Recall >=95%, and stability spread <=5 percentage points.
 Use the published DeepSeek Flash pricing for cost estimation. No fixed API request cap or third-party provider RPM/TPM/TPD quota is applied; retain the $10 estimated-spend guard.
 Keep all release thresholds unchanged. Archive the full report and checkpoint. Do not merge or publish.
+
+Authorized evaluation trigger: 2026-11-19. Use the exact PR head SHA and preserve all existing automated release gates.
