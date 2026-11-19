@@ -60,6 +60,16 @@ def require_nonempty_value(value, location: str) -> None:
         raise SystemExit(f"{location} must not be empty")
 
 
+def validate_case_timeout_seconds(case_id: str, execution: dict) -> int:
+    """Validate the timeout field at its contract-defined execution_requirements level."""
+    value = execution.get("case_timeout_seconds")
+    if type(value) is not int or not 1 <= value <= 900:
+        raise SystemExit(
+            f"{case_id}: execution_requirements.case_timeout_seconds must be an integer from 1 to 900"
+        )
+    return value
+
+
 def normalize_source_text(value: str) -> str:
     value = unicodedata.normalize('NFKC', value).casefold()
     return re.sub(r'\s+', ' ', value).strip()
@@ -553,9 +563,7 @@ def main() -> int:
             initial_state = execution["initial_state"]
             if environment.get("app_url") != "http://127.0.0.1:4173":
                 raise SystemExit(f"{case_id}: app_url must target the local Workboard fixture")
-            case_budget = environment.get("case_timeout_seconds")
-            if type(case_budget) is not int or not 1 <= case_budget <= 900:
-                raise SystemExit(f"{case_id}: case_timeout_seconds must be an integer from 1 to 900")
+            validate_case_timeout_seconds(case_id, execution)
             server_state = initial_state.get("server_state") or environment.get("server_state_at_start") or "running"
             if server_state != "running":
                 raise SystemExit(f"{case_id}: this pilot runner supports server_state=running only")
