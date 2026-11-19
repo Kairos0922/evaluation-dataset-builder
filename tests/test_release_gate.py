@@ -352,7 +352,11 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
     def test_tag_workflow_runs_verifier_before_release_creation(self):
         workflow = (ROOT / ".github" / "workflows" / "publish-release.yml").read_text(encoding="utf-8")
-        self.assertNotIn('push:', workflow)
+        self.assertIn('push:', workflow)
+        self.assertIn('branches: ["main"]', workflow)
+        self.assertIn('.github/publish-release-trigger.txt', workflow)
+        self.assertIn('confirm_publish=true', workflow)
+        self.assertIn('RELEASE_BUILDER_PR_NUMBER', workflow)
         self.assertNotIn("python scripts/verify_release.py", workflow)
         self.assertIn("create_release_tag.py", workflow)
         self.assertIn("python scripts/create_release_tag.py", workflow)
@@ -391,6 +395,8 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertNotIn("GROQ_API_KEY", workflow)
         self.assertNotIn("api.groq.com", workflow)
         self.assertIn("candidate-evaluation-report-", workflow)
+        self.assertIn("resume_candidate_sha", workflow)
+        self.assertIn("RESUME_CANDIDATE_SHA", workflow)
         self.assertIn("actions/runs?head_sha=$CANDIDATE_SHA", workflow)
         self.assertIn("验证 Benchmark 贯通样例", workflow)
         self.assertIn("运行离线测试", workflow)
@@ -751,6 +757,36 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIsNone(result[0]["score"])
         self.assertFalse(result[0]["evidence_validated"])
         self.assertFalse(result[0]["evidence_repair_used"])
+
+    def test_evidence_repair_retries_once_after_unverifiable_quote(self):
+        initial = {"checks": [{
+            "index": 0, "score": 1,
+            "rationale": "The criterion appears satisfied.",
+            "evidence": [],
+        }]}
+        first_repair = {
+            "supported": True,
+            "evidence": ["This quote is not in the candidate."],
+        }
+        second_repair = {
+            "supported": True,
+            "evidence": ["The exact requirement is demonstrated."],
+        }
+        candidate = "The exact requirement is demonstrated. Extra context follows."
+        with mock.patch.dict(RUN_EVAL.os.environ, {"DEEPSEEK_EVIDENCE_REPAIR": "1"}):
+            with mock.patch.object(
+                RUN_EVAL, "api_call",
+                side_effect=[json.dumps(initial), json.dumps(first_repair), json.dumps(second_repair)],
+            ) as api:
+                result = RUN_EVAL.judge_case(
+                    "test-key", "deepseek-flash", ["criterion"], candidate,
+                )
+        self.assertEqual(api.call_count, 3)
+        self.assertEqual(result[0]["status"], "PASS")
+        self.assertTrue(result[0]["evidence_validated"])
+        self.assertTrue(result[0]["evidence_repair_used"])
+        self.assertEqual(result[0]["evidence"], ["The exact requirement is demonstrated."])
+        self.assertIn("SECOND ATTEMPT", api.call_args_list[2].args[2])
 
     def test_judge_can_report_failure_by_specific_absence_without_fake_quote(self):
         response = {
@@ -1351,6 +1387,44 @@ class ReleaseGateUnitTests(unittest.TestCase):
                                 max_completion_tokens=900,
                             )
                         urlopen.assert_not_called()
+
+    def test_checkpoint_migrates_only_explicit_compatible_candidate_sha(self):
+        saved = {
+            "checkpoint_path": RUN_EVAL.CHECKPOINT_PATH,
+            "checkpoint_store": RUN_EVAL.CHECKPOINT_STORE,
+            "api_requests": RUN_EVAL.API_REQUEST_COUNT,
+            "reserved_cost": RUN_EVAL.ESTIMATED_COST_RESERVED_USD,
+        }
+        try:
+            with tempfile.TemporaryDirectory() as temp:
+                path = Path(temp) / "checkpoint.json"
+                legacy = {
+                    "schema_version": 6,
+                    "signature": "legacy-signature",
+                    "responses": {"cached": {"content": "already-paid"}},
+                    "pending_requests": {},
+                    "uncertain_requests": {},
+                    "estimated_tokens_reserved_by_model": {},
+                    "estimated_tokens_reserved_by_model_by_day": {},
+                    "api_requests": 7,
+                    "estimated_cost_reserved_usd": 0.25,
+                }
+                path.write_text(json.dumps(legacy), encoding="utf-8")
+                RUN_EVAL.configure_checkpoint(
+                    path, "current-signature",
+                    compatible_signatures=["legacy-signature"],
+                )
+                self.assertEqual(RUN_EVAL.CHECKPOINT_STORE["signature"], "current-signature")
+                self.assertIn("cached", RUN_EVAL.CHECKPOINT_STORE["responses"])
+                self.assertEqual(RUN_EVAL.API_REQUEST_COUNT, 7)
+                self.assertAlmostEqual(RUN_EVAL.ESTIMATED_COST_RESERVED_USD, 0.25)
+                persisted = json.loads(path.read_text(encoding="utf-8"))
+                self.assertEqual(persisted["signature"], "current-signature")
+        finally:
+            RUN_EVAL.CHECKPOINT_PATH = saved["checkpoint_path"]
+            RUN_EVAL.CHECKPOINT_STORE = saved["checkpoint_store"]
+            RUN_EVAL.API_REQUEST_COUNT = saved["api_requests"]
+            RUN_EVAL.ESTIMATED_COST_RESERVED_USD = saved["reserved_cost"]
 
     def test_checkpoint_key_is_scoped_to_repeated_run(self):
         payload = RUN_EVAL.build_payload("deepseek-flash", "system", "user")
