@@ -75,6 +75,15 @@ def normalize_source_text(value: str) -> str:
     return re.sub(r'\s+', ' ', value).strip()
 
 
+def normalize_source_title_identity(value: str) -> str:
+    """Compare source-document identity while allowing a case title's section/topic qualifier."""
+    normalized = normalize_source_text(value)
+    for separator in ("（", "(", "：", ":"):
+        if separator in normalized:
+            normalized = normalized.split(separator, 1)[0].strip()
+    return normalized
+
+
 def load_source_corpus() -> dict[str, str]:
     corpus: dict[str, str] = {}
     for source_root in SOURCE_ROOTS:
@@ -408,10 +417,11 @@ def verify_source_evidence(
             for item in matching_locator_records
             if isinstance(item.get("title"), str) and item.get("title", "").strip()
         )
-        if normalized_title not in allowed_titles:
+        title_identity = normalize_source_title_identity(str(source.get("title", "")))
+        document_identity = normalize_source_title_identity(mapped["title"])
+        if normalized_title not in allowed_titles and title_identity != document_identity:
             raise SystemExit(
-                f"{case_id}: source title does not match the source document or "
-                f"the exact mapped locator title for {source_id}"
+                f"{case_id}: source title identity does not match the registered source for {source_id}"
             )
         if source.get("source_type") != mapped["source_type"]:
             raise SystemExit(f"{case_id}: source_type does not match source-map JSON for {source_id}")
