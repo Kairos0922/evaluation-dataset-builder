@@ -265,7 +265,7 @@ def self_test() -> int:
         "business_rule_refs": ["BR-02"],
         "workflow_refs": ["WF-SEARCH"],
         "scenario_bucket": ["normal", "business_rule"],
-        "user_input": "依次输入 reset、SCREENSHOTS、email，记录结果；预期 SCREENSHOTS 命中 WB-102。",
+        "user_input": "验证搜索：依次输入 reset、SCREENSHOTS、email，记录结果；预期 SCREENSHOTS 命中 WB-102。",
         "expected_behavior": ["SCREENSHOTS 命中 WB-102，证明大小写不敏感。"],
     }
     if role_score(builder_search_shape, "search_mutation") <= 0:
