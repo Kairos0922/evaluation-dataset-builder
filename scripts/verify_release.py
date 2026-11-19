@@ -19,7 +19,6 @@ BEHAVIOR_MIN = 0.90
 PRECISION_MIN = 0.95
 RECALL_MIN = 0.95
 MAX_SPREAD = 0.05
-CRITICAL_CASES = ("SE03", "SE04", "SE05", "SE08", "SE09", "SE11", "SE12")
 
 
 def api_request(path, token, binary=False):
@@ -153,46 +152,6 @@ def verify_report(report, candidate_sha, run_id):
         require(item.get("pass") is True and float(item.get("spread", 1)) <= MAX_SPREAD,
                 f"Stability gate failed for {key}.")
     return report
-
-
-def latest_approved_review(reviews, author, reviewed_head_sha, run_id, builder_evidence=None):
-    latest_by_user = {}
-    for review in reviews:
-        user = (review.get("user") or {}).get("login")
-        if not user:
-            continue
-        prior = latest_by_user.get(user)
-        if prior is None or str(review.get("submitted_at", "")) > str(prior.get("submitted_at", "")):
-            latest_by_user[user] = review
-    blocking = [
-        review for user, review in latest_by_user.items()
-        if user != author and review.get("state") == "CHANGES_REQUESTED"
-    ]
-    require(not blocking, "A reviewer has an outstanding CHANGES_REQUESTED review.")
-    run_url_fragment = f"/actions/runs/{run_id}"
-    for user, review in latest_by_user.items():
-        if user == author or review.get("state") != "APPROVED":
-            continue
-        if review.get("commit_id") != reviewed_head_sha:
-            continue
-        body = review.get("body") or ""
-        missing = [case_id for case_id in CRITICAL_CASES if case_id not in body]
-        if missing:
-            continue
-        if run_url_fragment not in body or "baseline" not in body.lower() or "spread" not in body.lower():
-            continue
-        if builder_evidence:
-            builder_url = builder_evidence.get("workflow_run_url") or ""
-            pilot_ids = builder_evidence.get("pilot_case_ids") or []
-            if not builder_url or builder_url not in body:
-                continue
-            if any(not case_id or case_id not in body for case_id in pilot_ids):
-                continue
-        return review
-    raise ValueError(
-        "No independent APPROVED review exists on the exact PR head SHA with "
-        "critical-case findings, baseline/stability assessment, exact behavior run link, and Builder/pilot evidence links."
-    )
 
 
 def main():
