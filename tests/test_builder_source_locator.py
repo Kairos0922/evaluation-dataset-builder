@@ -365,7 +365,7 @@ class BuilderSourceLocatorTests(unittest.TestCase):
             }
             with patch.object(VALIDATOR, "ROOT", root):
                 source_map = VALIDATOR.load_source_map(output, corpus)
-                with self.assertRaisesRegex(SystemExit, "exact mapped locator title"):
+                with self.assertRaisesRegex(SystemExit, "source title identity does not match"):
                     VALIDATOR.verify_source_evidence("WB-CORE-01", source, corpus, source_map)
 
     def test_source_map_accepts_canonical_quotes_field(self):
