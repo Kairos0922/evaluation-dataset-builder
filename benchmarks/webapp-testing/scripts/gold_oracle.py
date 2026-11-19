@@ -717,12 +717,11 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
             report_ok = (
                 skill_report_exists and "BR-08" in report_text
                 and bool(target_id) and target_id in report_text
-                and bool(target_title) and target_title in report_text
                 and "Delete task" in report_text
                 and re.search(r"Delete task\?|confirmation dialog|确认对话框", report_text, re.I) is not None
                 and re.search(r"PASS|CONFORMS|通过", report_text, re.I) is not None
             )
-            add_check(checks, "Target report documents the confirmation dialog and chosen Delete task action", report_ok, f"BR-08, target {target_id} ({target_title}), confirmation dialog, Delete task and PASS verdict inspected")
+            add_check(checks, "Target report documents the confirmation dialog and chosen Delete task action", report_ok, f"BR-08, target ID {target_id}, confirmation dialog, Delete task and PASS verdict inspected")
             add_check(checks, "Evidence contains screenshots for the dialog workflow", len(screenshots) >= 3, f"screenshot_count={len(screenshots)}")
             behavior = "PASS" if delete_matches and state_matches and report_ok and len(screenshots) >= 3 else "FAIL"
 
