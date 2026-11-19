@@ -79,7 +79,7 @@ Application verdict and Skill-case verdict are distinct: C02's application behav
 4. **Synthetic environment:** Workboard Lite and its rules/fixtures are synthetic; transfer to production applications is unknown.
 5. **Accessibility scope:** BR-10 checks accessible names/roles and error-message visibility. It is not a manual or standards-conformance audit.
 6. **Not-applicable categories:** permission/security, multi-turn, adversarial and other are marked not applicable; this review does not claim these were tested.
-7. **Oracle correction:** C09's Oracle check was corrected so a report need not mention Cancel when the Builder case asks only for the confirmation/Delete path. CI and self-test passed on the correction. **The original three immutable pilot artifacts have not yet been replayed against the corrected Oracle code**, so that replay remains unverified. The prior 3/3 adjudication is retained as historical evidence.
+7. **Oracle correction and replay:** C09's Oracle check was corrected so a report need not mention Cancel when the Builder case asks only for the confirmation/Delete path. The corrected Oracle was run against all three original, immutable pilot artifacts in GitHub Actions run [#44499350929](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44499350929). Result: **3/3 PASS, 0 FAIL, 0 UNKNOWN**. The replay did not run DSH, invoke the target Skill, or create/modify formal cases. The corrected report artifact is `14516781143`.
 
 ## 6. Recommendations
 
@@ -88,7 +88,7 @@ No score, weighting or threshold is introduced.
 - Preserve the Builder output and trial artifacts as immutable evidence.
 - Keep quality status `candidate`.
 - If broader confidence is needed, choose the next cases based on risk and currently untested behavior rather than maximizing the run count. Consider search/filter, boundary validation, failed requests and accessibility, with explicit cost approval before model calls.
-- Replay the three original artifacts against corrected Oracle code in a non-paid validation path if available; otherwise record the replay as unverified.
+- Keep the corrected Oracle replay report as a separate immutable audit artifact.
 - Do not merge PR #38 or mark the dataset approved based on this report.
 
 ## 7. Artifact references
@@ -96,5 +96,7 @@ No score, weighting or threshold is introduced.
 - Builder result: `14442058992`
 - Independent validation: `14441729812`
 - Pilot C02: `14443662364`; C07: `14444955906`; C09: `14443239921`
-- Historical Oracle replay: `14478179215`
+- Historical Oracle replay: `14478179215` (original adjudication)
+- Corrected Oracle replay run: [#44499350929](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44499350929)
+- Corrected Oracle replay artifact: `14516781143`
 - Corrected Oracle code: [commit 6850010](https://github.com/Kairos0922/evaluation-dataset-builder/commit/6850010b669040649560c30329a0a5c6e9ec3d80)
