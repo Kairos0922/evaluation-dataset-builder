@@ -243,15 +243,9 @@ def expected_status_transitions(case: dict, target: dict | None) -> list[tuple[s
                 if match:
                     sequence.append(match.group(2))
     rule_state = ((case.get("reference_outcome") or {}).get("rule_state") or "")
-    rule_pairs = re.findall(
-        r"(Open|In progress|Done)\s*(?:→|->)\s*(Open|In progress|Done)",
-        str(rule_state), re.I,
-    )
-    if not sequence and rule_pairs:
-        return [
-            (normalize_status(source), normalize_status(destination))
-            for source, destination in rule_pairs
-        ]
+    rule_sequence = re.findall(r"(Open|In progress|Done)", str(rule_state), re.I)
+    if not sequence and len(rule_sequence) >= 2:
+        sequence = rule_sequence
     sequence = sequence or test_sequence or conforming.get("statuses") or []
     if not target or not isinstance(sequence, list) or not sequence:
         return []
@@ -852,6 +846,15 @@ def self_test() -> int:
     actual_state_target = target_task(builder_actual_state_case, INITIAL)
     assert actual_state_target and actual_state_target["id"] == "WB-101", actual_state_target
     assert expected_status_transitions(builder_actual_state_case, actual_state_target) == [
+        ("open", "in_progress"), ("in_progress", "done"), ("done", "open"),
+    ]
+    builder_rule_state_only = {
+        "execution_requirements": {"test_data": ["目标任务：WB-101 Reset password flow"]},
+        "reference_outcome": {"rule_state": "WB-101：Open→In progress→Done→Open"},
+    }
+    rule_state_target = target_task(builder_rule_state_only, INITIAL)
+    assert rule_state_target and rule_state_target["id"] == "WB-101", rule_state_target
+    assert expected_status_transitions(builder_rule_state_only, rule_state_target) == [
         ("open", "in_progress"), ("in_progress", "done"), ("done", "open"),
     ]
 
