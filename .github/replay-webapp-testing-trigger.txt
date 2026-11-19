@@ -1,5 +1,2 @@
-builder_run_id=43925699245
-One-time replay trigger: independently validate the completed Builder output from Actions run 43879350212 against that run's exact archived Builder input bundle.
-Only start the three real Skill pilots if the independent validator explicitly returns PASS for this exact Builder output.
-Do not start a new Builder production run; the source run completed with DSH exit code 0 and DSH trace PASS, but its independent validation is rerunning with top-level source-map locator binding, exact document/section title binding, and PR-run discovery fix.
-replay_attempt=3
+builder_run_id=44554258000
+replay_attempt=authorized-release-2026-11-20
