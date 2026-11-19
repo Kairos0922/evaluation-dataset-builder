@@ -16,6 +16,22 @@ SPEC.loader.exec_module(VALIDATOR)
 
 
 class BuilderSourceLocatorTests(unittest.TestCase):
+    def test_source_title_identity_allows_section_qualifier(self):
+        self.assertEqual(
+            VALIDATOR.normalize_source_title_identity("Workboard Lite 业务规则（BR-01 任务摘要）"),
+            VALIDATOR.normalize_source_title_identity("Workboard Lite 业务规则"),
+        )
+        self.assertEqual(
+            VALIDATOR.normalize_source_title_identity("Builder 生产任务（执行契约第 14 条）"),
+            VALIDATOR.normalize_source_title_identity("Builder 生产任务：webapp-testing"),
+        )
+
+    def test_source_title_identity_rejects_unrelated_source_title(self):
+        self.assertNotEqual(
+            VALIDATOR.normalize_source_title_identity("Unrelated document title"),
+            VALIDATOR.normalize_source_title_identity("Workboard Lite 业务规则"),
+        )
+
     def test_markdown_filename_with_unicode_section_anchor_resolves(self):
         source = {
             "title": "Workboard Lite 应用说明",
