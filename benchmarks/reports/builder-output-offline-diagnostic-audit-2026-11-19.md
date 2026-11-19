@@ -44,3 +44,16 @@ The artifact was inspected after the locator-only source-map validator fix was c
 ## Conclusion
 
 This offline diagnostic provides strong evidence that the captured dataset's 14 cases and 61 evidence references are structurally sound and source-verifiable. It does **not** establish official independent-validator PASS, execution readiness, or release approval.
+
+
+## Pilot matrix preparation (2026-11-19)
+
+The deterministic pilot selector was run against the same Builder-produced 14-case artifact after official independent-validator PASS. It selected exactly three unique Builder-authored candidate cases:
+
+| Case | Pilot role | Fixture profile | Mutation |
+|---|---|---|---|
+| WB-CORE-02 | search_mutation | mutant | search-case-sensitive |
+| WB-CORE-08 | state_cycle | clean | none |
+| WB-CORE-10 | delete_confirmation | clean | none |
+
+Selector workflow: [#44565690374](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44565690374), archived evidence artifact [#14551882351](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44565690374/artifacts/14551882351). The selector and validator passed. **No real trials were executed**; the pilot matrix is preparation only and does not satisfy the three-trial gate.
