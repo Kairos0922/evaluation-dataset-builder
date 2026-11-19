@@ -4,6 +4,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 TASK = ROOT / "benchmarks" / "webapp-testing" / "BUILDER-TASK.md"
+RUNTIME_CONTRACT = ROOT / "benchmarks" / "webapp-testing" / "assets" / "public" / "runtime-and-tool-contracts.md"
 
 
 def test_builder_task_requires_bounded_single_pass_execution():
@@ -23,3 +24,26 @@ def test_builder_task_requires_bounded_single_pass_execution():
     )
     missing = [phrase for phrase in required if phrase not in text]
     assert not missing, f"Builder execution protocol is incomplete: {missing}"
+
+
+def test_builder_task_requires_mutation_and_script_execution_budgets():
+    task = TASK.read_text(encoding="utf-8")
+    runtime = RUNTIME_CONTRACT.read_text(encoding="utf-8")
+    required_task = (
+        "明确每条用例的动作预算和执行次数",
+        "max_mutating_actions",
+        "max_test_script_executions",
+        "3 次状态变更、1 次脚本执行",
+        "1 次确认删除",
+        "重复执行、重新点击和重试都计入总预算",
+        "不得为了补齐证据重复执行或重置",
+    )
+    required_runtime = (
+        "## 6. 动作预算与重复执行",
+        "3 次状态变更、1 次测试脚本执行",
+        "1 次确认删除",
+        "最终状态正确不抵消超出动作预算的副作用",
+    )
+    missing = [phrase for phrase in required_task if phrase not in task]
+    missing.extend(f"runtime:{phrase}" for phrase in required_runtime if phrase not in runtime)
+    assert not missing, f"Explicit action-budget contract is incomplete: {missing}"
