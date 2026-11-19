@@ -62,7 +62,10 @@ def require_nonempty_value(value, location: str) -> None:
 
 def validate_case_timeout_seconds(case_id: str, execution: dict) -> int:
     """Validate the timeout field at its contract-defined execution_requirements level."""
-    value = execution.get("case_timeout_seconds")
+    environment = execution.get("environment") or {}
+    value = environment.get("case_timeout_seconds")
+    if value is None:
+        value = execution.get("case_timeout_seconds")
     if type(value) is not int or not 1 <= value <= 900:
         raise SystemExit(
             f"{case_id}: execution_requirements.case_timeout_seconds must be an integer from 1 to 900"
