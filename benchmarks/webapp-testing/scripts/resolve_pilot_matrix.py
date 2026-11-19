@@ -66,7 +66,15 @@ def role_score(case: dict, role: str) -> int:
         # rather than the exact phrase "大写查询". BR-02 is authoritative,
         # and an uppercase token is sufficient evidence of the case-sensitivity probe.
         has_uppercase_probe = bool(re.search(r"\b[A-Z]{2,}\b", user_message(case)))
-        explicitly_tests_case_sensitivity = "不区分大小写" in message or "case-insensitive" in message
+        # Builder output may state this contract in the case title/objective
+        # while the user request demonstrates it with an uppercase query.
+        search_contract_text = " ".join(
+            str(case.get(key, "")) for key in ("title", "objective", "expected_behavior")
+        ).casefold() + " " + message
+        explicitly_tests_case_sensitivity = any(
+            phrase in search_contract_text
+            for phrase in ("不区分大小写", "大小写不敏感", "大小写敏感", "case-insensitive", "case sensitive")
+        )
         if (
             has_rule("BR-02")
             and (not workflows or any(ref.startswith(("WF-SEARCH", "WF-02")) for ref in workflows))
@@ -91,9 +99,23 @@ def role_score(case: dict, role: str) -> int:
         expected_transitions = all(
             phrase in text for phrase in ("open", "in progress", "done")
         )
+        # A generated case can use WF-STATUS rather than the three granular
+        # workflow IDs. Accept that shape only when the request explicitly
+        # orders the expected state after each of three clicks.
+        ordered_expected_steps = all(
+            re.search(rf"第\\s*{number}\\s*次[^。；\\n]*{state}", message)
+            for number, state in ((1, "in progress"), (2, "done"), (3, "open"))
+        )
+        builder_status_cycle = (
+            has_rule("BR-07")
+            and any(ref.startswith("WF-STATUS") for ref in workflows)
+            and three_click_request
+            and expected_transitions
+            and ordered_expected_steps
+        )
         has_cycle = explicit_cycle or (
             complete_workflow_refs and three_click_request and expected_transitions
-        )
+        ) or builder_status_cycle
         if (
             has_rule("BR-07")
             and (not workflows or any(ref.startswith(("WF-STATUS", "WF-05", "WF-01")) for ref in workflows))
@@ -234,6 +256,34 @@ def load_suite(root: Path) -> dict:
 
 
 def self_test() -> int:
+    # Regression: Builder-authored BR-02 cases may put "大小写不敏感" in the
+    # title and demonstrate it through an uppercase query, without repeating
+    # that exact phrase in user_input.
+    builder_search_shape = {
+        "title": "搜索大小写不敏感且同时匹配标题与描述",
+        "objective": "验证搜索大小写不敏感，并匹配标题与描述。",
+        "business_rule_refs": ["BR-02"],
+        "workflow_refs": ["WF-SEARCH"],
+        "scenario_bucket": ["normal", "business_rule"],
+        "user_input": "依次输入 reset、SCREENSHOTS、email，记录结果；预期 SCREENSHOTS 命中 WB-102。",
+        "expected_behavior": ["SCREENSHOTS 命中 WB-102，证明大小写不敏感。"],
+    }
+    if role_score(builder_search_shape, "search_mutation") <= 0:
+        fail("Builder-shaped BR-02 search case did not resolve to search_mutation")
+
+    # Regression: Builder may use WF-STATUS and ordered per-click expectations
+    # instead of WF-01/WF-02/WF-03 or a literal transition arrow.
+    builder_state_shape = {
+        "title": "状态按钮三轮推进与摘要同步",
+        "business_rule_refs": ["BR-07", "BR-01"],
+        "workflow_refs": ["WF-STATUS"],
+        "scenario_bucket": ["normal", "business_rule"],
+        "user_input": "定位 WB-101（初始 Open），依次点击状态按钮三次。预期：第 1 次 In progress，第 2 次 Done，第 3 次 Open。",
+        "expected_behavior": ["Open", "In progress", "Done"],
+    }
+    if role_score(builder_state_shape, "state_cycle") <= 0:
+        fail("Builder-shaped BR-07 three-click state cycle did not resolve")
+
     with tempfile.TemporaryDirectory() as temp:
         root = Path(temp)
         (root / "datasets").mkdir()
