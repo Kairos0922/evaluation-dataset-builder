@@ -413,7 +413,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertNotIn("skill_package_tree_sha", creator)
         self.assertNotIn("runtime_report", creator)
 
-    def test_release_pr_binding_separates_review_head_from_release_commit(self):
+    def test_release_pr_binding_separates_candidate_head_from_release_commit(self):
         pr = {
             "merged": True,
             "state": "closed",
