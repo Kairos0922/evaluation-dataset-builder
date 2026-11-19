@@ -1,11 +1,4 @@
-Run a fresh exact-SHA behavioral evaluation using DeepSeek Flash only.
-This trigger commit includes Flash-only judging, one-shot evidence-only quote repair, and updated release-gate tests; bind the report to the exact open PR head SHA.
-Generator, behavior Judge, and trigger classifier: deepseek-flash (DeepSeek V4.1 Flash).
-Use the shared DEEPSEEK_API_KEY and official endpoint https://api.deepseek.com for every LLM request. A missing/invalid PASS quote may receive one evidence-only retry; locally unverifiable quotes remain UNKNOWN.
-Non-DeepSeek endpoints and non-Flash model IDs are rejected by the evaluator. Do not use V4 Pro, Groq, OpenAI, or any other model.
-Do not resume checkpoints created with another model configuration.
-Run two complete repetitions, matched baseline, all trigger cases, 100% evaluability, behavior pass >=90%, Trigger Precision/Recall >=95%, and stability spread <=5 percentage points.
-Use the published DeepSeek Flash pricing for cost estimation. No fixed API request cap or third-party provider RPM/TPM/TPD quota is applied; retain the $10 estimated-spend guard.
-Keep all release thresholds unchanged. Archive the full report and checkpoint. Do not merge or publish.
-
-Authorized evaluation trigger: 2026-11-19. Use the exact PR head SHA and preserve all existing automated release gates.
+Run a fresh exact-SHA behavioral evaluation using DeepSeek Flash only. Two complete repetitions, matched baseline, all trigger cases, preserve all automated gates and $10 estimated-spend guard.
+release_pr_number=39
+candidate_sha=023d61dc2460d8ad43b8123e8b847196374e165d
+trigger=authorized-release-2026-11-20
