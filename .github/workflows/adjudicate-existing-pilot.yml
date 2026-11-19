@@ -54,9 +54,9 @@ jobs:
           run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID")"
           jq -e '.status == "completed"' <<< "$run_json" >/dev/null
           artifacts_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100")"
-          jq -e 'any(.artifacts[]; .name == "webapp-testing-builder-result" and .expired == false)' \
+          jq -e 'any(.artifacts[]; (.name == "webapp-testing-builder-result" or .name == "webapp-testing-replay-builder-input") and .expired == false)' \
             <<< "$artifacts_json" >/dev/null || {
-              echo "::error::Builder result artifact is missing or expired."
+              echo "::error::Builder result or replay input artifact is missing or expired."
               exit 2
             }
           echo "PASS: source run $SOURCE_RUN_ID completed and its immutable Builder result is available."
@@ -66,8 +66,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" \
-            --name webapp-testing-builder-result --dir artifacts/builder-replay
+          if jq -e 'any(.artifacts[]; .name == "webapp-testing-builder-result" and .expired == false)' \
+            <<< "$artifacts_json" >/dev/null; then
+            gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+              --name webapp-testing-builder-result --dir artifacts/builder-replay
+          else
+            # Replay runs archive the immutable Builder output together with
+            # its input bundle and resolved matrix in a single artifact.
+            gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+              --name webapp-testing-replay-builder-input --dir artifacts/builder-replay
+          fi
           test -s artifacts/builder-replay/webapp-testing-builder-output/SUITE-MANIFEST.json
 
       - name: Resolve semantic pilot matrix from the original Builder output
