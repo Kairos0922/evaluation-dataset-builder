@@ -80,7 +80,7 @@ jobs:
             CI_RUN_ID="$(jq -r --arg sha "$CANDIDATE_SHA" '
               [.workflow_runs[]
                | select(.path == ".github/workflows/validate.yml")
-               | select(.event == "pull_request")
+               | select(.event == "pull_request" or .event == "push")
                | select(.head_sha == $sha)]
               | sort_by(.created_at)
               | last
@@ -120,10 +120,10 @@ jobs:
               and any(.steps[]?; .name == "验证 Benchmark 贯通样例" and .conclusion == "success")
               and any(.steps[]?; .name == "运行离线测试" and .conclusion == "success")
             )
-            and any(.jobs[]; .name == "require-main-target" and .conclusion == "success")
+            and any(.jobs[]; .name == "require-main-target" and (.conclusion == "success" or .conclusion == "skipped"))
           ' <<< "$JOBS_JSON" >/dev/null
 
-          echo "候选 SHA $CANDIDATE_SHA 的完整 CI 已通过（run $CI_RUN_ID）；复用该结果，不重复安装依赖和运行离线测试。"
+          echo "候选 SHA $CANDIDATE_SHA 的完整验证已通过（run $CI_RUN_ID）；PR base 已单独验证为 main。"
       - name: 调用前验证生成端模型元数据
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
