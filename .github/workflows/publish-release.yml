@@ -1,6 +1,10 @@
 name: Publish v0.0.1
 
 on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/publish-release-trigger.txt"
   workflow_dispatch:
     inputs:
       confirm_publish:
@@ -24,13 +28,68 @@ permissions:
 
 jobs:
   verify-and-publish:
-    if: github.event_name == 'workflow_dispatch' && inputs.confirm_publish == true
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.confirm_publish == true)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout trigger commit
+        uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.candidate_sha }}
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Resolve explicit release confirmation and exact candidate binding
+        id: release-inputs
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_CONFIRM: ${{ inputs.confirm_publish }}
+          INPUT_PR: ${{ inputs.release_pr_number }}
+          INPUT_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            [ "$INPUT_CONFIRM" = "true" ] || { echo "Publishing was not explicitly confirmed."; exit 2; }
+            PR_NUMBER="$INPUT_PR"
+            CANDIDATE_SHA="$INPUT_SHA"
+          else
+            python - <<'PY' >> "$GITHUB_OUTPUT"
+          from pathlib import Path
+          import re
+
+          trigger = Path(".github/publish-release-trigger.txt")
+          if not trigger.is_file():
+              raise SystemExit("Release trigger file is missing.")
+          values = {}
+          for line in trigger.read_text(encoding="utf-8").splitlines():
+              if not line or line.startswith("#"):
+                  continue
+              if "=" not in line:
+                  raise SystemExit("Malformed release trigger line.")
+              key, value = line.split("=", 1)
+              if key in values:
+                  raise SystemExit("Duplicate release trigger key.")
+              values[key] = value.strip()
+          if values.get("confirm_publish") != "true":
+              raise SystemExit("Explicit confirm_publish=true is required.")
+          if not re.fullmatch(r"[1-9][0-9]*", values.get("release_pr_number", "")):
+              raise SystemExit("Invalid release PR number.")
+          if not re.fullmatch(r"[0-9a-f]{40}", values.get("candidate_sha", "")):
+              raise SystemExit("Invalid full candidate SHA.")
+          print("release_pr_number=" + values["release_pr_number"])
+          print("candidate_sha=" + values["candidate_sha"])
+          PY
+            PR_NUMBER="$(sed -n 's/^release_pr_number=//p' "$GITHUB_OUTPUT" | tail -n 1)"
+            CANDIDATE_SHA="$(sed -n 's/^candidate_sha=//p' "$GITHUB_OUTPUT" | tail -n 1)"
+          fi
+          [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ ]]
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          echo "release_pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "candidate_sha=$CANDIDATE_SHA" >> "$GITHUB_OUTPUT"
+      - name: Checkout exact reviewed candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.release-inputs.outputs.candidate_sha }}
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -42,8 +101,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          RELEASE_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
-          RELEASE_PR_NUMBER: ${{ inputs.release_pr_number }}
+          RELEASE_CANDIDATE_SHA: ${{ steps.release-inputs.outputs.candidate_sha }}
+          RELEASE_PR_NUMBER: ${{ steps.release-inputs.outputs.release_pr_number }}
         run: python scripts/create_release_tag.py
       - name: Publish GitHub Release and attach the exact-run report
         env:
@@ -61,10 +120,10 @@ jobs:
               --notes-file artifacts/release-notes.md \
               --verify-tag
           fi
-      - name: Mark RELEASE.md published with verified run and reviewer evidence
+      - name: Mark RELEASE.md published with verified release evidence
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
-          RELEASE_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
-          RELEASE_PR_NUMBER: ${{ inputs.release_pr_number }}
+          RELEASE_CANDIDATE_SHA: ${{ steps.release-inputs.outputs.candidate_sha }}
+          RELEASE_PR_NUMBER: ${{ steps.release-inputs.outputs.release_pr_number }}
         run: python scripts/update_release_doc.py
