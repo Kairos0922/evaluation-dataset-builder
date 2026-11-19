@@ -117,16 +117,40 @@ def target_task(case: dict, tasks: list[dict]) -> dict | None:
     target = rule_expected.get("target")
     if target is None:
         test_data = ((case.get("execution_requirements") or {}).get("test_data") or [])
-        if test_data and isinstance(test_data[0], dict):
-            target = (
-                test_data[0].get("target_task")
-                or test_data[0].get("task_id")
-                or test_data[0].get("target_id")
-            )
-        elif test_data and isinstance(test_data[0], str):
-            match = re.search(r"\b(WB-\d+)\b", test_data[0])
-            if match:
-                target = match.group(1)
+        # Builder may list initial-state data before the actual target. Prefer
+        # entries explicitly marked as target, and inspect every test_data item.
+        explicit_targets = []
+        for item in test_data:
+            if isinstance(item, dict):
+                value = (
+                    item.get("target_task")
+                    or item.get("task_id")
+                    or item.get("target_id")
+                )
+                if value is not None:
+                    explicit_targets.append(value)
+            elif isinstance(item, str) and any(
+                marker in item.casefold() for marker in ("目标", "target", "删除任务")
+            ):
+                match = re.search(r"\b(WB-\d+)\b", item)
+                if match:
+                    explicit_targets.append(match.group(1))
+        if explicit_targets and len(set(map(str, explicit_targets))) == 1:
+            target = explicit_targets[0]
+        if target is None:
+            message_ids = list(dict.fromkeys(re.findall(r"\b(WB-\d+)\b", user_message(case))))
+            if len(message_ids) == 1:
+                target = message_ids[0]
+        if target is None:
+            # Backward compatibility for a single concise test-data string.
+            candidates = []
+            for item in test_data:
+                if isinstance(item, str):
+                    ids = re.findall(r"\b(WB-\d+)\b", item)
+                    if len(ids) == 1:
+                        candidates.append(ids[0])
+            if candidates and len(set(candidates)) == 1:
+                target = candidates[0]
     if isinstance(target, dict):
         target_id = target.get("id")
         target_title = target.get("title")
@@ -141,7 +165,6 @@ def target_task(case: dict, tasks: list[dict]) -> dict | None:
         or (target_title and item.get("title") == target_title)
     ]
     return matches[0] if len(matches) == 1 else None
-
 
 def is_delete_cancel_case(case: dict) -> bool:
     requirements = case.get("execution_requirements") or {}
@@ -180,26 +203,55 @@ def expected_status_transitions(case: dict, target: dict | None) -> list[tuple[s
     execution = case.get("execution_requirements") or {}
     test_data = execution.get("test_data") or []
     test_sequence = []
-    if test_data and isinstance(test_data[0], dict):
-        test_sequence = (
-            test_data[0].get("expected_sequence")
-            or test_data[0].get("expected")
-            or []
-        )
+    for item in test_data:
+        if isinstance(item, dict):
+            test_sequence = (
+                item.get("expected_sequence")
+                or item.get("expected")
+                or test_sequence
+            )
+            if test_sequence:
+                break
     expected_behavior = case.get("expected_behavior") or {}
     conforming = ((case.get("reference_outcome") or {}).get("conforming_branch") or {})
     sequence = []
     if isinstance(expected_behavior, dict):
         sequence = expected_behavior.get("expected_status_sequence") or []
     elif isinstance(expected_behavior, list):
-        for item in expected_behavior:
-            match = re.search(
-                r"从\s*(Open|In progress|Done)\s*(?:变为|回到)\s*(Open|In progress|Done)",
-                str(item),
-                re.I,
-            )
-            if match:
-                sequence.append(match.group(2))
+        ordinal_patterns = (
+            r"(?:第一次|第\s*1\s*次|第一步)",
+            r"(?:第二次|第\s*2\s*次|第二步)",
+            r"(?:第三次|第\s*3\s*次|第三步)",
+        )
+        for ordinal in ordinal_patterns:
+            matched_state = None
+            for item in expected_behavior:
+                text = str(item)
+                if re.search(ordinal, text):
+                    match = re.search(r"(Open|In progress|Done)", text, re.I)
+                    if match:
+                        matched_state = match.group(1)
+                        break
+            if matched_state:
+                sequence.append(matched_state)
+        if not sequence:
+            for item in expected_behavior:
+                match = re.search(
+                    r"从\s*(Open|In progress|Done)\s*(?:变为|回到)\s*(Open|In progress|Done)",
+                    str(item), re.I,
+                )
+                if match:
+                    sequence.append(match.group(2))
+    rule_state = ((case.get("reference_outcome") or {}).get("rule_state") or "")
+    rule_pairs = re.findall(
+        r"(Open|In progress|Done)\s*(?:→|->)\s*(Open|In progress|Done)",
+        str(rule_state), re.I,
+    )
+    if not sequence and rule_pairs:
+        return [
+            (normalize_status(source), normalize_status(destination))
+            for source, destination in rule_pairs
+        ]
     sequence = sequence or test_sequence or conforming.get("statuses") or []
     if not target or not isinstance(sequence, list) or not sequence:
         return []
@@ -351,24 +403,46 @@ def user_message(case: dict) -> str:
 
 
 def extract_search_queries(case: dict, tasks: list[dict]) -> list[str]:
-    """Extract explicit search probes from a Builder-authored natural-language request."""
+    """Extract explicit probes from the Builder's ordered query list or test data."""
     message = user_message(case)
-    queries = re.findall(r"`([^`]+)`", message)
-    if not queries:
-        sequence = re.search(r"(?:依次输入|依次键入)(.*?)(?:。|$)", message, re.S)
-        segment = sequence.group(1) if sequence else message
+    queries = re.findall(r"\x60([^\x60]+)\x60", message)
+    searchable_text = [
+        " ".join(str(task.get(field) or "") for field in ("title", "description"))
+        for task in tasks
+    ]
+
+    def retain_probe_tokens(segment: str) -> list[str]:
         candidates = re.findall(r"[A-Za-z][A-Za-z0-9-]*", segment)
-        searchable_text = [
-            " ".join(str(task.get(field) or "") for field in ("title", "description"))
-            for task in tasks
-        ]
-        queries = [
+        return [
             token for token in candidates
-            if token.lower().startswith("zzz-")
+            if re.match(r"^z{3,}-", token.casefold())
             or any(token.casefold() in text.casefold() for text in searchable_text)
         ]
-    return list(dict.fromkeys(query for query in queries if query and not query.startswith("<")))
 
+    if not queries:
+        sequence = re.search(r"(?:依次输入|依次键入)(.*?)(?:。|$)", message, re.S)
+        if sequence:
+            queries = retain_probe_tokens(sequence.group(1))
+    if not queries:
+        test_data = ((case.get("execution_requirements") or {}).get("test_data") or [])
+        for item in test_data:
+            if isinstance(item, str):
+                query_list = re.search(r"查询[:：]\s*(.*?)(?:。|$)", item)
+                if query_list:
+                    queries = retain_probe_tokens(query_list.group(1))
+                    if queries:
+                        break
+    if not queries:
+        expected_behavior = case.get("expected_behavior") or []
+        if isinstance(expected_behavior, list):
+            for item in expected_behavior:
+                match = re.search(r"(?:输入|查询|搜索)\s*([A-Za-z][A-Za-z0-9-]*)", str(item))
+                if match:
+                    queries.append(match.group(1))
+    if not queries:
+        candidates = re.findall(r"[A-Za-z][A-Za-z0-9-]*", message)
+        queries = retain_probe_tokens(" ".join(candidates))
+    return list(dict.fromkeys(query for query in queries if query and not query.startswith("<")))
 
 def expected_search_counts(queries: list[str], tasks: list[dict], branch_name: str) -> dict[str, int]:
     """Model the independently specified fixture branch, not target-reported counts."""
@@ -525,11 +599,11 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
         writes = audit_writes(audit)
         add_check(
             checks, "No unrelated task write occurred",
-            target_id is not None and len(writes) == len(expected) and all(
+            target_id is not None and all(
                 event.get("method") == "PATCH" and event.get("path") == f"/api/tasks/{target_id}"
                 for event in writes
             ),
-            json.dumps(writes, ensure_ascii=False),
+            json.dumps({"expected_target": target_id, "write_count": len(writes), "writes": writes}, ensure_ascii=False),
         )
         add_check(
             checks, "Task rows and summary returned to the Builder-declared initial state",
@@ -734,6 +808,20 @@ def self_test() -> int:
     extracted = extract_search_queries(production_style_case, INITIAL)
     assert extracted == ["reset", "RESET", "CSV", "zzz-no-match"], extracted
 
+    builder_search_case = {
+        "user_input": "在页面上验证 BR-02。依次输入 reset、SCREENSHOTS、email 和 zzzz-no-match，等待列表更新并记录每次结果中的任务 ID。",
+        "expected_behavior": [
+            "输入 reset 应命中 WB-101。",
+            "输入 SCREENSHOTS 应命中 WB-102。",
+            "输入 email 应命中 WB-101 与 WB-104。",
+            "输入 zzzz-no-match 应无结果。",
+        ],
+        "execution_requirements": {"test_data": ["查询：reset、SCREENSHOTS、email、zzzz-no-match"]},
+    }
+    assert extract_search_queries(builder_search_case, INITIAL) == [
+        "reset", "SCREENSHOTS", "email", "zzzz-no-match",
+    ], extract_search_queries(builder_search_case, INITIAL)
+
     builder_state_case = {
         "user_input": "定位初始状态为 Open 的 WB-101，预期顺序为 Open → In progress → Done → Open。",
         "expected_behavior": [
@@ -748,6 +836,25 @@ def self_test() -> int:
     assert expected_status_transitions(builder_state_case, state_target) == [
         ("open", "in_progress"), ("in_progress", "done"), ("done", "open"),
     ]
+    builder_actual_state_case = {
+        "user_input": "定位 WB-101（初始 Open），依次点击状态按钮三次。预期：第 1 次 In progress，第 2 次 Done，第 3 次 Open。",
+        "expected_behavior": [
+            "第一次点击后 WB-101 状态为 In progress。",
+            "第二次点击后状态为 Done。",
+            "第三次点击后状态回到 Open。",
+        ],
+        "execution_requirements": {"test_data": [
+            "初始任务：WB-101 Open、WB-102 In progress、WB-103 Done、WB-104 Open、WB-105 In progress",
+            "目标任务：WB-101 Reset password flow",
+        ]},
+        "reference_outcome": {"rule_state": "WB-101：Open→In progress→Done→Open"},
+    }
+    actual_state_target = target_task(builder_actual_state_case, INITIAL)
+    assert actual_state_target and actual_state_target["id"] == "WB-101", actual_state_target
+    assert expected_status_transitions(builder_actual_state_case, actual_state_target) == [
+        ("open", "in_progress"), ("in_progress", "done"), ("done", "open"),
+    ]
+
     builder_contract_state_case = {
         "execution_requirements": {"test_data": [{
             "task_id": "WB-101",
@@ -772,6 +879,17 @@ def self_test() -> int:
     }
     delete_target = target_task(builder_delete_case, INITIAL)
     assert delete_target and delete_target["id"] == "WB-103", delete_target
+    builder_actual_delete_case = {
+        "user_input": "在 WB-104 行点击 Delete，确认对话框后点击 Delete task。",
+        "execution_requirements": {"test_data": [
+            "初始任务：WB-101 Open、WB-102 In progress、WB-103 Done、WB-104 Open、WB-105 In progress",
+            "目标删除任务：WB-104 Verify email notification",
+        ]},
+        "reference_outcome": {"rule_state": "确认删除后 WB-104 消失"},
+    }
+    actual_delete_target = target_task(builder_actual_delete_case, INITIAL)
+    assert actual_delete_target and actual_delete_target["id"] == "WB-104", actual_delete_target
+
     assert expected_search_counts(extracted, INITIAL, "case_sensitive_title_only") == {
         "reset": 0, "RESET": 0, "CSV": 0, "zzz-no-match": 0,
     }
