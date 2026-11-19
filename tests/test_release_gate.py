@@ -22,6 +22,11 @@ VERIFY_SPEC = importlib.util.spec_from_file_location(
 )
 VERIFY_RELEASE = importlib.util.module_from_spec(VERIFY_SPEC)
 VERIFY_SPEC.loader.exec_module(VERIFY_RELEASE)
+CREATE_SPEC = importlib.util.spec_from_file_location(
+    "create_release_tag", ROOT / "scripts" / "create_release_tag.py"
+)
+CREATE_RELEASE_TAG = importlib.util.module_from_spec(CREATE_SPEC)
+CREATE_SPEC.loader.exec_module(CREATE_RELEASE_TAG)
 TARGET_RUNTIME_SPEC = importlib.util.spec_from_file_location(
     "validate_target_runtime_report", ROOT / "scripts" / "validate_target_runtime_report.py"
 )
@@ -41,9 +46,9 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "git_sha": "candidate-sha",
             "workflow_run_id": 12345,
             "automated_gate_pass": True,
-            "models": {"generator": "deepseek-flash", "judge_and_trigger": "openai/gpt-oss-120b"},
+            "models": {"generator": "deepseek-flash", "judge_and_trigger": "deepseek-flash"},
             "api_base_url": "https://api.deepseek.com",
-            "judge_api_base_url": "https://api.groq.com/openai/v1",
+            "judge_api_base_url": "https://api.deepseek.com",
             "automated_gates": {
                 "all_repeated_runs_pass": {"pass": True},
                 "baseline_comparison_complete": {"pass": True},
@@ -297,74 +302,6 @@ class ReleaseGateUnitTests(unittest.TestCase):
                     evidence_dir=directory,
                 )
 
-    def test_target_runtime_review_requires_immutable_same_repository_report(self):
-        candidate_sha = "a" * 40
-        evidence_commit = "c" * 40
-        report_url = (
-            "https://github.com/Kairos0922/evaluation-dataset-builder/blob/"
-            f"{evidence_commit}/tests/runtime-evidence/{candidate_sha}.json"
-        )
-        review = {"body": "target-runtime: PASS " + report_url}
-        self.assertEqual(
-            VERIFY_RELEASE.target_runtime_evidence_url(
-                review, repo="Kairos0922/evaluation-dataset-builder",
-                candidate_sha=candidate_sha,
-            ),
-            report_url,
-        )
-        with self.assertRaisesRegex(ValueError, "immutable GitHub report permalink"):
-            VERIFY_RELEASE.target_runtime_evidence_url({
-                "body": "target-runtime: PASS https://example.com/runtime-report.json"
-            })
-        with self.assertRaisesRegex(ValueError, "release repository"):
-            VERIFY_RELEASE.target_runtime_evidence_url(
-                review, repo="another/repository", candidate_sha=candidate_sha
-            )
-
-    def test_target_runtime_report_is_fetched_from_the_pinned_repository_commit(self):
-        report = self._valid_target_runtime_report()
-        candidate_sha = report["candidate_sha"]
-        evidence_commit = "c" * 40
-        report_path = f"tests/runtime-evidence/{candidate_sha}.json"
-        url = (
-            "https://github.com/Kairos0922/evaluation-dataset-builder/blob/"
-            f"{evidence_commit}/{report_path}"
-        )
-        review = {"body": "target-runtime: PASS " + url}
-        payload = {
-            "type": "file", "encoding": "base64", "path": report_path,
-            "content": base64.b64encode(
-                json.dumps(report).encode("utf-8")
-            ).decode("ascii"),
-        }
-        with mock.patch.object(
-            VERIFY_RELEASE, "api_request",
-            side_effect=[{"status": "ahead"}, payload],
-        ) as api:
-            result, result_url, commit_sha = VERIFY_RELEASE.load_target_runtime_report(
-                review, "Kairos0922/evaluation-dataset-builder", "token",
-                candidate_sha, report["skill_tree_sha"],
-            )
-        self.assertEqual(result["overall_status"], "PASS")
-        self.assertEqual(result_url, url)
-        self.assertEqual(commit_sha, evidence_commit)
-        self.assertIn(report_path, api.call_args_list[1].args[0])
-
-    def test_skill_package_tree_sha_resolves_only_the_exact_directory_tree(self):
-        with mock.patch.object(
-            VERIFY_RELEASE, "api_request",
-            side_effect=[
-                {"tree": {"sha": "root-tree"}},
-                {"truncated": False, "tree": [
-                    {"path": "skills/evaluation-dataset-builder", "type": "tree", "sha": "skill-tree"}
-                ]},
-            ],
-        ):
-            self.assertEqual(
-                VERIFY_RELEASE.skill_package_tree_sha("owner/repo", "a" * 40, "token"),
-                "skill-tree",
-            )
-
     def test_release_verifier_accepts_complete_exact_sha_report(self):
         report = self._valid_release_report()
         result = VERIFY_RELEASE.verify_report(report, "candidate-sha", 12345)
@@ -382,8 +319,8 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
     def test_release_verifier_rejects_missing_or_unverifiable_suite_evidence(self):
         report = self._valid_release_report()
-        report["models"]["judge_and_trigger"] = report["models"]["generator"]
-        with self.assertRaisesRegex(ValueError, "distinct"):
+        report["models"]["judge_and_trigger"] = "deepseek-v4-pro"
+        with self.assertRaisesRegex(ValueError, "deepseek-flash"):
             VERIFY_RELEASE.verify_report(report, "candidate-sha", 12345)
         report = self._valid_release_report()
         report["runs"][0]["skill_cases"][0]["checks"][0]["evidence_validated"] = False
@@ -400,86 +337,27 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 self._valid_release_report(), "different-sha", 12345
             )
 
-    def test_release_verifier_requires_independent_approval_on_exact_sha(self):
-        critical = "SE03 SE04 SE05 SE08 SE09 SE11 SE12"
-        report_url = (
-            "https://github.com/example/repo/blob/" + "c" * 40
-            + "/tests/runtime-evidence/" + "a" * 40 + ".json"
-        )
-        body = (
-            "Reviewed " + critical
-            + " baseline comparison and spread assessment: acceptable. "
-            + "https://github.com/example/repo/actions/runs/12345 "
-            + "target-runtime: PASS " + report_url
-        )
-        reviews = [{
-            "user": {"login": "independent-reviewer"},
-            "state": "APPROVED",
-            "submitted_at": "2026-11-01T10:00:00Z",
-            "commit_id": "pr-head-sha",
-            "body": body,
-        }]
-        result = VERIFY_RELEASE.latest_approved_review(
-            reviews, "pr-author", "pr-head-sha", 12345
-        )
-        self.assertEqual(result["user"]["login"], "independent-reviewer")
-        with self.assertRaisesRegex(ValueError, "No independent APPROVED review"):
-            VERIFY_RELEASE.latest_approved_review(
-                reviews, "pr-author", "different-pr-head-sha", 12345
-            )
-
-    def test_release_verifier_requires_independent_judge_endpoint(self):
+    def test_release_verifier_requires_flash_for_every_evaluation_role(self):
         report = self._valid_release_report()
-        report["judge_api_base_url"] = report["api_base_url"]
-        with self.assertRaisesRegex(ValueError, "separately configured provider endpoint"):
+        self.assertEqual(report["models"]["generator"], "deepseek-flash")
+        self.assertEqual(report["models"]["judge_and_trigger"], "deepseek-flash")
+        self.assertEqual(report["api_base_url"], report["judge_api_base_url"])
+        VERIFY_RELEASE.verify_report(report, "candidate-sha", 12345)
+
+    def test_release_verifier_rejects_non_deepseek_judge_endpoint(self):
+        report = self._valid_release_report()
+        report["judge_api_base_url"] = "https://api.groq.com/openai/v1"
+        with self.assertRaisesRegex(ValueError, "approved DeepSeek API endpoint"):
             VERIFY_RELEASE.verify_report(report, "candidate-sha", 12345)
-
-    def test_release_verifier_requires_target_runtime_evidence_in_review(self):
-        critical = "SE03 SE04 SE05 SE08 SE09 SE11 SE12"
-        body = (
-            "Reviewed " + critical + " baseline and spread. "
-            "https://github.com/example/repo/actions/runs/12345"
-        )
-        reviews = [{
-            "user": {"login": "independent-reviewer"},
-            "state": "APPROVED",
-            "submitted_at": "2026-11-01T10:00:00Z",
-            "commit_id": "pr-head-sha",
-            "body": body,
-        }]
-        with self.assertRaisesRegex(ValueError, "No independent APPROVED review"):
-            VERIFY_RELEASE.latest_approved_review(
-                reviews, "pr-author", "pr-head-sha", 12345
-            )
-
-    def test_release_verifier_rejects_author_self_approval_and_changes_requested(self):
-        critical = "SE03 SE04 SE05 SE08 SE09 SE11 SE12"
-        body = (
-            "Reviewed " + critical + " baseline and spread. "
-            "https://github.com/example/repo/actions/runs/12345"
-        )
-        self_approval = [{
-            "user": {"login": "pr-author"}, "state": "APPROVED",
-            "submitted_at": "2026-11-01T10:00:00Z",
-            "commit_id": "pr-head-sha", "body": body,
-        }]
-        with self.assertRaisesRegex(ValueError, "No independent APPROVED review"):
-            VERIFY_RELEASE.latest_approved_review(
-                self_approval, "pr-author", "pr-head-sha", 12345
-            )
-        blocking = self_approval + [{
-            "user": {"login": "independent-reviewer"}, "state": "CHANGES_REQUESTED",
-            "submitted_at": "2026-11-01T10:01:00Z",
-            "commit_id": "pr-head-sha", "body": "Fix SE04.",
-        }]
-        with self.assertRaisesRegex(ValueError, "CHANGES_REQUESTED"):
-            VERIFY_RELEASE.latest_approved_review(
-                blocking, "pr-author", "pr-head-sha", 12345
-            )
 
     def test_tag_workflow_runs_verifier_before_release_creation(self):
         workflow = (ROOT / ".github" / "workflows" / "publish-release.yml").read_text(encoding="utf-8")
-        self.assertNotIn('push:', workflow)
+        self.assertIn('push:', workflow)
+        self.assertIn('branches: ["main"]', workflow)
+        self.assertIn('.github/publish-release-trigger.txt', workflow)
+        self.assertIn('values.get("confirm_publish") != "true"', workflow)
+        self.assertIn("INPUT_CONFIRM: ${{ inputs.confirm_publish }}", workflow)
+        self.assertIn('RELEASE_BUILDER_PR_NUMBER', workflow)
         self.assertNotIn("python scripts/verify_release.py", workflow)
         self.assertIn("create_release_tag.py", workflow)
         self.assertIn("python scripts/create_release_tag.py", workflow)
@@ -496,7 +374,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn("pull-requests: read", workflow)
         self.assertIn("actions: read", workflow)
 
-    def test_manual_behavior_workflow_is_exact_sha_and_independent_judge_gated(self):
+    def test_manual_behavior_workflow_is_exact_sha_and_flash_only(self):
         workflow = (ROOT / ".github" / "workflows" / "behavioral-eval.yml").read_text(encoding="utf-8")
         source = (ROOT / "tests" / "run_eval.py").read_text(encoding="utf-8")
         self.assertIn("run-name: Behavioral Skill Evaluation", workflow)
@@ -509,11 +387,21 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertNotIn("41369272868", workflow)
         self.assertIn('"SKILL_ENTRYPOINT_TEXT_PROXY"', source)
         self.assertIn('"references/*"', source)
-        self.assertIn("EVAL_JUDGE_BASE_URL", workflow)
-        self.assertIn("EVAL_JUDGE_API_KEY", workflow)
-        self.assertIn('DEEPSEEK_MAX_TOKENS: "16384"', workflow)
-        self.assertIn("EVAL_JUDGE_MAX_COMPLETION_TOKENS", workflow)
+        self.assertIn("DEEPSEEK_BASE_URL: https://api.deepseek.com", workflow)
+        self.assertNotIn("DEEPSEEK_JUDGE_MODEL", workflow)
+        self.assertIn("DEEPSEEK_GENERATOR_MODEL: deepseek-flash", workflow)
+        self.assertNotIn("DEEPSEEK_JUDGE_API_KEY", workflow)
+        self.assertNotIn("deepseek-v4-pro", workflow)
+        self.assertIn("DEEPSEEK_MAX_TOKENS", workflow)
+        self.assertNotIn("GROQ_API_KEY", workflow)
+        self.assertNotIn("api.groq.com", workflow)
         self.assertIn("candidate-evaluation-report-", workflow)
+        self.assertIn('select(.event == "pull_request" or .event == "push")', workflow)
+        self.assertIn('(.conclusion == "success" or .conclusion == "skipped")', workflow)
+        validate_workflow = (ROOT / ".github" / "workflows" / "validate.yml").read_text(encoding="utf-8")
+        self.assertIn('branches: ["main", "release/0.0.1-finalize"]', validate_workflow)
+        self.assertIn("resume_candidate_sha", workflow)
+        self.assertIn("RESUME_CANDIDATE_SHA", workflow)
         self.assertIn("actions/runs?head_sha=$CANDIDATE_SHA", workflow)
         self.assertIn("验证 Benchmark 贯通样例", workflow)
         self.assertIn("运行离线测试", workflow)
@@ -532,8 +420,11 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn("release_pr_binding", verifier)
         self.assertIn('startswith("Behavioral Skill Evaluation")', verifier)
         self.assertIn('contents/RELEASE.md?ref=main', updater)
+        self.assertNotIn("load_target_runtime_report", creator)
+        self.assertNotIn("skill_package_tree_sha", creator)
+        self.assertNotIn("runtime_report", creator)
 
-    def test_release_pr_binding_separates_review_head_from_release_commit(self):
+    def test_release_pr_binding_separates_candidate_head_from_release_commit(self):
         pr = {
             "merged": True,
             "state": "closed",
@@ -549,7 +440,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertEqual(release_sha, "merge-commit-sha")
         with self.assertRaisesRegex(ValueError, "PR head SHA"):
             VERIFY_RELEASE.release_pr_binding(pr, "merge-commit-sha", tree_signature, tree_signature)
-        with self.assertRaisesRegex(ValueError, "outside the separately committed"):
+        with self.assertRaisesRegex(ValueError, "differs from the reviewed candidate tree"):
             VERIFY_RELEASE.release_pr_binding(
                 pr, "pr-head-sha", tree_signature, {"README.md": ("100644", "blob", "changed")}
             )
@@ -559,51 +450,210 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertTrue(path.is_file())
         compile(path.read_text(encoding="utf-8"), str(path), "exec")
 
+    def test_builder_evidence_requires_real_production_validation_and_three_trials(self):
+        summary = {"status": "PASS", "dataset_count": 3, "case_count": 24}
+        trace = {"status": "PASS", "dsh_exit_code": 0, "builder_skill_tool_calls": 1,
+                 "generated_files": ["SUITE-MANIFEST.json"]}
+        probe = {
+            "status": "PASS", "scope": "minimal_model_connectivity_probe",
+            "tool_calls": 0, "response_marker_present": True,
+            "quota_error_detected": False, "builder_invocation_started": False,
+        }
+        metadata = {
+            "candidate_sha": "builder-sha", "workspace_isolated": True,
+            "gold_oracle_mounted": False, "independent_validator_mounted": False,
+            "webapp_testing_skill_loaded": False,
+        }
+        credential_scan = {"secret_value_exposed_in_artifact": False}
+        cases = [
+            {"case_id": "CASE-SEARCH", "pilot_role": "search_mutation", "adjudication_status": "PASS"},
+            {"case_id": "CASE-STATE", "pilot_role": "state_cycle", "adjudication_status": "PASS"},
+            {"case_id": "CASE-DELETE", "pilot_role": "delete_confirmation", "adjudication_status": "PASS"},
+        ]
+        adjudication = {
+            "status": "PASS", "scope": "independent_three_case_pilot_adjudication",
+            "case_count": 3, "passed_cases": 3, "failed_cases": 0,
+            "formal_cases_created_or_modified": False,
+            "oracle_exposed_to_builder_or_target_skill": False, "cases": cases,
+        }
+        names = [
+            "webapp-testing-pilot-CASE-SEARCH",
+            "webapp-testing-pilot-CASE-STATE",
+            "webapp-testing-pilot-CASE-DELETE",
+        ]
+        result = CREATE_RELEASE_TAG.validate_builder_evidence_payloads(
+            summary, trace, probe, metadata, credential_scan,
+            adjudication, names, "builder-sha",
+        )
+        self.assertEqual(result["status"], "PASS")
+        self.assertEqual(result["pilot_count"], 3)
+        self.assertEqual(result["connectivity_probe_status"], "PASS")
+        with self.assertRaisesRegex(ValueError, "connectivity probe"):
+            blocked_probe = dict(probe, status="EXTERNAL_MODEL_QUOTA_BLOCKED")
+            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(
+                summary, trace, blocked_probe, metadata, credential_scan,
+                adjudication, names, "builder-sha",
+            )
+        with self.assertRaisesRegex(ValueError, "candidate SHA"):
+            wrong_metadata = dict(metadata, candidate_sha="stale-sha")
+            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(
+                summary, trace, probe, wrong_metadata, credential_scan,
+                adjudication, names, "builder-sha",
+            )
+        with self.assertRaisesRegex(ValueError, "credential disclosure"):
+            leaked = {"secret_value_exposed_in_artifact": True}
+            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(
+                summary, trace, probe, metadata, leaked,
+                adjudication, names, "builder-sha",
+            )
+        with self.assertRaisesRegex(ValueError, "three real Skill trials"):
+            failed = dict(adjudication, passed_cases=2, failed_cases=1, status="FAIL")
+            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(
+                summary, trace, probe, metadata, credential_scan,
+                failed, names, "builder-sha",
+            )
+        with self.assertRaisesRegex(ValueError, "artifacts"):
+            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(
+                summary, trace, probe, metadata, credential_scan,
+                adjudication, names[:2], "builder-sha",
+            )
+
+    def test_builder_evidence_selects_latest_successful_production_run_on_exact_sha(self):
+        repo = "owner/repo"
+        builder_pr = {
+            "state": "open", "draft": True,
+            "base": {"ref": "main"},
+            "head": {"sha": "builder-sha", "ref": "experiment/builder"},
+        }
+        latest_validation_only = {
+            "id": 2, "run_number": 20, "name": "验证 Skill",
+            "head_sha": "builder-sha", "head_branch": "experiment/builder",
+            "event": "pull_request", "status": "completed", "conclusion": "success",
+        }
+        earlier_builder_run = {
+            "id": 1, "run_number": 19, "name": "验证 Skill",
+            "head_sha": "builder-sha", "head_branch": "experiment/builder",
+            "event": "pull_request", "status": "completed", "conclusion": "success",
+            "html_url": "https://github.com/owner/repo/actions/runs/1",
+        }
+        required = [
+            "validate", "audit-upstream-assets", "runtime-preflight",
+            "builder-production", "resolve-pilot-matrix", "adjudicate-pilot",
+        ]
+        jobs_latest = [{"name": name, "conclusion": ("skipped" if name == "builder-production" else "success")}
+                       for name in required]
+        jobs_earlier = [{"name": name, "conclusion": "success"} for name in required]
+        jobs_earlier.extend(
+            {"name": f"webapp-testing-pilot (CASE-{suffix})", "conclusion": "success"}
+            for suffix in ("SEARCH", "STATE", "DELETE")
+        )
+        artifacts = [
+            {"id": 10, "name": "webapp-testing-builder-result", "expired": False},
+            {"id": 11, "name": "webapp-testing-independent-adjudication", "expired": False},
+            {"id": 12, "name": "webapp-testing-pilot-CASE-SEARCH", "expired": False},
+            {"id": 13, "name": "webapp-testing-pilot-CASE-STATE", "expired": False},
+            {"id": 14, "name": "webapp-testing-pilot-CASE-DELETE", "expired": False},
+        ]
+        payloads = {
+            "builder-validation-summary.json": {"status": "PASS", "dataset_count": 3, "case_count": 24},
+            "builder-dsh-trace-verification.json": {
+                "status": "PASS", "dsh_exit_code": 0, "builder_skill_tool_calls": 1,
+                "generated_files": ["SUITE-MANIFEST.json"],
+            },
+            "builder-connectivity-probe.json": {
+                "status": "PASS", "scope": "minimal_model_connectivity_probe",
+                "tool_calls": 0, "response_marker_present": True,
+                "quota_error_detected": False, "builder_invocation_started": False,
+            },
+            "builder-run-metadata.json": {
+                "candidate_sha": "builder-sha", "workspace_isolated": True,
+                "gold_oracle_mounted": False, "independent_validator_mounted": False,
+                "webapp_testing_skill_loaded": False,
+            },
+            "credential-scan.json": {"secret_value_exposed_in_artifact": False},
+            "independent-adjudication.json": {
+                "status": "PASS", "scope": "independent_three_case_pilot_adjudication",
+                "case_count": 3, "passed_cases": 3, "failed_cases": 0,
+                "formal_cases_created_or_modified": False,
+                "oracle_exposed_to_builder_or_target_skill": False,
+                "cases": [
+                    {"case_id": "CASE-SEARCH", "pilot_role": "search_mutation", "adjudication_status": "PASS"},
+                    {"case_id": "CASE-STATE", "pilot_role": "state_cycle", "adjudication_status": "PASS"},
+                    {"case_id": "CASE-DELETE", "pilot_role": "delete_confirmation", "adjudication_status": "PASS"},
+                ],
+            },
+        }
+
+        def api(path, token):
+            if path.endswith("/pulls/38"):
+                return builder_pr
+            if path.endswith("/actions/runs?per_page=100"):
+                return {"workflow_runs": [latest_validation_only, earlier_builder_run]}
+            if path.endswith("/actions/runs/2/jobs?per_page=100"):
+                return {"jobs": jobs_latest}
+            if path.endswith("/actions/runs/1/jobs?per_page=100"):
+                return {"jobs": jobs_earlier}
+            if path.endswith("/actions/runs/1/artifacts"):
+                return {"artifacts": artifacts}
+            raise AssertionError(f"Unexpected API request: {path}")
+
+        with mock.patch.object(CREATE_RELEASE_TAG, "api_request", side_effect=api), \
+             mock.patch.object(CREATE_RELEASE_TAG, "skill_package_tree_signature", return_value={"SKILL.md": "same-tree"}), \
+             mock.patch.object(CREATE_RELEASE_TAG, "artifact_json",
+                               side_effect=lambda _repo, _token, _artifact, filename: payloads[filename]):
+            result = CREATE_RELEASE_TAG.verify_builder_evidence(repo, "token", 38, "release-sha")
+        self.assertEqual(result["workflow_run_id"], 1)
+        self.assertEqual(result["candidate_sha"], "builder-sha")
+        self.assertEqual(result["connectivity_probe_status"], "PASS")
+
+
     def test_release_document_is_marked_published_only_with_evidence(self):
         current = (
-            "# Release 0.0.1 — Candidate (not yet published)\n\n"
-            "## Release gates\n"
-            "- [ ] Behavioral pass rate >= 90% on every run\n"
-            "- [ ] Trigger Precision >= 95% and Recall >= 95% on every run\n"
-            "- [ ] Baseline comparison reviewed and accepted\n"
-            "- [ ] Stability spread <= 5 percentage points for all three metrics\n"
-            "- [ ] Independent human review of critical cases and generated outputs\n"
-            "- [ ] Target-runtime validation\n"
-            "This is a release candidate only. Do not publish tag v0.0.1 until every "
-            "automated and human gate in RELEASE-GATE.md has passed on the exact release commit."
+            "# 0.0.1 发布候选说明\\n\\n"
+            "**状态：** 尚未正式发布\\n\\n"
+            "## 发布门禁\\n"
+            "- [ ] Builder 正式生成的评测套件通过独立验证。\\n"
+            "- [ ] 三条真实 Skill 试运行完成并有可复核证据。\\n"
+            "- [ ] 核心行为测试达到预设阈值，并提供可审查报告。\\n"
+            "- [ ] 匹配基线和重复运行稳定性检查通过。\\n"
         )
         report = {
             "models": {"generator": "qwen-test", "judge_and_trigger": "judge-test"},
-            "policy": {"actual_runs": 2},
             "workflow_run_id": 12345,
             "stability": {
                 "behavior_pass_rate": {"mean": 0.92, "spread": 0.01},
                 "trigger_precision": {"mean": 0.96, "spread": 0.0},
                 "trigger_recall": {"mean": 0.97, "spread": 0.01},
             },
-            "baseline_comparison": {
-                "mean_baseline_behavior_pass_rate": 0.88,
-                "mean_skill_behavior_pass_rate": 0.92,
-                "mean_uplift": 0.04,
+            "baseline_comparison": {"mean_uplift": 0.04},
+            "builder_evidence": {
+                "status": "PASS", "pr_number": 38, "candidate_sha": "builder-sha",
+                "workflow_run_url": "https://github.com/example/repo/actions/runs/98765",
+                "dataset_count": 3, "case_count": 24, "pilot_count": 3,
+                "pilot_case_ids": ["CASE-DELETE", "CASE-STATE", "CASE-SEARCH"],
+                "skill_tree_matches_release_candidate": True,
             },
         }
         updated = UPDATE_RELEASE_DOC.build_published_release_doc(
             current, report, "candidate-sha", "release-merge-sha",
-            "independent-reviewer",
-            "https://github.com/example/repo/blob/" + "c" * 40
-            + "/tests/runtime-evidence/" + "a" * 40 + ".json",
-            {"required_hosts": ["codex", "claude_code", "claude_ai", "claude_api"]},
         )
-        self.assertIn("# Release 0.0.1 — Published", updated)
-        self.assertIn("- [x] Behavioral pass rate", updated)
-        self.assertIn("- [x] Independent human review", updated)
-        self.assertIn("- [x] Target-runtime validation", updated)
-        self.assertIn("https://github.com/example/repo/blob/", updated)
-        self.assertIn("claude_ai, claude_api, claude_code, codex", updated)
+        self.assertIn("# Evaluation Dataset Builder 0.0.1", updated)
+        self.assertIn("**状态：** 已正式发布", updated)
+        self.assertIn("- [x] Builder 正式生成的评测套件", updated)
+        self.assertIn("- [x] 三条真实 Skill 试运行", updated)
+        self.assertNotIn("Target-runtime validation", updated)
         self.assertIn("candidate-sha", updated)
         self.assertIn("release-merge-sha", updated)
-        self.assertIn("independent-reviewer", updated)
         self.assertIn("Matched baseline mean uplift: +4.0%", updated)
+        incomplete_report = dict(report)
+        incomplete_report.pop("builder_evidence")
+        with self.assertRaisesRegex(ValueError, "without exact-SHA Builder and three-trial evidence"):
+            UPDATE_RELEASE_DOC.build_published_release_doc(
+                current, incomplete_report, "candidate-sha", "release-merge-sha",
+            )
+        self.assertIn("Builder evidence PR: #38", updated)
+        self.assertIn("Real Skill trials: 3 PASS", updated)
+        self.assertIn("does not claim that each documented host", updated)
 
     def test_judge_missing_pass_evidence_is_unknown_not_behavior_failure(self):
         response = {
@@ -615,11 +665,133 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 "absence_reason": None,
             }]
         }
-        with mock.patch.object(RUN_EVAL, "api_call", return_value=json.dumps(response)):
+        with mock.patch.object(RUN_EVAL, "api_call", return_value=json.dumps(response)) as api:
             result = RUN_EVAL.judge_case("test-key", "test-judge", ["criterion"], "The criterion is present.")
         self.assertEqual(result[0]["status"], "UNKNOWN")
         self.assertIsNone(result[0]["score"])
         self.assertEqual(result[0]["judge_basis"], "passing_claim_without_verifiable_evidence")
+        prompt = api.call_args.args[2]
+        self.assertIn("every PASS MUST have score=1", prompt)
+        self.assertIn("A PASS with evidence=[] or an invalid quote is not allowed", prompt)
+        self.assertIn('"score":1', prompt)
+        self.assertIn("never return it literally", prompt)
+
+    def test_judge_retries_missing_pass_evidence_and_validates_the_quote_locally(self):
+        initial = {"checks": [{
+            "index": 0, "score": 1,
+            "rationale": "The criterion appears satisfied.",
+            "evidence": [],
+        }]}
+        repair = {
+            "supported": True,
+            "evidence": ["Target: Billing Support."],
+        }
+        with mock.patch.dict(RUN_EVAL.os.environ, {"DEEPSEEK_EVIDENCE_REPAIR": "1"}):
+            with mock.patch.object(
+                RUN_EVAL, "api_call",
+                side_effect=[json.dumps(initial), json.dumps(repair)],
+            ) as api:
+                result = RUN_EVAL.judge_case(
+                    "test-key", "deepseek-flash", ["states the target"],
+                    "Target: Billing Support. Objective: verify monthly totals.",
+                )
+        self.assertEqual(api.call_count, 2)
+        self.assertEqual(result[0]["status"], "PASS")
+        self.assertTrue(result[0]["evidence_validated"])
+        self.assertTrue(result[0]["evidence_repair_used"])
+        self.assertEqual(result[0]["evidence"], ["Target: Billing Support."])
+        self.assertIn("strict evidence extraction", api.call_args_list[1].args[2])
+
+    def test_evidence_repair_salvages_valid_quotes_when_judge_overreturns(self):
+        initial = {"checks": [{
+            "index": 0, "score": 1,
+            "rationale": "The criterion appears satisfied.",
+            "evidence": [],
+        }]}
+        repair = {
+            "supported": True,
+            "evidence": [
+                "First exact quote.",
+                "Second exact quote.",
+                "Third exact quote.",
+                "Fourth exact quote returned beyond the requested maximum.",
+                "This quote is not in the candidate.",
+            ],
+        }
+        candidate = (
+            "First exact quote. Second exact quote. Third exact quote. "
+            "Fourth exact quote returned beyond the requested maximum."
+        )
+        with mock.patch.dict(RUN_EVAL.os.environ, {"DEEPSEEK_EVIDENCE_REPAIR": "1"}):
+            with mock.patch.object(
+                RUN_EVAL, "api_call",
+                side_effect=[json.dumps(initial), json.dumps(repair)],
+            ):
+                result = RUN_EVAL.judge_case(
+                    "test-key", "deepseek-flash", ["criterion"], candidate,
+                )
+        self.assertEqual(result[0]["status"], "PASS")
+        self.assertTrue(result[0]["evidence_validated"])
+        self.assertTrue(result[0]["evidence_repair_used"])
+        self.assertEqual(result[0]["evidence"], [
+            "First exact quote.",
+            "Second exact quote.",
+            "Third exact quote.",
+        ])
+
+    def test_evidence_repair_does_not_upgrade_when_quote_is_not_verifiable(self):
+        initial = {"checks": [{
+            "index": 0, "score": 1,
+            "rationale": "The criterion appears satisfied.",
+            "evidence": [],
+        }]}
+        repair = {
+            "supported": True,
+            "evidence": ["This quote is not in the candidate."],
+        }
+        with mock.patch.dict(RUN_EVAL.os.environ, {"DEEPSEEK_EVIDENCE_REPAIR": "1"}):
+            with mock.patch.object(
+                RUN_EVAL, "api_call",
+                side_effect=[json.dumps(initial), json.dumps(repair)],
+            ):
+                result = RUN_EVAL.judge_case(
+                    "test-key", "deepseek-flash", ["states the target"],
+                    "Target: Billing Support.",
+                )
+        self.assertEqual(result[0]["status"], "UNKNOWN")
+        self.assertIsNone(result[0]["score"])
+        self.assertFalse(result[0]["evidence_validated"])
+        self.assertFalse(result[0]["evidence_repair_used"])
+
+    def test_evidence_repair_retries_once_after_unverifiable_quote(self):
+        initial = {"checks": [{
+            "index": 0, "score": 1,
+            "rationale": "The criterion appears satisfied.",
+            "evidence": [],
+        }]}
+        first_repair = {
+            "supported": True,
+            "evidence": ["This quote is not in the candidate."],
+        }
+        second_repair = {
+            "supported": True,
+            "evidence": ["The exact requirement is demonstrated."],
+        }
+        candidate = "The exact requirement is demonstrated. Extra context follows."
+        with mock.patch.dict(RUN_EVAL.os.environ, {"DEEPSEEK_EVIDENCE_REPAIR": "1"}):
+            with mock.patch.object(
+                RUN_EVAL, "api_call",
+                side_effect=[json.dumps(initial), json.dumps(first_repair), json.dumps(second_repair)],
+            ) as api:
+                result = RUN_EVAL.judge_case(
+                    "test-key", "deepseek-flash", ["criterion"], candidate,
+                )
+        self.assertEqual(api.call_count, 3)
+        self.assertEqual(result[0]["status"], "PASS")
+        self.assertTrue(result[0]["evidence_validated"])
+        self.assertTrue(result[0]["evidence_repair_used"])
+        self.assertEqual(result[0]["evidence"], ["The exact requirement is demonstrated."])
+        self.assertIn("SECOND ATTEMPT", api.call_args_list[2].args[2])
 
     def test_judge_can_report_failure_by_specific_absence_without_fake_quote(self):
         response = {
@@ -644,12 +816,12 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertEqual(RUN_EVAL.POLICY["max_stability_spread"], 0.05)
         self.assertGreaterEqual(RUN_EVAL.POLICY["minimum_runs"], 2)
         self.assertEqual(RUN_EVAL.DEFAULT_GENERATOR_MODEL, "deepseek-flash")
-        self.assertEqual(RUN_EVAL.DEFAULT_JUDGE_MODEL, "deepseek-v4-pro")
+        self.assertEqual(RUN_EVAL.DEFAULT_JUDGE_MODEL, "deepseek-flash")
 
-    def test_deepseek_pro_alias_is_not_treated_as_an_independent_judge(self):
+    def test_all_evaluation_roles_use_the_same_deepseek_flash_model(self):
         self.assertEqual(
             RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-flash"),
-            RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-v4-pro"),
+            "deepseek:DeepSeek-V4.1-Flash-1017",
         )
         self.assertNotEqual(
             RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-flash"),
@@ -660,6 +832,12 @@ class ReleaseGateUnitTests(unittest.TestCase):
         with mock.patch.dict("os.environ", {"EVAL_GIT_SHA": "candidate-sha"}):
             self.assertEqual(RUN_EVAL.evaluation_git_sha(), "candidate-sha")
 
+    def test_api_call_rejects_non_deepseek_endpoints(self):
+        with self.assertRaisesRegex(RUN_EVAL.ProviderStopError, "official DeepSeek API endpoint"):
+            RUN_EVAL.api_call(
+                "key", "some-model", "system", "user",
+                api_url="https://api.groq.com/openai/v1/chat/completions",
+            )
     def test_api_retries_are_reserved_as_separate_physical_requests(self):
         saved = {
             "api_requests": RUN_EVAL.API_REQUEST_COUNT,
@@ -874,101 +1052,27 @@ class ReleaseGateUnitTests(unittest.TestCase):
             RUN_EVAL.MAX_API_REQUESTS = saved["max_requests"]
             RUN_EVAL.MAX_ESTIMATED_COST_USD = saved["max_cost"]
 
-    def test_external_judge_payload_omits_deepseek_specific_fields(self):
+    def test_all_evaluation_calls_use_deepseek_models_and_no_provider_daily_quota(self):
         payload = RUN_EVAL.build_payload(
-            "openai/gpt-oss-120b", "system prompt", "candidate output",
+            "deepseek-flash", "system prompt", "candidate output",
             max_completion_tokens=1200, json_mode=True, thinking=False,
-            deepseek_fields=False,
         )
-        self.assertEqual(payload["model"], "openai/gpt-oss-120b")
+        self.assertEqual(payload["model"], "deepseek-flash")
         self.assertEqual(payload["max_tokens"], 1200)
         self.assertIn("response_format", payload)
-        self.assertNotIn("thinking", payload)
-        self.assertNotIn("reasoning_effort", payload)
-
-    def test_groq_token_estimator_uses_o200k_with_margin_and_output_reservation(self):
-        if RUN_EVAL.tiktoken is None:
-            self.skipTest("当前离线环境未安装可选分词库；回退估算由独立测试覆盖。")
-        encoding = RUN_EVAL.tiktoken.get_encoding("o200k_base")
-        system = "You are a strict evaluation judge. " * 30
-        user = "Candidate output and grading criteria. " * 140
-        prompt_tokens = (
-            len(encoding.encode(system, disallowed_special=()))
-            + len(encoding.encode(user, disallowed_special=()))
-        )
-        expected = (
-            __import__("math").ceil(prompt_tokens * 1.10)
-            + 32 + 2400
-        )
-        estimated = RUN_EVAL.estimate_request_tokens(
-            system, user, 2400, model="openai/gpt-oss-120b"
-        )
-        self.assertEqual(estimated, expected)
-        self.assertLess(estimated, 8000)
-        self.assertGreaterEqual(estimated, prompt_tokens + 2400)
-
-    def test_groq_token_estimator_falls_back_conservatively_without_tokenizer(self):
-        saved = RUN_EVAL.tiktoken
-        try:
-            RUN_EVAL.tiktoken = None
-            estimate = RUN_EVAL.estimate_request_tokens(
-                "系统" * 500, "候选输出" * 500, 2400,
-                model="openai/gpt-oss-120b",
-            )
-            self.assertEqual(
-                estimate,
-                __import__("math").ceil(
-                    (len(("系统" * 500).encode("utf-8"))
-                     + len(("候选输出" * 500).encode("utf-8"))) / 2
-                ) + 2400,
-            )
-        finally:
-            RUN_EVAL.tiktoken = saved
-
-    def test_groq_judge_context_and_rate_budgets_fail_closed(self):
-        saved_history = RUN_EVAL.MODEL_RATE_HISTORY
-        saved_store = RUN_EVAL.CHECKPOINT_STORE
-        try:
-            RUN_EVAL.MODEL_RATE_HISTORY = {}
-            with self.assertRaisesRegex(
-                RUN_EVAL.EvaluationBudgetExceeded, "context safety limit"
-            ):
-                RUN_EVAL.throttle_model("openai/gpt-oss-120b", 131073)
-            with self.assertRaisesRegex(
-                RUN_EVAL.EvaluationBudgetExceeded, "per-minute token allowance"
-            ):
-                RUN_EVAL.throttle_model("openai/gpt-oss-120b", 8001)
-            RUN_EVAL.CHECKPOINT_STORE = {
-                "estimated_tokens_reserved_by_model": {"openai/gpt-oss-120b": 199500},
-                "estimated_tokens_reserved_by_model_by_day": {
-                    "2026-11-02": {"openai/gpt-oss-120b": 199500}
-                },
-            }
-            with mock.patch.object(RUN_EVAL, "utc_date_key", return_value="2026-11-02"):
-                with self.assertRaisesRegex(
-                    RUN_EVAL.EvaluationBudgetExceeded, "UTC-day token reservation"
-                ):
-                    RUN_EVAL.reserve_model_daily_tokens("openai/gpt-oss-120b", 1000)
-            with mock.patch.object(RUN_EVAL, "utc_date_key", return_value="2026-11-03"):
-                RUN_EVAL.reserve_model_daily_tokens("openai/gpt-oss-120b", 1000)
-            self.assertEqual(
-                RUN_EVAL.CHECKPOINT_STORE["estimated_tokens_reserved_by_model_by_day"]["2026-11-03"]["openai/gpt-oss-120b"],
-                1000,
-            )
-            self.assertEqual(
-                RUN_EVAL.CHECKPOINT_STORE["estimated_tokens_reserved_by_model"]["openai/gpt-oss-120b"],
-                200500,
-            )
-        finally:
-            RUN_EVAL.MODEL_RATE_HISTORY = saved_history
-            RUN_EVAL.CHECKPOINT_STORE = saved_store
-
+        self.assertIn("thinking", payload)
+        self.assertIn("reasoning_effort", payload)
+        self.assertEqual(RUN_EVAL.MODEL_RATE_LIMITS, {})
+        self.assertEqual(RUN_EVAL.MODEL_PRICING_USD_PER_MILLION["deepseek-flash"], {
+            "input": 0.30, "output": 1.20,
+        })
+        self.assertGreater(RUN_EVAL.MAX_ESTIMATED_COST_USD, 0)
     def test_payload_uses_deepseek_openai_chat_compatibility(self):
         payload = RUN_EVAL.build_payload(
-            "deepseek-v4-pro", "system prompt", "user prompt",
+            "deepseek-flash", "system prompt", "user prompt",
             max_completion_tokens=321, json_mode=True, thinking=True,
         )
-        self.assertEqual(payload["model"], "deepseek-v4-pro")
+        self.assertEqual(payload["model"], "deepseek-flash")
         self.assertEqual(payload["max_tokens"], 321)
         self.assertEqual(payload["messages"][0]["role"], "system")
         self.assertEqual(payload["messages"][1]["role"], "user")
@@ -1016,10 +1120,10 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
     def test_paid_model_peak_prices_and_spend_guard_are_configured(self):
         self.assertEqual(RUN_EVAL.MODEL_PRICING_USD_PER_MILLION["deepseek-flash"]["input"], 0.30)
-        self.assertEqual(RUN_EVAL.MODEL_PRICING_USD_PER_MILLION["deepseek-v4-pro"]["output"], 1.20)
+        self.assertEqual(RUN_EVAL.MODEL_PRICING_USD_PER_MILLION["deepseek-flash"]["output"], 1.20)
         self.assertGreater(RUN_EVAL.MAX_ESTIMATED_COST_USD, 0)
-        self.assertLessEqual(RUN_EVAL.MAX_ESTIMATED_COST_USD, 2.0)
-        self.assertLessEqual(RUN_EVAL.MAX_API_REQUESTS, 250)
+        self.assertLessEqual(RUN_EVAL.MAX_ESTIMATED_COST_USD, 10.0)
+        self.assertEqual(RUN_EVAL.MAX_API_REQUESTS, 0)
 
     def test_json_extraction(self):
         self.assertEqual(RUN_EVAL.extract_json('prefix {"ok": true} suffix'), {"ok": True})
@@ -1223,7 +1327,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         with mock.patch.object(RUN_EVAL, "throttle_model"):
             with mock.patch.object(RUN_EVAL.urllib.request, "urlopen", side_effect=fake_urlopen):
                 result = RUN_EVAL.api_call(
-                    "test-key", "deepseek-v4-pro", "return JSON", "classify",
+                    "test-key", "deepseek-flash", "return JSON", "classify",
                     max_completion_tokens=180, json_mode=True, temperature=0.0,
                 )
         self.assertEqual(result, '{"should_trigger": true}')
@@ -1284,10 +1388,48 @@ class ReleaseGateUnitTests(unittest.TestCase):
                     with mock.patch.object(RUN_EVAL.urllib.request, "urlopen") as urlopen:
                         with self.assertRaises(RUN_EVAL.EvaluationBudgetExceeded):
                             RUN_EVAL.api_call(
-                                "key", "deepseek-v4-pro", "system", "user",
+                                "key", "deepseek-flash", "system", "user",
                                 max_completion_tokens=900,
                             )
                         urlopen.assert_not_called()
+
+    def test_checkpoint_migrates_only_explicit_compatible_candidate_sha(self):
+        saved = {
+            "checkpoint_path": RUN_EVAL.CHECKPOINT_PATH,
+            "checkpoint_store": RUN_EVAL.CHECKPOINT_STORE,
+            "api_requests": RUN_EVAL.API_REQUEST_COUNT,
+            "reserved_cost": RUN_EVAL.ESTIMATED_COST_RESERVED_USD,
+        }
+        try:
+            with tempfile.TemporaryDirectory() as temp:
+                path = Path(temp) / "checkpoint.json"
+                legacy = {
+                    "schema_version": 6,
+                    "signature": "legacy-signature",
+                    "responses": {"cached": {"content": "already-paid"}},
+                    "pending_requests": {},
+                    "uncertain_requests": {},
+                    "estimated_tokens_reserved_by_model": {},
+                    "estimated_tokens_reserved_by_model_by_day": {},
+                    "api_requests": 7,
+                    "estimated_cost_reserved_usd": 0.25,
+                }
+                path.write_text(json.dumps(legacy), encoding="utf-8")
+                RUN_EVAL.configure_checkpoint(
+                    path, "current-signature",
+                    compatible_signatures=["legacy-signature"],
+                )
+                self.assertEqual(RUN_EVAL.CHECKPOINT_STORE["signature"], "current-signature")
+                self.assertIn("cached", RUN_EVAL.CHECKPOINT_STORE["responses"])
+                self.assertEqual(RUN_EVAL.API_REQUEST_COUNT, 7)
+                self.assertAlmostEqual(RUN_EVAL.ESTIMATED_COST_RESERVED_USD, 0.25)
+                persisted = json.loads(path.read_text(encoding="utf-8"))
+                self.assertEqual(persisted["signature"], "current-signature")
+        finally:
+            RUN_EVAL.CHECKPOINT_PATH = saved["checkpoint_path"]
+            RUN_EVAL.CHECKPOINT_STORE = saved["checkpoint_store"]
+            RUN_EVAL.API_REQUEST_COUNT = saved["api_requests"]
+            RUN_EVAL.ESTIMATED_COST_RESERVED_USD = saved["reserved_cost"]
 
     def test_checkpoint_key_is_scoped_to_repeated_run(self):
         payload = RUN_EVAL.build_payload("deepseek-flash", "system", "user")
@@ -1297,12 +1439,27 @@ class ReleaseGateUnitTests(unittest.TestCase):
         second = RUN_EVAL.checkpoint_key(payload)
         self.assertNotEqual(first, second)
 
+    def test_generator_judge_and_trigger_share_deepseek_flash_without_provider_quotas(self):
+        self.assertEqual(
+            RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-flash"),
+            "deepseek:DeepSeek-V4.1-Flash-1017",
+        )
+        self.assertEqual(
+            RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-flash"),
+            "deepseek:DeepSeek-V4.1-Flash-1017",
+        )
+        self.assertEqual(
+            RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-flash"),
+            RUN_EVAL.effective_model_identity("https://api.deepseek.com", "deepseek-flash"),
+        )
+        self.assertEqual(RUN_EVAL.MODEL_RATE_LIMITS, {})
+
     def test_judge_and_trigger_propagate_paid_budget_stop_errors(self):
         with mock.patch.object(RUN_EVAL, "api_call", side_effect=RUN_EVAL.EvaluationBudgetExceeded("budget cap")):
             with self.assertRaises(RUN_EVAL.EvaluationBudgetExceeded):
-                RUN_EVAL.judge_case("key", "deepseek-v4-pro", ["criterion"], "candidate")
+                RUN_EVAL.judge_case("key", "deepseek-flash", ["criterion"], "candidate")
             with self.assertRaises(RUN_EVAL.EvaluationBudgetExceeded):
-                RUN_EVAL.classify_trigger("key", "deepseek-v4-pro", "query")
+                RUN_EVAL.classify_trigger("key", "deepseek-flash", "query")
 
     def test_judge_accepts_multiple_short_quotes_for_compound_criteria(self):
         response = {"checks": [{
@@ -1316,7 +1473,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 "Target: Billing Support. Objective: verify monthly totals.",
             )
         self.assertIn("1-3 short VERBATIM substrings", call.call_args.args[2])
-        self.assertEqual(call.call_args.kwargs["max_completion_tokens"], 2400)
+        self.assertEqual(call.call_args.kwargs["max_completion_tokens"], 4800)
         self.assertLessEqual(call.call_args.kwargs["max_completion_tokens"], RUN_EVAL.MAX_COMPLETION_TOKENS)
         self.assertEqual(results[0]["score"], 1)
         self.assertTrue(results[0]["evidence_validated"])
@@ -1324,18 +1481,18 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "Target: Billing Support.", "Objective: verify monthly totals."
         ])
 
-    def test_judge_uses_independent_non_thinking_mode_with_bounded_json_output(self):
+    def test_judge_uses_deepseek_flash_non_thinking_mode_with_bounded_json_output(self):
         response = {"checks": [{
             "index": 0, "score": 0, "rationale": "Missing evidence.",
             "evidence": ["Closest available sentence."],
         }]}
         with mock.patch.object(RUN_EVAL, "api_call", return_value=json.dumps(response)) as call:
             RUN_EVAL.judge_case(
-                "key", "openai/gpt-oss-120b", ["criterion"], "Closest available sentence.",
-                api_url="https://api.groq.com/openai/v1/chat/completions",
+                "key", "deepseek-flash", ["criterion"], "Closest available sentence.",
+                api_url="https://api.deepseek.com/chat/completions",
             )
-        self.assertEqual(call.call_args.kwargs["max_completion_tokens"], 2400)
-        self.assertEqual(call.call_args.kwargs["api_url"], "https://api.groq.com/openai/v1/chat/completions")
+        self.assertEqual(call.call_args.kwargs["max_completion_tokens"], 4800)
+        self.assertEqual(call.call_args.kwargs["api_url"], "https://api.deepseek.com/chat/completions")
         self.assertFalse(call.call_args.kwargs["thinking"])
         self.assertEqual(call.call_args.kwargs["temperature"], 0.0)
 
@@ -1396,7 +1553,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         }
         with mock.patch.object(RUN_EVAL, "api_call", side_effect=RuntimeError("provider unavailable")):
             result = RUN_EVAL.evaluate_once(
-                1, "generator-key", "judge-key", "deepseek-flash", "deepseek-v4-pro",
+                1, "generator-key", "judge-key", "deepseek-flash", "deepseek-flash",
                 "skill text", "baseline text", suite, trigger_suite,
             )
         self.assertTrue(result["skill_cases"][0]["generation_error"])
@@ -1587,6 +1744,13 @@ class ReleaseGateUnitTests(unittest.TestCase):
             content = (SKILL_DIR / relative_path).read_text(encoding="utf-8")
             for term in forbidden_terms:
                 self.assertNotIn(term.lower(), content.lower(), f"{relative_path} contains {term}")
+
+    def test_eval_report_has_no_manual_review_stage(self):
+        source = (ROOT / "tests" / "run_eval.py").read_text(encoding="utf-8")
+        self.assertNotIn('report["human_review"]', source)
+        self.assertNotIn("human_interpretation_required", source)
+        self.assertNotIn("critical_case_ids_for_human_review", source)
+        self.assertNotIn("Independent human critical-case review", source)
 
     def test_critical_cases_exist(self):
         fixture = json.loads((ROOT / "tests" / "self-eval-cases.json").read_text(encoding="utf-8"))

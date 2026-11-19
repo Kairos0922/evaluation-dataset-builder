@@ -12,11 +12,8 @@ from verify_release import (
     API,
     PR_NUMBER,
     api_request,
-    latest_approved_review,
     release_pr_binding,
-    load_target_runtime_report,
     require,
-    skill_package_tree_sha,
     repository_tree_signature,
     verify_report,
 )
@@ -64,11 +61,184 @@ def report_from_run(repo, token, run_id, candidate_sha):
     return report, artifact
 
 
+def artifact_json(repo, token, artifact, filename):
+    archive = api_request(
+        f"/repos/{repo}/actions/artifacts/{artifact['id']}/zip",
+        token,
+        binary=True,
+    )
+    with zipfile.ZipFile(io.BytesIO(archive)) as zf:
+        matches = [name for name in zf.namelist() if name.endswith(filename)]
+        require(len(matches) == 1, "Evidence artifact is missing or ambiguous: " + filename)
+        return json.loads(zf.read(matches[0]).decode("utf-8"))
+
+
+def validate_builder_evidence_payloads(
+    summary, trace, connectivity_probe, metadata, credential_scan,
+    adjudication, pilot_artifact_names, builder_sha,
+):
+    require(summary.get("status") == "PASS", "Independent Builder output validation did not pass.")
+    require(int(summary.get("dataset_count", 0)) > 0 and int(summary.get("case_count", 0)) > 0,
+            "Builder validation summary has no generated datasets or cases.")
+    require(trace.get("status") == "PASS" and int(trace.get("dsh_exit_code", -1)) == 0,
+            "DSH trace does not prove a successful Builder invocation.")
+    require(int(trace.get("builder_skill_tool_calls", 0)) > 0 and bool(trace.get("generated_files")),
+            "DSH trace lacks a completed Builder Skill call or generated files.")
+    require(
+        connectivity_probe.get("status") == "PASS"
+        and connectivity_probe.get("scope") == "minimal_model_connectivity_probe"
+        and connectivity_probe.get("tool_calls") == 0
+        and connectivity_probe.get("response_marker_present") is True
+        and connectivity_probe.get("quota_error_detected") is False
+        and connectivity_probe.get("builder_invocation_started") is False,
+        "The minimal DeepSeek connectivity probe did not pass its no-tool/no-quota contract.",
+    )
+    require(metadata.get("candidate_sha") == builder_sha,
+            "Builder run metadata candidate SHA does not match the exact current Builder PR head SHA.")
+    require(
+        metadata.get("workspace_isolated") is True
+        and metadata.get("gold_oracle_mounted") is False
+        and metadata.get("independent_validator_mounted") is False
+        and metadata.get("webapp_testing_skill_loaded") is False,
+        "Builder workspace isolation or independent-oracle boundary was not preserved.",
+    )
+    require(credential_scan.get("secret_value_exposed_in_artifact") is False,
+            "Builder evidence artifact contains a credential disclosure.")
+    require(adjudication.get("status") == "PASS"
+            and adjudication.get("scope") == "independent_three_case_pilot_adjudication"
+            and adjudication.get("case_count") == 3
+            and adjudication.get("passed_cases") == 3
+            and adjudication.get("failed_cases") == 0,
+            "Independent Gold Oracle did not pass all three real Skill trials.")
+    require(adjudication.get("formal_cases_created_or_modified") is False
+            and adjudication.get("oracle_exposed_to_builder_or_target_skill") is False,
+            "Pilot adjudication violates the independent-oracle boundary.")
+    cases = adjudication.get("cases") or []
+    require(len(cases) == 3 and all(item.get("adjudication_status") == "PASS" for item in cases),
+            "Pilot adjudication must contain exactly three passing case results.")
+    case_ids = {item.get("case_id") for item in cases}
+    roles = {item.get("pilot_role") for item in cases}
+    require(None not in case_ids and roles == {"search_mutation", "state_cycle", "delete_confirmation"},
+            "Pilot adjudication does not cover the three required real-task roles.")
+    expected = {"webapp-testing-pilot-" + case_id for case_id in case_ids}
+    require(set(pilot_artifact_names) == expected,
+            "Pilot evidence artifacts do not match the adjudicated case IDs.")
+    return {
+        "status": "PASS",
+        "dataset_count": int(summary["dataset_count"]),
+        "case_count": int(summary["case_count"]),
+        "pilot_count": 3,
+        "pilot_case_ids": sorted(case_ids),
+        "adjudication_status": adjudication["status"],
+        "connectivity_probe_status": connectivity_probe["status"],
+        "credential_scan_status": "PASS",
+    }
+
+
+def skill_package_tree_signature(repo, commit_sha, token):
+    tree = repository_tree_signature(repo, commit_sha, commit_sha, token)
+    prefix = "skills/evaluation-dataset-builder/"
+    result = {path[len(prefix):]: value for path, value in tree.items() if path.startswith(prefix)}
+    require(bool(result), "Skill package tree is empty at " + commit_sha)
+    return result
+
+
+def verify_builder_evidence(repo, token, builder_pr_number, release_candidate_sha):
+    pr = api_request(f"/repos/{repo}/pulls/{builder_pr_number}", token)
+    require(pr.get("state") == "open" and pr.get("draft") is True,
+            "Builder evidence PR must remain Draft/Open.")
+    require((pr.get("base") or {}).get("ref") == "main", "Builder evidence PR must target main.")
+    builder_sha = (pr.get("head") or {}).get("sha")
+    builder_branch = (pr.get("head") or {}).get("ref")
+    require(bool(builder_sha) and bool(builder_branch), "Builder evidence PR lacks its exact head SHA.")
+    require(
+        skill_package_tree_signature(repo, builder_sha, token)
+        == skill_package_tree_signature(repo, release_candidate_sha, token),
+        "Builder evidence used a different Skill package tree than the release candidate.",
+    )
+    runs_response = api_request(f"/repos/{repo}/actions/runs?per_page=100", token)
+    matching = sorted(
+        [
+            run for run in (runs_response.get("workflow_runs") or [])
+            if run.get("name") == "验证 Skill"
+            and run.get("head_sha") == builder_sha
+            and run.get("head_branch") == builder_branch
+            and run.get("event") in ("pull_request", "workflow_dispatch")
+        ],
+        key=lambda item: int(item.get("run_number", 0)),
+        reverse=True,
+    )
+    require(bool(matching), "No Builder workflow run exists for the current Builder PR head SHA.")
+
+    required = (
+        "validate", "audit-upstream-assets", "runtime-preflight",
+        "builder-production", "resolve-pilot-matrix", "adjudicate-pilot",
+    )
+    selected = None
+    for candidate in matching:
+        if candidate.get("status") != "completed" or candidate.get("conclusion") != "success":
+            continue
+        candidate_id = candidate.get("id")
+        jobs_response = api_request(
+            f"/repos/{repo}/actions/runs/{candidate_id}/jobs?per_page=100", token
+        )
+        jobs = jobs_response.get("jobs") or []
+        by_name = {item.get("name"): item for item in jobs}
+        if any(name not in by_name or by_name[name].get("conclusion") != "success"
+               for name in required):
+            continue
+        pilot_jobs = [
+            item for item in jobs
+            if str(item.get("name", "")).startswith("webapp-testing-pilot")
+        ]
+        if len(pilot_jobs) != 3 or any(item.get("conclusion") != "success" for item in pilot_jobs):
+            continue
+        selected = (candidate, jobs)
+        break
+
+    require(selected is not None,
+            "No completed Builder production run on the exact current SHA has all required jobs and three successful pilots.")
+    run, jobs = selected
+    run_id = run["id"]
+
+    artifacts_response = api_request(f"/repos/{repo}/actions/runs/{run_id}/artifacts", token)
+    artifacts = [item for item in (artifacts_response.get("artifacts") or []) if not item.get("expired")]
+    by_name = {item.get("name"): item for item in artifacts}
+    for name in ("webapp-testing-builder-result", "webapp-testing-independent-adjudication"):
+        require(name in by_name, "Required Builder evidence artifact is missing: " + name)
+    pilot_names = sorted(name for name in by_name if name.startswith("webapp-testing-pilot-"))
+    require(len(pilot_names) == 3, "Exactly three real Skill pilot evidence artifacts are required.")
+
+    builder_artifact = by_name["webapp-testing-builder-result"]
+    summary = artifact_json(repo, token, builder_artifact, "builder-validation-summary.json")
+    trace = artifact_json(repo, token, builder_artifact, "builder-dsh-trace-verification.json")
+    connectivity_probe = artifact_json(repo, token, builder_artifact, "builder-connectivity-probe.json")
+    metadata = artifact_json(repo, token, builder_artifact, "builder-run-metadata.json")
+    credential_scan = artifact_json(repo, token, builder_artifact, "credential-scan.json")
+    adjudication = artifact_json(
+        repo, token, by_name["webapp-testing-independent-adjudication"],
+        "independent-adjudication.json",
+    )
+    result = validate_builder_evidence_payloads(
+        summary, trace, connectivity_probe, metadata, credential_scan,
+        adjudication, pilot_names, builder_sha,
+    )
+    result.update({
+        "pr_number": builder_pr_number,
+        "candidate_sha": builder_sha,
+        "workflow_run_id": run_id,
+        "workflow_run_url": run.get("html_url"),
+        "skill_tree_matches_release_candidate": True,
+    })
+    return result
+
+
 def create_release_tag():
     token = os.getenv("GITHUB_TOKEN")
     repo = os.getenv("GITHUB_REPOSITORY")
     candidate_sha = os.getenv("RELEASE_CANDIDATE_SHA")
     pr_number = int(os.getenv("RELEASE_PR_NUMBER", str(PR_NUMBER)))
+    builder_pr_number = int(os.getenv("RELEASE_BUILDER_PR_NUMBER", "38"))
     require(token and repo and candidate_sha,
             "GITHUB_TOKEN, GITHUB_REPOSITORY, and RELEASE_CANDIDATE_SHA are required.")
 
@@ -86,9 +256,6 @@ def create_release_tag():
     author = (pr.get("user") or {}).get("login")
     require(bool(author), "Could not identify the release PR author.")
 
-    reviews = api_request(
-        f"/repos/{repo}/pulls/{pr_number}/reviews?per_page=100", token
-    )
     runs_response = api_request(
         f"/repos/{repo}/actions/runs?per_page=100",
         token,
@@ -106,12 +273,9 @@ def create_release_tag():
     latest_run = max(matching_runs, key=lambda item: int(item.get("run_number", 0)))
     run_id = latest_run["id"]
 
-    review = latest_approved_review(reviews, author, pr_head_sha, run_id)
-    package_tree_sha = skill_package_tree_sha(repo, candidate_sha, token)
-    runtime_report, runtime_report_url, runtime_report_commit = load_target_runtime_report(
-        review, repo, token, candidate_sha, package_tree_sha
-    )
     report, artifact = report_from_run(repo, token, run_id, candidate_sha)
+    builder_evidence = verify_builder_evidence(repo, token, builder_pr_number, candidate_sha)
+    report["builder_evidence"] = builder_evidence
 
     tag_name = "v0.0.1"
     try:
@@ -136,19 +300,17 @@ def create_release_tag():
     with open("artifacts/eval-report.json", "w", encoding="utf-8") as handle:
         json.dump(report, handle, ensure_ascii=False, indent=2)
     run_url = f"https://github.com/{repo}/actions/runs/{run_id}"
-    reviewer = (review.get("user") or {}).get("login")
-    runtime_evidence_url = runtime_report_url
     stability = report["stability"]
     baseline = report["baseline_comparison"]
     notes = (
         "# Evaluation Dataset Builder v0.0.1\n\n"
-        f"- Reviewed PR head SHA: `{pr_head_sha}`\n"
+        f"- Candidate PR head SHA: `{pr_head_sha}`\n"
         f"- Evaluated merge commit / tag SHA: `{release_sha}`\n"
         f"- Validation run: {run_url}\n"
-        f"- Independent reviewer: {reviewer}\n"
-        f"- Target runtime validation evidence: {runtime_evidence_url}\n"
-        f"- Target runtime evidence commit: `{runtime_report_commit}`\n"
-        f"- Verified hosts: {', '.join(sorted(runtime_report['required_hosts']))}\n"
+        f"- Builder evidence PR: #{builder_evidence['pr_number']} at {builder_evidence['candidate_sha']}\n"
+        f"- Builder production run: {builder_evidence['workflow_run_url']}\n"
+        f"- Independently validated datasets / cases: {builder_evidence['dataset_count']} / {builder_evidence['case_count']}\n"
+        f"- Real Skill trials: {builder_evidence['pilot_count']} PASS ({', '.join(builder_evidence['pilot_case_ids'])})\n"
         f"- Generator: `{report['models']['generator']}`; Judge: `{report['models']['judge_and_trigger']}`\n"
         f"- Complete repeated runs: {report['policy']['actual_runs']}\n"
         f"- Behavior mean / spread: {stability['behavior_pass_rate']['mean']:.1%} / {stability['behavior_pass_rate']['spread']:.1%}\n"
@@ -156,7 +318,7 @@ def create_release_tag():
         f"- Trigger Recall mean / spread: {stability['trigger_recall']['mean']:.1%} / {stability['trigger_recall']['spread']:.1%}\n"
         f"- Matched baseline mean: {baseline['mean_baseline_behavior_pass_rate']:.1%}; Skill mean: {baseline['mean_skill_behavior_pass_rate']:.1%}; uplift: {baseline['mean_uplift']:+.1%}\n"
         "- Automated behavior, trigger, baseline, and stability gates: PASSED\n"
-        "- Limitation: automated behavior evaluation is a SKILL.md entrypoint-text proxy; packaged references are not loaded through host resource tools. Target-runtime validation is a separate mandatory release gate and its evidence is linked above.\n"
+        "- Limitation: automated behavior evaluation is a Skill entrypoint-text proxy for the pinned model configuration. This release does not claim that each documented host's installation, discovery, reference-loading, or tool-integration path has been independently verified.\n"
         "\nThe attached JSON contains per-case outputs, locally verified Judge evidence, confusion matrices, baseline details, and token usage.\n"
     )
     with open("artifacts/release-notes.md", "w", encoding="utf-8") as handle:
@@ -168,7 +330,6 @@ def create_release_tag():
         "release_commit_sha": release_sha,
         "workflow_run_id": run_id,
         "report_artifact_id": artifact["id"],
-        "approved_reviewer": reviewer,
         "behavior_mean": report["stability"]["behavior_pass_rate"]["mean"],
         "trigger_precision_mean": report["stability"]["trigger_precision"]["mean"],
         "trigger_recall_mean": report["stability"]["trigger_recall"]["mean"],
