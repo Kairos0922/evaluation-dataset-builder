@@ -410,7 +410,10 @@ def extract_search_queries(case: dict, tasks: list[dict]) -> list[str]:
         return [
             token for token in candidates
             if re.match(r"^z{3,}-", token.casefold())
-            or any(token.casefold() in text.casefold() for text in searchable_text)
+            or any(
+                re.search(rf"\b{re.escape(token)}\b", text, re.I)
+                for text in searchable_text
+            )
         ]
 
     if not queries:
