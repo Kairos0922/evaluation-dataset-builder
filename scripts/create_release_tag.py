@@ -304,7 +304,7 @@ def create_release_tag():
     baseline = report["baseline_comparison"]
     notes = (
         "# Evaluation Dataset Builder v0.0.1\n\n"
-        f"- Reviewed PR head SHA: `{pr_head_sha}`\n"
+        f"- Candidate PR head SHA: `{pr_head_sha}`\n"
         f"- Evaluated merge commit / tag SHA: `{release_sha}`\n"
         f"- Validation run: {run_url}\n"
         f"- Builder evidence PR: #{builder_evidence['pr_number']} at {builder_evidence['candidate_sha']}\n"
