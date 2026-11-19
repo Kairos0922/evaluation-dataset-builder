@@ -36,7 +36,7 @@ The artifact was inspected after the locator-only source-map validator fix was c
 
 ## Remaining release blockers
 
-- The official independent validator has not been run against this captured output after the validator fix.
+- Official independent validator PASS: archived validation workflow [#44564856202](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44564856202), bound to Builder artifact run #44554258000. Evidence artifact [#14551686466](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44564856202/artifacts/14551686466). The validator accepted 14 cases, 0 schema errors, and verified 61 source evidence references against the frozen input.
 - The manifest declares `quality_status: needs_info` and `execution_status: NOT_RUN`. This is appropriate and must not be promoted to PASS.
 - Three real target-Skill pilot trials and independent Gold Oracle adjudication 3/3 have not been performed.
 - No new paid Builder invocation was started.
