@@ -692,13 +692,25 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
                 repair_obj = extract_json(repair_raw)
                 repair_quotes = repair_obj.get("evidence", [])
                 if repair_obj.get("supported") is True and isinstance(repair_quotes, list):
-                    repair_quotes = [str(value).strip() for value in repair_quotes if str(value).strip()]
-                    checked_quotes = [
-                        quote for quote in repair_quotes[:3]
-                        if 6 <= len(compact(quote)) <= 120
-                        and compact(quote) in candidate_compact
-                    ]
-                    if 1 <= len(repair_quotes) <= 3 and len(checked_quotes) == len(repair_quotes):
+                    # The model may over-return quotes despite the 1-3 instruction.
+                    # Salvage only locally verified quotes, deduplicate, then cap
+                    # the accepted evidence set. Extra or invalid quotes must not
+                    # invalidate otherwise sufficient exact evidence.
+                    checked_quotes = []
+                    seen_quotes = set()
+                    for value in repair_quotes:
+                        quote = str(value).strip()
+                        normalized_quote = compact(quote)
+                        if (
+                            6 <= len(normalized_quote) <= 120
+                            and normalized_quote in candidate_compact
+                            and normalized_quote not in seen_quotes
+                        ):
+                            checked_quotes.append(quote)
+                            seen_quotes.add(normalized_quote)
+                        if len(checked_quotes) == 3:
+                            break
+                    if checked_quotes:
                         valid_evidence = checked_quotes
                         evidence_validated = True
                         evidence_repair_used = True
