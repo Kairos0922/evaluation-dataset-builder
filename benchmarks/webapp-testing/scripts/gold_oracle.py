@@ -118,7 +118,11 @@ def target_task(case: dict, tasks: list[dict]) -> dict | None:
     if target is None:
         test_data = ((case.get("execution_requirements") or {}).get("test_data") or [])
         if test_data and isinstance(test_data[0], dict):
-            target = test_data[0].get("target_task")
+            target = (
+                test_data[0].get("target_task")
+                or test_data[0].get("task_id")
+                or test_data[0].get("target_id")
+            )
         elif test_data and isinstance(test_data[0], str):
             match = re.search(r"\b(WB-\d+)\b", test_data[0])
             if match:
@@ -159,7 +163,11 @@ def expected_status_transitions(case: dict, target: dict | None) -> list[tuple[s
     test_data = execution.get("test_data") or []
     test_sequence = []
     if test_data and isinstance(test_data[0], dict):
-        test_sequence = test_data[0].get("expected_sequence") or []
+        test_sequence = (
+            test_data[0].get("expected_sequence")
+            or test_data[0].get("expected")
+            or []
+        )
     expected_behavior = case.get("expected_behavior") or {}
     conforming = ((case.get("reference_outcome") or {}).get("conforming_branch") or {})
     sequence = []
@@ -666,6 +674,25 @@ def self_test() -> int:
     assert expected_status_transitions(builder_state_case, state_target) == [
         ("open", "in_progress"), ("in_progress", "done"), ("done", "open"),
     ]
+    builder_contract_state_case = {
+        "execution_requirements": {"test_data": [{
+            "task_id": "WB-101",
+            "expected": ["open", "in_progress", "done", "open"],
+        }]},
+    }
+    contract_state_target = target_task(builder_contract_state_case, INITIAL)
+    assert contract_state_target and contract_state_target["id"] == "WB-101", contract_state_target
+    assert expected_status_transitions(builder_contract_state_case, contract_state_target) == [
+        ("open", "in_progress"), ("in_progress", "done"), ("done", "open"),
+    ]
+    builder_contract_delete_case = {
+        "execution_requirements": {"test_data": [{
+            "task_id": "WB-102",
+            "expected_remaining": ["WB-101", "WB-103", "WB-104", "WB-105"],
+        }]},
+    }
+    contract_delete_target = target_task(builder_contract_delete_case, INITIAL)
+    assert contract_delete_target and contract_delete_target["id"] == "WB-102", contract_delete_target
     builder_delete_case = {
         "execution_requirements": {"test_data": ["WB-103 Fix export timeout，初始 Done"]},
     }
