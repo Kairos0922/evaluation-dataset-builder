@@ -62,18 +62,18 @@ def release_pr_binding(pr, candidate_sha, candidate_tree_signature, release_tree
             "The release PR must be merged and closed.")
     require((pr.get("base") or {}).get("ref") == "main",
             "The release PR must merge into main.")
-    reviewed_head_sha = (pr.get("head") or {}).get("sha")
+    candidate_head_sha = (pr.get("head") or {}).get("sha")
     release_sha = pr.get("merge_commit_sha")
-    require(bool(reviewed_head_sha) and bool(release_sha),
+    require(bool(candidate_head_sha) and bool(release_sha),
             "The merged PR must expose both its reviewed head SHA and merge_commit_sha.")
-    require(candidate_sha == reviewed_head_sha,
+    require(candidate_sha == candidate_head_sha,
             "Evaluation candidate SHA must equal the reviewed PR head SHA.")
     require(
         isinstance(candidate_tree_signature, dict)
         and candidate_tree_signature == release_tree_signature,
         "The merged release tree differs from the reviewed candidate tree; reevaluate the final candidate.",
     )
-    return reviewed_head_sha, release_sha
+    return candidate_head_sha, release_sha
 
 
 def verify_report(report, candidate_sha, run_id):
@@ -176,7 +176,7 @@ def main():
     release_sha = (pr.get("merge_commit_sha") or "")
     candidate_tree_signature = repository_tree_signature(repo, candidate_sha, candidate_sha, token)
     release_tree_signature = repository_tree_signature(repo, release_sha, candidate_sha, token)
-    reviewed_head_sha, release_sha = release_pr_binding(
+    candidate_head_sha, release_sha = release_pr_binding(
         pr, candidate_sha, candidate_tree_signature, release_tree_signature,
     )
 
@@ -232,7 +232,7 @@ def main():
     baseline = report["baseline_comparison"]
     notes = (
         "# Evaluation Dataset Builder v0.0.1\n\n"
-        f"- Reviewed PR head SHA: `{reviewed_head_sha}`\n"
+        f"- Candidate PR head SHA: `{candidate_head_sha}`\n"
         f"- Evaluated merge commit / tag SHA: `{release_sha}`\n"
         f"- Validation run: {run_url}\n"
         f"- Generator: `{report['models']['generator']}`; Judge: `{report['models']['judge_and_trigger']}`\n"
