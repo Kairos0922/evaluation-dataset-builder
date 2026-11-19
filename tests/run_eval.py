@@ -689,8 +689,8 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
                 'Return JSON only: {"supported":true,"evidence":["exact quote"]}.'
             )
             repair_user = (
-                "CRITERION:\\n" + criterion +
-                "\\n\\nCANDIDATE OUTPUT (source of quotes):\\n" + candidate
+                "CRITERION:\n" + criterion +
+                "\n\nCANDIDATE OUTPUT (source of quotes):\n" + candidate
             )
             # A second bounded extraction attempt is allowed only if the first
             # response fails local quote validation. It uses a distinct prompt
@@ -704,7 +704,7 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
                         "120 characters. Do not return explanations."
                     )
                     repair_user += (
-                        "\\n\\nPrevious evidence extraction did not produce a "
+                        "\n\nPrevious evidence extraction did not produce a "
                         "locally verifiable quote. Try again with shorter exact "
                         "substrings."
                     )
