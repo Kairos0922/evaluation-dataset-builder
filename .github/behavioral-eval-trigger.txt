@@ -2,4 +2,4 @@ Resume the failed exact-SHA evaluation using the compatible checkpoint; retry ev
 release_pr_number=39
 resume_run_id=44566868151
 resume_candidate_sha=1522d5878ced5c2f6ef27b08594131f0c7016647
-resume_attempt=3
+resume_attempt=4
