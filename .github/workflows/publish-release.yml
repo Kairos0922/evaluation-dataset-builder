@@ -13,7 +13,7 @@ on:
         required: true
         type: string
       candidate_sha:
-        description: Exact PR head SHA used by the successful evaluation report and independent approval
+        description: Exact PR head SHA used by the successful evaluation report
         required: true
         type: string
       builder_evidence_pr_number:
@@ -41,7 +41,7 @@ jobs:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: .github/workflows/publish-release.yml
-      - name: Verify merged PR, exact SHA, behavior report, baseline, stability, and independent approval; create tag
+      - name: Verify merged PR, exact SHA, behavior report, baseline, stability, and Builder evidence; create tag
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -65,7 +65,7 @@ jobs:
               --notes-file artifacts/release-notes.md \
               --verify-tag
           fi
-      - name: Mark RELEASE.md published with verified run and reviewer evidence
+      - name: Mark RELEASE.md published with verified automated evidence
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
