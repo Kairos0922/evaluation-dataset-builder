@@ -9,6 +9,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from deepseek_model_preflight import (  # noqa: E402
     calculate_budget,
     fetch_model_metadata,
+    fetch_account_balance,
     parse_model_metadata,
 )
 
@@ -60,6 +61,33 @@ class ModelMetadataTests(unittest.TestCase):
         self.assertEqual(request.get_method(), "GET")
         self.assertEqual(request.get_header("Authorization"), "Bearer not-a-real-secret")
         self.assertEqual(result["id"], "deepseek-flash")
+
+
+    def test_fetch_account_balance_uses_official_endpoint(self):
+        payload = {"is_available": True, "balance_infos": [
+            {"currency": "CNY", "total_balance": "10.00",
+             "granted_balance": "0.00", "topped_up_balance": "10.00"}
+        ]}
+        with mock.patch("urllib.request.urlopen", return_value=FakeResponse(payload)) as mocked:
+            result = fetch_account_balance("not-a-real-secret", timeout=2)
+        request = mocked.call_args.args[0]
+        self.assertEqual(request.full_url, "https://api.deepseek.com/user/balance")
+        self.assertEqual(request.get_method(), "GET")
+        self.assertTrue(result["is_available"])
+        self.assertFalse(result["generation_call_made"])
+
+    def test_insufficient_balance_fails_before_generation(self):
+        payload = {"is_available": False, "balance_infos": [
+            {"currency": "CNY", "total_balance": "0.00"}
+        ]}
+        with mock.patch("urllib.request.urlopen", return_value=FakeResponse(payload)):
+            with self.assertRaisesRegex(RuntimeError, "insufficient balance"):
+                fetch_account_balance("not-a-real-secret")
+
+    def test_missing_balance_metadata_fails_closed(self):
+        with mock.patch("urllib.request.urlopen", return_value=FakeResponse({"is_available": True})):
+            with self.assertRaisesRegex(RuntimeError, "no balance entries"):
+                fetch_account_balance("not-a-real-secret")
 
 
 class BudgetTests(unittest.TestCase):

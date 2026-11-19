@@ -17,9 +17,14 @@ on:
         required: true
         type: string
       candidate_sha:
-        description: Exact PR head SHA used by the successful evaluation report and independent approval
+        description: Exact PR head SHA used by the successful evaluation report
         required: true
         type: string
+      builder_evidence_pr_number:
+        description: Draft PR number containing exact-SHA Builder production and three Skill trials
+        required: true
+        type: string
+        default: "38"
 
 permissions:
   contents: write
@@ -37,19 +42,21 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 1
           persist-credentials: false
-      - name: Resolve explicit release confirmation and exact candidate binding
+      - name: Resolve explicit release confirmation and evidence bindings
         id: release-inputs
         env:
           EVENT_NAME: ${{ github.event_name }}
           INPUT_CONFIRM: ${{ inputs.confirm_publish }}
           INPUT_PR: ${{ inputs.release_pr_number }}
           INPUT_SHA: ${{ inputs.candidate_sha }}
+          INPUT_BUILDER_PR: ${{ inputs.builder_evidence_pr_number }}
         run: |
           set -euo pipefail
           if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
             [ "$INPUT_CONFIRM" = "true" ] || { echo "Publishing was not explicitly confirmed."; exit 2; }
             PR_NUMBER="$INPUT_PR"
             CANDIDATE_SHA="$INPUT_SHA"
+            BUILDER_PR_NUMBER="$INPUT_BUILDER_PR"
           else
             python - <<'PY' >> "$GITHUB_OUTPUT"
           from pathlib import Path
@@ -74,16 +81,22 @@ jobs:
               raise SystemExit("Invalid release PR number.")
           if not re.fullmatch(r"[0-9a-f]{40}", values.get("candidate_sha", "")):
               raise SystemExit("Invalid full candidate SHA.")
+          if not re.fullmatch(r"[1-9][0-9]*", values.get("builder_evidence_pr_number", "")):
+              raise SystemExit("Invalid Builder evidence PR number.")
           print("release_pr_number=" + values["release_pr_number"])
           print("candidate_sha=" + values["candidate_sha"])
+          print("builder_evidence_pr_number=" + values["builder_evidence_pr_number"])
           PY
             PR_NUMBER="$(sed -n 's/^release_pr_number=//p' "$GITHUB_OUTPUT" | tail -n 1)"
             CANDIDATE_SHA="$(sed -n 's/^candidate_sha=//p' "$GITHUB_OUTPUT" | tail -n 1)"
+            BUILDER_PR_NUMBER="$(sed -n 's/^builder_evidence_pr_number=//p' "$GITHUB_OUTPUT" | tail -n 1)"
           fi
           [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ ]]
           [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$BUILDER_PR_NUMBER" =~ ^[1-9][0-9]*$ ]]
           echo "release_pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
           echo "candidate_sha=$CANDIDATE_SHA" >> "$GITHUB_OUTPUT"
+          echo "builder_evidence_pr_number=$BUILDER_PR_NUMBER" >> "$GITHUB_OUTPUT"
       - name: Checkout exact reviewed candidate
         uses: actions/checkout@v4
         with:
@@ -97,14 +110,15 @@ jobs:
           cache-dependency-path: .github/workflows/publish-release.yml
       - name: Install structured runtime-evidence validator
         run: python -m pip install --disable-pip-version-check jsonschema
-      - name: Verify merged PR, exact SHA, CI report, baseline, stability, runtime evidence, and independent approval; create tag
+      - name: Verify merged PR, exact SHA, behavior report, baseline, stability, Builder evidence; create tag
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           RELEASE_CANDIDATE_SHA: ${{ steps.release-inputs.outputs.candidate_sha }}
           RELEASE_PR_NUMBER: ${{ steps.release-inputs.outputs.release_pr_number }}
+          RELEASE_BUILDER_PR_NUMBER: ${{ steps.release-inputs.outputs.builder_evidence_pr_number }}
         run: python scripts/create_release_tag.py
-      - name: Publish GitHub Release and attach the exact-run report
+      - name: Publish GitHub Release and attach exact-run report
         env:
           GH_TOKEN: ${{ github.token }}
           TAG_NAME: v0.0.1
@@ -120,7 +134,7 @@ jobs:
               --notes-file artifacts/release-notes.md \
               --verify-tag
           fi
-      - name: Mark RELEASE.md published with verified release evidence
+      - name: Mark RELEASE.md published with verified automated evidence
         env:
           GITHUB_TOKEN: ${{ github.token }}
           GITHUB_REPOSITORY: ${{ github.repository }}

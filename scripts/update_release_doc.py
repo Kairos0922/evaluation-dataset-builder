@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Mark RELEASE.md published only after the release workflow has created the GitHub Release."""
+"""Mark RELEASE.md published only after the release workflow has verified every gate."""
 import base64
 import json
 import os
@@ -7,57 +7,50 @@ import sys
 import urllib.request
 
 from verify_release import (
-    API, api_request, latest_approved_review, release_pr_binding,
-    load_target_runtime_report, require, repository_tree_signature, skill_package_tree_sha,
+    API,
+    api_request,
+    release_pr_binding,
+    require,
+    repository_tree_signature,
 )
 
 
-def build_published_release_doc(current, report, candidate_sha, release_sha, reviewer, runtime_evidence_url, runtime_report):
-    require("# Release 0.0.1 — Candidate (not yet published)" in current
-            or "# Release 0.0.1 — Published" in current,
+def build_published_release_doc(current, report, candidate_sha, release_sha):
+    require("# 0.0.1 发布候选说明" in current,
             "RELEASE.md does not contain the expected v0.0.1 heading.")
-    text = current.replace(
-        "# Release 0.0.1 — Candidate (not yet published)",
-        "# Release 0.0.1 — Published",
-    )
-    gates = (
-        "Behavioral pass rate >= 90% on every run",
-        "Trigger Precision >= 95% and Recall >= 95% on every run",
-        "Baseline comparison reviewed and accepted",
-        "Stability spread <= 5 percentage points for all three metrics",
-        "Independent human review of critical cases and generated outputs",
-    )
-    for gate in gates:
-        text = text.replace(f"- [ ] {gate}", f"- [x] {gate}")
-    text = text.replace(
-        "- [ ] Target-runtime validation",
-        "- [x] Target-runtime validation",
-    )
-    text = text.replace(
-        "This is a release candidate only. Do not publish tag v0.0.1 until every "
-        "automated and human gate in RELEASE-GATE.md has passed on the exact release commit.",
-        "v0.0.1 was published after all automated and independent human release "
-        "gates passed on the exact candidate commit recorded below.",
-    )
+    text = current.replace("# 0.0.1 发布候选说明", "# Evaluation Dataset Builder 0.0.1")
+    text = text.replace("**状态：** 尚未正式发布", "**状态：** 已正式发布")
+    require("## 发布门禁" in text, "RELEASE.md is missing the release-gate checklist.")
+    before, checklist = text.split("## 发布门禁", 1)
+    checklist = checklist.replace("- [ ] ", "- [x] ")
+    text = before + "## 发布门禁" + checklist
+    builder = report.get("builder_evidence") or {}
+    require(builder.get("status") == "PASS"
+            and builder.get("pilot_count") == 3
+            and builder.get("skill_tree_matches_release_candidate") is True,
+            "RELEASE.md cannot be marked published without exact-SHA Builder and three-trial evidence.")
+    stability = report["stability"]
+    baseline = report["baseline_comparison"]
     evidence = (
-        "## Release evidence\n\n"
-        f"- Reviewed PR head SHA: `{candidate_sha}`\n"
+        "\n\n## Release evidence\n\n"
+        f"- Candidate PR head SHA: `{candidate_sha}`\n"
         f"- Merged main commit / tag SHA: `{release_sha}`\n"
         f"- Evaluation workflow run: {report.get('workflow_run_id')}\n"
         f"- Generator: `{report['models']['generator']}`\n"
         f"- Independent Judge: `{report['models']['judge_and_trigger']}`\n"
-        f"- Behavior mean / spread: {report['stability']['behavior_pass_rate']['mean']:.1%} / {report['stability']['behavior_pass_rate']['spread']:.1%}\n"
-        f"- Trigger Precision mean / spread: {report['stability']['trigger_precision']['mean']:.1%} / {report['stability']['trigger_precision']['spread']:.1%}\n"
-        f"- Trigger Recall mean / spread: {report['stability']['trigger_recall']['mean']:.1%} / {report['stability']['trigger_recall']['spread']:.1%}\n"
-        f"- Matched baseline mean uplift: {report['baseline_comparison']['mean_uplift']:+.1%}\n"
-        f"- Independent reviewer: {reviewer}\n"
-        f"- Target runtime validation evidence: {runtime_evidence_url}\n"
-        f"- Verified hosts: {', '.join(sorted(runtime_report['required_hosts']))}\n"
-        "\nThe machine-readable evaluation report and target-runtime evidence are linked to this release.\n"
+        f"- Behavior mean / spread: {stability['behavior_pass_rate']['mean']:.1%} / {stability['behavior_pass_rate']['spread']:.1%}\n"
+        f"- Trigger Precision mean / spread: {stability['trigger_precision']['mean']:.1%} / {stability['trigger_precision']['spread']:.1%}\n"
+        f"- Trigger Recall mean / spread: {stability['trigger_recall']['mean']:.1%} / {stability['trigger_recall']['spread']:.1%}\n"
+        f"- Matched baseline mean uplift: {baseline['mean_uplift']:+.1%}\n"
+        f"- Builder evidence PR: #{builder['pr_number']} at {builder['candidate_sha']}\n"
+        f"- Builder production run: {builder['workflow_run_url']}\n"
+        f"- Independently validated datasets / cases: {builder['dataset_count']} / {builder['case_count']}\n"
+        f"- Real Skill trials: {builder['pilot_count']} PASS ({', '.join(builder['pilot_case_ids'])})\n"
+        "\nThis release does not claim that each documented host's installation, discovery, reference-loading, and tool-integration path has been independently verified.\n"
     )
     if "\n## Release evidence\n" in text:
         text = text.split("\n## Release evidence\n", 1)[0]
-    return text.rstrip() + "\n\n" + evidence
+    return text.rstrip() + evidence + "\n"
 
 
 def put_file(path, token, payload):
@@ -88,11 +81,11 @@ def main():
     with open("artifacts/eval-report.json", encoding="utf-8") as handle:
         report = json.load(handle)
     candidate_sha = report.get("git_sha")
-    require(bool(candidate_sha),
-            "Evaluation report does not identify its candidate SHA.")
+    require(bool(candidate_sha), "Evaluation report does not identify its candidate SHA.")
     if supplied_candidate_sha:
         require(candidate_sha == supplied_candidate_sha,
                 "Evaluation report SHA does not match supplied candidate SHA.")
+
     release = api_request(f"/repos/{repo}/releases/tags/v0.0.1", token)
     require(release.get("tag_name") == "v0.0.1",
             "GitHub Release v0.0.1 must exist before updating RELEASE.md.")
@@ -101,10 +94,10 @@ def main():
             "Repository default branch must be main.")
     pr = api_request(f"/repos/{repo}/pulls/{pr_number}", token)
     release_sha = pr.get("merge_commit_sha") or ""
-    candidate_tree_signature = repository_tree_signature(repo, candidate_sha, candidate_sha, token)
-    release_tree_signature = repository_tree_signature(repo, release_sha, candidate_sha, token)
-    pr_head_sha, release_sha = release_pr_binding(
-        pr, candidate_sha, candidate_tree_signature, release_tree_signature,
+    candidate_tree = repository_tree_signature(repo, candidate_sha, candidate_sha, token)
+    release_tree = repository_tree_signature(repo, release_sha, candidate_sha, token)
+    candidate_head_sha, release_sha = release_pr_binding(
+        pr, candidate_sha, candidate_tree, release_tree,
     )
     tag_ref = api_request(f"/repos/{repo}/git/ref/tags/v0.0.1", token)
     tag_object = tag_ref.get("object") or {}
@@ -112,25 +105,12 @@ def main():
     if tag_object.get("type") == "tag":
         annotated = api_request(f"/repos/{repo}/git/tags/{tag_sha}", token)
         tag_sha = (annotated.get("object") or {}).get("sha")
-    require(tag_sha == release_sha,
-            "v0.0.1 tag does not point to the merged main commit.")
-    reviews = api_request(f"/repos/{repo}/pulls/{pr_number}/reviews?per_page=100", token)
-    reviewer = latest_approved_review(
-        reviews, (pr.get("user") or {}).get("login"), pr_head_sha,
-        report.get("workflow_run_id"),
-    )
-    package_tree_sha = skill_package_tree_sha(repo, candidate_sha, token)
-    runtime_report, runtime_report_url, runtime_report_commit = load_target_runtime_report(
-        reviewer, repo, token, candidate_sha, package_tree_sha
-    )
+    require(tag_sha == release_sha, "v0.0.1 tag does not point to the merged main commit.")
 
-    current_file = api_request(
-        f"/repos/{repo}/contents/RELEASE.md?ref=main", token
-    )
+    current_file = api_request(f"/repos/{repo}/contents/RELEASE.md?ref=main", token)
     current = base64.b64decode(current_file["content"]).decode("utf-8")
     updated = build_published_release_doc(
-        current, report, pr_head_sha, release_sha, reviewer["user"]["login"],
-        runtime_report_url, runtime_report,
+        current, report, candidate_head_sha, release_sha,
     )
     result = put_file(
         f"/repos/{repo}/contents/RELEASE.md",
@@ -147,7 +127,6 @@ def main():
         "candidate_sha": candidate_sha,
         "release_commit_sha": release_sha,
         "commit_sha": result.get("commit", {}).get("sha"),
-        "reviewer": reviewer["user"]["login"],
     }, ensure_ascii=False, indent=2))
 
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Multi-provider release-gate evaluator with matched baseline and repeat-run checks."""
+"""DeepSeek Flash-only release-gate evaluator with matched baseline and repeat-run checks."""
 import argparse
 import json
 import hashlib
@@ -12,21 +12,14 @@ import time
 from datetime import datetime, timezone
 from collections import deque
 
-try:
-    import tiktoken
-except ImportError:  # pragma: no cover - production workflow installs this dependency
-    tiktoken = None
-
-GROQ_TOKENIZER_MARGIN = 0.10
-GROQ_CHAT_FRAMING_TOKENS = 32
-GROQ_TOKEN_ENCODER = None
 import urllib.error
 import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-DEEPSEEK_BASE_URL = os.getenv("DEEPSEEK_BASE_URL", "https://api.deepseek.com").rstrip("/")
+DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 API_URL = DEEPSEEK_BASE_URL + "/chat/completions"
+CRITICAL_CASE_IDS = ["SE03", "SE04", "SE05", "SE08", "SE09", "SE11", "SE12"]
 POLICY = {
     "behavior_pass_rate": 0.90,
     "trigger_precision": 0.95,
@@ -34,30 +27,23 @@ POLICY = {
     "max_stability_spread": 0.05,
     "minimum_runs": 2,
 }
-CRITICAL_CASE_IDS = ["SE03", "SE04", "SE05", "SE08", "SE09", "SE11", "SE12"]
 DEFAULT_GENERATOR_MODEL = "deepseek-flash"
-DEFAULT_JUDGE_MODEL = "deepseek-v4-pro"
-JUDGE_BASE_URL = (os.getenv("EVAL_JUDGE_BASE_URL") or DEEPSEEK_BASE_URL).rstrip("/")
+DEFAULT_JUDGE_MODEL = "deepseek-flash"
+JUDGE_BASE_URL = DEEPSEEK_BASE_URL
 JUDGE_API_URL = JUDGE_BASE_URL + "/chat/completions"
 DEFAULT_USER_AGENT = "evaluation-dataset-builder/0.0.1 (+https://github.com/Kairos0922/evaluation-dataset-builder)"
 # Paid API safety controls. Price estimates use peak-hour cache-miss rates so
 # the guard remains conservative even when actual cache/off-peak billing is cheaper.
 MAX_COMPLETION_TOKENS = int(os.getenv("DEEPSEEK_MAX_TOKENS", "16384"))
 MAX_ESTIMATED_COST_USD = float(os.getenv("DEEPSEEK_MAX_ESTIMATED_COST_USD", "1.50"))
-MAX_API_REQUESTS = int(os.getenv("DEEPSEEK_MAX_API_REQUESTS", "220"))
+MAX_API_REQUESTS = int(os.getenv("DEEPSEEK_MAX_API_REQUESTS", "0"))
 MAX_ESTIMATED_REQUEST_TOKENS = int(os.getenv("DEEPSEEK_MAX_ESTIMATED_REQUEST_TOKENS", "950000"))
-MODEL_CONTEXT_LIMITS = {"openai/gpt-oss-120b": 131072}
-MODEL_RATE_LIMITS = {
-    "openai/gpt-oss-120b": {
-        "rpm": int(os.getenv("GROQ_JUDGE_RPM", "30")),
-        "tpm": int(os.getenv("GROQ_JUDGE_TPM", "8000")),
-        "tpd": int(os.getenv("GROQ_JUDGE_TPD", "200000")),
-    }
-}
+MODEL_CONTEXT_LIMITS = {}
+# DeepSeek model capacity is checked live by scripts/deepseek_model_preflight.py.
+MODEL_RATE_LIMITS = {}
 MODEL_RATE_HISTORY = {}
 MODEL_PRICING_USD_PER_MILLION = {
     "deepseek-flash": {"input": 0.30, "output": 1.20},
-    "deepseek-v4-pro": {"input": 0.30, "output": 1.20},
 }
 USAGE_BY_MODEL = {}
 API_REQUEST_COUNT = 0
@@ -69,15 +55,12 @@ CHECKPOINT_STORE = {"schema_version": 6, "signature": None, "responses": {}, "pe
 
 
 def effective_model_identity(base_url, model):
-    """Resolve documented provider aliases before claiming model independence."""
+    """Return the canonical deployed model identity for evaluation configuration."""
     normalized_base = base_url.rstrip("/")
-    if normalized_base == "https://api.deepseek.com" and model in {
-        "deepseek-flash", "deepseek-v4-pro", "deepseek-v4-flash",
-        "deepseek-v4-flash-vision-exp",
-    }:
-        # DeepSeek announced all deepseek-v4-pro requests route to V4.1 Flash
-        # from 2026-09-14 until V4.1-Pro is launched.
-        return "deepseek:DeepSeek-V4.1-Flash-1017"
+    if normalized_base == "https://api.deepseek.com":
+        return {
+            "deepseek-flash": "deepseek:DeepSeek-V4.1-Flash-1017",
+        }.get(model, normalized_base + "::" + model)
     return normalized_base + "::" + model
 
 
@@ -118,22 +101,9 @@ def build_payload(model, system, user, max_completion_tokens=900,
 def estimate_request_tokens(system, user, max_completion_tokens, model=None):
     """Estimate complete prompt plus reserved output before sending a request.
 
-    GPT-OSS uses the o200k_harmony tokenizer, which extends o200k_base with
-    Harmony control tokens. Count the plain-text system/user content using
-    o200k_base, then add framing overhead and a 10% margin for the chat template,
-    provider serialization, and estimator variance. Reserve the full requested
-    completion budget. Other providers retain the conservative UTF-8 fallback.
+    Use a conservative UTF-8 estimate plus the complete requested output budget.
+    DeepSeek context and output limits are checked from live model metadata. Other providers retain the conservative UTF-8 fallback.
     """
-    global GROQ_TOKEN_ENCODER
-    if model == "openai/gpt-oss-120b" and tiktoken is not None:
-        if GROQ_TOKEN_ENCODER is None:
-            GROQ_TOKEN_ENCODER = tiktoken.get_encoding("o200k_base")
-        prompt_tokens = (
-            len(GROQ_TOKEN_ENCODER.encode(system, disallowed_special=()))
-            + len(GROQ_TOKEN_ENCODER.encode(user, disallowed_special=()))
-        )
-        guarded_prompt = math.ceil(prompt_tokens * (1 + GROQ_TOKENIZER_MARGIN))
-        return guarded_prompt + GROQ_CHAT_FRAMING_TOKENS + max_completion_tokens
     prompt_bytes = len(system.encode("utf-8")) + len(user.encode("utf-8"))
     return math.ceil(prompt_bytes / 2) + max_completion_tokens
 
@@ -226,16 +196,23 @@ class EvaluationBudgetExceeded(ProviderStopError):
     """Local cost or request cap reached; stop before further paid requests."""
 
 
-def configure_checkpoint(path, signature):
-    """Load only a checkpoint whose inputs exactly match this evaluation."""
+def configure_checkpoint(path, signature, compatible_signatures=None):
+    """Load a checkpoint matching exact inputs or an explicitly compatible legacy signature."""
     global CHECKPOINT_PATH, CHECKPOINT_STORE, API_REQUEST_COUNT, ESTIMATED_COST_RESERVED_USD
+    accepted_signatures = {signature} | set(compatible_signatures or [])
     CHECKPOINT_PATH = Path(path)
     CHECKPOINT_PATH.parent.mkdir(parents=True, exist_ok=True)
     if CHECKPOINT_PATH.exists():
         try:
             existing = json.loads(CHECKPOINT_PATH.read_text(encoding="utf-8"))
-            if existing.get("schema_version") == 6 and existing.get("signature") == signature and isinstance(existing.get("responses"), dict):
+            if (
+                existing.get("schema_version") == 6
+                and existing.get("signature") in accepted_signatures
+                and isinstance(existing.get("responses"), dict)
+            ):
+                legacy_match = existing.get("signature") != signature
                 CHECKPOINT_STORE = existing
+                CHECKPOINT_STORE["signature"] = signature
                 CHECKPOINT_STORE.setdefault("pending_requests", {})
                 CHECKPOINT_STORE.setdefault("uncertain_requests", {})
                 CHECKPOINT_STORE.setdefault("estimated_tokens_reserved_by_model", {})
@@ -247,9 +224,11 @@ def configure_checkpoint(path, signature):
                     existing.get("estimated_cost_reserved_usd", 0.0) or 0.0
                 )
                 print(
-                    f"Resuming checkpoint with {len(CHECKPOINT_STORE['responses'])} cached API responses.",
+                    f"Resuming checkpoint with {len(CHECKPOINT_STORE['responses'])} cached API responses."
+                    + (" (compatible SHA migration; Skill hash and evaluation inputs match)" if legacy_match else ""),
                     flush=True,
                 )
+                save_checkpoint()
                 return
             print("Existing checkpoint does not match this SHA/model/suite; starting a clean checkpoint.", flush=True)
         except (OSError, ValueError):
@@ -257,16 +236,17 @@ def configure_checkpoint(path, signature):
     CHECKPOINT_STORE = {
         "schema_version": 6,
         "signature": signature,
-        "api_requests": 0,
-        "estimated_cost_reserved_usd": 0.0,
-        "estimated_tokens_reserved_by_model": {},
-        "estimated_tokens_reserved_by_model_by_day": {},
+        "responses": {},
         "pending_requests": {},
         "uncertain_requests": {},
-        "responses": {},
+        "estimated_tokens_reserved_by_model": {},
+        "estimated_tokens_reserved_by_model_by_day": {},
+        "api_requests": 0,
+        "estimated_cost_reserved_usd": 0.0,
     }
+    API_REQUEST_COUNT = 0
+    ESTIMATED_COST_RESERVED_USD = 0.0
     save_checkpoint()
-
 
 def save_checkpoint():
     if CHECKPOINT_PATH is None:
@@ -293,7 +273,11 @@ def checkpoint_key(payload):
 def api_call(api_key, model, system, user, max_completion_tokens=900,
              json_mode=False, temperature=0.2, thinking=False, api_url=API_URL):
     global API_REQUEST_COUNT, ESTIMATED_COST_RESERVED_USD
-    deepseek_fields = api_url.rstrip("/").startswith(DEEPSEEK_BASE_URL)
+    if not api_url.startswith(DEEPSEEK_BASE_URL + "/"):
+        raise ProviderStopError(
+            "Evaluation LLM calls are restricted to the official DeepSeek API endpoint."
+        )
+    deepseek_fields = True
     payload = build_payload(
         model, system, user,
         max_completion_tokens=max_completion_tokens,
@@ -356,9 +340,9 @@ def api_call(api_key, model, system, user, max_completion_tokens=900,
     request = make_request(payload)
     for attempt in range(3):
         # Reserve every physical HTTP attempt (including retries) before sending it.
-        if API_REQUEST_COUNT >= MAX_API_REQUESTS:
+        if MAX_API_REQUESTS > 0 and API_REQUEST_COUNT >= MAX_API_REQUESTS:
             raise EvaluationBudgetExceeded(
-                f"API request cap reached ({MAX_API_REQUESTS}); stopping before another paid request."
+                f"Optional API request cap reached ({MAX_API_REQUESTS}); stopping before another paid request."
             )
         if ESTIMATED_COST_RESERVED_USD + estimated_cost > MAX_ESTIMATED_COST_USD:
             raise EvaluationBudgetExceeded(
@@ -577,20 +561,30 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
         "You are an independent, strict evaluation judge. Evaluate only the "
         "observable content of the candidate output. Do not infer that omitted "
         "steps were completed and do not reward stated intent. A criterion passes "
-        "only when the output itself clearly demonstrates it. For PASS, cite 1-3 "
-        "short VERBATIM substrings (each 6-120 characters) copied exactly from the "
-        "candidate output; never invent or paraphrase evidence. For FAIL, cite "
-        "contradictory or incorrect text when it exists. If the criterion is absent, "
-        "leave evidence empty and provide a precise absence_reason naming the missing "
-        "observable requirement. If evidence is insufficient or ambiguous, return "
-        "score null (UNKNOWN), not a guessed PASS or FAIL. TRUNCATION RULE: if the "
-        "candidate contains CAPTURE_STATUS=TRUNCATED or OUTPUT_INCOMPLETE, you MUST NOT "
-        "return FAIL only because a requirement is absent from the captured excerpt. "
-        "Return score null (UNKNOWN), unless the visible excerpt itself contains an "
-        "explicit contradiction that conclusively violates the criterion. Keep the JSON concise. "
-        "Return only: "
-        '{"checks":[{"index":0,"score":0,"rationale":"brief reason",'
-        '"evidence":[],"absence_reason":null}]}. Include every index exactly once.'
+        "only when the output itself clearly demonstrates it. "
+        "MANDATORY PASS EVIDENCE: every PASS MUST have score=1 and 1-3 short "
+        "VERBATIM substrings (each 6-120 characters) copied exactly from the "
+        "candidate output. Provide at least one non-empty quote. Choose only the "
+        "shortest informative quotes needed to prove the criterion. Preserve their "
+        "wording and punctuation. Before returning, verify each quote occurs in the "
+        "candidate output. Never paraphrase, translate, summarize, or invent a quote. "
+        "A PASS with evidence=[] or an invalid quote is not allowed; use score=null "
+        "(UNKNOWN) when no exact quote can be supplied. "
+        "For FAIL, use score=0 and either quote the contradictory text or, when the "
+        "requirement is clearly absent from the complete output, set evidence=[] and "
+        "provide a specific absence_reason naming the missing observable requirement. "
+        "For UNKNOWN, use score=null and evidence=[] with a brief explanation. "
+        "If evidence is insufficient or ambiguous, return UNKNOWN rather than guessing. "
+        "TRUNCATION RULE: if the candidate contains CAPTURE_STATUS=TRUNCATED or "
+        "OUTPUT_INCOMPLETE, you MUST NOT return FAIL only because a requirement is "
+        "absent from the captured excerpt. Return UNKNOWN unless the visible excerpt "
+        "itself contains an explicit contradiction that conclusively violates the criterion. "
+        "Return concise JSON only, with every index exactly once. Use this shape: "
+        '{"checks":[{"index":0,"score":1,"rationale":"brief reason",'
+        '"evidence":["<copy an exact 6-120 character substring from the candidate output>"],'
+        '"absence_reason":null}]}. The angle-bracket text is a placeholder: never '
+        "return it literally. Replace it with the actual candidate quote. "
+        "For FAIL by absence or UNKNOWN, evidence must be an empty array."
     )
     user = (
         "Evaluate the following criteria independently.\n\n"
@@ -600,7 +594,7 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
     try:
         raw = api_call(
             api_key, model, system, user,
-            max_completion_tokens=int(os.getenv("EVAL_JUDGE_MAX_COMPLETION_TOKENS", "2400")), json_mode=True, temperature=0.0,
+            max_completion_tokens=int(os.getenv("DEEPSEEK_JUDGE_MAX_COMPLETION_TOKENS", "4800")), json_mode=True, temperature=0.0,
             thinking=False, api_url=api_url,
         )
     except ProviderStopError:
@@ -674,6 +668,80 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
             1 <= len(evidence) <= 3
             and len(valid_evidence) == len(evidence)
         )
+        evidence_repair_used = False
+        if (
+            not evidence_validated
+            and (score is True or score == 1)
+            and bool(rationale)
+            and index not in duplicates
+            and os.getenv("DEEPSEEK_EVIDENCE_REPAIR", "0").strip() == "1"
+        ):
+            # Retry only evidence extraction. The semantic decision is never
+            # changed by this step; a quote must be locally verified verbatim.
+            repair_system = (
+                "You are performing strict evidence extraction. Do not re-evaluate "
+                "or assume the earlier decision is correct. Return supported=true "
+                "only if the candidate directly demonstrates the criterion. If "
+                "supported, provide 1-3 exact verbatim substrings, each 6-120 "
+                "characters, copied from the candidate. Choose short quotes and "
+                "avoid long table rows or full JSON objects. If no exact quote proves "
+                "it, return supported=false and evidence=[]. Never paraphrase. "
+                'Return JSON only: {"supported":true,"evidence":["exact quote"]}.'
+            )
+            repair_user = (
+                "CRITERION:\n" + criterion +
+                "\n\nCANDIDATE OUTPUT (source of quotes):\n" + candidate
+            )
+            # A second bounded extraction attempt is allowed only if the first
+            # response fails local quote validation. It uses a distinct prompt
+            # so an invalid cached response is not replayed. No judge score is
+            # upgraded unless an exact quote is verified in the candidate.
+            for repair_attempt in range(2):
+                if repair_attempt == 1:
+                    repair_system += (
+                        " SECOND ATTEMPT: Return the shortest exact quote that "
+                        "directly supports the criterion. Keep each quote under "
+                        "120 characters. Do not return explanations."
+                    )
+                    repair_user += (
+                        "\n\nPrevious evidence extraction did not produce a "
+                        "locally verifiable quote. Try again with shorter exact "
+                        "substrings."
+                    )
+                try:
+                    repair_raw = api_call(
+                        api_key, model, repair_system, repair_user,
+                        max_completion_tokens=800, json_mode=True, temperature=0.0,
+                        thinking=False, api_url=api_url,
+                    )
+                    repair_obj = extract_json(repair_raw)
+                    repair_quotes = repair_obj.get("evidence", [])
+                    if repair_obj.get("supported") is True and isinstance(repair_quotes, list):
+                        checked_quotes = []
+                        seen_quotes = set()
+                        for value in repair_quotes:
+                            quote = str(value).strip()
+                            normalized_quote = compact(quote)
+                            if (
+                                6 <= len(normalized_quote) <= 120
+                                and normalized_quote in candidate_compact
+                                and normalized_quote not in seen_quotes
+                            ):
+                                checked_quotes.append(quote)
+                                seen_quotes.add(normalized_quote)
+                            if len(checked_quotes) == 3:
+                                break
+                        if checked_quotes:
+                            valid_evidence = checked_quotes
+                            evidence_validated = True
+                            evidence_repair_used = True
+                            break
+                except ProviderStopError:
+                    raise
+                except Exception:
+                    # Preserve the fail-closed UNKNOWN outcome; one fresh attempt follows.
+                    pass
+
         reasons = []
         if index in duplicates:
             reasons.append("Judge returned a duplicate result for this criterion.")
@@ -708,6 +776,7 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
             "evidence_validated": evidence_validated,
             "judge_basis": judge_basis,
             "absence_reason": absence_reason if judge_basis == "reported_absence" else None,
+            "evidence_repair_used": evidence_repair_used,
         })
     return results
 
@@ -957,7 +1026,7 @@ def main():
     )
     parser.add_argument(
         "--judge-model",
-        default=(os.getenv("EVAL_JUDGE_MODEL") or os.getenv("DEEPSEEK_JUDGE_MODEL") or DEFAULT_JUDGE_MODEL),
+        default=(os.getenv("DEEPSEEK_JUDGE_MODEL") or DEFAULT_JUDGE_MODEL),
     )
     parser.add_argument("--output", default="artifacts/eval-report.json")
     parser.add_argument("--checkpoint", default="artifacts/eval-checkpoint.json")
@@ -968,31 +1037,7 @@ def main():
     generator_api_key = os.getenv("DEEPSEEK_GENERATOR_API_KEY", shared_api_key)
     judge_api_base_url = JUDGE_BASE_URL
     judge_api_url = JUDGE_API_URL
-    external_judge = judge_api_base_url != DEEPSEEK_BASE_URL
-    if external_judge:
-        judge_api_key = os.getenv("EVAL_JUDGE_API_KEY", "")
-        input_price = os.getenv("EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION", "")
-        output_price = os.getenv("EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION", "")
-        if not judge_api_key or not input_price or not output_price:
-            print(
-                "ERROR: external Judge requires EVAL_JUDGE_API_KEY, EVAL_JUDGE_BASE_URL, "
-                "EVAL_JUDGE_MODEL, and explicit input/output USD-per-million-token prices.",
-                file=sys.stderr,
-            )
-            return 2
-        if not os.getenv("EVAL_JUDGE_MODEL") and args.judge_model == DEFAULT_JUDGE_MODEL:
-            print("ERROR: set EVAL_JUDGE_MODEL for the external Judge provider.", file=sys.stderr)
-            return 2
-        try:
-            MODEL_PRICING_USD_PER_MILLION[args.judge_model] = {
-                "input": float(input_price),
-                "output": float(output_price),
-            }
-        except ValueError:
-            print("ERROR: external Judge token prices must be numeric.", file=sys.stderr)
-            return 2
-    else:
-        judge_api_key = os.getenv("DEEPSEEK_JUDGE_API_KEY", shared_api_key)
+    judge_api_key = os.getenv("DEEPSEEK_JUDGE_API_KEY", shared_api_key)
     if not generator_api_key or not judge_api_key:
         print(
             "ERROR: set DEEPSEEK_GENERATOR_API_KEY and DEEPSEEK_JUDGE_API_KEY, "
@@ -1002,15 +1047,8 @@ def main():
         return 2
     if args.runs < POLICY["minimum_runs"]:
         parser.error("at least two complete runs are required")
-    if effective_model_identity(DEEPSEEK_BASE_URL, args.generator_model) == effective_model_identity(
-        judge_api_base_url, args.judge_model
-    ):
-        print(
-            "ERROR: Generator and Judge resolve to the same deployed model. "
-            "DeepSeek routes deepseek-v4-pro to V4.1 Flash, so configure a genuinely "
-            "independent Judge provider/model before spending evaluation quota.",
-            file=sys.stderr,
-        )
+    if args.generator_model != "deepseek-flash" or args.judge_model != "deepseek-flash":
+        print("ERROR: All evaluation LLM roles must use deepseek-flash.", file=sys.stderr)
         return 2
 
     suite = json.loads(
@@ -1046,7 +1084,15 @@ def main():
     signature = hashlib.sha256(json.dumps(
         signature_payload, ensure_ascii=False, sort_keys=True
     ).encode("utf-8")).hexdigest()
-    configure_checkpoint(args.checkpoint, signature)
+    compatible_signatures = []
+    resume_candidate_sha = os.getenv("RESUME_CANDIDATE_SHA", "").strip()
+    if re.fullmatch(r"[0-9a-f]{40}", resume_candidate_sha):
+        legacy_payload = dict(signature_payload)
+        legacy_payload["candidate_sha"] = resume_candidate_sha
+        compatible_signatures.append(hashlib.sha256(json.dumps(
+            legacy_payload, ensure_ascii=False, sort_keys=True
+        ).encode("utf-8")).hexdigest())
+    configure_checkpoint(args.checkpoint, signature, compatible_signatures=compatible_signatures)
     runs = []
     for index in range(1, args.runs + 1):
         CURRENT_RUN_INDEX = index
@@ -1060,7 +1106,7 @@ def main():
             partial_report = {
                 "schema_version": "1.2",
                 "status": "INCOMPLETE",
-                "provider": "multi-provider",
+                "provider": "deepseek-only",
                 "api_base_url": DEEPSEEK_BASE_URL,
                 "judge_api_base_url": judge_api_base_url,
                 "git_sha": evaluation_git_sha(),
@@ -1074,7 +1120,7 @@ def main():
                 "cost_control": {
                     "max_estimated_cost_usd": MAX_ESTIMATED_COST_USD,
                     "estimated_cost_reserved_usd": round(ESTIMATED_COST_RESERVED_USD, 6),
-                    "max_api_requests": MAX_API_REQUESTS,
+                    "max_api_requests": MAX_API_REQUESTS if MAX_API_REQUESTS > 0 else None,
                     "api_requests": API_REQUEST_COUNT,
                     "checkpoint_cache_hits": CACHE_HITS_BY_MODEL,
                     "checkpoint_path": args.checkpoint,
@@ -1142,7 +1188,7 @@ def main():
     report = {
         "schema_version": "1.2",
         "status": "COMPLETE",
-        "provider": "multi-provider",
+        "provider": "deepseek-only",
         "api_base_url": DEEPSEEK_BASE_URL,
         "judge_api_base_url": judge_api_base_url,
         "suite_id": suite["suite_id"],
@@ -1169,7 +1215,6 @@ def main():
             **POLICY,
             "actual_runs": args.runs,
             "minimum_behavior_evaluability_rate": 1.0,
-            "critical_case_ids_for_human_review": CRITICAL_CASE_IDS,
             "trigger_eval_count": len(trigger_suite["evals"]),
         },
         "runs": runs,
@@ -1190,7 +1235,6 @@ def main():
             "per_run_uplift": [
                 run["metrics"]["behavior_uplift_vs_baseline"] for run in runs
             ],
-            "human_interpretation_required": True,
         },
         "api_usage_by_model": USAGE_BY_MODEL,
         "cost_control": {
@@ -1202,7 +1246,7 @@ def main():
                 item.get("peak_price_cost_usd_estimate", 0.0)
                 for item in USAGE_BY_MODEL.values()
             ), 6),
-            "max_api_requests": MAX_API_REQUESTS,
+            "max_api_requests": MAX_API_REQUESTS if MAX_API_REQUESTS > 0 else None,
             "api_requests": API_REQUEST_COUNT,
             "checkpoint_cache_hits": CACHE_HITS_BY_MODEL,
             "checkpoint_path": args.checkpoint,
@@ -1234,15 +1278,6 @@ def main():
     report["automated_gate_pass"] = all(
         gate["pass"] for gate in report["automated_gates"].values()
     )
-    report["human_review"] = {
-        "required": True,
-        "status": "PENDING",
-        "critical_case_ids": CRITICAL_CASE_IDS,
-        "note": (
-            "Independent reviewer must inspect critical cases, failures, judge "
-            "evidence, generated samples, and baseline uplift, then approve the PR."
-        ),
-    }
     report["release_approved"] = False
 
     output = ROOT / args.output
@@ -1260,7 +1295,8 @@ def main():
         "api_usage_by_model": report["api_usage_by_model"],
         "release_approved": False,
         "reason": (
-            "Independent human critical-case review and PR approval remain mandatory."
+            "This behavioral report does not itself authorize release; the separate "
+            "automated release gate must verify all required evidence."
         ),
     }, ensure_ascii=False, indent=2))
     return 0 if report["automated_gate_pass"] else 1

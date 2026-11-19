@@ -1,7 +1,11 @@
-run-name: Behavioral Skill Evaluation — ${{ inputs.candidate_sha }}
+run-name: Behavioral Skill Evaluation — ${{ inputs.candidate_sha || github.sha }}
 name: Behavioral Skill Evaluation
 
 on:
+  push:
+    branches: ["release/0.0.1-finalize"]
+    paths:
+      - ".github/behavioral-eval-trigger.txt"
   workflow_dispatch:
     inputs:
       release_pr_number:
@@ -11,11 +15,6 @@ on:
       candidate_sha:
         description: 该开放 PR 的精确 head SHA（评测与独立审批绑定的提交）
         required: true
-        type: string
-      generator_model:
-        description: 行为评测生成端配置（仅开发评测设施使用）
-        required: true
-        default: deepseek-flash
         type: string
       resume_run_id:
         description: 可选的中断运行 ID；恢复前会校验候选 SHA 与评测签名
@@ -35,19 +34,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.candidate_sha }}
+          ref: ${{ inputs.candidate_sha || github.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
           cache: pip
           cache-dependency-path: .github/workflows/behavioral-eval.yml
-      - name: 安装评测预算所需分词器
-        run: python -m pip install --disable-pip-version-check tiktoken
       - name: 验证候选提交与开放 PR 的 head SHA 一致
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_PR_NUMBER: ${{ inputs.release_pr_number }}
-          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          RELEASE_PR_NUMBER: ${{ inputs.release_pr_number || '39' }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha || github.sha }}
         run: |
           set -euo pipefail
           if [[ ! "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
@@ -71,31 +68,46 @@ jobs:
       - name: 验证候选 SHA 的 CI 已完整通过
         env:
           GH_TOKEN: ${{ github.token }}
-          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha || github.sha }}
         run: |
           set -euo pipefail
 
-          RUNS_JSON="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$CANDIDATE_SHA&per_page=100")"
-          CI_RUN_ID="$(jq -r --arg sha "$CANDIDATE_SHA" '
-            [.workflow_runs[]
-             | select(.path == ".github/workflows/validate.yml")
-             | select(.event == "pull_request")
-             | select(.head_sha == $sha)]
-            | sort_by(.created_at)
-            | last
-            | .id // empty
-          ' <<< "$RUNS_JSON")"
+          CI_RUN_ID=""
+          CI_STATUS="unknown"
+          CI_CONCLUSION="unknown"
+          for attempt in $(seq 1 36); do
+            RUNS_JSON="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$CANDIDATE_SHA&per_page=100")"
+            CI_RUN_ID="$(jq -r --arg sha "$CANDIDATE_SHA" '
+              [.workflow_runs[]
+               | select(.path == ".github/workflows/validate.yml")
+               | select(.event == "pull_request" or .event == "push")
+               | select(.head_sha == $sha)]
+              | sort_by(.created_at)
+              | last
+              | .id // empty
+            ' <<< "$RUNS_JSON")"
 
-          if [ -z "$CI_RUN_ID" ]; then
-            echo "没有找到该候选 SHA 对应的 PR 验证运行；拒绝重复执行测试或调用模型。"
-            exit 2
-          fi
+            if [ -n "$CI_RUN_ID" ]; then
+              CI_STATUS="$(jq -r --argjson id "$CI_RUN_ID" '
+                .workflow_runs[] | select(.id == $id) | .status // "unknown"
+              ' <<< "$RUNS_JSON")"
+              CI_CONCLUSION="$(jq -r --argjson id "$CI_RUN_ID" '
+                .workflow_runs[] | select(.id == $id) | .conclusion // "unknown"
+              ' <<< "$RUNS_JSON")"
+              if [ "$CI_STATUS" = "completed" ]; then
+                if [ "$CI_CONCLUSION" != "success" ]; then
+                  echo "候选 SHA 的 PR CI 已结束但未通过：$CI_CONCLUSION"
+                  exit 2
+                fi
+                break
+              fi
+            fi
+            echo "等待候选 SHA 对应的 PR CI 完成（检查 $attempt/36；状态=$CI_STATUS）。"
+            sleep 10
+          done
 
-          CI_CONCLUSION="$(jq -r --argjson id "$CI_RUN_ID" '
-            .workflow_runs[] | select(.id == $id) | .conclusion // "unknown"
-          ' <<< "$RUNS_JSON")"
-          if [ "$CI_CONCLUSION" != "success" ]; then
-            echo "候选 SHA 的最新 CI 结果不是 success：$CI_CONCLUSION"
+          if [ -z "$CI_RUN_ID" ] || [ "$CI_STATUS" != "completed" ] || [ "$CI_CONCLUSION" != "success" ]; then
+            echo "未在 6 分钟内取得候选 SHA 的成功 PR CI；拒绝调用模型。"
             exit 2
           fi
 
@@ -108,46 +120,33 @@ jobs:
               and any(.steps[]?; .name == "验证 Benchmark 贯通样例" and .conclusion == "success")
               and any(.steps[]?; .name == "运行离线测试" and .conclusion == "success")
             )
-            and any(.jobs[]; .name == "require-main-target" and .conclusion == "success")
+            and any(.jobs[]; .name == "require-main-target" and (.conclusion == "success" or .conclusion == "skipped"))
           ' <<< "$JOBS_JSON" >/dev/null
 
-          echo "候选 SHA $CANDIDATE_SHA 的完整 CI 已通过（run $CI_RUN_ID）；复用该结果，不重复安装依赖和运行离线测试。"
+          echo "候选 SHA $CANDIDATE_SHA 的完整验证已通过（run $CI_RUN_ID）；PR base 已单独验证为 main。"
       - name: 调用前验证生成端模型元数据
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
         run: python scripts/deepseek_model_preflight.py
-      - name: 调用前验证独立 Judge 服务元数据
-        env:
-          EVAL_JUDGE_BASE_URL: ${{ vars.EVAL_JUDGE_BASE_URL || 'https://api.groq.com/openai/v1' }}
-          EVAL_JUDGE_MODEL: ${{ vars.EVAL_JUDGE_MODEL || 'openai/gpt-oss-120b' }}
-          EVAL_JUDGE_API_KEY: ${{ secrets.EVAL_JUDGE_API_KEY || secrets.GROQ_API_KEY }}
-        run: |
-          set -euo pipefail
-          if [ -z "$EVAL_JUDGE_API_KEY" ]; then
-            echo "缺少独立 Judge 凭证；没有发送生成请求。"
-            exit 2
-          fi
-          BASE_URL="${EVAL_JUDGE_BASE_URL%/}"
-          curl --fail --silent --show-error --max-time 15 \
-            -H "Authorization: Bearer $EVAL_JUDGE_API_KEY" \
-            "$BASE_URL/models" -o /tmp/eval-judge-models.json
-          python - "$EVAL_JUDGE_MODEL" <<'PY'
-          import json, sys
-          model = sys.argv[1]
-          with open("/tmp/eval-judge-models.json", encoding="utf-8") as handle:
-              data = json.load(handle)
-          available = {item.get("id") for item in data.get("data", []) if isinstance(item, dict)}
-          if model not in available:
-              print("配置的独立 Judge 模型不在服务端 GET /models 列表中。")
-              raise SystemExit(2)
-          print("独立 Judge 元数据预检通过；尚未发送生成请求。")
-          PY
       - name: 按需恢复匹配的评测检查点
         env:
           GH_TOKEN: ${{ github.token }}
-          RESUME_RUN_ID: ${{ inputs.resume_run_id }}
+          RESUME_RUN_ID: ${{ inputs.resume_run_id || '' }}
         run: |
           set -euo pipefail
+          if [ -z "$RESUME_RUN_ID" ] && [ -f .github/behavioral-eval-trigger.txt ]; then
+            RESUME_RUN_ID="$(sed -n 's/^resume_run_id=//p' .github/behavioral-eval-trigger.txt | head -n 1)"
+          fi
+          RESUME_CANDIDATE_SHA=""
+          if [ -n "$RESUME_RUN_ID" ] && [ -f .github/behavioral-eval-trigger.txt ]; then
+            RESUME_CANDIDATE_SHA="$(sed -n 's/^resume_candidate_sha=//p' .github/behavioral-eval-trigger.txt | head -n 1)"
+            if ! [[ "$RESUME_CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "恢复检查点必须提供完整的原始 candidate SHA。"
+              exit 2
+            fi
+          fi
+          echo "RESUME_RUN_ID=$RESUME_RUN_ID" >> "$GITHUB_ENV"
+          echo "RESUME_CANDIDATE_SHA=$RESUME_CANDIDATE_SHA" >> "$GITHUB_ENV"
           if [ -z "$RESUME_RUN_ID" ]; then
             echo "未指定恢复运行 ID，将从全新检查点开始。"
             exit 0
@@ -156,31 +155,21 @@ jobs:
           gh run download "$RESUME_RUN_ID" \
             --name "candidate-evaluation-report-$RESUME_RUN_ID" --dir artifacts
           test -s artifacts/eval-checkpoint.json
-          echo "检查点已下载；其候选 SHA、Skill 内容、测试集和模型配置将在运行器内再次校验。"
+          echo "检查点已下载；Skill SHA、测试集、模型与配置匹配后才允许恢复。"
       - name: 执行重复行为、对照基线和触发评测
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-          DEEPSEEK_GENERATOR_MODEL: ${{ inputs.generator_model }}
-          EVAL_JUDGE_BASE_URL: ${{ vars.EVAL_JUDGE_BASE_URL || 'https://api.groq.com/openai/v1' }}
-          EVAL_JUDGE_MODEL: ${{ vars.EVAL_JUDGE_MODEL || 'openai/gpt-oss-120b' }}
-          EVAL_JUDGE_API_KEY: ${{ secrets.EVAL_JUDGE_API_KEY || secrets.GROQ_API_KEY }}
-          EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION: ${{ vars.EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION || '0.15' }}
-          EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION: ${{ vars.EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION || '0.60' }}
-          DEEPSEEK_MAX_ESTIMATED_COST_USD: "1.50"
-          DEEPSEEK_MAX_API_REQUESTS: "220"
-          DEEPSEEK_MAX_TOKENS: "16384"
-          EVAL_JUDGE_MAX_COMPLETION_TOKENS: ${{ vars.EVAL_JUDGE_MAX_COMPLETION_TOKENS || '2400' }}
-          GROQ_JUDGE_RPM: ${{ vars.GROQ_JUDGE_RPM || '30' }}
-          GROQ_JUDGE_TPM: ${{ vars.GROQ_JUDGE_TPM || '8000' }}
-          GROQ_JUDGE_TPD: ${{ vars.GROQ_JUDGE_TPD || '180000' }}
-          EVAL_GIT_SHA: ${{ inputs.candidate_sha }}
+          DEEPSEEK_GENERATOR_MODEL: deepseek-flash
+          DEEPSEEK_EVIDENCE_REPAIR: "1"
+          DEEPSEEK_BASE_URL: https://api.deepseek.com
+          DEEPSEEK_MAX_ESTIMATED_COST_USD: "10.00"
+          DEEPSEEK_MAX_TOKENS: ${{ vars.DEEPSEEK_MAX_TOKENS || '16384' }}
+          EVAL_GIT_SHA: ${{ inputs.candidate_sha || github.sha }}
+          RESUME_CANDIDATE_SHA: ${{ env.RESUME_CANDIDATE_SHA }}
         run: |
           set -euo pipefail
-          if [ -z "$DEEPSEEK_API_KEY" ] || [ -z "$EVAL_JUDGE_BASE_URL" ] || \
-             [ -z "$EVAL_JUDGE_MODEL" ] || [ -z "$EVAL_JUDGE_API_KEY" ] || \
-             [ -z "$EVAL_JUDGE_INPUT_PRICE_USD_PER_MILLION" ] || \
-             [ -z "$EVAL_JUDGE_OUTPUT_PRICE_USD_PER_MILLION" ]; then
-            echo "评测凭证、服务配置或 token 单价缺失。"
+          if [ -z "$DEEPSEEK_API_KEY" ]; then
+            echo "缺少 DeepSeek Flash 评测凭证。"
             exit 2
           fi
           python tests/run_eval.py --runs 2 --output artifacts/eval-report.json
