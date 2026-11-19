@@ -691,6 +691,43 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertEqual(result[0]["evidence"], ["Target: Billing Support."])
         self.assertIn("strict evidence extraction retry", api.call_args_list[1].args[2])
 
+    def test_evidence_repair_salvages_valid_quotes_when_judge_overreturns(self):
+        initial = {"checks": [{
+            "index": 0, "score": 1,
+            "rationale": "The criterion appears satisfied.",
+            "evidence": [],
+        }]}
+        repair = {
+            "supported": True,
+            "evidence": [
+                "First exact quote.",
+                "Second exact quote.",
+                "Third exact quote.",
+                "Fourth exact quote returned beyond the requested maximum.",
+                "This quote is not in the candidate.",
+            ],
+        }
+        candidate = (
+            "First exact quote. Second exact quote. Third exact quote. "
+            "Fourth exact quote returned beyond the requested maximum."
+        )
+        with mock.patch.dict(RUN_EVAL.os.environ, {"DEEPSEEK_EVIDENCE_REPAIR": "1"}):
+            with mock.patch.object(
+                RUN_EVAL, "api_call",
+                side_effect=[json.dumps(initial), json.dumps(repair)],
+            ):
+                result = RUN_EVAL.judge_case(
+                    "test-key", "deepseek-flash", ["criterion"], candidate,
+                )
+        self.assertEqual(result[0]["status"], "PASS")
+        self.assertTrue(result[0]["evidence_validated"])
+        self.assertTrue(result[0]["evidence_repair_used"])
+        self.assertEqual(result[0]["evidence"], [
+            "First exact quote.",
+            "Second exact quote.",
+            "Third exact quote.",
+        ])
+
     def test_evidence_repair_does_not_upgrade_when_quote_is_not_verifiable(self):
         initial = {"checks": [{
             "index": 0, "score": 1,
