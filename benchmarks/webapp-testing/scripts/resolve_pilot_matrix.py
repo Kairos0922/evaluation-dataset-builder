@@ -106,6 +106,13 @@ def role_score(case: dict, role: str) -> int:
     return 0
 
 
+def validate_case_timeout_seconds(case_id: str, execution: dict) -> int:
+    timeout = execution.get("case_timeout_seconds")
+    if type(timeout) is not int or not 1 <= timeout <= 900:
+        fail(f"{case_id}: execution_requirements.case_timeout_seconds must be 1..900")
+    return timeout
+
+
 def validate_case(case: dict, dataset_id: str) -> None:
     case_id = case.get("case_id", "<missing>")
     if case.get("quality_status") != "candidate":
@@ -118,9 +125,7 @@ def validate_case(case: dict, dataset_id: str) -> None:
         fail(f"{dataset_id}/{case_id}: execution environment is missing")
     if environment.get("app_url") != "http://127.0.0.1:4173":
         fail(f"{dataset_id}/{case_id}: app_url must target the local fixture")
-    timeout = environment.get("case_timeout_seconds")
-    if type(timeout) is not int or not 1 <= timeout <= 900:
-        fail(f"{dataset_id}/{case_id}: case_timeout_seconds must be 1..900")
+    validate_case_timeout_seconds(case_id, execution)
     if environment.get("server_state_at_start", "running") != "running":
         fail(f"{dataset_id}/{case_id}: server_state_at_start must be running")
     gaps = case.get("information_gaps") or []
