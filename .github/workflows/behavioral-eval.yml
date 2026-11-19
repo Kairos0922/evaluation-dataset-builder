@@ -137,7 +137,16 @@ jobs:
           if [ -z "$RESUME_RUN_ID" ] && [ -f .github/behavioral-eval-trigger.txt ]; then
             RESUME_RUN_ID="$(sed -n 's/^resume_run_id=//p' .github/behavioral-eval-trigger.txt | head -n 1)"
           fi
+          RESUME_CANDIDATE_SHA=""
+          if [ -n "$RESUME_RUN_ID" ] && [ -f .github/behavioral-eval-trigger.txt ]; then
+            RESUME_CANDIDATE_SHA="$(sed -n 's/^resume_candidate_sha=//p' .github/behavioral-eval-trigger.txt | head -n 1)"
+            if ! [[ "$RESUME_CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
+              echo "恢复检查点必须提供完整的原始 candidate SHA。"
+              exit 2
+            fi
+          fi
           echo "RESUME_RUN_ID=$RESUME_RUN_ID" >> "$GITHUB_ENV"
+          echo "RESUME_CANDIDATE_SHA=$RESUME_CANDIDATE_SHA" >> "$GITHUB_ENV"
           if [ -z "$RESUME_RUN_ID" ]; then
             echo "未指定恢复运行 ID，将从全新检查点开始。"
             exit 0
@@ -146,7 +155,7 @@ jobs:
           gh run download "$RESUME_RUN_ID" \
             --name "candidate-evaluation-report-$RESUME_RUN_ID" --dir artifacts
           test -s artifacts/eval-checkpoint.json
-          echo "检查点已下载；其候选 SHA、Skill 内容、测试集和模型配置将在运行器内再次校验。"
+          echo "检查点已下载；Skill SHA、测试集、模型与配置匹配后才允许恢复。"
       - name: 执行重复行为、对照基线和触发评测
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
@@ -156,6 +165,7 @@ jobs:
           DEEPSEEK_MAX_ESTIMATED_COST_USD: "10.00"
           DEEPSEEK_MAX_TOKENS: ${{ vars.DEEPSEEK_MAX_TOKENS || '16384' }}
           EVAL_GIT_SHA: ${{ inputs.candidate_sha || github.sha }}
+          RESUME_CANDIDATE_SHA: ${{ env.RESUME_CANDIDATE_SHA }}
         run: |
           set -euo pipefail
           if [ -z "$DEEPSEEK_API_KEY" ]; then
