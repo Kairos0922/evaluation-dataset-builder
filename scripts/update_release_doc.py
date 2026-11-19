@@ -9,14 +9,13 @@ import urllib.request
 from verify_release import (
     API,
     api_request,
-    latest_approved_review,
     release_pr_binding,
     require,
     repository_tree_signature,
 )
 
 
-def build_published_release_doc(current, report, candidate_sha, release_sha, reviewer):
+def build_published_release_doc(current, report, candidate_sha, release_sha):
     require("# 0.0.1 发布候选说明" in current,
             "RELEASE.md does not contain the expected v0.0.1 heading.")
     text = current.replace("# 0.0.1 发布候选说明", "# Evaluation Dataset Builder 0.0.1")
@@ -43,7 +42,6 @@ def build_published_release_doc(current, report, candidate_sha, release_sha, rev
         f"- Trigger Precision mean / spread: {stability['trigger_precision']['mean']:.1%} / {stability['trigger_precision']['spread']:.1%}\n"
         f"- Trigger Recall mean / spread: {stability['trigger_recall']['mean']:.1%} / {stability['trigger_recall']['spread']:.1%}\n"
         f"- Matched baseline mean uplift: {baseline['mean_uplift']:+.1%}\n"
-        f"- Independent reviewer: {reviewer}\n"
         f"- Builder evidence PR: #{builder['pr_number']} at {builder['candidate_sha']}\n"
         f"- Builder production run: {builder['workflow_run_url']}\n"
         f"- Independently validated datasets / cases: {builder['dataset_count']} / {builder['case_count']}\n"
@@ -109,16 +107,10 @@ def main():
         tag_sha = (annotated.get("object") or {}).get("sha")
     require(tag_sha == release_sha, "v0.0.1 tag does not point to the merged main commit.")
 
-    reviews = api_request(f"/repos/{repo}/pulls/{pr_number}/reviews?per_page=100", token)
-    reviewer = latest_approved_review(
-        reviews, (pr.get("user") or {}).get("login"), reviewed_head_sha,
-        report.get("workflow_run_id"), report.get("builder_evidence"),
-    )
     current_file = api_request(f"/repos/{repo}/contents/RELEASE.md?ref=main", token)
     current = base64.b64decode(current_file["content"]).decode("utf-8")
     updated = build_published_release_doc(
         current, report, reviewed_head_sha, release_sha,
-        reviewer["user"]["login"],
     )
     result = put_file(
         f"/repos/{repo}/contents/RELEASE.md",
@@ -135,7 +127,6 @@ def main():
         "candidate_sha": candidate_sha,
         "release_commit_sha": release_sha,
         "commit_sha": result.get("commit", {}).get("sha"),
-        "reviewer": reviewer["user"]["login"],
     }, ensure_ascii=False, indent=2))
 
 
