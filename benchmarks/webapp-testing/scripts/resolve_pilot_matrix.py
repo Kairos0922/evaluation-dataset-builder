@@ -267,9 +267,9 @@ def self_test() -> int:
             case["quality_status"] = "candidate"
             case["execution_requirements"] = {
                 "status": "NOT_RUN",
+                "case_timeout_seconds": 120,
                 "environment": {
                     "app_url": "http://127.0.0.1:4173",
-                    "case_timeout_seconds": 120,
                     "server_state_at_start": "running",
                 },
             }
