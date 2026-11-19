@@ -114,9 +114,7 @@ jobs:
         if: success()
         run: |
           set -euo pipefail
-          python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py \\
-            --output-root "$BUILDER_OUTPUT_DIR" \\
-            --write-output artifacts/pilot-matrix.json
+          python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py --output-root "$BUILDER_OUTPUT_DIR" --write-output artifacts/pilot-matrix.json
           python - <<'PY'
           import json
           from pathlib import Path
