@@ -62,3 +62,30 @@ def test_gold_oracle_resolves_builder_delete_target_from_task_id():
     }
     target = oracle.target_task(case, oracle.INITIAL)
     assert target and target["id"] == "WB-102"
+
+
+def test_gold_oracle_detects_builder_declared_delete_cancel_scenario():
+    case = {
+        "user_input": "点击 Delete 打开对话框，然后点击 Cancel。不要点击 Delete task。",
+        "execution_requirements": {"test_data": [{
+            "kind": "delete_cancel",
+            "task_id": "WB-103",
+            "expected_rule_state": {
+                "dialog_shown": True,
+                "cancel_closes": True,
+                "task_retained": "WB-103",
+            },
+        }]},
+    }
+    assert oracle.is_delete_cancel_case(case)
+
+
+def test_gold_oracle_does_not_classify_confirmed_delete_as_cancel():
+    case = {
+        "user_input": "点击 Delete 打开对话框，然后点击 Delete task 确认删除。",
+        "execution_requirements": {"test_data": [{
+            "kind": "delete_confirm",
+            "task_id": "WB-103",
+        }]},
+    }
+    assert not oracle.is_delete_cancel_case(case)
