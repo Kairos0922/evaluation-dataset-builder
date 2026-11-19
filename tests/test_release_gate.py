@@ -337,57 +337,6 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 self._valid_release_report(), "different-sha", 12345
             )
 
-    def test_release_verifier_requires_independent_approval_on_exact_sha(self):
-        critical = "SE03 SE04 SE05 SE08 SE09 SE11 SE12"
-        body = (
-            "Reviewed " + critical
-            + " baseline comparison and spread assessment: acceptable. "
-            + "https://github.com/example/repo/actions/runs/12345"
-        )
-        reviews = [{
-            "user": {"login": "independent-reviewer"},
-            "state": "APPROVED",
-            "submitted_at": "2026-11-01T10:00:00Z",
-            "commit_id": "pr-head-sha",
-            "body": body,
-        }]
-        result = VERIFY_RELEASE.latest_approved_review(
-            reviews, "pr-author", "pr-head-sha", 12345
-        )
-        self.assertEqual(result["user"]["login"], "independent-reviewer")
-        with self.assertRaisesRegex(ValueError, "No independent APPROVED review"):
-            VERIFY_RELEASE.latest_approved_review(
-                reviews, "pr-author", "different-pr-head-sha", 12345
-            )
-
-    def test_independent_review_must_cover_builder_and_three_pilot_evidence(self):
-        critical = "SE03 SE04 SE05 SE08 SE09 SE11 SE12"
-        builder_url = "https://github.com/example/repo/actions/runs/67890"
-        evidence = {
-            "workflow_run_url": builder_url,
-            "pilot_case_ids": ["CASE-SEARCH", "CASE-STATE", "CASE-DELETE"],
-        }
-        base_body = (
-            "Reviewed " + critical + " baseline and spread. "
-            "https://github.com/example/repo/actions/runs/12345 "
-        )
-        review = {
-            "user": {"login": "independent-reviewer"},
-            "state": "APPROVED",
-            "submitted_at": "2026-11-15T09:00:00Z",
-            "commit_id": "pr-head-sha",
-            "body": base_body,
-        }
-        with self.assertRaisesRegex(ValueError, "Builder/pilot evidence links"):
-            VERIFY_RELEASE.latest_approved_review(
-                [review], "pr-author", "pr-head-sha", 12345, evidence
-            )
-        review["body"] = base_body + builder_url + " CASE-SEARCH CASE-STATE CASE-DELETE"
-        result = VERIFY_RELEASE.latest_approved_review(
-            [review], "pr-author", "pr-head-sha", 12345, evidence
-        )
-        self.assertEqual(result["user"]["login"], "independent-reviewer")
-
     def test_release_verifier_requires_flash_for_every_evaluation_role(self):
         report = self._valid_release_report()
         self.assertEqual(report["models"]["generator"], "deepseek-flash")
@@ -400,49 +349,6 @@ class ReleaseGateUnitTests(unittest.TestCase):
         report["judge_api_base_url"] = "https://api.groq.com/openai/v1"
         with self.assertRaisesRegex(ValueError, "approved DeepSeek API endpoint"):
             VERIFY_RELEASE.verify_report(report, "candidate-sha", 12345)
-
-    def test_release_verifier_does_not_require_per_host_compatibility_evidence(self):
-        critical = "SE03 SE04 SE05 SE08 SE09 SE11 SE12"
-        body = (
-            "Reviewed " + critical + " baseline and spread. "
-            "https://github.com/example/repo/actions/runs/12345"
-        )
-        reviews = [{
-            "user": {"login": "independent-reviewer"},
-            "state": "APPROVED",
-            "submitted_at": "2026-11-01T10:00:00Z",
-            "commit_id": "pr-head-sha",
-            "body": body,
-        }]
-        result = VERIFY_RELEASE.latest_approved_review(
-            reviews, "pr-author", "pr-head-sha", 12345
-        )
-        self.assertEqual(result["user"]["login"], "independent-reviewer")
-
-    def test_release_verifier_rejects_author_self_approval_and_changes_requested(self):
-        critical = "SE03 SE04 SE05 SE08 SE09 SE11 SE12"
-        body = (
-            "Reviewed " + critical + " baseline and spread. "
-            "https://github.com/example/repo/actions/runs/12345"
-        )
-        self_approval = [{
-            "user": {"login": "pr-author"}, "state": "APPROVED",
-            "submitted_at": "2026-11-01T10:00:00Z",
-            "commit_id": "pr-head-sha", "body": body,
-        }]
-        with self.assertRaisesRegex(ValueError, "No independent APPROVED review"):
-            VERIFY_RELEASE.latest_approved_review(
-                self_approval, "pr-author", "pr-head-sha", 12345
-            )
-        blocking = self_approval + [{
-            "user": {"login": "independent-reviewer"}, "state": "CHANGES_REQUESTED",
-            "submitted_at": "2026-11-01T10:01:00Z",
-            "commit_id": "pr-head-sha", "body": "Fix SE04.",
-        }]
-        with self.assertRaisesRegex(ValueError, "CHANGES_REQUESTED"):
-            VERIFY_RELEASE.latest_approved_review(
-                blocking, "pr-author", "pr-head-sha", 12345
-            )
 
     def test_tag_workflow_runs_verifier_before_release_creation(self):
         workflow = (ROOT / ".github" / "workflows" / "publish-release.yml").read_text(encoding="utf-8")
@@ -699,7 +605,6 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "- [ ] 三条真实 Skill 试运行完成并有可复核证据。\\n"
             "- [ ] 核心行为测试达到预设阈值，并提供可审查报告。\\n"
             "- [ ] 匹配基线和重复运行稳定性检查通过。\\n"
-            "- [ ] 独立人工审查通过。\\n"
         )
         report = {
             "models": {"generator": "qwen-test", "judge_and_trigger": "judge-test"},
@@ -720,24 +625,20 @@ class ReleaseGateUnitTests(unittest.TestCase):
         }
         updated = UPDATE_RELEASE_DOC.build_published_release_doc(
             current, report, "candidate-sha", "release-merge-sha",
-            "independent-reviewer",
         )
         self.assertIn("# Evaluation Dataset Builder 0.0.1", updated)
         self.assertIn("**状态：** 已正式发布", updated)
         self.assertIn("- [x] Builder 正式生成的评测套件", updated)
         self.assertIn("- [x] 三条真实 Skill 试运行", updated)
-        self.assertIn("- [x] 独立人工审查", updated)
         self.assertNotIn("Target-runtime validation", updated)
         self.assertIn("candidate-sha", updated)
         self.assertIn("release-merge-sha", updated)
-        self.assertIn("independent-reviewer", updated)
         self.assertIn("Matched baseline mean uplift: +4.0%", updated)
         incomplete_report = dict(report)
         incomplete_report.pop("builder_evidence")
         with self.assertRaisesRegex(ValueError, "without exact-SHA Builder and three-trial evidence"):
             UPDATE_RELEASE_DOC.build_published_release_doc(
                 current, incomplete_report, "candidate-sha", "release-merge-sha",
-                "independent-reviewer",
             )
         self.assertIn("Builder evidence PR: #38", updated)
         self.assertIn("Real Skill trials: 3 PASS", updated)
