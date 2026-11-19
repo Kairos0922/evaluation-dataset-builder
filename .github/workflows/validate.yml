@@ -1,7 +1,7 @@
 name: 验证 Skill
 on:
   push:
-    branches: ["main"]
+    branches: ["main", "release/0.0.1-finalize"]
   pull_request:
     branches: ["main"]
   workflow_dispatch:
