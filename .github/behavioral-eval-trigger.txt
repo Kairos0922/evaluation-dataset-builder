@@ -1,4 +1,4 @@
-Run a fresh exact-SHA behavioral evaluation using DeepSeek Flash only. Two complete repetitions, matched baseline, all trigger cases, preserve all automated gates and $10 estimated-spend guard.
+Resume the failed exact-SHA evaluation; reuse only compatible cached responses.
 release_pr_number=39
-candidate_sha=023d61dc2460d8ad43b8123e8b847196374e165d
-trigger=authorized-release-2026-11-20
+resume_run_id=44566868151
+resume_candidate_sha=1522d8cbd7b8c4c4a4459a36a8ecf19cfa4f8aa1
