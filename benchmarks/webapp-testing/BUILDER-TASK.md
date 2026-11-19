@@ -15,7 +15,6 @@
 6. **明确停止条件**：完成一次集中审查及必要的局部修正后即停止。仍无法确认的事项标记为 `needs_info` 或 `UNKNOWN`，并记录证据缺口。不得为了让所有指标看起来完整而继续循环生成。
 7. **保持质量优先**：上述步骤不是压缩分析深度或降低质量标准。不得减少必要的资产阅读、来源核验、业务推理、风险分析或用例判定要求；只消除重复读取、临时造工具、重复全量生成和无依据的循环修补。
 
-
 ## 评测目标
 
 评测该 Skill 能否理解测试目标，使用 Playwright 正确操作 Web 应用，验证公开业务规则，发现真实 UI 行为与规则之间的差异，并提供充分的可复核证据。
@@ -36,6 +35,7 @@
 12. 覆盖矩阵中的每个 `applicable` capability/risk 项必须由至少一条用例覆盖，或在 `SUITE-MANIFEST.json.coverage.gap_priorities` 中记录 `gap_id`（必须等于对应的 `coverage_item_id`）、`priority`、`reason` 和 `planned_action`。若该行为由测试运行器负责，或当前 fixture 无法触发，应基于来源将其标记为 `not_applicable` 并说明理由。相关 capability 与 risk 项的适用性必须保持一致，不得一边标记适用、一边以运行器代管为由留空。
 13. 本轮执行器只支持已启动的本地 Workboard fixture。每条用例的 `execution_requirements.environment.app_url` 必须为 `http://127.0.0.1:4173`，`case_timeout_seconds` 必须为 1 至 900 的整数。若提供 `execution_requirements.environment.server_state_at_start`，其值必须严格等于字符串 `running`。若提供 `execution_requirements.initial_state.server_state`，其值也必须严格等于字符串 `running`，不得附加括号说明、中文解释或其他文字；补充说明请写入独立的 `notes` 字段或其他非状态字段。不要生成 stopped-server 用例。
 14. 运行器在每条用例开始前负责执行一次 `POST /api/reset`，并确认初始数据和摘要。被测 Skill 不得调用 `POST /api/reset`，也不得通过其他方式重置应用状态。每条用例使用独立的 Workboard 服务进程；用例结束后运行器会关闭该服务进程，不需要也不得执行第二次 reset。每条用例的 `reset_plan` 必须准确描述这一生命周期；`forbidden_behavior` 必须明确禁止 Skill 调用 reset。
+15. **明确每条用例的动作预算和执行次数**：对于会改变应用状态的测试，必须在 `execution_requirements.cost_and_rate_limits` 中声明 `max_mutating_actions`、`max_test_script_executions`，并在 `allowed_actions`、`steps`、`expected_behavior`、`forbidden_side_effects` 和 `grading` 中保持一致。测试脚本重复执行、重新点击和重试都计入总预算；不得只报告最后一次运行。根据 `assets/public/runtime-and-tool-contracts.md` 定义预算。本 fixture 的 WB-101 状态循环用例必须限制为 3 次状态变更、1 次脚本执行；删除确认用例必须限制为 1 次确认删除。执行失败或预算耗尽时应停止写操作并报告 FAIL/UNKNOWN，不得为了补齐证据重复执行或重置。
 
 ## 机器验证契约（必须遵守）
 
@@ -51,7 +51,6 @@
 8. 用例覆盖统计以正式 JSONL 中的 `coverage_tags` 为准。只有 candidate 用例才计入 fully covered；needs_info 用例不得让覆盖率虚高。
 9. 质量状态必须按交付层级汇总：只要套件范围内存在未解决的权威依据缺口、`needs_info` 用例，或 `coverage-matrix.json` 中 `applicability=needs_info` 的覆盖项，套件 Manifest 的 `quality_status` 必须为 `needs_info`。数据集范围内存在未解决的 `needs_info` 用例或覆盖缺口时，该数据集 Manifest 的 `quality_status` 必须为 `needs_info`。只有不存在上述未解决事项时，才可将对应层级标记为 `candidate`；不得以大多数用例为 candidate 为由覆盖少数未解决缺口。 例如，只要 `BR-09-RF` 仍为 `needs_info`，即使其余 14 条用例均为 `candidate`，套件 Manifest 也必须为 `needs_info`。
 10. `SUITE-MANIFEST.json.source_map_json` 必须指向套件目录中的唯一来源映射文件，文件名必须严格为 `source-map.json`。只允许输出这一份来源映射文件；不得另行输出 `SOURCE-MAP.json` 或任何仅大小写不同的副本。来源映射可以使用 `sources` 数组，或使用 `source_registry` 与 `files` 两个数组。后者必须为每个 `source_id` 提供 `title`、`source_type`、`path`，并在 `files` 中提供相同路径、SHA-256 和对应的 `source_ids`。独立验证器按 Manifest 路径定位文件，独立核对来源文件哈希，并将每条用例的 `quoted_evidence` 直接与映射的可信来源文件比对；不得仅信任 Builder 自报的引文或依赖文件名大小写。
-
 
 ## 输出
 
@@ -70,7 +69,7 @@
 
 为保证每条来源引用可以脱离上下文独立追溯，所有 case-level `source_refs[].locator` 以及 `source-map.json` 中的 `locators[].locator`，必须同时包含**来源文件名和章节/行号定位**。统一格式：
 
-`<相对于输入资产根目录的文件路径>#<章节标题、规则编号或行号>`
+`<相对于输入资产根目录的文件路径>#<章节标题、规则编号或行号定位>`
 
 示例：
 - `assets/public/application-overview.md#§3 初始数据 表`
