@@ -187,7 +187,13 @@ def expected_status_transitions(case: dict, target: dict | None) -> list[tuple[s
         return []
 
     previous = normalize_status(target.get("status"))
-    for next_status in sequence:
+    normalized_sequence = [normalize_status(value) for value in sequence]
+    # Builder's expected field is a full state sequence and includes the
+    # initial state. Drop that first state when it matches the fixture target.
+    if normalized_sequence and normalized_sequence[0] == previous:
+        normalized_sequence = normalized_sequence[1:]
+    for normalized in normalized_sequence:
+        next_status = normalized
         normalized = normalize_status(next_status)
         expected.append((previous, normalized))
         previous = normalized
