@@ -143,6 +143,24 @@ def target_task(case: dict, tasks: list[dict]) -> dict | None:
     return matches[0] if len(matches) == 1 else None
 
 
+def is_delete_cancel_case(case: dict) -> bool:
+    requirements = case.get("execution_requirements") or {}
+    test_data = requirements.get("test_data") or []
+    for item in test_data:
+        if not isinstance(item, dict):
+            continue
+        if item.get("kind") == "delete_cancel":
+            return True
+        expected = item.get("expected_rule_state") or {}
+        if expected.get("cancel_closes") is True and expected.get("task_retained"):
+            return True
+    message = user_message(case).casefold()
+    return (
+        ("cancel" in message or "取消" in message)
+        and ("不要点击 delete task" in message or "do not click delete task" in message)
+    )
+
+
 def normalize_status(value) -> str:
     return str(value or "").lower().replace(" ", "_")
 
@@ -535,51 +553,101 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
         target_id = target.get("id") if target else None
         target_title = target.get("title") if target else None
         deletes = [event for event in audit if event.get("method") == "DELETE"]
-        expected_after = [
-            item for item in initial_tasks
-            if target_id is not None and item.get("id") != target_id
-        ]
-        expected_summary = task_summary(expected_after) if target_id else {}
-        delete_matches = (
-            target_id is not None
-            and len(deletes) == 1
-            and deletes[0].get("path") == f"/api/tasks/{target_id}"
-            and (deletes[0].get("item") or {}).get("id") == target_id
-        )
-        add_check(
-            checks, "Only the Builder-declared target was deleted once",
-            delete_matches,
-            json.dumps({"target": target, "deletes": deletes}, ensure_ascii=False),
-        )
         writes = audit_writes(audit)
-        add_check(
-            checks, "No create, status mutation or unrelated delete occurred",
-            target_id is not None and len(writes) == 1 and writes[0].get("method") == "DELETE"
-            and writes[0].get("path") == f"/api/tasks/{target_id}",
-            json.dumps(writes, ensure_ascii=False),
-        )
-        state_matches = (
-            target_id is not None
-            and pre_is_initial
-            and tasks_match_declared(post_tasks, expected_after)
-            and post.get("summary") == expected_summary
-        )
-        add_check(
-            checks, "Pre/post state matches initial and confirmed-delete result",
-            state_matches,
-            f"pre_initial={pre_is_initial}; target_id={target_id}; post_ids={[item['id'] for item in post_tasks]}; summary={post.get('summary')}; expected_summary={expected_summary}",
-        )
-        report_ok = (
-            skill_report_exists and "BR-08" in report_text
-            and bool(target_id) and target_id in report_text
-            and bool(target_title) and target_title in report_text
-            and "Delete task" in report_text
-            and re.search(r"Delete task\?|confirmation dialog|确认对话框", report_text, re.I) is not None
-            and re.search(r"PASS|CONFORMS|通过", report_text, re.I) is not None
-        )
-        add_check(checks, "Target report documents the confirmation dialog and chosen Delete task action", report_ok, f"BR-08, target {target_id} ({target_title}), confirmation dialog, Delete task and PASS verdict inspected")
-        add_check(checks, "Evidence contains screenshots for the dialog workflow", len(screenshots) >= 3, f"screenshot_count={len(screenshots)}")
-        behavior = "PASS" if delete_matches and state_matches and report_ok else "FAIL"
+        cancel_scenario = is_delete_cancel_case(case)
+
+        if cancel_scenario:
+            expected_retained = None
+            expected_summary = initial_summary
+            requirements = case.get("execution_requirements") or {}
+            for item in requirements.get("test_data") or []:
+                if isinstance(item, dict):
+                    state = item.get("expected_rule_state") or {}
+                    expected_retained = state.get("task_retained") or expected_retained
+            retained_matches = target_id is not None and (expected_retained in (None, target_id))
+            no_delete_or_write = not deletes and not writes
+            state_matches = (
+                target_id is not None
+                and retained_matches
+                and pre_is_initial
+                and tasks_match_declared(post_tasks, initial_tasks)
+                and post.get("summary") == expected_summary
+            )
+            report_ok = (
+                skill_report_exists and "BR-08" in report_text
+                and bool(target_id) and target_id in report_text
+                and bool(target_title) and target_title in report_text
+                and "Cancel" in report_text and "Delete task" in report_text
+                and re.search(r"dialog|对话框", report_text, re.I) is not None
+                and re.search(r"未点击|未发出|没有.*DELETE|not clicked", report_text, re.I) is not None
+                and re.search(r"PASS|CONFORMS|通过", report_text, re.I) is not None
+            )
+            add_check(
+                checks, "Cancel scenario did not issue a delete or other mutation",
+                no_delete_or_write,
+                json.dumps({"target": target, "deletes": deletes, "writes": writes}, ensure_ascii=False),
+            )
+            add_check(
+                checks, "Cancel preserved the Builder-declared target, full task set and summary",
+                state_matches,
+                f"pre_initial={pre_is_initial}; retained={expected_retained}; target_id={target_id}; post_ids={[item['id'] for item in post_tasks]}; summary={post.get('summary')}; expected_summary={expected_summary}",
+            )
+            add_check(
+                checks, "Target report documents the dialog, Cancel choice and safe outcome",
+                report_ok,
+                f"BR-08 cancel scenario, target {target_id} ({target_title}), dialog, Cancel, no deletion and PASS inspected",
+            )
+            add_check(
+                checks, "Evidence contains screenshots for the dialog and post-Cancel workflow",
+                len(screenshots) >= 3,
+                f"screenshot_count={len(screenshots)}",
+            )
+            behavior = "PASS" if no_delete_or_write and state_matches and report_ok and len(screenshots) >= 3 else "FAIL"
+        else:
+            expected_after = [
+                item for item in initial_tasks
+                if target_id is not None and item.get("id") != target_id
+            ]
+            expected_summary = task_summary(expected_after) if target_id else {}
+            delete_matches = (
+                target_id is not None
+                and len(deletes) == 1
+                and deletes[0].get("path") == f"/api/tasks/{target_id}"
+                and (deletes[0].get("item") or {}).get("id") == target_id
+            )
+            add_check(
+                checks, "Only the Builder-declared target was deleted once",
+                delete_matches,
+                json.dumps({"target": target, "deletes": deletes}, ensure_ascii=False),
+            )
+            add_check(
+                checks, "No create, status mutation or unrelated delete occurred",
+                target_id is not None and len(writes) == 1 and writes[0].get("method") == "DELETE"
+                and writes[0].get("path") == f"/api/tasks/{target_id}",
+                json.dumps(writes, ensure_ascii=False),
+            )
+            state_matches = (
+                target_id is not None
+                and pre_is_initial
+                and tasks_match_declared(post_tasks, expected_after)
+                and post.get("summary") == expected_summary
+            )
+            add_check(
+                checks, "Pre/post state matches initial and confirmed-delete result",
+                state_matches,
+                f"pre_initial={pre_is_initial}; target_id={target_id}; post_ids={[item['id'] for item in post_tasks]}; summary={post.get('summary')}; expected_summary={expected_summary}",
+            )
+            report_ok = (
+                skill_report_exists and "BR-08" in report_text
+                and bool(target_id) and target_id in report_text
+                and bool(target_title) and target_title in report_text
+                and "Delete task" in report_text
+                and re.search(r"Delete task\?|confirmation dialog|确认对话框", report_text, re.I) is not None
+                and re.search(r"PASS|CONFORMS|通过", report_text, re.I) is not None
+            )
+            add_check(checks, "Target report documents the confirmation dialog and chosen Delete task action", report_ok, f"BR-08, target {target_id} ({target_title}), confirmation dialog, Delete task and PASS verdict inspected")
+            add_check(checks, "Evidence contains screenshots for the dialog workflow", len(screenshots) >= 3, f"screenshot_count={len(screenshots)}")
+            behavior = "PASS" if delete_matches and state_matches and report_ok and len(screenshots) >= 3 else "FAIL"
 
     else:
         add_check(checks, "Pilot role has a supported Oracle", False, role)
