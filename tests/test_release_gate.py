@@ -355,7 +355,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn('push:', workflow)
         self.assertIn('branches: ["main"]', workflow)
         self.assertIn('.github/publish-release-trigger.txt', workflow)
-        self.assertIn("values.get('confirm_publish') != 'true'", workflow)
+        self.assertIn('values.get("confirm_publish") != "true"', workflow)
         self.assertIn("INPUT_CONFIRM: ${{ inputs.confirm_publish }}", workflow)
         self.assertIn('RELEASE_BUILDER_PR_NUMBER', workflow)
         self.assertNotIn("python scripts/verify_release.py", workflow)
@@ -700,7 +700,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertTrue(result[0]["evidence_validated"])
         self.assertTrue(result[0]["evidence_repair_used"])
         self.assertEqual(result[0]["evidence"], ["Target: Billing Support."])
-        self.assertIn("strict evidence extraction retry", api.call_args_list[1].args[2])
+        self.assertIn("strict evidence extraction", api.call_args_list[1].args[2])
 
     def test_evidence_repair_salvages_valid_quotes_when_judge_overreturns(self):
         initial = {"checks": [{
