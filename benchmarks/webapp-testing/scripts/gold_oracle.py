@@ -313,7 +313,10 @@ def add_check(checks: list[dict], name: str, condition: bool | None, evidence: s
 
 def report_bundle(pilot: Path) -> tuple[str, list[Path]]:
     root = pilot / "skill-artifacts"
-    reports = list(root.rglob("*.md")) if root.is_dir() else []
+    reports = [
+        path for path in root.rglob("*")
+        if path.is_file() and path.suffix.lower() == ".md"
+    ] if root.is_dir() else []
     images = [
         path for path in root.rglob("*")
         if path.is_file() and path.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}
@@ -908,6 +911,12 @@ def self_test() -> int:
 
     with tempfile.TemporaryDirectory() as temp:
         root = Path(temp)
+        uppercase_report = root / "case-insensitive-report" / "skill-artifacts" / "REPORT.md"
+        uppercase_report.parent.mkdir(parents=True)
+        uppercase_report.write_text("Uppercase report extension is discoverable.", encoding="utf-8")
+        uppercase_text, uppercase_files = report_bundle(uppercase_report.parent.parent)
+        assert "Uppercase report extension is discoverable." in uppercase_text
+        assert uppercase_report in uppercase_files or not uppercase_files
         roles = {
             "search_mutation": {
                 "case_id": "DYNAMIC-SEARCH-01",
