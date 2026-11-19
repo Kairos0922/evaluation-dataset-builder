@@ -103,7 +103,7 @@ def role_score(case: dict, role: str) -> int:
         # workflow IDs. Accept that shape only when the request explicitly
         # orders the expected state after each of three clicks.
         ordered_expected_steps = all(
-            re.search(rf"第\\s*{number}\\s*次[^。；\\n]*{state}", message)
+            re.search(rf"第\s*{number}\s*次[^。；\n]*{state}", message)
             for number, state in ((1, "in progress"), (2, "done"), (3, "open"))
         )
         builder_status_cycle = (
