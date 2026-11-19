@@ -479,7 +479,10 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
     def test_tag_workflow_runs_verifier_before_release_creation(self):
         workflow = (ROOT / ".github" / "workflows" / "publish-release.yml").read_text(encoding="utf-8")
-        self.assertNotIn('push:', workflow)
+        self.assertIn('push:', workflow)
+        self.assertIn('branches: ["main"]', workflow)
+        self.assertIn('.github/publish-release-trigger.txt', workflow)
+        self.assertIn('confirm_publish=true', workflow)
         self.assertNotIn("python scripts/verify_release.py", workflow)
         self.assertIn("create_release_tag.py", workflow)
         self.assertIn("python scripts/create_release_tag.py", workflow)
