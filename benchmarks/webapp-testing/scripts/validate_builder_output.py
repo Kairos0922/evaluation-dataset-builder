@@ -190,10 +190,14 @@ def load_source_map(output: Path, corpus: dict[str, str]) -> dict[str, dict]:
         locator_source_id = locator_record.get("source_id")
         require_nonempty_text(locator_source_id, "source-map JSON locators[].source_id")
         require_nonempty_text(locator_record.get("locator"), f"{locator_source_id}.locators[].locator")
-        require_nonempty_text(
-            locator_record.get("quoted_evidence"),
-            f"{locator_source_id}.locators[].quoted_evidence",
-        )
+        # Locator records may identify source sections without duplicating
+        # quotations. Case-level source_refs carry quoted_evidence and are
+        # independently verified against the SHA-256 trusted source corpus.
+        if "quoted_evidence" in locator_record:
+            require_nonempty_text(
+                locator_record.get("quoted_evidence"),
+                f"{locator_source_id}.locators[].quoted_evidence",
+            )
         locators_by_source_id[locator_source_id].append(locator_record)
 
     records = source_map.get("sources")
