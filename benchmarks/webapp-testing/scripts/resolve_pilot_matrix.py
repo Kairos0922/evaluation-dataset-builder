@@ -107,7 +107,10 @@ def role_score(case: dict, role: str) -> int:
 
 
 def validate_case_timeout_seconds(case_id: str, execution: dict) -> int:
-    timeout = execution.get("case_timeout_seconds")
+    environment = execution.get("environment") or {}
+    timeout = environment.get("case_timeout_seconds")
+    if timeout is None:
+        timeout = execution.get("case_timeout_seconds")
     if type(timeout) is not int or not 1 <= timeout <= 900:
         fail(f"{case_id}: execution_requirements.case_timeout_seconds must be 1..900")
     return timeout
