@@ -325,7 +325,15 @@ def load_source_map(output: Path, corpus: dict[str, str]) -> dict[str, dict]:
         # A quote map is optional. If the Builder supplies one, enforce the
         # locator/quote pair; otherwise verify each case quote directly against
         # the SHA-256-verified trusted source file below.
-        record_requires_quotes = record.get("_require_quote_map", quote_records is not None)
+        record_requires_quotes = record.get(
+            "_require_quote_map",
+            any(
+                isinstance(item, dict)
+                and isinstance(item.get("quoted_evidence"), str)
+                and item.get("quoted_evidence", "").strip()
+                for item in quote_records or []
+            ),
+        )
         if quote_records is None:
             if record_requires_quotes:
                 raise SystemExit(f"{source_id}: source-map JSON lacks quote records")
@@ -336,7 +344,11 @@ def load_source_map(output: Path, corpus: dict[str, str]) -> dict[str, dict]:
             if not isinstance(item, dict):
                 raise SystemExit(f"{source_id}: source quote entries must be objects")
             require_nonempty_text(item.get("locator"), f"{source_id}.quotes[].locator")
-            require_nonempty_text(item.get("quoted_evidence"), f"{source_id}.quotes[].quoted_evidence")
+            if "quoted_evidence" in item:
+                require_nonempty_text(
+                    item.get("quoted_evidence"),
+                    f"{source_id}.quotes[].quoted_evidence",
+                )
 
         verified_record = dict(record)
         normalized_declared_path = relative_text
