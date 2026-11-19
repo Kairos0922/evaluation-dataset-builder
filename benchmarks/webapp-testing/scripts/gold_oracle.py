@@ -916,7 +916,7 @@ def self_test() -> int:
         uppercase_report.write_text("Uppercase report extension is discoverable.", encoding="utf-8")
         uppercase_text, uppercase_files = report_bundle(uppercase_report.parent.parent)
         assert "Uppercase report extension is discoverable." in uppercase_text
-        assert uppercase_report in uppercase_files or not uppercase_files
+        assert uppercase_files == []
         roles = {
             "search_mutation": {
                 "case_id": "DYNAMIC-SEARCH-01",
