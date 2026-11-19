@@ -78,13 +78,25 @@ def role_score(case: dict, role: str) -> int:
             return 300 + len(message)
 
     elif role == "state_cycle":
-        # The user request must explicitly require the three-state sequence.
-        # This is a within-message UI workflow, not a multi-turn conversation.
+        # Builder cases may express the cycle through three explicit workflow
+        # refs and a three-click instruction rather than a literal arrow string.
+        # Require the complete transition coverage plus a three-step request,
+        # and reject cases explicitly marked multi-turn.
         normalized_message = re.sub(r"\s+", "", message).replace("->", "→")
-        has_cycle = ("open→inprogress→done→open" in normalized_message) or ("三次" in message and "循环" in message)
+        explicit_cycle = "open→inprogress→done→open" in normalized_message
+        complete_workflow_refs = {"WF-01", "WF-02", "WF-03"}.issubset(workflows)
+        three_click_request = "三次" in message and any(
+            phrase in message for phrase in ("连续点击", "依次点击", "点击状态按钮")
+        )
+        expected_transitions = all(
+            phrase in text for phrase in ("open", "in progress", "done")
+        )
+        has_cycle = explicit_cycle or (
+            complete_workflow_refs and three_click_request and expected_transitions
+        )
         if (
             has_rule("BR-07")
-            and (not workflows or any(ref.startswith(("WF-STATUS", "WF-05")) for ref in workflows))
+            and (not workflows or any(ref.startswith(("WF-STATUS", "WF-05", "WF-01")) for ref in workflows))
             and has_cycle
             and "multi_turn" not in buckets
         ):
@@ -242,7 +254,7 @@ def self_test() -> int:
                 "case_id": "WB-CORE-07",
                 "title": "[SYNTHETIC] 状态完整循环与摘要同步",
                 "business_rule_refs": ["BR-07A", "BR-07B"],
-                "workflow_refs": ["WF-STATUS"],
+                "workflow_refs": ["WF-01", "WF-02", "WF-03"],
                 "scenario_bucket": ["state_anomaly", "business_rule"],
                 "user_input": "验证 BR-07：对同一任务连续点击状态按钮，预期状态依次为 Open→In progress→Done→Open，且每次状态和摘要同步更新。定位 WB-101（Reset password flow），连续点击其状态按钮三次，每次记录状态、按钮文本和摘要。",
             },
@@ -312,7 +324,7 @@ def self_test() -> int:
             item["case_id"] for item in matrix["include"]
         }
 
-    print("PASS: ordinary Builder-authored search, state-cycle and delete-confirmation cases resolve semantically.")
+    print("PASS: Builder-authored search, state-cycle and delete-confirmation cases resolve semantically, including explicit workflow-ref state cycles.")
     return 0
 
 def main() -> int:
