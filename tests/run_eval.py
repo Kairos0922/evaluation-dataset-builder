@@ -19,6 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 API_URL = DEEPSEEK_BASE_URL + "/chat/completions"
+CRITICAL_CASE_IDS = ["SE03", "SE04", "SE05", "SE08", "SE09", "SE11", "SE12"]
 POLICY = {
     "behavior_pass_rate": 0.90,
     "trigger_precision": 0.95,
