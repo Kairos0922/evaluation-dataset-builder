@@ -196,16 +196,23 @@ class EvaluationBudgetExceeded(ProviderStopError):
     """Local cost or request cap reached; stop before further paid requests."""
 
 
-def configure_checkpoint(path, signature):
-    """Load only a checkpoint whose inputs exactly match this evaluation."""
+def configure_checkpoint(path, signature, compatible_signatures=None):
+    """Load a checkpoint matching exact inputs or an explicitly compatible legacy signature."""
     global CHECKPOINT_PATH, CHECKPOINT_STORE, API_REQUEST_COUNT, ESTIMATED_COST_RESERVED_USD
+    accepted_signatures = {signature} | set(compatible_signatures or [])
     CHECKPOINT_PATH = Path(path)
     CHECKPOINT_PATH.parent.mkdir(parents=True, exist_ok=True)
     if CHECKPOINT_PATH.exists():
         try:
             existing = json.loads(CHECKPOINT_PATH.read_text(encoding="utf-8"))
-            if existing.get("schema_version") == 6 and existing.get("signature") == signature and isinstance(existing.get("responses"), dict):
+            if (
+                existing.get("schema_version") == 6
+                and existing.get("signature") in accepted_signatures
+                and isinstance(existing.get("responses"), dict)
+            ):
+                legacy_match = existing.get("signature") != signature
                 CHECKPOINT_STORE = existing
+                CHECKPOINT_STORE["signature"] = signature
                 CHECKPOINT_STORE.setdefault("pending_requests", {})
                 CHECKPOINT_STORE.setdefault("uncertain_requests", {})
                 CHECKPOINT_STORE.setdefault("estimated_tokens_reserved_by_model", {})
@@ -217,9 +224,11 @@ def configure_checkpoint(path, signature):
                     existing.get("estimated_cost_reserved_usd", 0.0) or 0.0
                 )
                 print(
-                    f"Resuming checkpoint with {len(CHECKPOINT_STORE['responses'])} cached API responses.",
+                    f"Resuming checkpoint with {len(CHECKPOINT_STORE['responses'])} cached API responses."
+                    + (" (compatible SHA migration; Skill hash and evaluation inputs match)" if legacy_match else ""),
                     flush=True,
                 )
+                save_checkpoint()
                 return
             print("Existing checkpoint does not match this SHA/model/suite; starting a clean checkpoint.", flush=True)
         except (OSError, ValueError):
@@ -227,16 +236,17 @@ def configure_checkpoint(path, signature):
     CHECKPOINT_STORE = {
         "schema_version": 6,
         "signature": signature,
-        "api_requests": 0,
-        "estimated_cost_reserved_usd": 0.0,
-        "estimated_tokens_reserved_by_model": {},
-        "estimated_tokens_reserved_by_model_by_day": {},
+        "responses": {},
         "pending_requests": {},
         "uncertain_requests": {},
-        "responses": {},
+        "estimated_tokens_reserved_by_model": {},
+        "estimated_tokens_reserved_by_model_by_day": {},
+        "api_requests": 0,
+        "estimated_cost_reserved_usd": 0.0,
     }
+    API_REQUEST_COUNT = 0
+    ESTIMATED_COST_RESERVED_USD = 0.0
     save_checkpoint()
-
 
 def save_checkpoint():
     if CHECKPOINT_PATH is None:
@@ -666,59 +676,72 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
             and index not in duplicates
             and os.getenv("DEEPSEEK_EVIDENCE_REPAIR", "0").strip() == "1"
         ):
-            # Retry only the evidence extraction for this one criterion. The
-            # original semantic decision is not upgraded unless the same
-            # Flash model returns a supported=true claim plus locally verified
-            # verbatim quotes. Empty/invalid evidence remains UNKNOWN.
+            # Retry only evidence extraction. The semantic decision is never
+            # changed by this step; a quote must be locally verified verbatim.
             repair_system = (
-                "You are performing a strict evidence extraction retry. Do not "
-                "re-evaluate or assume the earlier decision is correct. Return "
-                "supported=true only if the candidate itself directly demonstrates "
-                "the criterion. If supported, provide 1-3 exact verbatim substrings "
-                "of 6-120 characters copied from the candidate. If no exact quote "
-                "proves it, return supported=false and evidence=[]. Never paraphrase. "
+                "You are performing strict evidence extraction. Do not re-evaluate "
+                "or assume the earlier decision is correct. Return supported=true "
+                "only if the candidate directly demonstrates the criterion. If "
+                "supported, provide 1-3 exact verbatim substrings, each 6-120 "
+                "characters, copied from the candidate. Choose short quotes and "
+                "avoid long table rows or full JSON objects. If no exact quote proves "
+                "it, return supported=false and evidence=[]. Never paraphrase. "
                 'Return JSON only: {"supported":true,"evidence":["exact quote"]}.'
             )
             repair_user = (
-                "CRITERION:\n" + criterion + 
-                "\n\nCANDIDATE OUTPUT (source of quotes):\n" + candidate
+                "CRITERION:\\n" + criterion +
+                "\\n\\nCANDIDATE OUTPUT (source of quotes):\\n" + candidate
             )
-            try:
-                repair_raw = api_call(
-                    api_key, model, repair_system, repair_user,
-                    max_completion_tokens=600, json_mode=True, temperature=0.0,
-                    thinking=False, api_url=api_url,
-                )
-                repair_obj = extract_json(repair_raw)
-                repair_quotes = repair_obj.get("evidence", [])
-                if repair_obj.get("supported") is True and isinstance(repair_quotes, list):
-                    # The model may over-return quotes despite the 1-3 instruction.
-                    # Salvage only locally verified quotes, deduplicate, then cap
-                    # the accepted evidence set. Extra or invalid quotes must not
-                    # invalidate otherwise sufficient exact evidence.
-                    checked_quotes = []
-                    seen_quotes = set()
-                    for value in repair_quotes:
-                        quote = str(value).strip()
-                        normalized_quote = compact(quote)
-                        if (
-                            6 <= len(normalized_quote) <= 120
-                            and normalized_quote in candidate_compact
-                            and normalized_quote not in seen_quotes
-                        ):
-                            checked_quotes.append(quote)
-                            seen_quotes.add(normalized_quote)
-                        if len(checked_quotes) == 3:
+            # A second bounded extraction attempt is allowed only if the first
+            # response fails local quote validation. It uses a distinct prompt
+            # so an invalid cached response is not replayed. No judge score is
+            # upgraded unless an exact quote is verified in the candidate.
+            for repair_attempt in range(2):
+                if repair_attempt == 1:
+                    repair_system += (
+                        " SECOND ATTEMPT: Return the shortest exact quote that "
+                        "directly supports the criterion. Keep each quote under "
+                        "120 characters. Do not return explanations."
+                    )
+                    repair_user += (
+                        "\\n\\nPrevious evidence extraction did not produce a "
+                        "locally verifiable quote. Try again with shorter exact "
+                        "substrings."
+                    )
+                try:
+                    repair_raw = api_call(
+                        api_key, model, repair_system, repair_user,
+                        max_completion_tokens=800, json_mode=True, temperature=0.0,
+                        thinking=False, api_url=api_url,
+                    )
+                    repair_obj = extract_json(repair_raw)
+                    repair_quotes = repair_obj.get("evidence", [])
+                    if repair_obj.get("supported") is True and isinstance(repair_quotes, list):
+                        checked_quotes = []
+                        seen_quotes = set()
+                        for value in repair_quotes:
+                            quote = str(value).strip()
+                            normalized_quote = compact(quote)
+                            if (
+                                6 <= len(normalized_quote) <= 120
+                                and normalized_quote in candidate_compact
+                                and normalized_quote not in seen_quotes
+                            ):
+                                checked_quotes.append(quote)
+                                seen_quotes.add(normalized_quote)
+                            if len(checked_quotes) == 3:
+                                break
+                        if checked_quotes:
+                            valid_evidence = checked_quotes
+                            evidence_validated = True
+                            evidence_repair_used = True
                             break
-                    if checked_quotes:
-                        valid_evidence = checked_quotes
-                        evidence_validated = True
-                        evidence_repair_used = True
-            except ProviderStopError:
-                raise
-            except Exception:
-                # Preserve the original fail-closed UNKNOWN outcome.
-                pass
+                except ProviderStopError:
+                    raise
+                except Exception:
+                    # Preserve the fail-closed UNKNOWN outcome; one fresh attempt follows.
+                    pass
+
         reasons = []
         if index in duplicates:
             reasons.append("Judge returned a duplicate result for this criterion.")
@@ -1061,7 +1084,15 @@ def main():
     signature = hashlib.sha256(json.dumps(
         signature_payload, ensure_ascii=False, sort_keys=True
     ).encode("utf-8")).hexdigest()
-    configure_checkpoint(args.checkpoint, signature)
+    compatible_signatures = []
+    resume_candidate_sha = os.getenv("RESUME_CANDIDATE_SHA", "").strip()
+    if re.fullmatch(r"[0-9a-f]{40}", resume_candidate_sha):
+        legacy_payload = dict(signature_payload)
+        legacy_payload["candidate_sha"] = resume_candidate_sha
+        compatible_signatures.append(hashlib.sha256(json.dumps(
+            legacy_payload, ensure_ascii=False, sort_keys=True
+        ).encode("utf-8")).hexdigest())
+    configure_checkpoint(args.checkpoint, signature, compatible_signatures=compatible_signatures)
     runs = []
     for index in range(1, args.runs + 1):
         CURRENT_RUN_INDEX = index
