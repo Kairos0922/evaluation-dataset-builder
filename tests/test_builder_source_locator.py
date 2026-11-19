@@ -491,5 +491,57 @@ class BuilderSourceLocatorTests(unittest.TestCase):
                 verified = VALIDATOR.load_source_map(output, corpus)
                 VALIDATOR.verify_source_evidence("WB-CORE-02", source, corpus, verified)
 
+
+    def test_suite_directory_registry_files_map_accepts_locator_without_duplicate_quote(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            relative = "artifacts/webapp-testing-builder-input/assets/public/application-overview.md"
+            content = "## 3 初始数据\\n应用启动时提供五条合成任务。"
+            source_path = root / relative
+            source_path.parent.mkdir(parents=True)
+            source_path.write_text(content, encoding="utf-8")
+            output = root / "output"
+            output.mkdir()
+            declared_path = "sources/assets/public/application-overview.md"
+            digest = hashlib.sha256(content.encode("utf-8")).hexdigest()
+            source_map = {
+                "path_base": "suite directory",
+                "source_registry": [{
+                    "source_id": "SRC-APP",
+                    "title": "Workboard Lite 应用说明",
+                    "source_type": "synthetic_scenario",
+                    "path": declared_path,
+                }],
+                "files": [{
+                    "path": declared_path,
+                    "sha256": digest,
+                    "source_ids": ["SRC-APP"],
+                }],
+                "locators": [{
+                    "source_id": "SRC-APP",
+                    "locator": "assets/public/application-overview.md#§3 初始数据",
+                }],
+            }
+            (output / "SUITE-MANIFEST.json").write_text(
+                json.dumps({"source_map_json": "source-map.json"}),
+                encoding="utf-8",
+            )
+            (output / "source-map.json").write_text(
+                json.dumps(source_map, ensure_ascii=False),
+                encoding="utf-8",
+            )
+            corpus = {relative: VALIDATOR.normalize_source_text(content)}
+            source = {
+                "source_id": "SRC-APP",
+                "source_type": "synthetic_scenario",
+                "title": "Workboard Lite 应用说明",
+                "path": "assets/public/application-overview.md",
+                "locator": "assets/public/application-overview.md#§3 初始数据",
+                "quoted_evidence": "应用启动时提供五条合成任务。",
+            }
+            with patch.object(VALIDATOR, "ROOT", root):
+                verified = VALIDATOR.load_source_map(output, corpus)
+                VALIDATOR.verify_source_evidence("WB-CORE-01", source, corpus, verified)
+
 if __name__ == "__main__":
     unittest.main()
