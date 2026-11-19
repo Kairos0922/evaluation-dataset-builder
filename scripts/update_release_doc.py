@@ -33,7 +33,7 @@ def build_published_release_doc(current, report, candidate_sha, release_sha):
     baseline = report["baseline_comparison"]
     evidence = (
         "\n\n## Release evidence\n\n"
-        f"- Reviewed PR head SHA: `{candidate_sha}`\n"
+        f"- Candidate PR head SHA: `{candidate_sha}`\n"
         f"- Merged main commit / tag SHA: `{release_sha}`\n"
         f"- Evaluation workflow run: {report.get('workflow_run_id')}\n"
         f"- Generator: `{report['models']['generator']}`\n"
@@ -96,7 +96,7 @@ def main():
     release_sha = pr.get("merge_commit_sha") or ""
     candidate_tree = repository_tree_signature(repo, candidate_sha, candidate_sha, token)
     release_tree = repository_tree_signature(repo, release_sha, candidate_sha, token)
-    reviewed_head_sha, release_sha = release_pr_binding(
+    candidate_head_sha, release_sha = release_pr_binding(
         pr, candidate_sha, candidate_tree, release_tree,
     )
     tag_ref = api_request(f"/repos/{repo}/git/ref/tags/v0.0.1", token)
@@ -110,7 +110,7 @@ def main():
     current_file = api_request(f"/repos/{repo}/contents/RELEASE.md?ref=main", token)
     current = base64.b64decode(current_file["content"]).decode("utf-8")
     updated = build_published_release_doc(
-        current, report, reviewed_head_sha, release_sha,
+        current, report, candidate_head_sha, release_sha,
     )
     result = put_file(
         f"/repos/{repo}/contents/RELEASE.md",
