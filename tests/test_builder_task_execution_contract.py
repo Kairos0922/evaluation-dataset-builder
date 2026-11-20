@@ -47,3 +47,16 @@ def test_builder_task_requires_mutation_and_script_execution_budgets():
     missing = [phrase for phrase in required_task if phrase not in task]
     missing.extend(f"runtime:{phrase}" for phrase in required_runtime if phrase not in runtime)
     assert not missing, f"Explicit action-budget contract is incomplete: {missing}"
+
+
+def test_builder_readme_case_groups_must_match_case_semantics():
+    text = TASK.read_text(encoding="utf-8")
+    required = (
+        "README 用例分组必须与实际用例语义一致",
+        "不得按 case_id 连续编号或文件顺序机械切分",
+        "不得把只读侦察用例归入写操作组",
+        "所有 case_id 恰好出现一次",
+        "分组数量之和必须等于 JSONL 实际用例数",
+    )
+    missing = [phrase for phrase in required if phrase not in text]
+    assert not missing, f"README case grouping contract is incomplete: {missing}"
