@@ -114,3 +114,13 @@ Before any future model run:
 5. Capture the provider's actual billing/export data alongside DSH trace usage. Do not infer money from aggregate token counts.
 
 The `run-builder-production` opt-in label was removed from PR #38 after the original run. It remains removed. The PR remains Draft/Open and unmerged.
+
+## 7. Implementation verification
+
+The runner accounting, live budget monitor, effective case-timeout enforcement, and regression tests are committed on PR #38. GitHub Actions run [44749360058](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44749360058) completed successfully on head `1a50c82bed03d4f8816bfdc1f45c7d70ef34fb2c`:
+
+- 169 offline unit tests passed, including five DSH trace/budget tests.
+- The tests verify that 40 model steps in one DSH turn are reported as 40 steps and 1 turn, token totals are aggregated correctly, case timeout bounds DSH wall-clock time, and a live over-budget child process is terminated.
+- Upstream asset audit passed.
+- Paid jobs `runtime-preflight`, `builder-production`, `independent-validation`, `webapp-testing-pilot`, and `adjudicate-pilot` were skipped. No DSH model execution was started by this verification run.
+- PR #38 remains Draft/Open and unmerged.
