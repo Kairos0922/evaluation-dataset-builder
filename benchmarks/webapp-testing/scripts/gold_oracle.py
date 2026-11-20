@@ -932,6 +932,14 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
     checks: list[dict] = []
     runner, audit, runtime = base_checks(case, pilot, checks)
     case_id = case["case_id"]
+    if not runner:
+        return {
+            "case_id": case_id, "dataset_id": case.get("dataset_id"), "pilot_role": role,
+            "execution_valid": False, "contract_verdict": "UNKNOWN",
+            "oracle_verdict": "UNKNOWN", "business_behavior_verdict": "UNKNOWN",
+            "checks": checks, "target_report_excerpt": [],
+            "limitations": ["Runner result evidence is missing."],
+        }
     if role in REMAINING_ROLES and role != "delete_cancel":
         return adjudicate_remaining_case(case, pilot, role)
     report_text, screenshots = report_bundle(pilot)
@@ -1133,7 +1141,7 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
             delete_dom_ok = any(item["role"] == "button" and item["name"] == "Delete task" for item in dom_controls_seen) if dom_snapshots else None
             target_dom_ok = any(target_title and target_title in row for row in dom_rows(dom_snapshots)) if dom_snapshots else None
             dom_ok = (dialog_dom_ok and cancel_dom_ok and delete_dom_ok and target_dom_ok) if dom_snapshots else None
-            report_ok = (
+            report_ok = None if not skill_report_exists else (
                 skill_report_exists
                 and bool(target_title) and target_title in report_text
                 and (bool(target_id) and target_id in report_text or bool(target_title))
@@ -1167,7 +1175,7 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
                 len(screenshots) >= 3,
                 f"screenshot_count={len(screenshots)}",
             )
-            behavior = "PASS" if no_delete_or_write and state_matches and report_ok and dom_ok and len(screenshots) >= 3 else "FAIL"
+            behavior = "FAIL" if any(item["status"] == "FAIL" for item in checks) else ("UNKNOWN" if any(item["status"] == "UNKNOWN" for item in checks) else "PASS")
         else:
             expected_after = [
                 item for item in initial_tasks
@@ -1215,6 +1223,8 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
     failed = [item for item in checks if item["status"] == "FAIL"]
     unknown = [item for item in checks if item["status"] == "UNKNOWN"]
     verdict = "FAIL" if failed else ("UNKNOWN" if unknown else "PASS")
+    if role == "delete_cancel":
+        behavior = "FAIL" if failed else ("UNKNOWN" if unknown else "PASS")
     return {
         "case_id": case_id,
         "dataset_id": case.get("dataset_id"),
