@@ -93,21 +93,24 @@ def role_score(case: dict, role: str) -> int:
         normalized_message = re.sub(r"\s+", "", message).replace("->", "→")
         explicit_cycle = "open→inprogress→done→open" in normalized_message
         complete_workflow_refs = {"WF-01", "WF-02", "WF-03"}.issubset(workflows)
-        three_click_request = bool(
-            re.search(r"(?:三次|3\\s*次)", message)
+        compact_message = re.sub(r"\\s+", "", message).casefold()
+        three_click_request = (
+            ("三次" in compact_message or "3次" in compact_message)
             and ("点击" in message or "click" in message)
             and ("状态按钮" in message or "status button" in message)
         )
+        expected_contract = re.sub(
+            r"\\s+", "", message + " " + " ".join(
+                str(item) for item in (case.get("expected_behavior") or [])
+            )
+        ).casefold()
         expected_transitions = all(
-            phrase in text for phrase in ("open", "in progress", "done")
+            state in text for state in ("open", "in progress", "done")
         )
-        # Builder-authored cases can state the ordered result sequence in
-        # expected_behavior rather than repeating it in user_input.
-        ordered_contract = message + " " + " ".join(
-            str(item) for item in (case.get("expected_behavior") or [])
-        )
+        # Accept ordered state assertions in either user_input or the
+        # Builder's expected_behavior contract.
         ordered_expected_steps = all(
-            re.search(rf"第\\s*{number}\\s*次[^。；\\n]*{state}", ordered_contract)
+            f"第{number}次{state}" in expected_contract
             for number, state in ((1, "in progress"), (2, "done"), (3, "open"))
         )
         builder_status_cycle = (
