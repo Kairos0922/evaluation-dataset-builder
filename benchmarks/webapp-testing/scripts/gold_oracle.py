@@ -840,9 +840,12 @@ def adjudicate_remaining_case(case: dict, pilot: Path, role: str) -> dict:
         names_ok = (bool(expected) and not missing) if dom_available else None
         dialog_ok = any(item["role"] == "dialog" and item["name"] == "Delete task?" for item in controls) if dom_available else None
         actions_ok = (any(item["role"] == "button" and item["name"] == "Cancel" for item in controls) and any(item["role"] == "button" and item["name"] == "Delete task" for item in controls)) if dom_available else None
+        target_title = td.get("dialog_target_visible_title")
+        target_dom_ok = any(target_title and target_title in row for row in rows) if dom_available else None
         state_ok = (pre_ok and tasks_match_declared(post_tasks, initial_tasks) and post.get("summary") == initial_summary) if state_available else None
         add("Every Builder-declared role/accessibility-name pair exists in rendered DOM", names_ok, {"missing": missing, "observed": controls})
         add("Delete dialog exposes its semantic name and safe action names", (dialog_ok and actions_ok) if dom_available else None, {"dialog": dialog_ok, "actions": actions_ok})
+        add("Builder-declared delete target remains identifiable by its visible title", target_dom_ok, {"target_title": target_title, "rows": rows})
         add("Accessibility inspection and Cancel caused no application mutation", no_writes and state_ok, writes)
 
     elif role == "visible_title_mapping":
@@ -1126,14 +1129,14 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
                     state = item.get("expected_rule_state") or {}
                     expected_retained = state.get("task_retained") or expected_retained
             retained_matches = target_id is not None and (expected_retained in (None, target_id))
-            no_delete_or_write = not deletes and not writes
+            no_delete_or_write = (not deletes and not writes) if runtime.get("audit_available") else None
             state_matches = (
                 target_id is not None
                 and retained_matches
                 and pre_is_initial
                 and tasks_match_declared(post_tasks, initial_tasks)
                 and post.get("summary") == expected_summary
-            )
+            ) if runtime.get("state_available") else None
             dom_snapshots = parse_dom_snapshots(pilot)
             dom_controls_seen = dom_controls(dom_snapshots)
             dialog_dom_ok = any(item["role"] == "dialog" and item["name"] == "Delete task?" for item in dom_controls_seen) if dom_snapshots else None
