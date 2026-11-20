@@ -1138,12 +1138,21 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
                 and post.get("summary") == expected_summary
             ) if runtime.get("state_available") else None
             dom_snapshots = parse_dom_snapshots(pilot)
-            dom_controls_seen = dom_controls(dom_snapshots)
+            dialog_snapshots = [
+                snap for snap in dom_snapshots
+                if any(node.get("tag") == "dialog" and "open" in (node.get("attrs") or {}) for node in snap["nodes"])
+            ]
+            post_cancel_snapshots = [
+                snap for snap in dom_snapshots
+                if any(node.get("tag") == "dialog" and "open" not in (node.get("attrs") or {}) for node in snap["nodes"])
+            ]
+            dom_controls_seen = dom_controls(dialog_snapshots)
             dialog_dom_ok = any(item["role"] == "dialog" and item["name"] == "Delete task?" for item in dom_controls_seen) if dom_snapshots else None
             cancel_dom_ok = any(item["role"] == "button" and item["name"] == "Cancel" for item in dom_controls_seen) if dom_snapshots else None
             delete_dom_ok = any(item["role"] == "button" and item["name"] == "Delete task" for item in dom_controls_seen) if dom_snapshots else None
-            target_dom_ok = any(target_title and target_title in row for row in dom_rows(dom_snapshots)) if dom_snapshots else None
-            dom_ok = (dialog_dom_ok and cancel_dom_ok and delete_dom_ok and target_dom_ok) if dom_snapshots else None
+            closed_after_cancel_ok = bool(post_cancel_snapshots) if dom_snapshots else None
+            target_dom_ok = any(target_title and target_title in row for row in dom_rows(post_cancel_snapshots)) if dom_snapshots else None
+            dom_ok = (dialog_dom_ok and cancel_dom_ok and delete_dom_ok and closed_after_cancel_ok and target_dom_ok) if dom_snapshots else None
             report_ok = None if not skill_report_exists else (
                 skill_report_exists
                 and bool(target_title) and target_title in report_text
@@ -1166,7 +1175,7 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
             add_check(
                 checks, "Rendered DOM independently confirms the open dialog, Cancel/Delete actions and visible target",
                 dom_ok,
-                json.dumps({"dialog": dialog_dom_ok, "cancel": cancel_dom_ok, "delete": delete_dom_ok, "target": target_dom_ok}, ensure_ascii=False),
+                json.dumps({"dialog": dialog_dom_ok, "cancel": cancel_dom_ok, "delete": delete_dom_ok, "closed_after_cancel": closed_after_cancel_ok, "target_retained_after_cancel": target_dom_ok}, ensure_ascii=False),
             )
             add_check(
                 checks, "Target report documents the dialog, Cancel choice and safe outcome",
