@@ -335,7 +335,7 @@ class RemainingOracleTests(unittest.TestCase):
         )
         case = {
             "case_id": "WB-CORE-07", "dataset_id": "D-WB",
-            "execution_requirements": {"test_data": [{"kind": "accessible_names", "expected_controls": expected}]},
+            "execution_requirements": {"test_data": [{"kind": "accessible_names", "dialog_target_visible_title": "Verify email notification", "expected_controls": expected}]},
         }
         html = render_board([f'<td>{item["title"]}</td>' for item in INITIAL], controls=controls)
         result = adjudicate_fixture("accessible_names", case, html, [], screenshot_count=3)
@@ -398,6 +398,46 @@ class RemainingOracleTests(unittest.TestCase):
             screenshot_count=3,
         )
         self.assertEqual(result["oracle_verdict"], "PASS", result["checks"])
+
+
+    def test_missing_dom_snapshot_is_unknown_not_failure(self):
+        with tempfile.TemporaryDirectory() as temp:
+            pilot = Path(temp) / "pilot"
+            case = {
+                "case_id": "WB-CORE-03", "dataset_id": "D-WB",
+                "execution_requirements": {"test_data": [{
+                    "kind": "search_description", "query": "token expiry",
+                    "expected_rows": [{"title": "Reset password flow"}],
+                    "expected_summary": SUMMARY,
+                }]},
+            }
+            audit = [{"method": "POST", "path": "/api/reset", "status": 200, "action": "reset"},
+                     {"method": "GET", "path": "/api/tasks", "query": "q=token+expiry&status=all", "result_count": 1}]
+            write_pilot_bundle(pilot, base_runner(), audit, "Search evidence recorded. PASS.")
+            result = ORACLE.adjudicate_remaining_case(case, pilot, "search_description")
+            self.assertEqual(result["oracle_verdict"], "UNKNOWN", result["checks"])
+            self.assertEqual(result["business_behavior_verdict"], "UNKNOWN")
+
+    def test_missing_server_audit_is_unknown_not_failure(self):
+        with tempfile.TemporaryDirectory() as temp:
+            pilot = Path(temp) / "pilot"
+            case = {
+                "case_id": "WB-CORE-03", "dataset_id": "D-WB",
+                "execution_requirements": {"test_data": [{
+                    "kind": "search_description", "query": "token expiry",
+                    "expected_rows": [{"title": "Reset password flow"}],
+                    "expected_summary": SUMMARY,
+                }]},
+            }
+            html = render_board(['<td>Reset password flow</td><td>High</td><td>Open</td>'])
+            audit = [{"method": "POST", "path": "/api/reset", "status": 200, "action": "reset"},
+                     {"method": "GET", "path": "/api/tasks", "query": "q=token+expiry&status=all", "result_count": 1}]
+            write_dom(pilot, html)
+            write_pilot_bundle(pilot, base_runner(), audit, "Search evidence recorded. PASS.")
+            (pilot / "server-audit.jsonl").unlink()
+            result = ORACLE.adjudicate_remaining_case(case, pilot, "search_description")
+            self.assertEqual(result["oracle_verdict"], "UNKNOWN", result["checks"])
+            self.assertEqual(result["business_behavior_verdict"], "UNKNOWN")
 
 
 if __name__ == "__main__":
