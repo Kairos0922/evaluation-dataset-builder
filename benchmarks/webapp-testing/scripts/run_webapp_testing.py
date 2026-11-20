@@ -141,6 +141,69 @@ def resolve_case_timeout(environment: dict, override: int | None) -> int:
     return timeout
 
 
+def summarize_trace_events(events: list[dict]) -> dict:
+    """Summarize DSH turns, model steps, tool calls and cumulative usage."""
+    usage_events = [
+        item for item in events
+        if item.get("type") == "status" and isinstance(item.get("usage"), dict)
+    ]
+    usage_fields = (
+        "inputTokens", "outputTokens", "cacheReadTokens",
+        "cacheWriteTokens", "totalTokens",
+    )
+    usage_totals = {
+        field: sum(
+            value.get(field, 0)
+            for item in usage_events
+            if isinstance((value := item.get("usage")), dict)
+            and isinstance(value.get(field, 0), (int, float))
+        )
+        for field in usage_fields
+    }
+    step_keys = {
+        (item.get("turn"), item.get("step"))
+        for item in usage_events
+        if item.get("turn") is not None and item.get("step") is not None
+    }
+    model_turns = {
+        item.get("turn") for item in usage_events if item.get("turn") is not None
+    }
+    tool_calls = [
+        item for item in events if item.get("type") == "tool_call"
+    ]
+    tool_counts: dict[str, int] = {}
+    for item in tool_calls:
+        name = item.get("tool") or "unknown"
+        tool_counts[name] = tool_counts.get(name, 0) + 1
+    return {
+        "usage_record_count": len(usage_events),
+        "model_step_count": len(step_keys),
+        "model_turn_count": len(model_turns),
+        "model_turn_numbers": sorted(model_turns),
+        "tool_call_count": len(tool_calls),
+        "tool_calls_by_name": dict(sorted(tool_counts.items())),
+        "usage_totals": usage_totals,
+    }
+
+
+def trace_budget_violations(trace: dict, limits: dict) -> list[str]:
+    """Return exceeded operational ceilings; these are stop controls, not quality scores."""
+    usage = trace.get("usage") or {}
+    totals = usage.get("usage_totals") or {}
+    observed = {
+        "model_steps": usage.get("model_step_count", 0),
+        "input_tokens": totals.get("inputTokens", 0),
+        "output_tokens": totals.get("outputTokens", 0),
+        "cache_read_tokens": totals.get("cacheReadTokens", 0),
+        "total_tokens": totals.get("totalTokens", 0),
+    }
+    return [
+        f"{name}={observed[name]} exceeds limit {limit}"
+        for name, limit in limits.items()
+        if limit is not None and observed[name] > limit
+    ]
+
+
 def parse_trace(path: Path) -> dict:
     events = []
     if path.exists():
@@ -166,6 +229,7 @@ def parse_trace(path: Path) -> dict:
     sessions = [item.get("sessionId") for item in events if item.get("type") == "session" and item.get("sessionId")]
     turn_starts = [item for item in events if item.get("type") == "status" and item.get("phase") == "turn_start"]
     turn_ends = [item for item in events if item.get("type") == "status" and item.get("phase") == "turn_end"]
+    summary = summarize_trace_events(events)
     return {
         "event_count": len(events),
         "webapp_testing_skill_calls": len(calls),
@@ -180,7 +244,40 @@ def parse_trace(path: Path) -> dict:
         "turn_numbers_started": [item.get("turn") for item in turn_starts],
         "final_event_count": len(finals),
         "final_reason": (finals[-1].get("reason") or {}).get("kind") if finals else None,
+        "usage": summary,
     }
+
+
+def wait_for_dsh_with_budget(
+    process: subprocess.Popen,
+    prompt: str,
+    events_path: Path,
+    timeout_seconds: int,
+    budget_limits: dict,
+) -> tuple[int, str | None]:
+    """Feed one prompt and monitor flushed trace events until exit or a budget stop."""
+    deadline = time.monotonic() + timeout_seconds
+    first_wait = True
+    while process.poll() is None:
+        trace = parse_trace(events_path)
+        violations = trace_budget_violations(trace, budget_limits)
+        if violations:
+            stop_process_group(process, timeout=5)
+            return 124, "DSH usage budget exceeded: " + "; ".join(violations)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            stop_process_group(process, timeout=5)
+            return 124, f"DSH session timed out after {timeout_seconds}s"
+        try:
+            if first_wait:
+                process.communicate(prompt, timeout=min(1.0, remaining))
+                first_wait = False
+            else:
+                process.communicate(timeout=min(1.0, remaining))
+        except subprocess.TimeoutExpired:
+            first_wait = False
+            continue
+    return process.returncode or 0, None
 
 
 def self_test() -> int:
