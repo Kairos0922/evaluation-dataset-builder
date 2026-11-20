@@ -287,11 +287,17 @@ def self_test() -> int:
         events = [
             {"type": "session", "sessionId": "session-test"},
             {"type": "status", "phase": "turn_start", "turn": 1},
+            {"type": "status", "phase": "step_end", "turn": 1, "step": 1,
+             "usage": {"inputTokens": 10, "outputTokens": 50, "cacheReadTokens": 200,
+                       "cacheWriteTokens": 0, "totalTokens": 260}},
             {"type": "tool_call", "tool": "skill", "input": {"name": "webapp-testing"}, "callId": "c1"},
             {"type": "tool_result", "callId": "c1", "status": "completed"},
             {"type": "status", "phase": "turn_end", "turn": 1},
             {"type": "final", "sessionId": "session-test", "reason": {"kind": "completed"}},
             {"type": "status", "phase": "turn_start", "turn": 2},
+            {"type": "status", "phase": "step_end", "turn": 2, "step": 1,
+             "usage": {"inputTokens": 5, "outputTokens": 7, "cacheReadTokens": 30,
+                       "cacheWriteTokens": 0, "totalTokens": 42}},
             {"type": "status", "phase": "turn_end", "turn": 2},
             {"type": "final", "sessionId": "session-test", "reason": {"kind": "completed"}},
         ]
@@ -303,6 +309,15 @@ def self_test() -> int:
         assert parsed["session_id"] == "session-test"
         assert parsed["session_ids"] == ["session-test"]
         assert parsed["turn_start_count"] == 2 and parsed["turn_end_count"] == 2
+        assert parsed["usage"]["usage_record_count"] == 2
+        assert parsed["usage"]["model_step_count"] == 2
+        assert parsed["usage"]["model_turn_count"] == 2
+        assert parsed["usage"]["tool_calls_by_name"] == {"skill": 1}
+        assert parsed["usage"]["usage_totals"]["outputTokens"] == 57
+        assert trace_budget_violations(parsed, {
+            "model_steps": 1, "input_tokens": 100, "output_tokens": 40,
+            "cache_read_tokens": 300, "total_tokens": 500,
+        }) == ["model_steps=2 exceeds limit 1", "output_tokens=57 exceeds limit 40"]
         string_turns, string_url = resolve_user_input({"user_input": "  run this task  "})
         assert string_turns == [{"turn_id": "T1", "content": "run this task"}] and string_url is None
         object_turns, object_url = resolve_user_input({
@@ -319,7 +334,7 @@ def self_test() -> int:
         assert resolve_case_timeout({"case_timeout_seconds": 180}, None) == 180
         assert resolve_case_timeout({"case_timeout_seconds": 600}, None) == 600
         assert resolve_case_timeout({"case_timeout_seconds": 600}, 300) == 300
-        assert resolve_dsh_timeout(None) == 1500
+        assert resolve_dsh_timeout(None) == 600
         assert resolve_dsh_timeout(900) == 900
     print("PASS: runner self-test (trace, input formats, case budget, and DSH timeout)")
     return 0
