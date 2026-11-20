@@ -121,6 +121,22 @@ def tasks_match_declared(actual: list[dict], declared: list[dict]) -> bool:
     return True
 
 
+def tasks_contain_declared(actual: list[dict], declared: list[dict]) -> bool:
+    """Verify every declared baseline task remains unchanged when new items are allowed."""
+    actual_by_id = {item.get("id"): item for item in actual}
+    if len(actual_by_id) != len(actual):
+        return False
+    for expected in declared:
+        observed = actual_by_id.get(expected.get("id"))
+        if observed is None:
+            return False
+        for key in ("title", "description", "priority", "status"):
+            value = expected.get(key)
+            if value is not None and observed.get(key) != value:
+                return False
+    return True
+
+
 def target_task(case: dict, tasks: list[dict]) -> dict | None:
     outcome = case.get("reference_outcome") or {}
     rule_expected = outcome.get("rule_expected") or {}
@@ -786,12 +802,15 @@ def adjudicate_remaining_case(case: dict, pilot: Path, role: str) -> dict:
             and (expected_description is None or created.get("description") == expected_description)
         )
         allowed_create_only = len(writes) == 1 and writes[0].get("method") == "POST" and writes[0].get("path") == "/api/tasks" and writes[0].get("status") == 201 and writes[0].get("action") == "created"
-        preserves_initial = tasks_match_declared(post_tasks, initial_tasks)
+        preserves_initial = tasks_contain_declared(post_tasks, initial_tasks)
         state_ok = len(new_items) == 1 and new_items[0].get("title") == title and new_items[0].get("priority") == priority and new_items[0].get("status") == status and post.get("summary") == (td.get("expected_summary") or {}) and pre_ok and preserves_initial
         messages = dom_by_id(snaps, "status-message")
         dom_ok = any(title and title in row for row in rows) and any(created.get("id") and created.get("id") in item["text"] for item in messages) and dom_summary_ok(snaps, td.get("expected_summary") or {})
         add("Exactly one server-audited create matches title, priority, status and declared description", server_ok, {"events": events, "created": created, "expected_title": title})
-        add("Eighty-character boundary input is exactly the declared length", title_length_ok, {"declared_length": td.get("title_length"), "observed_length": len(title) if isinstance(title, str) else None})
+        if role == "create_boundary_80":
+            add("Eighty-character boundary input is exactly the declared length", title_length_ok, {"declared_length": td.get("title_length"), "observed_length": len(title) if isinstance(title, str) else None})
+        else:
+            add("Trimmed title matches the Builder-declared stored title", title_length_ok and created.get("title") == td.get("expected_stored_title"), {"observed": created.get("title"), "expected": td.get("expected_stored_title")})
         add("Only one successful create write occurred; the initial tasks were preserved", allowed_create_only and preserves_initial, {"writes": writes, "preserves_initial": preserves_initial})
         add("Post-state has exactly one new item and expected summary", state_ok, {"new_items": new_items, "summary": post.get("summary")})
         add("Rendered DOM shows the created item, returned ID and summary", dom_ok, {"rows": rows, "status_message": messages})
