@@ -128,6 +128,11 @@ def resolve_dsh_timeout(override: int | None) -> int:
     return timeout
 
 
+def resolve_effective_dsh_timeout(case_timeout: int, override: int | None) -> int:
+    """The DSH process must never outlive the Builder-declared case budget."""
+    return min(resolve_dsh_timeout(override), case_timeout)
+
+
 def resolve_case_timeout(environment: dict, override: int | None) -> int:
     raw = override if override is not None else environment.get("case_timeout_seconds", 900)
     if isinstance(raw, bool):
@@ -336,6 +341,8 @@ def self_test() -> int:
         assert resolve_case_timeout({"case_timeout_seconds": 600}, 300) == 300
         assert resolve_dsh_timeout(None) == 600
         assert resolve_dsh_timeout(900) == 900
+        assert resolve_effective_dsh_timeout(240, None) == 240
+        assert resolve_effective_dsh_timeout(900, 600) == 600
     print("PASS: runner self-test (trace, input formats, case budget, and DSH timeout)")
     return 0
 
@@ -441,7 +448,8 @@ def main() -> int:
         raise SystemExit("invalid fixture profile in Builder case")
     try:
         case_timeout = resolve_case_timeout(environment, args.case_timeout)
-        dsh_timeout = resolve_dsh_timeout(args.dsh_timeout)
+        configured_dsh_timeout = resolve_dsh_timeout(args.dsh_timeout)
+        dsh_timeout = resolve_effective_dsh_timeout(case_timeout, configured_dsh_timeout)
     except ValueError as exc:
         raise SystemExit(str(exc))
 
@@ -657,6 +665,7 @@ def main() -> int:
         "dsh_exit_code": dsh_exit,
         "case_timeout_seconds": case_timeout,
         "dsh_timeout_seconds": dsh_timeout,
+        "configured_dsh_timeout_seconds": configured_dsh_timeout,
         "trace": trace,
         "trace_budget": {"limits": budget_limits, "violations": budget_violations},
         "user_turn_count": len(user_turns),
