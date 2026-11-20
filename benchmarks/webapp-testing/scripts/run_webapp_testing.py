@@ -480,6 +480,10 @@ def main() -> int:
     dsh_exit = None
     session_id = None
     session_turn_results = []
+    dsh_started_at_utc = None
+    dsh_started_monotonic = None
+    dsh_finished_at_utc = None
+    dsh_elapsed_seconds = None
     started = utc_now()
     pre_state = post_state = None
     try:
@@ -561,6 +565,9 @@ def main() -> int:
                     command.extend(["--session-id", session_id])
                 command.extend(["--permission-mode", "workspace-write", "-"])
                 prompt = prompt_for_turn(turn, turn_index == 0)
+                if dsh_started_monotonic is None:
+                    dsh_started_at_utc = utc_now()
+                    dsh_started_monotonic = time.monotonic()
                 dsh = subprocess.Popen(
                     command, cwd=str(workspace), env=dsh_env, stdin=subprocess.PIPE,
                     stdout=stdout, stderr=stderr, text=True, start_new_session=True,
@@ -599,6 +606,9 @@ def main() -> int:
         error = f"{type(exc).__name__}: {exc}"
     finally:
         stop_process_group(dsh)
+        if dsh_started_monotonic is not None and dsh_finished_at_utc is None:
+            dsh_finished_at_utc = utc_now()
+            dsh_elapsed_seconds = round(time.monotonic() - dsh_started_monotonic, 3)
         stop_process_group(server)
         server_log.close()
 
@@ -618,6 +628,11 @@ def main() -> int:
     port_closed = not port_open(host, port)
     trace = parse_trace(case_dir / "dsh-events.jsonl")
     budget_violations = trace_budget_violations(trace, budget_limits)
+    case_budget_status = (
+        "PASS" if dsh_elapsed_seconds is not None and dsh_elapsed_seconds <= case_timeout
+        else "FAIL" if dsh_elapsed_seconds is not None
+        else "UNKNOWN"
+    )
     evidence_files = []
     for path in sorted(case_dir.rglob("*")):
         if path.is_file():
@@ -633,6 +648,7 @@ def main() -> int:
         and trace["completed_skill_calls"] > 0
         and trace["final_reason"] == "completed"
         and not budget_violations
+        and case_budget_status == "PASS"
         and trace["turn_start_count"] == len(user_turns)
         and trace["turn_end_count"] == len(user_turns)
         and len(session_turn_results) == len(user_turns)
@@ -666,6 +682,10 @@ def main() -> int:
         "case_timeout_seconds": case_timeout,
         "dsh_timeout_seconds": dsh_timeout,
         "configured_dsh_timeout_seconds": configured_dsh_timeout,
+        "dsh_started_at_utc": dsh_started_at_utc,
+        "dsh_finished_at_utc": dsh_finished_at_utc,
+        "dsh_elapsed_seconds": dsh_elapsed_seconds,
+        "case_budget_status": case_budget_status,
         "trace": trace,
         "trace_budget": {"limits": budget_limits, "violations": budget_violations},
         "user_turn_count": len(user_turns),
@@ -691,6 +711,7 @@ def main() -> int:
         "runner_status": runner_status, "user_turn_count": len(user_turns),
         "completed_user_turn_count": len(session_turn_results), "trace": trace,
         "trace_budget": {"limits": budget_limits, "violations": budget_violations},
+        "dsh_elapsed_seconds": dsh_elapsed_seconds, "case_budget_status": case_budget_status,
         "server_port_closed": port_closed, "runner_error": error,
     }, ensure_ascii=False))
     return 0 if runner_status == "INVOCATION_OK" else 1
