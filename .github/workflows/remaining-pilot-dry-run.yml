@@ -1,0 +1,87 @@
+name: Remaining Pilot Artifact Dry Run
+
+on:
+  workflow_dispatch:
+    inputs:
+      artifact_id:
+        description: Original Builder artifact ID (must contain webapp-testing-builder-output)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  artifact-dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download exact Builder artifact by ID
+        uses: actions/download-artifact@v4
+        with:
+          artifact-ids: ${{ inputs.artifact_id }}
+          path: artifacts/builder-original
+
+      - name: Verify artifact files and original SHA-256 manifest
+        run: |
+          set -euo pipefail
+          OUTPUT_ROOT="artifacts/builder-original/webapp-testing-builder-output"
+          test -s "$OUTPUT_ROOT/SUITE-MANIFEST.json"
+          test -s "$OUTPUT_ROOT/wb-core.jsonl"
+          test -s artifacts/builder-original/builder-output-sha256.txt
+          cd artifacts/builder-original
+          sha256sum --check builder-output-sha256.txt
+          cd "$GITHUB_WORKSPACE"
+          python -m py_compile \
+            benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py \
+            benchmarks/webapp-testing/scripts/plan_remaining_pilots.py
+
+      - name: Resolve all eleven roles from Builder cases
+        id: resolve
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py \
+            --output-root artifacts/builder-original/webapp-testing-builder-output \
+            --include-remaining-candidates \
+            --write-output artifacts/remaining-pilot-matrix.json
+
+      - name: Build and validate non-executing plan
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/plan_remaining_pilots.py \
+            --matrix artifacts/remaining-pilot-matrix.json \
+            --output artifacts/remaining-pilot-plan.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          plan = json.loads(Path("artifacts/remaining-pilot-plan.json").read_text())
+          matrix = json.loads(Path("artifacts/remaining-pilot-matrix.json").read_text())
+          assert plan["case_count"] == 11
+          assert plan["execution_authorized"] is False
+          assert plan["execution_started"] is False
+          assert plan["status"] == "DRY_RUN_PLAN_ONLY"
+          assert all(step["execution"] == "NOT_AUTHORIZED" for step in plan["steps"])
+          assert [step["pilot_role"] for step in plan["steps"]] == plan["required_roles"]
+          assert len({step["case_id"] for step in plan["steps"]}) == 11
+          assert {entry["case_id"] for entry in matrix["include"]} == {step["case_id"] for step in plan["steps"]}
+          assert plan["sum_case_timeout_seconds"] == 2220
+          print("PASS: exact Builder artifact resolves to a complete 11-case sequential dry-run plan; execution remains unauthorized.")
+          PY
+
+      - name: Archive resolved matrix and dry-run plan
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: remaining-pilot-artifact-dry-run
+          path: |
+            artifacts/remaining-pilot-matrix.json
+            artifacts/remaining-pilot-plan.json
+          if-no-files-found: error
+          retention-days: 30
