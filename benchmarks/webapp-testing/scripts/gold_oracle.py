@@ -914,6 +914,7 @@ def adjudicate_remaining_case(case: dict, pilot: Path, role: str) -> dict:
     failed = [item for item in checks if item["status"] == "FAIL"]
     unknown = [item for item in checks if item["status"] == "UNKNOWN"]
     verdict = "FAIL" if failed else ("UNKNOWN" if unknown else "PASS")
+    behavior = "FAIL" if failed else ("UNKNOWN" if unknown else "PASS")
     return {
         "case_id": case["case_id"], "dataset_id": case.get("dataset_id"), "pilot_role": role,
         "fixture_profile": runner.get("fixture_profile"),
