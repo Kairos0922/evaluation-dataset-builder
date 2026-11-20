@@ -107,10 +107,15 @@ def role_score(case: dict, role: str) -> int:
         expected_transitions = all(
             state in text for state in ("open", "in progress", "done")
         )
-        ordered_expected_steps = all(
-            f"第{number}次{state.replace(' ', '')}" in expected_contract
-            for number, state in ((1, "in progress"), (2, "done"), (3, "open"))
-        )
+        ordered_expected_steps = True
+        previous_position = -1
+        for number, state in ((1, "inprogress"), (2, "done"), (3, "open")):
+            step_position = expected_contract.find(f"第{number}次")
+            state_position = expected_contract.find(state, step_position + 1)
+            if step_position <= previous_position or state_position <= step_position:
+                ordered_expected_steps = False
+                break
+            previous_position = state_position
         builder_status_cycle = (
             has_rule("BR-07")
             and any(ref.startswith(("WF-STATUS", "WF-05")) for ref in workflows)
