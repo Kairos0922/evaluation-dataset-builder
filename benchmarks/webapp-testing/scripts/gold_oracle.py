@@ -12,6 +12,7 @@ import json
 import re
 import tempfile
 from collections import Counter
+from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import parse_qs, unquote_plus
 
@@ -24,6 +25,11 @@ INITIAL = [
 ]
 INITIAL_SUMMARY = {"all": 5, "open": 2, "in_progress": 2, "done": 1}
 EXPECTED_ROLES = {"search_mutation", "state_cycle", "delete_confirmation"}
+REMAINING_ROLES = {
+    "initial_board", "search_description", "search_empty", "status_filter",
+    "search_filter_combo", "accessible_names", "visible_title_mapping",
+    "create_success", "create_rejected", "create_boundary_80", "delete_cancel",
+}
 
 
 def load_json(path: Path):
@@ -118,7 +124,7 @@ def tasks_match_declared(actual: list[dict], declared: list[dict]) -> bool:
 def target_task(case: dict, tasks: list[dict]) -> dict | None:
     outcome = case.get("reference_outcome") or {}
     rule_expected = outcome.get("rule_expected") or {}
-    target = rule_expected.get("target") or outcome.get("target") or outcome.get("task_id") or outcome.get("target_task") or outcome.get("target_id")
+    target = rule_expected.get("target") or outcome.get("target") or outcome.get("task_id") or outcome.get("target_task") or outcome.get("target_id") or outcome.get("target_data_id")
     if target is None:
         test_data = ((case.get("execution_requirements") or {}).get("test_data") or [])
         # Builder may list initial-state data before the actual target. Prefer
@@ -130,6 +136,7 @@ def target_task(case: dict, tasks: list[dict]) -> dict | None:
                     item.get("target_task")
                     or item.get("task_id")
                     or item.get("target_id")
+                    or item.get("target_data_id")
                 )
                 if value is not None:
                     explicit_targets.append(value)
@@ -172,6 +179,8 @@ def target_task(case: dict, tasks: list[dict]) -> dict | None:
 
 def is_delete_cancel_case(case: dict) -> bool:
     requirements = case.get("execution_requirements") or {}
+    if any(isinstance(item, dict) and item.get("kind") == "delete_cancel" for item in requirements.get("test_data") or []):
+        return True
     test_data = requirements.get("test_data") or []
     for item in test_data:
         if not isinstance(item, dict):
@@ -522,10 +531,296 @@ def expected_search_counts(queries: list[str], tasks: list[dict], branch_name: s
     return counts
 
 
+
+class DOMSnapshotParser(HTMLParser):
+    """Parse archived rendered DOM snapshots without trusting Skill summaries."""
+    VOID = {"area", "base", "br", "col", "embed", "hr", "img", "input", "link", "meta", "param", "source", "track", "wbr"}
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.nodes = []
+        self.stack = []
+
+    def handle_starttag(self, tag, attrs):
+        index = len(self.nodes)
+        self.nodes.append({"tag": tag.lower(), "attrs": dict(attrs), "parent": self.stack[-1] if self.stack else None, "text": ""})
+        if tag.lower() not in self.VOID:
+            self.stack.append(index)
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+        if tag.lower() not in self.VOID and self.stack:
+            self.stack.pop()
+
+    def handle_endtag(self, tag):
+        for position in range(len(self.stack) - 1, -1, -1):
+            if self.nodes[self.stack[position]]["tag"] == tag.lower():
+                del self.stack[position:]
+                break
+
+    def handle_data(self, data):
+        for index in self.stack:
+            self.nodes[index]["text"] += data
+
+
+def _clean_text(value) -> str:
+    return " ".join(str(value or "").split())
+
+
+def parse_dom_snapshots(pilot: Path) -> list[dict]:
+    root = pilot / "skill-artifacts"
+    result = []
+    if root.is_dir():
+        for path in sorted(root.rglob("*")):
+            if path.is_file() and path.suffix.lower() in {".html", ".htm"}:
+                parser = DOMSnapshotParser()
+                parser.feed(path.read_text(encoding="utf-8", errors="replace"))
+                result.append({"path": path, "nodes": parser.nodes})
+    return result
+
+
+def _visible(node: dict, nodes: list[dict]) -> bool:
+    current = node
+    while current is not None:
+        attrs = current.get("attrs") or {}
+        if "hidden" in attrs or str(attrs.get("aria-hidden", "")).lower() == "true":
+            return False
+        parent = current.get("parent")
+        current = nodes[parent] if parent is not None else None
+    return True
+
+
+def _role(node: dict) -> str | None:
+    attrs, tag = node.get("attrs") or {}, node.get("tag")
+    if attrs.get("role"):
+        return attrs["role"]
+    if tag == "button": return "button"
+    if tag == "dialog": return "dialog"
+    if tag == "select": return "combobox"
+    if tag == "textarea": return "textbox"
+    if tag == "input":
+        return {"search": "searchbox", "submit": "button", "button": "button"}.get(str(attrs.get("type", "text")).lower(), "textbox")
+    return None
+
+
+def _name(node: dict, nodes: list[dict]) -> str:
+    attrs = node.get("attrs") or {}
+    if attrs.get("aria-label"):
+        return _clean_text(attrs["aria-label"])
+    ids = {item.get("attrs", {}).get("id"): item for item in nodes if item.get("attrs", {}).get("id")}
+    labelledby = attrs.get("aria-labelledby")
+    if labelledby:
+        values = [_clean_text(ids[key].get("text")) for key in labelledby.split() if key in ids]
+        if values: return _clean_text(" ".join(values))
+    identifier = attrs.get("id")
+    if identifier:
+        labels = [item for item in nodes if item.get("tag") == "label" and item.get("attrs", {}).get("for") == identifier]
+        if labels: return _clean_text(labels[0].get("text"))
+    return _clean_text(node.get("text"))
+
+
+def dom_controls(snapshots: list[dict]) -> list[dict]:
+    controls = []
+    for snap in snapshots:
+        for node in snap["nodes"]:
+            role = _role(node)
+            if role and _visible(node, snap["nodes"]):
+                controls.append({"role": role, "name": _name(node, snap["nodes"]), "attrs": node.get("attrs") or "", "snapshot": snap["path"].name})
+    return controls
+
+
+def dom_rows(snapshots: list[dict]) -> list[str]:
+    return [
+        _clean_text(node.get("text"))
+        for snap in snapshots for node in snap["nodes"]
+        if node.get("tag") == "tr" and _visible(node, snap["nodes"]) and _clean_text(node.get("text"))
+    ]
+
+
+def dom_by_id(snapshots: list[dict], identifier: str) -> list[dict]:
+    result = []
+    for snap in snapshots:
+        for node in snap["nodes"]:
+            attrs = node.get("attrs") or {}
+            if attrs.get("id") == identifier:
+                result.append({"text": _clean_text(node.get("text")), "visible": _visible(node, snap["nodes"]), "attrs": attrs, "snapshot": snap["path"].name})
+    return result
+
+
+def dom_summary_ok(snapshots: list[dict], summary: dict) -> bool:
+    ids = {"all": "count-all", "open": "count-open", "in_progress": "count-in-progress", "done": "count-done"}
+    for snap in snapshots:
+        if all(
+            any(item["visible"] and item["text"] == str(summary[key]) for item in dom_by_id([snap], identifier))
+            for key, identifier in ids.items() if key in summary
+        ):
+            return True
+    return False
+
+
+def _test_data(case: dict) -> dict:
+    values = (case.get("execution_requirements") or {}).get("test_data") or []
+    return values[0] if len(values) == 1 and isinstance(values[0], dict) else {}
+
+
+def _query_events(audit: list[dict]) -> list[dict]:
+    output = []
+    for event in audit:
+        if event.get("method") == "GET" and event.get("path") == "/api/tasks":
+            params = parse_qs(event.get("query", ""), keep_blank_values=True)
+            output.append({**event, "q": (params.get("q") or [""])[0], "status_filter": (params.get("status") or ["all"])[0]})
+    return output
+
+
+def adjudicate_remaining_case(case: dict, pilot: Path, role: str) -> dict:
+    checks = []
+    runner, audit, runtime = base_checks(case, pilot, checks)
+    report_text, screenshots = report_bundle(pilot)
+    td, snaps = _test_data(case), parse_dom_snapshots(pilot)
+    rows = dom_rows(snaps)
+    pre, post = runner.get("pre_state") or {}, runner.get("post_state") or {}
+    initial_tasks, initial_summary = case_initial_state(case)
+    pre_tasks, post_tasks = normalized_tasks(pre), normalized_tasks(post)
+    pre_ok = tasks_match_declared(pre_tasks, initial_tasks) and pre.get("summary") == initial_summary
+    writes = audit_writes(audit)
+    report_ok = bool(report_text.strip())
+
+    def add(name, condition, evidence):
+        add_check(checks, name, condition, evidence if isinstance(evidence, str) else json.dumps(evidence, ensure_ascii=False))
+
+    if role == "initial_board":
+        expected = normalized_tasks({"tasks": td.get("expected_tasks") or []})
+        summary = td.get("expected_summary") or initial_summary
+        state_ok = bool(expected) and pre_ok and tasks_match_declared(post_tasks, expected) and post.get("summary") == summary
+        dom_ok = all(any(item["title"] in row for row in rows) for item in expected) and dom_summary_ok(snaps, summary)
+        add("Builder baseline rows and summary match server-side initial and final states", state_ok, {"expected": expected, "post": post_tasks, "summary": post.get("summary")})
+        add("Rendered DOM contains all baseline rows and summary values", dom_ok, {"rows": rows, "expected_summary": summary})
+        add("Initial-state inspection performed no application writes", not writes, writes)
+        behavior = "PASS" if state_ok and dom_ok and not writes and report_ok else "FAIL"
+
+    elif role in {"search_description", "search_empty"}:
+        query = td.get("query")
+        events = [event for event in _query_events(audit) if event["q"] == query]
+        count = 0 if role == "search_empty" else len(td.get("expected_rows") or [])
+        count_ok = bool(events) and events[-1].get("result_count") == count
+        expected_titles = [item.get("title") for item in td.get("expected_rows") or []]
+        if role == "search_empty":
+            empty = dom_by_id(snaps, "empty-state")
+            dom_ok = any(item["visible"] and item["text"] == td.get("expected_empty_text") for item in empty)
+        else:
+            dom_ok = all(any(title and title in row for row in rows) for title in expected_titles)
+        summary = td.get("expected_summary") or initial_summary
+        state_ok = pre_ok and tasks_match_declared(post_tasks, initial_tasks) and post.get("summary") == summary
+        add("Builder-declared query reached the server and result count matches", count_ok, {"query": query, "count": count, "observed": [item.get("result_count") for item in events]})
+        add("Rendered DOM contains the expected row or visible empty state", dom_ok, {"expected_titles": expected_titles, "rows": rows, "empty": dom_by_id(snaps, "empty-state")})
+        add("Search remained read-only and preserved tasks and summary", not writes and state_ok, {"writes": writes, "summary": post.get("summary")})
+        behavior = "PASS" if count_ok and dom_ok and not writes and state_ok and report_ok else "FAIL"
+
+    elif role == "status_filter":
+        events = _query_events(audit)
+        filter_value, restore = td.get("filter_value"), td.get("restore_value", "all")
+        filtered = [item for item in events if item["status_filter"] == filter_value]
+        restored = [item for item in events if item["status_filter"] == restore]
+        expected_titles = td.get("expected_titles") or []
+        counts_ok = bool(filtered) and filtered[-1].get("result_count") == len(expected_titles) and bool(restored) and restored[-1].get("result_count") == td.get("expected_restored_count")
+        dom_ok = all(any(title in row for row in rows) for title in expected_titles) and dom_summary_ok(snaps, td.get("expected_summary") or initial_summary)
+        state_ok = pre_ok and tasks_match_declared(post_tasks, initial_tasks)
+        add("Selected status and restored All queries match Builder-declared counts", counts_ok, {"filtered": filtered, "restored": restored})
+        add("Rendered DOM contains expected filtered rows and summary", dom_ok, {"rows": rows})
+        add("Status filtering is read-only and preserves state", not writes and state_ok, writes)
+        behavior = "PASS" if counts_ok and dom_ok and not writes and state_ok and report_ok else "FAIL"
+
+    elif role == "search_filter_combo":
+        events, query = _query_events(audit), td.get("query")
+        observations = []
+        for state in td.get("states") or []:
+            matched = [item for item in events if item["q"] == query and item["status_filter"] == state.get("status")]
+            observations.append({"status": state.get("status"), "expected": state.get("expected_count"), "observed": matched[-1].get("result_count") if matched else None, "seen": bool(matched)})
+        counts_ok = bool(observations) and all(item["seen"] and item["observed"] == item["expected"] for item in observations)
+        expected_titles = [title for state in td.get("states") or [] for title in (state.get("expected_titles") or [])]
+        dom_ok = all(any(title in row for row in rows) for title in expected_titles) and dom_summary_ok(snaps, td.get("expected_summary") or initial_summary)
+        state_ok = pre_ok and tasks_match_declared(post_tasks, initial_tasks)
+        add("Combined query/filter states match all Builder-declared result counts", counts_ok, observations)
+        add("Rendered DOM contains expected result rows and unchanged summary", dom_ok, {"titles": expected_titles, "rows": rows})
+        add("Combined search/filter remained read-only", not writes and state_ok, writes)
+        behavior = "PASS" if counts_ok and dom_ok and not writes and state_ok and report_ok else "FAIL"
+
+    elif role == "accessible_names":
+        expected = td.get("expected_controls") or []
+        controls = dom_controls(snaps)
+        missing = [item for item in expected if not any(control["role"] == item.get("role") and control["name"] == item.get("name") for control in controls)]
+        dialog_ok = any(item["role"] == "dialog" and item["name"] == "Delete task?" for item in controls)
+        actions_ok = any(item["role"] == "button" and item["name"] == "Cancel" for item in controls) and any(item["role"] == "button" and item["name"] == "Delete task" for item in controls)
+        state_ok = pre_ok and tasks_match_declared(post_tasks, initial_tasks) and post.get("summary") == initial_summary
+        add("Every Builder-declared role/accessibility-name pair exists in rendered DOM", bool(expected) and not missing, {"missing": missing, "observed": controls})
+        add("Delete dialog exposes its semantic name and safe action names", dialog_ok and actions_ok, {"dialog": dialog_ok, "actions": actions_ok})
+        add("Accessibility inspection and Cancel caused no application mutation", not writes and state_ok, writes)
+        behavior = "PASS" if expected and not missing and dialog_ok and actions_ok and not writes and state_ok and report_ok else "FAIL"
+
+    elif role == "visible_title_mapping":
+        target, title = td.get("target_data_id"), td.get("target_visible_title")
+        matching = [row for row in rows if title and title in row and td.get("expected_status") in row and td.get("expected_button") in row]
+        data_id_as_text = any(target and target in row for row in rows)
+        state_ok = pre_ok and any(item.get("id") == target and item.get("title") == title and item.get("status") == normalize_status(td.get("expected_status")) for item in pre_tasks) and tasks_match_declared(post_tasks, initial_tasks)
+        add("Public visible title identifies exactly one row with expected status and action", len(matching) == 1, matching)
+        add("Opaque data ID is absent from rendered row text", not data_id_as_text, rows)
+        add("Title mapping remained read-only and preserved state", not writes and state_ok, {"writes": writes, "pre_matches": pre_ok})
+        behavior = "PASS" if len(matching) == 1 and not data_id_as_text and not writes and state_ok and report_ok else "FAIL"
+
+    elif role in {"create_success", "create_boundary_80"}:
+        title = td.get("expected_stored_title") if role == "create_success" else td.get("title_input")
+        priority = td.get("expected_priority") if role == "create_success" else td.get("priority")
+        status = normalize_status(td.get("expected_status", "Open"))
+        events = [item for item in audit if item.get("method") == "POST" and item.get("path") == "/api/tasks"]
+        successful = [item for item in events if item.get("status") == 201 and item.get("action") == "created"]
+        created = successful[0].get("item") if len(successful) == 1 else {}
+        new_items = [item for item in post_tasks if item.get("id") not in {old.get("id") for old in initial_tasks}]
+        server_ok = len(events) == 1 and len(successful) == 1 and created.get("title") == title and created.get("priority") == priority and normalize_status(created.get("status")) == status and bool(created.get("id"))
+        state_ok = len(new_items) == 1 and new_items[0].get("title") == title and new_items[0].get("priority") == priority and new_items[0].get("status") == status and post.get("summary") == (td.get("expected_summary") or {}) and pre_ok
+        dom_ok = any(title and title in row and created.get("id") in row for row in rows) and dom_summary_ok(snaps, td.get("expected_summary") or {})
+        add("Exactly one server-audited create matches title, priority and status", server_ok, {"events": events, "created": created, "expected_title": title})
+        add("Post-state has exactly one new item and expected summary", state_ok, {"new_items": new_items, "summary": post.get("summary")})
+        add("Rendered DOM shows the created item and summary", dom_ok, rows)
+        behavior = "PASS" if server_ok and state_ok and dom_ok and report_ok else "FAIL"
+
+    elif role == "create_rejected":
+        events = [item for item in audit if item.get("method") == "POST" and item.get("path") == "/api/tasks"]
+        rejected = [item for item in events if item.get("status") == 400 and item.get("action") == "create-rejected"]
+        success = [item for item in events if item.get("status") == 201]
+        messages = dom_by_id(snaps, "status-message")
+        message_ok = any(item["visible"] and td.get("expected_error_contains", "Title").casefold() in item["text"].casefold() and item["attrs"].get("data-state") == "error" for item in messages)
+        state_ok = len(events) == 1 and len(rejected) == 1 and not success and pre_ok and tasks_match_declared(post_tasks, initial_tasks) and len(post_tasks) == td.get("expected_row_count") and post.get("summary") == (td.get("expected_summary") or initial_summary) and not writes
+        no_false_success = not any("Created " in item["text"] for item in messages)
+        add("Whitespace-only create was rejected once and no successful response occurred", len(events) == 1 and len(rejected) == 1 and not success, events)
+        add("Rendered status region communicates an error without false success", message_ok and no_false_success, messages)
+        add("Rejected create preserved all rows and summary without writes", state_ok, {"row_count": len(post_tasks), "summary": post.get("summary"), "writes": writes})
+        behavior = "PASS" if len(events) == 1 and len(rejected) == 1 and message_ok and no_false_success and state_ok and report_ok else "FAIL"
+
+    else:
+        add("Unsupported remaining semantic role", False, role)
+        behavior = "FAIL"
+
+    failed = [item for item in checks if item["status"] == "FAIL"]
+    unknown = [item for item in checks if item["status"] == "UNKNOWN"]
+    verdict = "FAIL" if failed else ("UNKNOWN" if unknown else "PASS")
+    return {
+        "case_id": case["case_id"], "dataset_id": case.get("dataset_id"), "pilot_role": role,
+        "fixture_profile": runner.get("fixture_profile"),
+        "execution_valid": runtime.get("trace", {}).get("turn_start_count") == runtime.get("expected_user_turns") and runtime.get("trace", {}).get("turn_end_count") == runtime.get("expected_user_turns") and len(runtime.get("trace", {}).get("session_ids", [])) == 1,
+        "expected_user_turns": runtime.get("expected_user_turns"), "observed_dsh_turns": runtime.get("trace", {}).get("turn_start_count"),
+        "contract_verdict": verdict, "oracle_verdict": verdict, "business_behavior_verdict": behavior,
+        "checks": checks,
+        "target_report_excerpt": [line.strip() for line in report_text.splitlines() if re.search(r"PASS|FAIL|CONFORMS|VIOLATES|BR-0[1-9]", line, re.I)][:12],
+        "limitations": [],
+    }
+
+
 def adjudicate(case: dict, pilot: Path, role: str) -> dict:
     checks: list[dict] = []
     runner, audit, runtime = base_checks(case, pilot, checks)
     case_id = case["case_id"]
+    if role in REMAINING_ROLES and role != "delete_cancel":
+        return adjudicate_remaining_case(case, pilot, role)
     report_text, screenshots = report_bundle(pilot)
     pre = runner.get("pre_state") or {}
     post = runner.get("post_state") or {}
@@ -691,7 +986,7 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
         add_check(checks, "Target report agrees with the independently observed BR-07 cycle", report_ok, "BR-07, Builder-declared target, transitions, summary and PASS verdict inspected")
         behavior = "PASS" if target is not None and observed == expected and report_ok else "FAIL"
 
-    elif role == "delete_confirmation":
+    elif role in {"delete_confirmation", "delete_cancel"}:
         mutations = runner.get("fixture_mutations") or []
         add_check(checks, "Clean fixture was selected", runner.get("fixture_profile") == "clean" and not mutations, f"profile={runner.get('fixture_profile')}; mutations={mutations}")
         target = target_task(case, initial_tasks)
@@ -823,7 +1118,7 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
 def build_report(suite: dict, entries: list[dict], results: list[dict]) -> dict:
     verdicts = [item.get("oracle_verdict", "UNKNOWN") for item in results]
     passed = sum(value == "PASS" for value in verdicts)
-    if passed == len(results) and len(results) == 3:
+    if passed == len(results) and len(results) in {3, 11}:
         status = "PASS"
         completion_status = "COMPLETED"
     elif "FAIL" in verdicts:
@@ -839,7 +1134,7 @@ def build_report(suite: dict, entries: list[dict], results: list[dict]) -> dict:
     return {
         "status": status,
         "completion_status": completion_status,
-        "scope": "independent_three_case_pilot_adjudication",
+        "scope": "independent_three_case_pilot_adjudication" if len(entries) == 3 else "independent_remaining_eleven_case_adjudication",
         "formal_cases_created_or_modified": False,
         "oracle_exposed_to_builder_or_target_skill": False,
         "builder_suite_id": suite.get("suite_id"),
@@ -858,11 +1153,14 @@ def build_report(suite: dict, entries: list[dict], results: list[dict]) -> dict:
         ),
         "cases": cases,
         "results": results,
-        "limitations": [
+        "limitations": ([
             "Only the three selected pilot cases are adjudicated; the other generated cases are not all executed.",
             "The search mutation is a controlled synthetic defect, not a production defect.",
             "A PASS applies to the selected pilot cases, not to the full generated suite or the 0.0.1 release gates.",
-        ],
+        ] if len(entries) == 3 else [
+            "Only the eleven selected remaining cases are adjudicated; the three original pilot cases are outside this report.",
+            "A PASS applies only to these eleven cases and archived execution evidence, not to the full generated suite or release gates.",
+        ]),
     }
 
 
@@ -1276,11 +1574,12 @@ def main() -> int:
     matrix = load_json(Path(args.pilot_matrix).resolve())
     cases = case_index(builder_output)
     entries = matrix.get("include")
-    if not isinstance(entries, list) or len(entries) != 3:
-        raise SystemExit("pilot matrix must contain exactly three entries")
+    if not isinstance(entries, list) or len(entries) not in {3, 11}:
+        raise SystemExit("pilot matrix must contain exactly three original-pilot entries or eleven remaining-case entries")
     roles = [item.get("pilot_role") for item in entries]
-    if set(roles) != EXPECTED_ROLES or len(set(roles)) != 3:
-        raise SystemExit(f"pilot roles must be exactly {sorted(EXPECTED_ROLES)}")
+    expected_roles = EXPECTED_ROLES if len(entries) == 3 else REMAINING_ROLES
+    if set(roles) != expected_roles or len(set(roles)) != len(expected_roles):
+        raise SystemExit(f"pilot roles must be exactly {sorted(expected_roles)}")
     if len({item.get("case_id") for item in entries}) != 3:
         raise SystemExit("pilot matrix must contain three distinct case IDs")
 
