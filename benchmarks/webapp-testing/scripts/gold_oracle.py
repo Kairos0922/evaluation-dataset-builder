@@ -655,6 +655,33 @@ def dom_rows(snapshots: list[dict]) -> list[str]:
     ]
 
 
+def dom_snapshot_task_state(snapshot: dict) -> dict:
+    rows = [
+        _clean_text(node.get("text"))
+        for node in snapshot["nodes"]
+        if node.get("tag") == "tr" and _visible(node, snapshot["nodes"]) and _clean_text(node.get("text"))
+    ]
+    known_titles = [item["title"] for item in INITIAL]
+    visible_titles = [
+        title for title in known_titles
+        for row in rows if title in row
+    ]
+    empty_visible = any(
+        item["visible"] and item["text"] == "No tasks match the current filters."
+        for item in dom_by_id([snapshot], "empty-state")
+    )
+    return {"titles": visible_titles, "rows": rows, "empty_visible": empty_visible, "snapshot": snapshot["path"].name}
+
+
+def dom_has_exact_task_titles(snapshots: list[dict], expected_titles: list[str], require_empty: bool = False) -> bool:
+    expected = list(expected_titles)
+    for snapshot in snapshots:
+        state = dom_snapshot_task_state(snapshot)
+        if state["titles"] == expected and (expected or (require_empty and state["empty_visible"])):
+            return True
+    return False
+
+
 def dom_by_id(snapshots: list[dict], identifier: str) -> list[dict]:
     result = []
     for snap in snapshots:
