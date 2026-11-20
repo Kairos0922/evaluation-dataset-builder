@@ -1,6 +1,9 @@
 """Deterministic tests for DSH trace accounting and execution ceilings."""
 import importlib.util
 import json
+import subprocess
+import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -74,6 +77,43 @@ class DshTraceBudgetTests(unittest.TestCase):
         self.assertEqual(RUNNER.resolve_effective_dsh_timeout(240, None), 240)
         self.assertEqual(RUNNER.resolve_effective_dsh_timeout(900, 600), 600)
         self.assertEqual(RUNNER.resolve_effective_dsh_timeout(300, 1500), 300)
+
+    def test_runtime_monitor_stops_process_after_trace_budget_is_crossed(self):
+        with tempfile.TemporaryDirectory() as temp:
+            trace_path = Path(temp) / "events.jsonl"
+            child = (
+                "import json, pathlib, sys, time; "
+                "p=pathlib.Path(sys.argv[1]); "
+                "e={'type':'status','phase':'step_end','turn':1,'step':1,"
+                "'usage':{'inputTokens':0,'outputTokens':2,'cacheReadTokens':0,"
+                "'cacheWriteTokens':0,'totalTokens':2}}; "
+                "p.write_text(json.dumps(e)+'\\n', encoding='utf-8'); "
+                "time.sleep(20)"
+            )
+            process = subprocess.Popen(
+                [sys.executable, "-c", child, str(trace_path)],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                text=True,
+                start_new_session=True,
+            )
+            exit_code, error = RUNNER.wait_for_dsh_with_budget(
+                process,
+                "",
+                trace_path,
+                10,
+                {
+                    "model_steps": 32,
+                    "input_tokens": 60000,
+                    "output_tokens": 1,
+                    "cache_read_tokens": 1600000,
+                    "total_tokens": 1750000,
+                },
+            )
+            self.assertEqual(exit_code, 124)
+            self.assertIn("output_tokens=2 exceeds limit 1", error)
+            self.assertIsNotNone(process.poll())
 
     def test_trace_parser_preserves_turn_and_step_counts(self):
         events = [
