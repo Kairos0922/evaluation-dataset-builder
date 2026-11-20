@@ -232,7 +232,7 @@ Oracle 无法确定的情况应保持 UNKNOWN，不得强制归入 PASS/FAIL。�
 | P2 套件验收 | 对真实 Builder 输出执行 Schema、来源、覆盖和执行契约验证 | 独立验证器 PASS；不得手工补写用例 | PASS；run 44726278657，validator artifact 14624652990 |
 | P3 B0 消费 | DSH Headless 调用 webapp-testing | 三条 Builder 用例由真实 Skill 执行并保存原始证据 | PASS；run 44726278657，Pilot artifacts 14625780995、14625492287、14625534646 |
 | P4 双路判定 | 执行 Builder grading 契约并运行独立 Gold Oracle | 三条业务行为判定均 PASS，差异有证据 | 业务行为 PASS 3/3；离线重判 run 44733891829。WB-CORE-14 历史 DSH 时间预算状态 UNKNOWN |
-| P5 回归报告与成本 | 固化结果、成本、环境、差异；为后续执行设置硬预算 | Trace 统计、运行预算、停止策略和 CI 测试可复核 | 部分完成；成本报告与 Runner 硬预算已提交，CI run 44749360058 / 44749684378 PASS；新预算尚未经付费 Pilot 实测 |
+| P5 回归报告与成本 | 固化结果、成本、环境、差异；为后续执行设置硬预算 | Trace 统计、运行预算、停止策略和 CI 测试可复核 | 部分完成；成本报告与 Runner 硬预算已提交，CI run 44749360058 / 44749684378 / 44751563875 PASS；新预算尚未经付费 Pilot 实测 |
 
 CI 运行成功不等于评测成功；依赖安装成功不等于 Skill 运行成功；Builder 产物通过 Schema 不等于评测套件有效。
 
@@ -246,8 +246,8 @@ CI 运行成功不等于评测成功；依赖安装成功不等于 Skill 运行�
 - **P3 真实 Skill Pilot：** WB-CORE-02、WB-CORE-12、WB-CORE-14 均由 DSH 调用上游 webapp-testing Skill 执行，原始证据分别归档为 14625780995、14625492287、14625534646。
 - **P4 Gold Oracle：** 首次 3/3 FAIL 被定位为 Oracle 报告检查过度要求规则 ID 字面量，并混合原始报告与最终报告。修正后对同一批不可变 Builder/Pilot 证据离线重判，业务行为 PASS 3/3；run 44733891829。未重跑 Builder 或 Pilot。
 - **成本审计：** 三条 Pilot 的累计 Trace Token Usage 为 634,679、680,321、2,625,818。WB-CORE-14 的 40 条 usage 记录是一个 DSH turn 内的 40 个模型步骤，不是 40 个对话轮次。详细分段和成本归因见 `benchmarks/reports/builder-output-offline-review-2026-11-20.md`。
-- **运行器改进：** Runner 现在统计模型步骤/turn、工具调用和 Token 用量；执行期间监控并在超限时终止 DSH；实际记录 DSH 起止时间；有效 DSH wall-clock 上限不得超过 Builder 用例声明的 case timeout。离线测试覆盖预算计算、超限终止和 turn/step 口径。
-- **CI 验证：** run 44749360058 和 44749684378 均通过；最新验证包含 169 项离线测试。两次验证中的 Builder production、Runtime preflight 和 Pilot 付费 job 均为 skipped，没有启动新模型执行。
+- **运行器改进：** Runner 现在统计模型步骤/turn、工具调用和 Token 用量；执行期间监控并在超限时终止 DSH；实际记录 DSH 起止时间；有效 DSH wall-clock 上限不得超过 Builder 用例声明的 case timeout。离线测试覆盖预算计算、超限终止和 turn/step 口径。剩余 11 条用例的场景分类与 Oracle 缺口见 `benchmarks/reports/remaining-pilot-readiness-2026-11-20.md`。
+- **CI 验证：** run 44749360058、44749684378 和 44751563875 均通过；最新验证包含 169 项离线测试。两次验证中的 Builder production、Runtime preflight 和 Pilot 付费 job 均为 skipped，没有启动新模型执行。
 
 ### 已知限制与未决事项
 
