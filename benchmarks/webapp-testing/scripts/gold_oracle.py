@@ -1655,6 +1655,21 @@ def self_test() -> int:
         )
         (cancel_artifacts / "report.md").write_text(cancel_report, encoding="utf-8")
         (cancel_artifacts / "evidence.json").write_text("{}", encoding="utf-8")
+        cancel_rows = "".join(
+            f'<tr><td>{item["title"]}</td><td>{item["priority"]}</td><td>{item["status"]}</td></tr>'
+            for item in INITIAL
+        )
+        cancel_table = f"<table><tbody>{cancel_rows}</tbody></table>"
+        cancel_dialog = (
+            '<dialog id="delete-dialog" aria-labelledby="delete-heading">'
+            '<h2 id="delete-heading">Delete task?</h2>'
+            '<button>Cancel</button><button>Delete task</button></dialog>'
+        )
+        (cancel_artifacts / "dialog-open.html").write_text(
+            cancel_table + cancel_dialog.replace('<dialog id="delete-dialog"', '<dialog id="delete-dialog" open'),
+            encoding="utf-8",
+        )
+        (cancel_artifacts / "after-cancel.html").write_text(cancel_table + cancel_dialog, encoding="utf-8")
         for index in range(3):
             (cancel_artifacts / f"cancel-step-{index}.png").write_bytes(b"test-image")
         (cancel_pilot / "dsh-events.jsonl").write_text(
