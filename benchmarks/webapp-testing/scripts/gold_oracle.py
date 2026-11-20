@@ -759,6 +759,8 @@ def adjudicate_remaining_case(case: dict, pilot: Path, role: str) -> dict:
     def add(name, condition, evidence):
         add_check(checks, name, condition, evidence if isinstance(evidence, str) else json.dumps(evidence, ensure_ascii=False))
 
+    add("Canonical target report is archived", report_ok, "A target-produced Markdown report is required as evidence.")
+
     if role == "initial_board":
         expected = normalized_tasks({"tasks": td.get("expected_tasks") or []})
         summary = td.get("expected_summary") or initial_summary
@@ -827,20 +829,21 @@ def adjudicate_remaining_case(case: dict, pilot: Path, role: str) -> dict:
         dom_ok = None if not snaps else bool(dom_states) and all(item["dom_match"] for item in dom_states) and dom_summary_ok(snaps, td.get("expected_summary") or initial_summary)
         state_ok = (pre_ok and tasks_match_declared(post_tasks, initial_tasks)) if state_available else None
         add("Combined query/filter states match all Builder-declared result counts", counts_ok, observations)
-        add("Rendered DOM contains expected result rows and unchanged summary", dom_ok, {"titles": expected_titles, "rows": rows})
+        add("Rendered DOM contains each expected query/filter state and unchanged summary", dom_ok, {"states": dom_states, "rows": rows})
         add("Combined search/filter remained read-only", no_writes and state_ok, writes)
 
     elif role == "accessible_names":
         expected = td.get("expected_controls") or []
         controls = dom_controls(snaps)
         missing = [item for item in expected if not any(control["role"] == item.get("role") and control["name"] == item.get("name") for control in controls)]
-        dialog_ok = any(item["role"] == "dialog" and item["name"] == "Delete task?" for item in controls)
-        actions_ok = any(item["role"] == "button" and item["name"] == "Cancel" for item in controls) and any(item["role"] == "button" and item["name"] == "Delete task" for item in controls)
-        state_ok = pre_ok and tasks_match_declared(post_tasks, initial_tasks) and post.get("summary") == initial_summary
-        add("Every Builder-declared role/accessibility-name pair exists in rendered DOM", bool(expected) and not missing, {"missing": missing, "observed": controls})
-        add("Delete dialog exposes its semantic name and safe action names", dialog_ok and actions_ok, {"dialog": dialog_ok, "actions": actions_ok})
-        add("Accessibility inspection and Cancel caused no application mutation", not writes and state_ok, writes)
-        behavior = "PASS" if expected and not missing and dialog_ok and actions_ok and not writes and state_ok and report_ok else "FAIL"
+        dom_available = bool(snaps)
+        names_ok = (bool(expected) and not missing) if dom_available else None
+        dialog_ok = any(item["role"] == "dialog" and item["name"] == "Delete task?" for item in controls) if dom_available else None
+        actions_ok = (any(item["role"] == "button" and item["name"] == "Cancel" for item in controls) and any(item["role"] == "button" and item["name"] == "Delete task" for item in controls)) if dom_available else None
+        state_ok = (pre_ok and tasks_match_declared(post_tasks, initial_tasks) and post.get("summary") == initial_summary) if state_available else None
+        add("Every Builder-declared role/accessibility-name pair exists in rendered DOM", names_ok, {"missing": missing, "observed": controls})
+        add("Delete dialog exposes its semantic name and safe action names", (dialog_ok and actions_ok) if dom_available else None, {"dialog": dialog_ok, "actions": actions_ok})
+        add("Accessibility inspection and Cancel caused no application mutation", no_writes and state_ok, writes)
 
     elif role == "visible_title_mapping":
         target, title = td.get("target_data_id"), td.get("target_visible_title")
@@ -849,14 +852,14 @@ def adjudicate_remaining_case(case: dict, pilot: Path, role: str) -> dict:
             if title and title in row and td.get("expected_status") in row and td.get("expected_button") in row
         ]
         data_id_as_text = any(target and target in row for row in rows)
-        state_ok = pre_ok and any(item.get("id") == target and item.get("title") == title and item.get("status") == normalize_status(td.get("expected_status")) for item in pre_tasks) and tasks_match_declared(post_tasks, initial_tasks)
+        state_ok = (pre_ok and any(item.get("id") == target and item.get("title") == title and item.get("status") == normalize_status(td.get("expected_status")) for item in pre_tasks) and tasks_match_declared(post_tasks, initial_tasks)) if state_available else None
         matching_ok = None if not snaps else any(
             sum(1 for row in dom_rows([snap]) if title and title in row and td.get("expected_status") in row and td.get("expected_button") in row) == 1
             for snap in snaps
         )
         add("Public visible title identifies exactly one row with expected status and action", matching_ok, matching)
         add("Opaque data ID is absent from rendered row text", None if not snaps else not data_id_as_text, rows)
-        add("Title mapping remained read-only and preserved state", not writes and state_ok, {"writes": writes, "pre_matches": pre_ok})
+        add("Title mapping remained read-only and preserved state", no_writes and state_ok, {"writes": writes, "pre_matches": pre_ok})
         behavior = "PASS" if matching_ok and not data_id_as_text and not writes and state_ok and report_ok else "FAIL"
 
     elif role in {"create_success", "create_boundary_80"}:
