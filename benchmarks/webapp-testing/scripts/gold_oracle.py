@@ -777,14 +777,25 @@ def adjudicate_remaining_case(case: dict, pilot: Path, role: str) -> dict:
         successful = [item for item in events if item.get("status") == 201 and item.get("action") == "created"]
         created = successful[0].get("item") if len(successful) == 1 else {}
         new_items = [item for item in post_tasks if item.get("id") not in {old.get("id") for old in initial_tasks}]
-        server_ok = len(events) == 1 and len(successful) == 1 and created.get("title") == title and created.get("priority") == priority and normalize_status(created.get("status")) == status and bool(created.get("id"))
-        state_ok = len(new_items) == 1 and new_items[0].get("title") == title and new_items[0].get("priority") == priority and new_items[0].get("status") == status and post.get("summary") == (td.get("expected_summary") or {}) and pre_ok
+        expected_description = td.get("description")
+        title_length_ok = role != "create_boundary_80" or (isinstance(title, str) and len(title) == td.get("title_length") == 80)
+        server_ok = (
+            len(events) == 1 and len(successful) == 1
+            and created.get("title") == title and created.get("priority") == priority
+            and normalize_status(created.get("status")) == status and bool(created.get("id"))
+            and (expected_description is None or created.get("description") == expected_description)
+        )
+        allowed_create_only = len(writes) == 1 and writes[0].get("method") == "POST" and writes[0].get("path") == "/api/tasks" and writes[0].get("status") == 201 and writes[0].get("action") == "created"
+        preserves_initial = tasks_match_declared(post_tasks, initial_tasks)
+        state_ok = len(new_items) == 1 and new_items[0].get("title") == title and new_items[0].get("priority") == priority and new_items[0].get("status") == status and post.get("summary") == (td.get("expected_summary") or {}) and pre_ok and preserves_initial
         messages = dom_by_id(snaps, "status-message")
         dom_ok = any(title and title in row for row in rows) and any(created.get("id") and created.get("id") in item["text"] for item in messages) and dom_summary_ok(snaps, td.get("expected_summary") or {})
-        add("Exactly one server-audited create matches title, priority and status", server_ok, {"events": events, "created": created, "expected_title": title})
+        add("Exactly one server-audited create matches title, priority, status and declared description", server_ok, {"events": events, "created": created, "expected_title": title})
+        add("Eighty-character boundary input is exactly the declared length", title_length_ok, {"declared_length": td.get("title_length"), "observed_length": len(title) if isinstance(title, str) else None})
+        add("Only one successful create write occurred; the initial tasks were preserved", allowed_create_only and preserves_initial, {"writes": writes, "preserves_initial": preserves_initial})
         add("Post-state has exactly one new item and expected summary", state_ok, {"new_items": new_items, "summary": post.get("summary")})
-        add("Rendered DOM shows the created item and summary", dom_ok, rows)
-        behavior = "PASS" if server_ok and state_ok and dom_ok and report_ok else "FAIL"
+        add("Rendered DOM shows the created item, returned ID and summary", dom_ok, {"rows": rows, "status_message": messages})
+        behavior = "PASS" if server_ok and title_length_ok and allowed_create_only and state_ok and dom_ok and report_ok else "FAIL"
 
     elif role == "create_rejected":
         events = [item for item in audit if item.get("method") == "POST" and item.get("path") == "/api/tasks"]
