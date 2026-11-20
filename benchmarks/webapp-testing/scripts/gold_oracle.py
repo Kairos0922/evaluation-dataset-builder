@@ -414,8 +414,10 @@ def base_checks(case: dict, pilot: Path, checks: list[dict]) -> tuple[dict, list
         add_check(checks, "Runner result archived", None, "runner-result.json is missing")
         return {}, [], {"trace": {}, "expected_user_turns": None}
     runner = load_json(runner_path)
-    trace = read_trace(trace_path) if trace_path.is_file() else {}
-    audit = load_jsonl(audit_path)
+    trace_available = trace_path.is_file()
+    audit_available = audit_path.is_file()
+    trace = read_trace(trace_path) if trace_available else {}
+    audit = load_jsonl(audit_path) if audit_available else []
 
     user_input = case.get("user_input")
     expected_turns = len(user_input) if isinstance(user_input, list) else 1
@@ -426,32 +428,38 @@ def base_checks(case: dict, pilot: Path, checks: list[dict]) -> tuple[dict, list
     )
     add_check(
         checks, "Target Skill invoked through an actual DSH tool call",
-        bool(trace) and trace.get("skill_calls", 0) > 0 and trace.get("completed_skill_calls", 0) > 0,
+        (bool(trace) and trace.get("skill_calls", 0) > 0 and trace.get("completed_skill_calls", 0) > 0) if trace_available else None,
         f"calls={trace.get('skill_calls')}; completed={trace.get('completed_skill_calls')}",
     )
-    add_check(checks, "DSH final reason is completed", trace.get("final_reason") == "completed" if trace else None, str(trace.get("final_reason")))
+    add_check(checks, "DSH final reason is completed", trace.get("final_reason") == "completed" if trace_available and trace else None, str(trace.get("final_reason")))
     add_check(
         checks, "DSH turn count matches the Builder case",
-        trace.get("turn_start_count") == expected_turns and trace.get("turn_end_count") == expected_turns if trace else None,
+        trace.get("turn_start_count") == expected_turns and trace.get("turn_end_count") == expected_turns if trace_available and trace else None,
         f"expected={expected_turns}; starts={trace.get('turn_start_count')}; ends={trace.get('turn_end_count')}",
     )
-    add_check(checks, "One DSH session identity was used", len(trace.get("session_ids", [])) == 1 if trace else None, str(trace.get("session_ids", [])))
-    add_check(checks, "Runner completed every submitted user turn", runner.get("completed_user_turn_count") == expected_turns and len(runner.get("session_turn_results") or []) == expected_turns, f"expected={expected_turns}; completed={runner.get('completed_user_turn_count')}")
-    add_check(checks, "Fixture server was closed after the run", runner.get("server_port_closed") is True, str(runner.get("server_port_closed")))
+    add_check(checks, "One DSH session identity was used", len(trace.get("session_ids", [])) == 1 if trace_available and trace else None, str(trace.get("session_ids", [])))
+    runner_turn_fields = "completed_user_turn_count" in runner and "session_turn_results" in runner
+    add_check(checks, "Runner completed every submitted user turn", runner.get("completed_user_turn_count") == expected_turns and len(runner.get("session_turn_results") or []) == expected_turns if runner_turn_fields else None, f"expected={expected_turns}; completed={runner.get('completed_user_turn_count')}")
+    add_check(checks, "Fixture server was closed after the run", runner.get("server_port_closed") is True if "server_port_closed" in runner else None, str(runner.get("server_port_closed")))
     required = runner.get("required_skill_evidence") or {}
+    evidence_keys = ("markdown_report", "json_evidence_index", "screenshot")
+    evidence_status = all(required.get(key) is True for key in evidence_keys) if all(key in required for key in evidence_keys) else None
     add_check(
         checks, "Required report, JSON evidence and screenshot exist",
-        all(required.get(key) is True for key in ("markdown_report", "json_evidence_index", "screenshot")),
+        evidence_status,
         json.dumps(required, ensure_ascii=False),
     )
     paths = [event.get("path", "") for event in audit]
-    add_check(
-        checks, "Server audit contains only origin-relative application paths",
+    audit_paths_ok = (
         bool(paths) and all(
             isinstance(value, str) and value.startswith("/") and not value.startswith("//") and "://" not in value
             for value in paths
-        ),
-        f"request_count={len(paths)}",
+        )
+    ) if audit_available else None
+    add_check(
+        checks, "Server audit contains only origin-relative application paths",
+        audit_paths_ok,
+        f"audit_available={audit_available}; request_count={len(paths)}",
     )
     reset_events = [
         event for event in audit
@@ -459,10 +467,17 @@ def base_checks(case: dict, pilot: Path, checks: list[dict]) -> tuple[dict, list
     ]
     add_check(
         checks, "Runner performed exactly one initial reset and target did not reset again",
-        len(reset_events) == 1 and bool(audit) and audit[0] is reset_events[0],
-        f"reset_count={len(reset_events)}; first_event={audit[0] if audit else None}",
+        (len(reset_events) == 1 and bool(audit) and audit[0] is reset_events[0]) if audit_available else None,
+        f"audit_available={audit_available}; reset_count={len(reset_events)}; first_event={audit[0] if audit else None}",
     )
-    return runner, audit, {"trace": trace, "expected_user_turns": expected_turns}
+    state_available = isinstance(runner.get("pre_state"), dict) and isinstance(runner.get("post_state"), dict)
+    return runner, audit, {
+        "trace": trace,
+        "expected_user_turns": expected_turns,
+        "trace_available": trace_available,
+        "audit_available": audit_available,
+        "state_available": state_available,
+    }
 
 
 def audit_writes(audit: list[dict]) -> list[dict]:
