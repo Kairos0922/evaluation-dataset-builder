@@ -60,16 +60,19 @@ def normalized_tasks(state: dict | None) -> list[dict]:
     rows = state.get("items") or state.get("tasks") or []
     if not isinstance(rows, list):
         return []
+    canonical_by_id = {item["id"]: item for item in INITIAL}
     result = []
     for item in rows:
         if not isinstance(item, dict):
             continue
+        task_id = item.get("id") or item.get("data_id")
+        canonical = canonical_by_id.get(task_id, {})
         result.append({
-            "id": item.get("id") or item.get("data_id"),
-            "title": item.get("title"),
-            "description": item.get("description"),
-            "priority": item.get("priority"),
-            "status": str(item.get("status", "")).lower().replace(" ", "_"),
+            "id": task_id,
+            "title": item.get("title") or item.get("visible_title") or canonical.get("title"),
+            "description": item.get("description") if item.get("description") is not None else canonical.get("description"),
+            "priority": item.get("priority") if item.get("priority") is not None else canonical.get("priority"),
+            "status": normalize_status(item.get("status") if item.get("status") is not None else canonical.get("status")),
         })
     return result
 
@@ -570,7 +573,7 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
             for title in values if isinstance(title, str)
         ))
         if declared_titles:
-            expected_tasks = [item for item in initial_tasks if item.get("title") in declared_titles]
+            expected_tasks = [{"title": title} for title in declared_titles]
         report_mentions_expected_tasks = bool(expected_tasks) and all(
             item.get("title") and item["title"] in report_text for item in expected_tasks
         )
@@ -932,6 +935,15 @@ def self_test() -> int:
     assert expected_status_transitions(builder_real_shape, real_target) == [("open", "in_progress")]
     builder_search_shape_real = {"reference_outcome": {"query": "review"}}
     assert extract_search_queries(builder_search_shape_real, INITIAL) == ["review"]
+    builder_visible_title_shape = {"execution_requirements": {"initial_state": {"tasks": [
+        {"data_id": "WB-105", "visible_title": "Review accessibility", "status": "In progress"}
+    ]}}}
+    normalized_visible = normalized_tasks(builder_visible_title_shape["execution_requirements"]["initial_state"])
+    assert normalized_visible == [{
+        "id": "WB-105", "title": "Review accessibility",
+        "description": "Check labels, keyboard order, and status messages.",
+        "priority": "Medium", "status": "in_progress",
+    }], normalized_visible
     builder_delete_case = {
         "execution_requirements": {"test_data": ["WB-103 Fix export timeout，初始 Done"]},
     }
