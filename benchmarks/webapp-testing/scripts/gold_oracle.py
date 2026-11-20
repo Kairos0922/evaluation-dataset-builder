@@ -893,6 +893,24 @@ def self_test() -> int:
     }
     contract_delete_target = target_task(builder_contract_delete_case, INITIAL)
     assert contract_delete_target and contract_delete_target["id"] == "WB-102", contract_delete_target
+
+    # Regression: real Builder outputs use data_id in initial_state and task_id
+    # plus direct from_status/to_status and reference_outcome.query fields.
+    builder_real_shape = {
+        "user_input": "操作 WB-104 Verify email notification 从 Open 变为 In progress。",
+        "reference_outcome": {"task_id": "WB-104", "from_status": "Open", "to_status": "In progress"},
+        "execution_requirements": {
+            "initial_state": {"tasks": [{"data_id": item["id"], "title": item["title"], "status": item["status"]} for item in INITIAL]},
+            "test_data": [{"kind": "ui_only_status_transition", "task_id": "WB-104"}],
+        },
+    }
+    real_tasks = normalized_tasks(builder_real_shape["execution_requirements"]["initial_state"])
+    assert [item["id"] for item in real_tasks] == [item["id"] for item in INITIAL]
+    real_target = target_task(builder_real_shape, real_tasks)
+    assert real_target and real_target["id"] == "WB-104", real_target
+    assert expected_status_transitions(builder_real_shape, real_target) == [("open", "in_progress")]
+    builder_search_shape_real = {"reference_outcome": {"query": "review"}}
+    assert extract_search_queries(builder_search_shape_real, INITIAL) == ["review"]
     builder_delete_case = {
         "execution_requirements": {"test_data": ["WB-103 Fix export timeout，初始 Done"]},
     }
