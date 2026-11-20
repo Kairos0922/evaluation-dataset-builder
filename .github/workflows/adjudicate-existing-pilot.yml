@@ -66,6 +66,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          artifacts_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100")"
           if jq -e 'any(.artifacts[]; .name == "webapp-testing-builder-result" and .expired == false)' \
             <<< "$artifacts_json" >/dev/null; then
             gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" \
