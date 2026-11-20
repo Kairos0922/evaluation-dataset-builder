@@ -1,6 +1,6 @@
 # webapp-testing 双 Skill 实验契约
 
-**状态：** 当前已完成本轮三用例 Pilot 阶段：P0 资产冻结 PASS；P1 Builder 正式生产 PASS；P2 对真实 Builder 产物的独立验证 PASS；P3 三条真实 Skill Pilot 已执行；P4 修正后的独立 Gold Oracle 对三条用例的业务行为判定为 3/3 PASS。P5 已完成历史 DSH Trace 成本审计，并实现运行时 Token/步骤/时间上限，离线 CI 验证通过。历史 WB-CORE-14 的实际 DSH wall-clock 未被旧 Runner 单独记录，其 240 秒预算合规状态为 UNKNOWN。**本状态只代表三用例 Pilot 阶段完成，不代表 14 条用例全部执行，也不代表完成 A0/A1、B0/B1 全交叉回归。** PR 默认不触发付费模型调用；后续付费执行须显式授权。  
+**状态：** 当前已完成三用例 Pilot 阶段：P0 资产冻结 PASS；P1 Builder 正式生产 PASS；P2 对真实 Builder 产物的独立验证 PASS；P3 三条真实 Skill Pilot 已执行；P4 修正后的独立 Gold Oracle 对三条用例的业务行为判定为 3/3 PASS。P5 已完成历史 DSH Trace 成本审计、Runner Token/步骤/时间预算控制，以及剩余 11 个 Builder 用例语义角色的离线 Selector/Gold Oracle 扩展。最新代码验证 run 44756938809 通过 185 项离线测试、Oracle 自检和产物审计；Runner preflight run 44756928738 通过。**新增 11 个角色只表示代码路径已覆盖并经合成证据自测，不表示 11 条真实 Builder 用例已执行。它们仍全部为 NOT_RUN。** 历史 WB-CORE-14 的实际 DSH wall-clock 未被旧 Runner 单独记录，其 240 秒预算合规状态为 UNKNOWN。**本状态仍只代表三用例 Pilot 真实执行完成，不代表 14 条用例全部执行，也不代表完成 A0/A1、B0/B1 全交叉回归。** PR 默认不触发付费模型调用；后续付费执行须显式授权。  
 **实验对象：** Anthropic `webapp-testing`  
 **Builder：** Evaluation Dataset Builder `0.0.1`  
 **实验运行环境：** GitHub Actions + DSH Headless  
@@ -232,7 +232,7 @@ Oracle 无法确定的情况应保持 UNKNOWN，不得强制归入 PASS/FAIL。�
 | P2 套件验收 | 对真实 Builder 输出执行 Schema、来源、覆盖和执行契约验证 | 独立验证器 PASS；不得手工补写用例 | PASS；run 44726278657，validator artifact 14624652990 |
 | P3 B0 消费 | DSH Headless 调用 webapp-testing | 三条 Builder 用例由真实 Skill 执行并保存原始证据 | PASS；run 44726278657，Pilot artifacts 14625780995、14625492287、14625534646 |
 | P4 双路判定 | 执行 Builder grading 契约并运行独立 Gold Oracle | 三条业务行为判定均 PASS，差异有证据 | 业务行为 PASS 3/3；离线重判 run 44733891829。WB-CORE-14 历史 DSH 时间预算状态 UNKNOWN |
-| P5 回归报告与成本 | 固化结果、成本、环境、差异；为后续执行设置硬预算 | Trace 统计、运行预算、停止策略和 CI 测试可复核 | 部分完成；成本报告与 Runner 硬预算已提交，CI run 44749360058 / 44749684378 / 44751563875 PASS；新预算尚未经付费 Pilot 实测 |
+| P5 回归报告与成本 | 固化结果、成本、环境、差异；为后续执行设置硬预算 | Trace 统计、运行预算、停止策略、剩余用例 Selector/Oracle 离线分支和自检可复核 | 离线门禁 PASS：run 44756938809（185 项测试 + Gold Oracle 自检 + 归档产物检查），runner preflight run 44756928738 PASS；11 个新增角色仅用合成证据自测；Runner 预算尚未经新的付费 DSH Pilot 实测 |
 
 CI 运行成功不等于评测成功；依赖安装成功不等于 Skill 运行成功；Builder 产物通过 Schema 不等于评测套件有效。
 
@@ -247,14 +247,18 @@ CI 运行成功不等于评测成功；依赖安装成功不等于 Skill 运行�
 - **P4 Gold Oracle：** 首次 3/3 FAIL 被定位为 Oracle 报告检查过度要求规则 ID 字面量，并混合原始报告与最终报告。修正后对同一批不可变 Builder/Pilot 证据离线重判，业务行为 PASS 3/3；run 44733891829。未重跑 Builder 或 Pilot。
 - **成本审计：** 三条 Pilot 的累计 Trace Token Usage 为 634,679、680,321、2,625,818。WB-CORE-14 的 40 条 usage 记录是一个 DSH turn 内的 40 个模型步骤，不是 40 个对话轮次。详细分段和成本归因见 `benchmarks/reports/builder-output-offline-review-2026-11-20.md`。
 - **运行器改进：** Runner 现在统计模型步骤/turn、工具调用和 Token 用量；执行期间监控并在超限时终止 DSH；实际记录 DSH 起止时间；有效 DSH wall-clock 上限不得超过 Builder 用例声明的 case timeout。离线测试覆盖预算计算、超限终止和 turn/step 口径。剩余 11 条用例的场景分类与 Oracle 缺口见 `benchmarks/reports/remaining-pilot-readiness-2026-11-20.md`。
-- **CI 验证：** run 44749360058、44749684378 和 44751563875 均通过；最新验证包含 169 项离线测试。两次验证中的 Builder production、Runtime preflight 和 Pilot 付费 job 均为 skipped，没有启动新模型执行。
+- **CI 验证：** 最新完整 PR 验证 run [44756938809](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44756938809) 通过，执行 185 项离线测试，并通过 Gold Oracle 自检、真实 Builder 产物审计与 selector 自检。Runner preflight run [44756928738](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44756928738) 通过。该 PR run 中的 runtime-preflight、Builder production、independent-validation、resolve-pilot-matrix、webapp-testing-pilot 和 adjudicate-pilot 付费/运行阶段均为 skipped；本阶段没有发起新的 DSH 或模型调用。
 
 ### 已知限制与未决事项
 
 - 14 条 Builder 用例中只有 3 条完成真实 Pilot；其余 11 条尚未执行。本轮三用例 Pilot 的通过结果不得推广为整套 14 条用例全部通过。
 - WB-CORE-14 的旧 Runner 只记录了 `case_timeout_seconds=240` 和配置的 `dsh_timeout_seconds=1500`，没有记录 DSH 进程自己的起止时间。整个 Runner wall-clock 为 362.596 秒，超过 240 秒，但包含夹具启动和清理，因此不能据此直接断言 DSH 本身超时；历史时间预算合规状态为 UNKNOWN。
 - 新 Runner 的预算监控和硬停止已通过离线测试，但尚未通过新的付费 Pilot 实测。不能把代码测试等同于真实 DSH 环境下的预算控制实证。
-- 当前独立 Gold Oracle 和 Pilot selector 只覆盖三种语义角色：search mutation、state cycle、delete confirmation。若要执行其余 11 条用例，必须先为相应场景补齐独立 Oracle 判定和语义选择器，尤其是控件可访问名称、筛选组合、创建成功/拒绝和只读侦察。
+- **真实执行范围仍为三条 Pilot。** 其余 11 条 Builder 正式用例尚未执行，不能从离线代码测试推断它们真实通过。
+- **离线 Selector 扩展：** resolve_pilot_matrix.py 增加 11 种额外语义角色，只有显式传入 --include-remaining-candidates 才会解析；默认角色集合仍严格限定为三条已验收 Pilot。分流以结构化 test_data.kind 为主条件，并要求业务规则和工作流引用交叉匹配。
+- **离线 Gold Oracle 扩展：** 为初始状态、描述搜索、空搜索、状态过滤、组合过滤、可访问名称、可见标题映射、成功创建、拒绝创建、80 字符边界和删除取消增加独立判定分支。Oracle 根据服务端请求审计、前后状态和渲染 DOM 快照判定，不把 Skill 自述作为唯一事实来源。缺少关键 DOM、审计或状态证据时返回 UNKNOWN。
+- **独立自测边界：** 185 项测试使用合成的审计/状态/HTML 证据验证 Oracle 分支；这些夹具不是 Builder 正式产物，也不是 webapp-testing 的真实运行，不得将自测 PASS 记入 11 条用例的执行结果。
+- **DOM 证据要求：** 对 WB-CORE-07 和 WB-CORE-13，正式执行必须归档打开对话框与取消后的 HTML/DOM 快照；Oracle 需要核对语义名称、Cancel/Delete 按钮、对话框关闭状态和目标行保留。只有截图或 Skill 报告不足以证明可访问名称和对话框语义。
 - 当前没有 DeepSeek 实际账单导出，因此 Trace Token Usage 不可直接换算为美元费用。
 - `BR-09-RF` 请求失败分支仍为 `needs_info`，不得伪造故障注入条件补齐。
 
@@ -263,6 +267,6 @@ CI 运行成功不等于评测成功；依赖安装成功不等于 Skill 运行�
 1. PR #38 保持 Draft/Open，不得合并或关闭；`run-builder-production` 标签保持移除。
 2. 不重新生成已经通过独立验证的 Builder 数据集，除非 Builder 输入或规则发生实质变化且用户明确授权新的付费生产。
 3. 新的 Pilot 必须使用已提交的 Runner 硬预算，并逐条执行、逐条审查成本；不得并发启动一批模型任务而失去累计成本控制。
-4. 在为剩余 11 条用例补齐独立 Oracle 前，不得启动它们的正式 Pilot。
+4. 剩余 11 条用例的离线 Selector/Oracle 分支和合成自测已完成，但它们仍全部是 NOT_RUN。只有取得额外付费执行的明确授权后，才可考虑逐条启动；离线自测不得作为真实执行证据。
 5. 如果触发任何 Token、模型步骤或时间上限，Runner 应停止 DSH、保存部分证据并将该用例标记为 BLOCKED；禁止自动重试或自动模型修复。
 6. 实际美元成本必须从模型提供方账单/用量导出中核对，不能从缓存读取 Token 数量推断。
