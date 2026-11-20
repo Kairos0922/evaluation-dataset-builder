@@ -38,18 +38,21 @@ Run `44733891829` re-downloaded the original Builder artifact and the three orig
 
 | Case | Pilot role | Contract verdict | Oracle verdict | Business behavior |
 |---|---|---:|---:|---|
-| `WB-CORE-02` | search_mutation | PASS | PASS | EXPECTED_VIOLATION_DETECTED |
-| `WB-CORE-12` | state_cycle | PASS | PASS | PASS |
-| `WB-CORE-14` | delete_confirmation | PASS | PASS | PASS |
+| `WB-CORE-02` | search_mutation | PASS | PASS | EXPECTED_VIOLATION_DETECTED | PASS (runner 137.3s; case budget 180s) |
+| `WB-CORE-12` | state_cycle | PASS | PASS | PASS | PASS (runner 167.9s; case budget 300s) |
+| `WB-CORE-14` | delete_confirmation | PASS | PASS | PASS | UNKNOWN (runner 362.6s; case budget 240s; actual DSH elapsed not recorded) |
 
-**Adjudication summary:** `status=PASS`, `case_count=3`, `passed_cases=3`, `failed_cases=0`, `verdict_counts={"PASS": 3}`.
+**Business-behavior adjudication:** `status=PASS`, `case_count=3`, `passed_cases=3`, `failed_cases=0`, `verdict_counts={"PASS": 3}`.
 
-The search-mutation case is a controlled synthetic defect. Its expected outcome is that the Skill detects and reports the defect, not that the mutated application passes the business rule.
+**Execution-budget evidence:** 2 cases are demonstrably within their declared budgets because total runner wall time is below the budget. WB-CORE-14 is UNKNOWN: its total runner wall time exceeded the 240-second case budget, but includes fixture setup/teardown and the old runner did not record the DSH process's own elapsed time. Its exact budget compliance cannot be reconstructed from the archived trace.
+
+The search-mutation case is a controlled synthetic defect. Its expected outcome is that the Skill detects and reports the defect, not that the mutated application passes the business rule. The three business-behavior PASS verdicts must not be presented as proof that every operational execution constraint passed.
 
 ## Gate status and limitations
 
 - The formal Builder production and independent Builder validation gates passed in the original run.
-- The three real Skill Pilot executions completed and the corrected independent Oracle adjudicated all three PASS.
+- The three real Skill Pilot executions completed and the corrected independent Oracle adjudicated all three business-behavior outcomes PASS.
+- Operational case-budget compliance is PASS for WB-CORE-02 and WB-CORE-12; WB-CORE-14 remains UNKNOWN because the old runner did not record DSH elapsed time separately.
 - The replay establishes the result for these three selected cases only. It does not establish that every generated case has been executed or that the full generated suite meets all release gates.
 - PR #38 remains Draft/Open and unmerged.
 - The `run-builder-production` opt-in label was removed after the original production run to prevent accidental paid Builder executions. No new Builder or Pilot model execution is authorized by this report.
