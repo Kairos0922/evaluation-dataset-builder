@@ -500,7 +500,7 @@ def self_test() -> int:
             })
         remaining_dataset_path = remaining_root / "datasets" / "D-REMAINING.jsonl"
         remaining_dataset_path.write_text(
-            "".join(json.dumps(case, ensure_ascii=False) + "\\n" for case in remaining_cases),
+            "".join(json.dumps(case, ensure_ascii=False) + "\n" for case in remaining_cases),
             encoding="utf-8",
         )
         (remaining_root / "SUITE-MANIFEST.json").write_text(json.dumps({
