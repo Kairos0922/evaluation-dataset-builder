@@ -1126,6 +1126,13 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
                 and tasks_match_declared(post_tasks, initial_tasks)
                 and post.get("summary") == expected_summary
             )
+            dom_snapshots = parse_dom_snapshots(pilot)
+            dom_controls_seen = dom_controls(dom_snapshots)
+            dialog_dom_ok = any(item["role"] == "dialog" and item["name"] == "Delete task?" for item in dom_controls_seen) if dom_snapshots else None
+            cancel_dom_ok = any(item["role"] == "button" and item["name"] == "Cancel" for item in dom_controls_seen) if dom_snapshots else None
+            delete_dom_ok = any(item["role"] == "button" and item["name"] == "Delete task" for item in dom_controls_seen) if dom_snapshots else None
+            target_dom_ok = any(target_title and target_title in row for row in dom_rows(dom_snapshots)) if dom_snapshots else None
+            dom_ok = (dialog_dom_ok and cancel_dom_ok and delete_dom_ok and target_dom_ok) if dom_snapshots else None
             report_ok = (
                 skill_report_exists
                 and bool(target_title) and target_title in report_text
@@ -1146,6 +1153,11 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
                 f"pre_initial={pre_is_initial}; retained={expected_retained}; target_id={target_id}; post_ids={[item['id'] for item in post_tasks]}; summary={post.get('summary')}; expected_summary={expected_summary}",
             )
             add_check(
+                checks, "Rendered DOM independently confirms the open dialog, Cancel/Delete actions and visible target",
+                dom_ok,
+                json.dumps({"dialog": dialog_dom_ok, "cancel": cancel_dom_ok, "delete": delete_dom_ok, "target": target_dom_ok}, ensure_ascii=False),
+            )
+            add_check(
                 checks, "Target report documents the dialog, Cancel choice and safe outcome",
                 report_ok,
                 f"BR-08 cancel scenario, target {target_id} ({target_title}), dialog, Cancel, no deletion and PASS inspected",
@@ -1155,7 +1167,7 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
                 len(screenshots) >= 3,
                 f"screenshot_count={len(screenshots)}",
             )
-            behavior = "PASS" if no_delete_or_write and state_matches and report_ok and len(screenshots) >= 3 else "FAIL"
+            behavior = "PASS" if no_delete_or_write and state_matches and report_ok and dom_ok and len(screenshots) >= 3 else "FAIL"
         else:
             expected_after = [
                 item for item in initial_tasks
