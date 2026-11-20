@@ -1139,6 +1139,80 @@ def self_test() -> int:
                 "EXPECTED_VIOLATION_DETECTED" if role == "search_mutation" else "PASS"
             ), (role, result)
         assert verdicts == {role: "PASS" for role in roles}, verdicts
+        # Regression: Builder-authored delete-cancel cases must be adjudicated
+        # as cancellation, not as a confirmed-delete scenario. This mirrors
+        # WB-C10's actual schema and verifies no DELETE is required.
+        cancel_case = {
+            "case_id": "DYNAMIC-DELETE-CANCEL-04",
+            "dataset_id": "generated",
+            "user_input": "点击 WB-103 行的 Delete，确认对话框出现后点击 Cancel；不要点击 Delete task。",
+            "reference_outcome": {
+                "rule_expected": {
+                    "dialog_shown": True,
+                    "cancel_closes": True,
+                    "task_retained": "WB-103",
+                    "summary_unchanged": INITIAL_SUMMARY,
+                },
+            },
+            "execution_requirements": {
+                "initial_state": {"tasks": INITIAL, "summary": INITIAL_SUMMARY},
+                "test_data": [{
+                    "kind": "delete_cancel",
+                    "task_id": "WB-103",
+                    "expected_rule_state": {
+                        "dialog_shown": True,
+                        "cancel_closes": True,
+                        "task_retained": "WB-103",
+                        "summary_unchanged": INITIAL_SUMMARY,
+                    },
+                }],
+            },
+        }
+        assert is_delete_cancel_case(cancel_case)
+        cancel_pilot = root / "delete_cancel_regression"
+        cancel_artifacts = cancel_pilot / "skill-artifacts"
+        cancel_artifacts.mkdir(parents=True)
+        cancel_report = (
+            "# BR-08 PASS: WB-103 Fix export timeout. Delete button opened the confirmation dialog. "
+            "Clicked Cancel; dialog closed and WB-103 remained. The task set and summary were unchanged. "
+            "Delete task was not clicked and no DELETE request was issued. PASS."
+        )
+        (cancel_artifacts / "report.md").write_text(cancel_report, encoding="utf-8")
+        (cancel_artifacts / "evidence.json").write_text("{}", encoding="utf-8")
+        for index in range(3):
+            (cancel_artifacts / f"cancel-step-{index}.png").write_bytes(b"test-image")
+        (cancel_pilot / "dsh-events.jsonl").write_text(
+            "".join(json.dumps(item) + "\\n" for item in trace_events), encoding="utf-8"
+        )
+        cancel_audit = [
+            {"method": "POST", "path": "/api/reset", "status": 200, "action": "reset"},
+        ]
+        (cancel_pilot / "server-audit.jsonl").write_text(
+            "".join(json.dumps(item) + "\\n" for item in cancel_audit), encoding="utf-8"
+        )
+        cancel_runner = {
+            "case_id": cancel_case["case_id"],
+            "runner_status": "INVOCATION_OK",
+            "dsh_exit_code": 0,
+            "completed_user_turn_count": 1,
+            "session_turn_results": [{"turn_id": "T1", "dsh_exit_code": 0, "final_reason": "completed"}],
+            "server_port_closed": True,
+            "required_skill_evidence": {
+                "markdown_report": True, "json_evidence_index": True, "screenshot": True,
+            },
+            "fixture_profile": "clean",
+            "fixture_mutations": [],
+            "pre_state": {"items": INITIAL, "summary": INITIAL_SUMMARY},
+            "post_state": {"items": INITIAL, "summary": INITIAL_SUMMARY},
+        }
+        (cancel_pilot / "runner-result.json").write_text(
+            json.dumps(cancel_runner, ensure_ascii=False), encoding="utf-8"
+        )
+        cancel_result = adjudicate(cancel_case, cancel_pilot, "delete_confirmation")
+        assert cancel_result["oracle_verdict"] == "PASS", cancel_result
+        assert cancel_result["business_behavior_verdict"] == "PASS", cancel_result
+        assert all(check["status"] == "PASS" for check in cancel_result["checks"]), cancel_result
+
         contract = build_report({"suite_id": "self-test", "version": "0.0.1"}, entries, results)
         assert contract["status"] == "PASS"
         assert contract["scope"] == "independent_three_case_pilot_adjudication"
