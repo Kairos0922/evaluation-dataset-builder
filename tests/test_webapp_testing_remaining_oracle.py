@@ -24,10 +24,10 @@ INITIAL = copy.deepcopy(ORACLE.INITIAL)
 SUMMARY = copy.deepcopy(ORACLE.INITIAL_SUMMARY)
 
 
-def write_dom(root: Path, html: str) -> Path:
+def write_dom(root: Path, html: str, filename: str = "snapshot.html") -> Path:
     artifacts = root / "skill-artifacts"
     artifacts.mkdir(parents=True, exist_ok=True)
-    (artifacts / "snapshot.html").write_text(html, encoding="utf-8")
+    (artifacts / filename).write_text(html, encoding="utf-8")
     return root
 
 
@@ -97,7 +97,11 @@ def render_board(rows, summary=SUMMARY, controls=""):
 def adjudicate_fixture(role, case, html, audit_events, post_items=None, post_summary=None, report="Final verdict PASS.", screenshot_count=1):
     with tempfile.TemporaryDirectory() as temp:
         pilot = Path(temp) / "pilot"
-        write_dom(pilot, html)
+        if isinstance(html, list):
+            for index, snapshot in enumerate(html):
+                write_dom(pilot, snapshot, f"snapshot-{index}.html")
+        else:
+            write_dom(pilot, html)
         full_audit = [{"method": "POST", "path": "/api/reset", "status": 200, "action": "reset"}, *audit_events]
         write_pilot_bundle(pilot, base_runner(post_items, post_summary), full_audit, report)
         if screenshot_count > 1:
@@ -271,7 +275,10 @@ class RemainingOracleTests(unittest.TestCase):
         }
         status_result = adjudicate_fixture(
             "status_filter", status_case,
-            render_board(['<td>Update onboarding guide</td>', '<td>Review accessibility</td>']),
+            [
+                render_board(['<td>Update onboarding guide</td>', '<td>Review accessibility</td>']),
+                render_board([f'<td>{item["title"]}</td>' for item in INITIAL]),
+            ],
             [
                 {"method": "GET", "path": "/api/tasks", "query": "q=&status=in_progress", "result_count": 2},
                 {"method": "GET", "path": "/api/tasks", "query": "q=&status=all", "result_count": 5},
@@ -293,7 +300,11 @@ class RemainingOracleTests(unittest.TestCase):
         }
         combo_result = adjudicate_fixture(
             "search_filter_combo", combo_case,
-            render_board(['<td>Fix export timeout</td><td>High</td><td>Done</td>']),
+            [
+                render_board(['<td>Fix export timeout</td><td>High</td><td>Done</td>']),
+                '<p id="empty-state">No tasks match the current filters.</p>' + summary_html(SUMMARY),
+                render_board(['<td>Fix export timeout</td><td>High</td><td>Done</td>']),
+            ],
             [
                 {"method": "GET", "path": "/api/tasks", "query": "q=export&status=done", "result_count": 1},
                 {"method": "GET", "path": "/api/tasks", "query": "q=export&status=open", "result_count": 0},
