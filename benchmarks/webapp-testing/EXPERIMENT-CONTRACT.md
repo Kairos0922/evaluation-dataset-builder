@@ -1,6 +1,6 @@
 # webapp-testing 双 Skill 实验契约
 
-**状态：** P0 资产冻结、运行时预检和公开输入包已在 GitHub Actions 通过；P1 Builder 生产流程已接入，但因上次模型调用返回 HTTP 402，当前仅允许在 PR 添加 `run-builder-production` 标签，或通过 `workflow_dispatch` 显式设置 `run_builder_production=true` 后执行；PR 默认不触发付费模型调用。P2 至 P5 尚未完成。整体实验仍为 `DESIGN_ONLY`，直至被测 Skill 消费和独立 Oracle 判定通过。  
+**状态：** 当前已完成本轮三用例 Pilot 阶段：P0 资产冻结 PASS；P1 Builder 正式生产 PASS；P2 对真实 Builder 产物的独立验证 PASS；P3 三条真实 Skill Pilot 已执行；P4 修正后的独立 Gold Oracle 对三条用例的业务行为判定为 3/3 PASS。P5 已完成历史 DSH Trace 成本审计，并实现运行时 Token/步骤/时间上限，离线 CI 验证通过。历史 WB-CORE-14 的实际 DSH wall-clock 未被旧 Runner 单独记录，其 240 秒预算合规状态为 UNKNOWN。**本状态只代表三用例 Pilot 阶段完成，不代表 14 条用例全部执行，也不代表完成 A0/A1、B0/B1 全交叉回归。** PR 默认不触发付费模型调用；后续付费执行须显式授权。  
 **实验对象：** Anthropic `webapp-testing`  
 **Builder：** Evaluation Dataset Builder `0.0.1`  
 **实验运行环境：** GitHub Actions + DSH Headless  
@@ -227,33 +227,42 @@ Oracle 无法确定的情况应保持 UNKNOWN，不得强制归入 PASS/FAIL。�
 
 | 阶段 | 工作 | 通过条件 | 失败处理 |
 |---|---|---|---|
-| P0 资产冻结 | 固定上游 Skill、应用和运行配置 | 完整资产清单、哈希、运行时预检和 Builder 输入包均已由 Actions 验证 | 已通过；run 42484433238 |
-| P1 Builder 生产 | DSH Headless 调用 Builder | Trace 包含真实 Skill tool_call 与匹配 tool_result；产物完整并通过独立验证 | 余额确认可用后，为 PR 添加 `run-builder-production` 标签，或通过 `workflow_dispatch` 输入 `run_builder_production=true` 执行；失败则 BLOCKED，不允许手工补用例 |
-| P2 套件验收 | Schema、来源、覆盖、执行契约、隔离检查 | 所有关键门禁通过 | 修订资产/Builder 后重新生产 |
-| P3 B0 消费 | DSH Headless 调用 webapp-testing | Trace 证明加载；消费 Builder 用例 | BLOCKED |
-| P4 双路判定 | 执行 Builder grading 契约并运行 Oracle | 结果和证据均可追溯 | UNKNOWN/隔离用例 |
-| P5 回归报告 | 固化结果、成本、环境、差异 | 报告可复现且无关键缺证 | BLOCKED |
+| P0 资产冻结 | 固定上游 Skill、应用和运行配置 | 完整资产清单、哈希、运行时预检和 Builder 输入包均已由 Actions 验证 | PASS；run 42484433238 |
+| P1 Builder 生产 | DSH Headless 调用 Builder | Trace 证明真实调用，正式产物可追溯 | PASS；run 44726278657，Builder artifact 14624897819 |
+| P2 套件验收 | 对真实 Builder 输出执行 Schema、来源、覆盖和执行契约验证 | 独立验证器 PASS；不得手工补写用例 | PASS；run 44726278657，validator artifact 14624652990 |
+| P3 B0 消费 | DSH Headless 调用 webapp-testing | 三条 Builder 用例由真实 Skill 执行并保存原始证据 | PASS；run 44726278657，Pilot artifacts 14625780995、14625492287、14625534646 |
+| P4 双路判定 | 执行 Builder grading 契约并运行独立 Gold Oracle | 三条业务行为判定均 PASS，差异有证据 | 业务行为 PASS 3/3；离线重判 run 44733891829。WB-CORE-14 历史 DSH 时间预算状态 UNKNOWN |
+| P5 回归报告与成本 | 固化结果、成本、环境、差异；为后续执行设置硬预算 | Trace 统计、运行预算、停止策略和 CI 测试可复核 | 部分完成；成本报告与 Runner 硬预算已提交，CI run 44749360058 / 44749684378 PASS；新预算尚未经付费 Pilot 实测 |
 
 CI 运行成功不等于评测成功；依赖安装成功不等于 Skill 运行成功；Builder 产物通过 Schema 不等于评测套件有效。
 
-## 12. 本阶段未决事项
+## 12. 当前证据、未决事项与执行边界
 
-## 已获得的 P0 证据
+### 已获得的证据
 
-- 固定上游 Skill 的完整 Git tree 和六个文件清单已冻结，目录树未截断。
-- Actions 已验证 DSH 0.2.2-rc.1、Node 24.9.0、Python 3.12.16、Playwright 1.64.1 和 Chromium 156.0.8078.4。
-- DSH Session Log 上传已关闭，OpenTelemetry 禁用标志已设置。
-- `with_server.py --help`、本地浏览器交互、Workboard clean/mutant 夹具检查和端口清理均已通过。
-- 最新公开输入包含 18 个文件，逐文件 SHA-256、来源版本、捕获时间和上游 tree SHA 均经过独立验证；已排除运行预检生成的 `__pycache__` 和 `*.pyc`。包清单 SHA-256 为 `c446fbea3137ffae3769591d6a64b56d4a1a6f2d4a28b5d8b26181f9e41b7da4`。
-- 对应 PR Actions run：`42830784372`。输入包 Artifact：`13770873683`。此前 19 文件包包含 Python 缓存，已被本次 18 文件包取代。
+- **P0 资产冻结：** 固定上游 Skill 的完整 Git tree 和文件清单已冻结；Actions 已验证 DSH 0.2.2-rc.1、Node 24.9.0、Python 3.12.16、Playwright 1.64.1 和 Chromium 156.0.8078.4。公开输入包含 18 个文件并通过来源与哈希审计。历史 P0 run：42484433238。
+- **P1 Builder 正式生产：** run 44726278657 的 Builder job 实际调用 Evaluation Dataset Builder，并生成正式数据集、Manifest、覆盖矩阵、来源映射和质量报告。Builder artifact：14624897819。
+- **P2 独立套件验证：** 同一 run 的独立验证器对真实 Builder 产物 PASS，核验 Schema、来源引用和执行契约。Validator artifact：14624652990。
+- **P3 真实 Skill Pilot：** WB-CORE-02、WB-CORE-12、WB-CORE-14 均由 DSH 调用上游 webapp-testing Skill 执行，原始证据分别归档为 14625780995、14625492287、14625534646。
+- **P4 Gold Oracle：** 首次 3/3 FAIL 被定位为 Oracle 报告检查过度要求规则 ID 字面量，并混合原始报告与最终报告。修正后对同一批不可变 Builder/Pilot 证据离线重判，业务行为 PASS 3/3；run 44733891829。未重跑 Builder 或 Pilot。
+- **成本审计：** 三条 Pilot 的累计 Trace Token Usage 为 634,679、680,321、2,625,818。WB-CORE-14 的 40 条 usage 记录是一个 DSH turn 内的 40 个模型步骤，不是 40 个对话轮次。详细分段和成本归因见 `benchmarks/reports/builder-output-offline-review-2026-11-20.md`。
+- **运行器改进：** Runner 现在统计模型步骤/turn、工具调用和 Token 用量；执行期间监控并在超限时终止 DSH；实际记录 DSH 起止时间；有效 DSH wall-clock 上限不得超过 Builder 用例声明的 case timeout。离线测试覆盖预算计算、超限终止和 turn/step 口径。
+- **CI 验证：** run 44749360058 和 44749684378 均通过；最新验证包含 169 项离线测试。两次验证中的 Builder production、Runtime preflight 和 Pilot 付费 job 均为 skipped，没有启动新模型执行。
 
-## 尚未获得的证据
+### 已知限制与未决事项
 
-- Builder 在本次实验中真实调用的 Trace 和可追溯输出。
-- Builder 生成的数据集、Manifest、覆盖矩阵、来源映射和质量报告。
-- 独立套件验收以及 grading 契约与 Gold Oracle 的交叉核验。
-- DSH 对被测 `webapp-testing` Skill 的真实调用和正式任务执行。
-- 隐藏 Oracle 隔离、A0/A1 与 B0/B1 交叉回归。
-- 复合命令、多进程服务和高日志量条件下的 helper 生命周期压力验证。
+- 14 条 Builder 用例中只有 3 条完成真实 Pilot；其余 11 条尚未执行。本轮三用例 Pilot 的通过结果不得推广为整套 14 条用例全部通过。
+- WB-CORE-14 的旧 Runner 只记录了 `case_timeout_seconds=240` 和配置的 `dsh_timeout_seconds=1500`，没有记录 DSH 进程自己的起止时间。整个 Runner wall-clock 为 362.596 秒，超过 240 秒，但包含夹具启动和清理，因此不能据此直接断言 DSH 本身超时；历史时间预算合规状态为 UNKNOWN。
+- 新 Runner 的预算监控和硬停止已通过离线测试，但尚未通过新的付费 Pilot 实测。不能把代码测试等同于真实 DSH 环境下的预算控制实证。
+- 当前独立 Gold Oracle 和 Pilot selector 只覆盖三种语义角色：search mutation、state cycle、delete confirmation。若要执行其余 11 条用例，必须先为相应场景补齐独立 Oracle 判定和语义选择器，尤其是控件可访问名称、筛选组合、创建成功/拒绝和只读侦察。
+- 当前没有 DeepSeek 实际账单导出，因此 Trace Token Usage 不可直接换算为美元费用。
+- `BR-09-RF` 请求失败分支仍为 `needs_info`，不得伪造故障注入条件补齐。
 
-在 Builder 正式产物及其独立验收完成前，不得启动被测 Skill 的正式消费阶段。即使 P1 通过，整体实验仍为 `DESIGN_ONLY`，直至 P2 至 P5 的必要证据齐全。
+### 后续执行约束
+
+1. PR #38 保持 Draft/Open，不得合并或关闭；`run-builder-production` 标签保持移除。
+2. 不重新生成已经通过独立验证的 Builder 数据集，除非 Builder 输入或规则发生实质变化且用户明确授权新的付费生产。
+3. 新的 Pilot 必须使用已提交的 Runner 硬预算，并逐条执行、逐条审查成本；不得并发启动一批模型任务而失去累计成本控制。
+4. 在为剩余 11 条用例补齐独立 Oracle 前，不得启动它们的正式 Pilot。
+5. 如果触发任何 Token、模型步骤或时间上限，Runner 应停止 DSH、保存部分证据并将该用例标记为 BLOCKED；禁止自动重试或自动模型修复。
+6. 实际美元成本必须从模型提供方账单/用量导出中核对，不能从缓存读取 Token 数量推断。
