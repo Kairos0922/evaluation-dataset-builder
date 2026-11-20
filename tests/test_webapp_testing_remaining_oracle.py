@@ -79,8 +79,8 @@ def write_pilot_bundle(root, runner, audit, report):
         {"type": "status", "phase": "turn_end", "turn": 1},
         {"type": "final", "reason": {"kind": "completed"}},
     ]
-    (root / "dsh-events.jsonl").write_text("".join(__import__("json").dumps(item) + "\\n" for item in events), encoding="utf-8")
-    (root / "server-audit.jsonl").write_text("".join(__import__("json").dumps(item) + "\\n" for item in audit), encoding="utf-8")
+    (root / "dsh-events.jsonl").write_text("".join(__import__("json").dumps(item) + "\n" for item in events), encoding="utf-8")
+    (root / "server-audit.jsonl").write_text("".join(__import__("json").dumps(item) + "\n" for item in audit), encoding="utf-8")
 
 
 class RemainingOracleTests(unittest.TestCase):
