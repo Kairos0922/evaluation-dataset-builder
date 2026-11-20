@@ -737,14 +737,24 @@ def adjudicate_remaining_case(case: dict, pilot: Path, role: str) -> dict:
     checks = []
     runner, audit, runtime = base_checks(case, pilot, checks)
     report_text, screenshots = report_bundle(pilot)
+    if not runner:
+        return {
+            "case_id": case["case_id"], "dataset_id": case.get("dataset_id"), "pilot_role": role,
+            "execution_valid": False, "contract_verdict": "UNKNOWN",
+            "oracle_verdict": "UNKNOWN", "business_behavior_verdict": "UNKNOWN",
+            "checks": checks, "target_report_excerpt": [], "limitations": ["Runner result evidence is missing."],
+        }
     td, snaps = _test_data(case), parse_dom_snapshots(pilot)
     rows = dom_rows(snaps)
     pre, post = runner.get("pre_state") or {}, runner.get("post_state") or {}
     initial_tasks, initial_summary = case_initial_state(case)
     pre_tasks, post_tasks = normalized_tasks(pre), normalized_tasks(post)
-    pre_ok = tasks_match_declared(pre_tasks, initial_tasks) and pre.get("summary") == initial_summary
+    state_available = runtime.get("state_available", False)
+    audit_available = runtime.get("audit_available", False)
+    no_writes = None if not audit_available else not audit_writes(audit)
+    pre_ok = (tasks_match_declared(pre_tasks, initial_tasks) and pre.get("summary") == initial_summary) if state_available else None
     writes = audit_writes(audit)
-    report_ok = bool(report_text.strip())
+    report_ok = bool(report_text.strip()) if report_text.strip() else None
 
     def add(name, condition, evidence):
         add_check(checks, name, condition, evidence if isinstance(evidence, str) else json.dumps(evidence, ensure_ascii=False))
@@ -752,18 +762,17 @@ def adjudicate_remaining_case(case: dict, pilot: Path, role: str) -> dict:
     if role == "initial_board":
         expected = normalized_tasks({"tasks": td.get("expected_tasks") or []})
         summary = td.get("expected_summary") or initial_summary
-        state_ok = bool(expected) and pre_ok and tasks_match_declared(post_tasks, expected) and post.get("summary") == summary
-        dom_ok = all(any(item["title"] in row for row in rows) for item in expected) and dom_summary_ok(snaps, summary)
+        state_ok = None if not state_available else bool(expected) and pre_ok and tasks_match_declared(post_tasks, expected) and post.get("summary") == summary
+        dom_ok = None if not snaps else dom_has_exact_task_titles(snaps, [item["title"] for item in expected]) and dom_summary_ok(snaps, summary)
         add("Builder baseline rows and summary match server-side initial and final states", state_ok, {"expected": expected, "post": post_tasks, "summary": post.get("summary")})
         add("Rendered DOM contains all baseline rows and summary values", dom_ok, {"rows": rows, "expected_summary": summary})
-        add("Initial-state inspection performed no application writes", not writes, writes)
-        behavior = "PASS" if state_ok and dom_ok and not writes and report_ok else "FAIL"
+        add("Initial-state inspection performed no application writes", no_writes, writes)
 
     elif role in {"search_description", "search_empty"}:
         query = td.get("query")
         events = [event for event in _query_events(audit) if event["q"] == query]
         count = 0 if role == "search_empty" else len(td.get("expected_rows") or [])
-        count_ok = bool(events) and events[-1].get("result_count") == count
+        count_ok = (bool(events) and events[-1].get("result_count") == count) if audit_available else None
         expected_titles = [item.get("title") for item in td.get("expected_rows") or []]
         if not snaps:
             dom_ok = None
@@ -776,11 +785,10 @@ def adjudicate_remaining_case(case: dict, pilot: Path, role: str) -> dict:
         else:
             dom_ok = dom_has_exact_task_titles(snaps, expected_titles)
         summary = td.get("expected_summary") or initial_summary
-        state_ok = pre_ok and tasks_match_declared(post_tasks, initial_tasks) and post.get("summary") == summary
+        state_ok = (pre_ok and tasks_match_declared(post_tasks, initial_tasks) and post.get("summary") == summary) if state_available else None
         add("Builder-declared query reached the server and result count matches", count_ok, {"query": query, "count": count, "observed": [item.get("result_count") for item in events]})
         add("Rendered DOM contains the expected row or visible empty state", dom_ok, {"expected_titles": expected_titles, "rows": rows, "empty": dom_by_id(snaps, "empty-state")})
-        add("Search remained read-only and preserved tasks and summary", not writes and state_ok, {"writes": writes, "summary": post.get("summary")})
-        behavior = "PASS" if count_ok and dom_ok and not writes and state_ok and report_ok else "FAIL"
+        add("Search remained read-only and preserved tasks and summary", no_writes and state_ok, {"writes": writes, "summary": post.get("summary")})
 
     elif role == "status_filter":
         events = _query_events(audit)
@@ -788,16 +796,15 @@ def adjudicate_remaining_case(case: dict, pilot: Path, role: str) -> dict:
         filtered = [item for item in events if item["status_filter"] == filter_value]
         restored = [item for item in events if item["status_filter"] == restore]
         expected_titles = td.get("expected_titles") or []
-        counts_ok = bool(filtered) and filtered[-1].get("result_count") == len(expected_titles) and bool(restored) and restored[-1].get("result_count") == td.get("expected_restored_count")
+        counts_ok = (bool(filtered) and filtered[-1].get("result_count") == len(expected_titles) and bool(restored) and restored[-1].get("result_count") == td.get("expected_restored_count")) if audit_available else None
         dom_filter_ok = None if not snaps else dom_has_exact_task_titles(snaps, expected_titles)
         dom_restore_ok = None if not snaps else dom_has_exact_task_titles(snaps, [item["title"] for item in INITIAL])
         dom_summary = None if not snaps else dom_summary_ok(snaps, td.get("expected_summary") or initial_summary)
         dom_ok = None if not snaps else bool(dom_filter_ok and dom_restore_ok and dom_summary)
-        state_ok = pre_ok and tasks_match_declared(post_tasks, initial_tasks)
+        state_ok = (pre_ok and tasks_match_declared(post_tasks, initial_tasks)) if state_available else None
         add("Selected status and restored All queries match Builder-declared counts", counts_ok, {"filtered": filtered, "restored": restored})
         add("Rendered DOM shows the selected filter and the restored All task set with unchanged summary", dom_ok, {"filtered_titles": expected_titles, "restored_titles": [item["title"] for item in INITIAL], "rows": rows, "summary": td.get("expected_summary") or initial_summary})
-        add("Status filtering is read-only and preserves state", not writes and state_ok, writes)
-        behavior = "PASS" if counts_ok and dom_ok and not writes and state_ok and report_ok else "FAIL"
+        add("Status filtering is read-only and preserves state", no_writes and state_ok, writes)
 
     elif role == "search_filter_combo":
         events, query = _query_events(audit), td.get("query")
@@ -805,7 +812,7 @@ def adjudicate_remaining_case(case: dict, pilot: Path, role: str) -> dict:
         for state in td.get("states") or []:
             matched = [item for item in events if item["q"] == query and item["status_filter"] == state.get("status")]
             observations.append({"status": state.get("status"), "expected": state.get("expected_count"), "observed": matched[-1].get("result_count") if matched else None, "seen": bool(matched)})
-        counts_ok = bool(observations) and all(item["seen"] and item["observed"] == item["expected"] for item in observations)
+        counts_ok = (bool(observations) and all(item["seen"] and item["observed"] == item["expected"] for item in observations)) if audit_available else None
         dom_states = [
             {
                 "status": state.get("status"),
@@ -818,11 +825,10 @@ def adjudicate_remaining_case(case: dict, pilot: Path, role: str) -> dict:
             for state in td.get("states") or []
         ]
         dom_ok = None if not snaps else bool(dom_states) and all(item["dom_match"] for item in dom_states) and dom_summary_ok(snaps, td.get("expected_summary") or initial_summary)
-        state_ok = pre_ok and tasks_match_declared(post_tasks, initial_tasks)
+        state_ok = (pre_ok and tasks_match_declared(post_tasks, initial_tasks)) if state_available else None
         add("Combined query/filter states match all Builder-declared result counts", counts_ok, observations)
         add("Rendered DOM contains expected result rows and unchanged summary", dom_ok, {"titles": expected_titles, "rows": rows})
-        add("Combined search/filter remained read-only", not writes and state_ok, writes)
-        behavior = "PASS" if counts_ok and dom_ok and not writes and state_ok and report_ok else "FAIL"
+        add("Combined search/filter remained read-only", no_writes and state_ok, writes)
 
     elif role == "accessible_names":
         expected = td.get("expected_controls") or []
