@@ -1182,13 +1182,13 @@ def self_test() -> int:
         for index in range(3):
             (cancel_artifacts / f"cancel-step-{index}.png").write_bytes(b"test-image")
         (cancel_pilot / "dsh-events.jsonl").write_text(
-            "".join(json.dumps(item) + "\\n" for item in trace_events), encoding="utf-8"
+            "".join(json.dumps(item) + "\n" for item in trace_events), encoding="utf-8"
         )
         cancel_audit = [
             {"method": "POST", "path": "/api/reset", "status": 200, "action": "reset"},
         ]
         (cancel_pilot / "server-audit.jsonl").write_text(
-            "".join(json.dumps(item) + "\\n" for item in cancel_audit), encoding="utf-8"
+            "".join(json.dumps(item) + "\n" for item in cancel_audit), encoding="utf-8"
         )
         cancel_runner = {
             "case_id": cancel_case["case_id"],
