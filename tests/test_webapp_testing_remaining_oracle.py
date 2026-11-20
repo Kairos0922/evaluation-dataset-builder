@@ -52,6 +52,37 @@ def base_runner(post_items=None, post_summary=None):
     }
 
 
+
+def write_pilot_bundle(root, runner, audit, report):
+    artifacts = root / "skill-artifacts"
+    artifacts.mkdir(parents=True, exist_ok=True)
+    (artifacts / "report.md").write_text(report, encoding="utf-8")
+    (artifacts / "step.png").write_bytes(b"offline-test-image")
+    runner = {
+        **runner,
+        "case_id": "offline-test",
+        "runner_status": "INVOCATION_OK",
+        "dsh_exit_code": 0,
+        "completed_user_turn_count": 1,
+        "session_turn_results": [{"turn_id": "T1", "dsh_exit_code": 0, "final_reason": "completed"}],
+        "server_port_closed": True,
+        "fixture_profile": "clean",
+        "fixture_mutations": [],
+        "required_skill_evidence": {"markdown_report": True, "json_evidence_index": True, "screenshot": True},
+    }
+    (root / "runner-result.json").write_text(__import__("json").dumps(runner), encoding="utf-8")
+    events = [
+        {"type": "session", "sessionId": "offline-session"},
+        {"type": "status", "phase": "turn_start", "turn": 1},
+        {"type": "tool_call", "tool": "skill", "input": {"name": "webapp-testing"}, "callId": "call-1"},
+        {"type": "tool_result", "callId": "call-1", "status": "completed"},
+        {"type": "status", "phase": "turn_end", "turn": 1},
+        {"type": "final", "reason": {"kind": "completed"}},
+    ]
+    (root / "dsh-events.jsonl").write_text("".join(__import__("json").dumps(item) + "\\n" for item in events), encoding="utf-8")
+    (root / "server-audit.jsonl").write_text("".join(__import__("json").dumps(item) + "\\n" for item in audit), encoding="utf-8")
+
+
 class RemainingOracleTests(unittest.TestCase):
     def test_accessible_names_resolve_labels_and_open_dialog_name(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -105,17 +136,14 @@ class RemainingOracleTests(unittest.TestCase):
                     "expected_row_count": 5, "expected_summary": SUMMARY,
                 }]},
             }
-            audit = [{
+            audit = [{"method": "POST", "path": "/api/reset", "status": 200, "action": "reset"}, {
                 "method": "POST", "path": "/api/tasks", "status": 400,
                 "action": "create-rejected", "reason": "blank-title",
             }]
-            checks = []
-            verdict, behavior = ORACLE._remaining_result(
-                case, pilot, "create_rejected", checks, base_runner(), audit,
-                "Blank title was rejected. Final result PASS.", [],
-            )
-            self.assertEqual(verdict, "PASS", checks)
-            self.assertEqual(behavior, "PASS")
+            write_pilot_bundle(pilot, base_runner(), audit, "Blank title was rejected. Final result PASS.")
+            result = ORACLE.adjudicate_remaining_case(case, pilot, "create_rejected")
+            self.assertEqual(result["oracle_verdict"], "PASS", result["checks"])
+            self.assertEqual(result["business_behavior_verdict"], "PASS")
 
     def test_successful_create_requires_server_state_and_rendered_success_evidence(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -140,18 +168,14 @@ class RemainingOracleTests(unittest.TestCase):
                     "expected_summary": expected_summary,
                 }]},
             }
-            audit = [{
+            audit = [{"method": "POST", "path": "/api/reset", "status": 200, "action": "reset"}, {
                 "method": "POST", "path": "/api/tasks", "status": 201,
                 "action": "created", "item": created,
             }]
-            checks = []
-            verdict, behavior = ORACLE._remaining_result(
-                case, pilot, "create_success", checks,
-                base_runner(post, expected_summary), audit,
-                "Created WB-106 Release checklist. PASS.", [],
-            )
-            self.assertEqual(verdict, "PASS", checks)
-            self.assertEqual(behavior, "PASS")
+            write_pilot_bundle(pilot, base_runner(post, expected_summary), audit, "Created WB-106 Release checklist. PASS.")
+            result = ORACLE.adjudicate_remaining_case(case, pilot, "create_success")
+            self.assertEqual(result["oracle_verdict"], "PASS", result["checks"])
+            self.assertEqual(result["business_behavior_verdict"], "PASS")
 
     def test_delete_cancel_uses_builder_target_data_id(self):
         case = {
