@@ -362,7 +362,7 @@ class RemainingOracleTests(unittest.TestCase):
             expected_summary = {"all": 6, "open": 3, "in_progress": 2, "done": 1}
             created = {"id": "WB-106", "title": title, "description": "", "priority": "High", "status": "open"}
             post = copy.deepcopy(INITIAL) + [created]
-            html = render_board([f'<td>{title}</td><td>High</td><td>Open</td>']) + '<p id="status-message">Created WB-106</p>'
+            html = render_board([f'<td>{title}</td><td>High</td><td>Open</td>'], summary=expected_summary) + '<p id="status-message">Created WB-106</p>'
             write_dom(pilot, html)
             case = {
                 "case_id": "WB-CORE-11", "dataset_id": "D-WB",
