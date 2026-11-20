@@ -27,6 +27,7 @@
 4. 每条正式用例必须包含可执行任务、目标能力、前置状态、允许动作、预期行为、禁止行为、证据要求和 case-level grading contract。 每条 `source_refs` 必须包含可定位的 `title`、`locator` 和 `quoted_evidence`；`quoted_evidence` 必须是对应来源中的原文连续片段，不得写摘要、转述或自拟引文。
 5. 判定契约必须适配 Web 应用测试能力，并明确 PASS、FAIL 和 UNKNOWN 条件。应区分页面交互、业务状态、缺陷发现和证据完整性。
 6. 业务预期以 `assets/public/business-rules.md` 为准。应用源代码是被测实现，不是业务规则的替代来源。代码检查不能替代真实页面交互。
+7. **UI 定位必须基于实际可见界面。** `assets/public/application-overview.md` 中的任务 ID 是数据标识，不保证在页面中显示。对于 WB-101，必须将其映射到唯一可见标题 `Reset password flow`，通过渲染后的 DOM/可访问角色定位对应任务行及其状态按钮；不得使用 `text=WB-101` 作为可见文本等待条件。导航并等待 `networkidle` 后，先检查页面截图或 DOM，再执行任何变更操作。若定位失败，立即停止，不得重试或超出用例预算；在失败路径保存页面截图、页面文本/DOM 摘要、浏览器日志和明确的 UNKNOWN 结论。
 7. 将所有合成资产标记为 SYNTHETIC。不得编造生产缺陷、真实用户、真实执行轨迹或外部来源。
 8. 若资产不能支持可靠判定，标记 `needs_info` 或 `UNKNOWN`，不要补造预期结果。
 9. 用例质量状态保持 `candidate` 或 `needs_info`。本次 Builder 生产不会执行被测 Skill，因此每条用例的 `execution_requirements.status`、每个数据集 Manifest 和套件 Manifest 的 `execution_status` 必须统一标记为 `NOT_RUN`。不得使用 `DESIGN_ONLY`、`READY_TO_RUN` 或 `EXECUTION_VERIFIED`。
