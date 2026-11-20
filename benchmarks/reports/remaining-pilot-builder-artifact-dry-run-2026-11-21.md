@@ -61,3 +61,13 @@ The artifact hashes and semantic role-to-case mapping were independently inspect
 - Generated the resolved matrix from those matches and executed a local copy of the committed plan generator's source logic. Output: 11 steps, 2,220 seconds cumulative timeout ceiling, `DRY_RUN_PLAN_ONLY`, `execution_authorized=false`, `execution_started=false`, and every step `NOT_AUTHORIZED`. Assertions on uniqueness, exact role coverage, sequence, and authorization state passed.
 - Boundary: the committed selector script itself was **not executed** from a repository checkout in this environment. The role resolution was a direct artifact-based implementation of its current matching requirements; the plan generator source was copied for local execution. CI run [#44837433532](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44837433532) passed repository validation and selector self-tests, but the artifact-specific matrix dry-run was not part of that CI run.
 - No model, DSH, browser, or paid execution was started.
+
+
+## CI and workflow hardening (2026-11-21)
+
+- Fixed the manual artifact Dry Run workflow to download a prior-run artifact by ID through the authenticated GitHub REST API; `actions/download-artifact` is scoped to artifacts in the current workflow run and was unsuitable for this cross-run use case.
+- Added artifact metadata checks (numeric ID, not expired, exact ID), authenticated ZIP download, and normalized the archived hash-manifest paths for the ZIP's actual directory layout before SHA-256 verification.
+- Independently exercised the normalization against the previously downloaded original ZIP: all nine source files verified.
+- Added the remaining-plan generator compile and focused unittest discovery to normal PR validation.
+- Exact-head PR validation run [#44840616963](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44840616963) completed PASS: formal package validation, Benchmark validation, offline tests, Gold Oracle/validator checks, Selector self-tests, and upstream asset audit all passed. Runtime preflight and paid/experiment jobs were skipped as intended.
+- The cross-run artifact Dry Run workflow itself was not dispatched in this environment, so its end-to-end GitHub download step remains unverified. No DSH/model call was made.
