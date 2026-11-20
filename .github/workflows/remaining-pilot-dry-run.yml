@@ -34,11 +34,14 @@ jobs:
           mkdir -p artifacts/builder-original
           gh api --method GET \
             "repos/$REPOSITORY/actions/artifacts/$ARTIFACT_ID" \
-            --jq '.expired == false and .id == ('"$ARTIFACT_ID"')' > artifacts/artifact-metadata-check.txt
-          test "$(cat artifacts/artifact-metadata-check.txt)" = "true"
-          gh api --method GET \
-            "repos/$REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" \
-            > artifacts/builder-original.zip
+            > artifacts/artifact-metadata.json
+          jq -e --arg id "$ARTIFACT_ID" '.expired == false and (.id | tostring) == $id' \
+            artifacts/artifact-metadata.json >/dev/null
+          curl --fail --location --silent --show-error \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" \
+            -o artifacts/builder-original.zip
           unzip -q artifacts/builder-original.zip -d artifacts/builder-original
           test -s artifacts/builder-original/webapp-testing-builder-output/SUITE-MANIFEST.json
           test -s artifacts/builder-original/builder-output-sha256.txt
