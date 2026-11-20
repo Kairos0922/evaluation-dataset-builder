@@ -463,6 +463,62 @@ def self_test() -> int:
             item["case_id"] for item in matrix["include"]
         }
 
+        # End-to-end opt-in resolution for the eleven additional semantic
+        # roles. These are isolated selector fixtures, not Builder output and
+        # never treated as execution or evaluation evidence.
+        remaining_root = root / "remaining-role-fixture"
+        (remaining_root / "datasets").mkdir(parents=True)
+        remaining_specs = {
+            "initial_board": ("initial_board", ["BR-01"], ["WF-INITIAL"]),
+            "search_description": ("search_description", ["BR-02"], ["WF-SEARCH"]),
+            "search_empty": ("search_empty", ["BR-02"], ["WF-SEARCH"]),
+            "status_filter": ("status_filter", ["BR-03"], ["WF-FILTER"]),
+            "search_filter_combo": ("search_filter_combo", ["BR-02", "BR-03"], ["WF-SEARCH", "WF-FILTER"]),
+            "accessible_names": ("accessible_names", ["BR-10"], ["WF-INITIAL"]),
+            "visible_title_mapping": ("recon_only", ["BR-07"], ["WF-INITIAL"]),
+            "create_success": ("create_task", ["BR-01", "BR-04", "BR-05", "BR-06"], ["WF-CREATE-DEFAULT"]),
+            "create_rejected": ("invalid_create", ["BR-04"], ["WF-CREATE-BOUNDARY"]),
+            "create_boundary_80": ("boundary_create", ["BR-01", "BR-04", "BR-05", "BR-06"], ["WF-CREATE-BOUNDARY"]),
+            "delete_cancel": ("delete_cancel", ["BR-08"], ["WF-DELETE-CANCEL"]),
+        }
+        remaining_cases = []
+        for index, role in enumerate(REMAINING_ROLES, start=1):
+            kind, rules, workflows = remaining_specs[role]
+            remaining_cases.append({
+                "case_id": f"REMAINING-{index:02d}",
+                "dataset_id": "D-REMAINING",
+                "quality_status": "candidate",
+                "business_rule_refs": rules,
+                "workflow_refs": workflows,
+                "user_input": "Resolve the Builder-authored semantic candidate without executing it.",
+                "execution_requirements": {
+                    "status": "NOT_RUN",
+                    "environment": {"app_url": "http://127.0.0.1:4173", "case_timeout_seconds": 180},
+                    "test_data": [{"kind": kind}],
+                },
+                "information_gaps": [],
+            })
+        remaining_dataset_path = remaining_root / "datasets" / "D-REMAINING.jsonl"
+        remaining_dataset_path.write_text(
+            "".join(json.dumps(case, ensure_ascii=False) + "\\n" for case in remaining_cases),
+            encoding="utf-8",
+        )
+        (remaining_root / "SUITE-MANIFEST.json").write_text(json.dumps({
+            "quality_status": "candidate",
+            "execution_status": "NOT_RUN",
+            "datasets": [{
+                "dataset_id": "D-REMAINING",
+                "jsonl": "datasets/D-REMAINING.jsonl",
+                "case_count": len(remaining_cases),
+                "quality_status": "candidate",
+                "execution_status": "NOT_RUN",
+            }],
+        }), encoding="utf-8")
+        remaining_matrix = load_suite(remaining_root, roles=REMAINING_ROLES)
+        assert [item["pilot_role"] for item in remaining_matrix["include"]] == list(REMAINING_ROLES)
+        assert len({item["case_id"] for item in remaining_matrix["include"]}) == 11
+        assert all(item["execution_status"] == "NOT_RUN" for item in remaining_matrix["include"])
+
     print("PASS: Builder-authored search, state-cycle and delete-confirmation cases resolve semantically, including explicit workflow-ref state cycles.")
     return 0
 
