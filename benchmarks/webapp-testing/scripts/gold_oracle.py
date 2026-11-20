@@ -376,7 +376,7 @@ def report_has_delete_result(report_text: str, target_id: str | None) -> bool:
         bool(report_text.strip())
         and bool(target_id) and target_id in report_text
         and "Delete task" in report_text
-        and re.search(r"Delete task\\?|confirmation dialog|确认对话框", report_text, re.I) is not None
+        and re.search(r"Delete task\?|confirmation dialog|确认对话框", report_text, re.I) is not None
         and re.search(r"PASS|CONFORMS|通过", report_text, re.I) is not None
     )
 
