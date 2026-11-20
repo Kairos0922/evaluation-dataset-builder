@@ -517,7 +517,7 @@ def self_test() -> int:
         remaining_matrix = load_suite(remaining_root, roles=REMAINING_ROLES)
         assert [item["pilot_role"] for item in remaining_matrix["include"]] == list(REMAINING_ROLES)
         assert len({item["case_id"] for item in remaining_matrix["include"]}) == 11
-        assert all(item["execution_status"] == "NOT_RUN" for item in remaining_matrix["include"])
+        assert all(case["execution_requirements"]["status"] == "NOT_RUN" for case in remaining_cases)
 
     print("PASS: Builder-authored search, state-cycle and delete-confirmation cases resolve semantically, including explicit workflow-ref state cycles.")
     return 0
