@@ -93,22 +93,26 @@ def role_score(case: dict, role: str) -> int:
         normalized_message = re.sub(r"\s+", "", message).replace("->", "→")
         explicit_cycle = "open→inprogress→done→open" in normalized_message
         complete_workflow_refs = {"WF-01", "WF-02", "WF-03"}.issubset(workflows)
-        three_click_request = "三次" in message and any(
-            phrase in message for phrase in ("连续点击", "依次点击", "点击状态按钮")
+        three_click_request = bool(
+            re.search(r"(?:三次|3\\s*次)", message)
+            and ("点击" in message or "click" in message)
+            and ("状态按钮" in message or "status button" in message)
         )
         expected_transitions = all(
             phrase in text for phrase in ("open", "in progress", "done")
         )
-        # A generated case can use WF-STATUS rather than the three granular
-        # workflow IDs. Accept that shape only when the request explicitly
-        # orders the expected state after each of three clicks.
+        # Builder-authored cases can state the ordered result sequence in
+        # expected_behavior rather than repeating it in user_input.
+        ordered_contract = message + " " + " ".join(
+            str(item) for item in (case.get("expected_behavior") or [])
+        )
         ordered_expected_steps = all(
-            re.search(rf"第\s*{number}\s*次[^。；\n]*{state}", message)
+            re.search(rf"第\\s*{number}\\s*次[^。；\\n]*{state}", ordered_contract)
             for number, state in ((1, "in progress"), (2, "done"), (3, "open"))
         )
         builder_status_cycle = (
             has_rule("BR-07")
-            and any(ref.startswith("WF-STATUS") for ref in workflows)
+            and any(ref.startswith(("WF-STATUS", "WF-05")) for ref in workflows)
             and three_click_request
             and expected_transitions
             and ordered_expected_steps
