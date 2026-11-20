@@ -23,11 +23,25 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Download exact Builder artifact by ID
-        uses: actions/download-artifact@v4
-        with:
-          artifact-ids: ${{ inputs.artifact_id }}
-          path: artifacts/builder-original
+      - name: Download exact Builder artifact by ID from prior workflow run
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ARTIFACT_ID: ${{ inputs.artifact_id }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          [[ "$ARTIFACT_ID" =~ ^[0-9]+$ ]] || { echo "artifact_id must be numeric"; exit 2; }
+          mkdir -p artifacts/builder-original
+          gh api --method GET \
+            "repos/$REPOSITORY/actions/artifacts/$ARTIFACT_ID" \
+            --jq '.expired == false and .id == ('"$ARTIFACT_ID"')' > artifacts/artifact-metadata-check.txt
+          test "$(cat artifacts/artifact-metadata-check.txt)" = "true"
+          gh api --method GET \
+            "repos/$REPOSITORY/actions/artifacts/$ARTIFACT_ID/zip" \
+            > artifacts/builder-original.zip
+          unzip -q artifacts/builder-original.zip -d artifacts/builder-original
+          test -s artifacts/builder-original/webapp-testing-builder-output/SUITE-MANIFEST.json
+          test -s artifacts/builder-original/builder-output-sha256.txt
 
       - name: Verify artifact files and original SHA-256 manifest
         run: |
