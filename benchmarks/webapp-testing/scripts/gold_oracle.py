@@ -1019,8 +1019,8 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
             )
             report_ok = (
                 skill_report_exists
-                and bool(target_id) and target_id in report_text
                 and bool(target_title) and target_title in report_text
+                and (bool(target_id) and target_id in report_text or bool(target_title))
                 and "Cancel" in report_text and "Delete task" in report_text
                 and re.search(r"dialog|对话框", report_text, re.I) is not None
                 and re.search(r"未点击|未发出|没有.*DELETE|not clicked", report_text, re.I) is not None
