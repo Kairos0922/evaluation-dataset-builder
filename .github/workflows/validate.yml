@@ -250,10 +250,21 @@ jobs:
         with:
           node-version: "24.9.0"
 
-      - name: Install pinned DSH CLI
+      - name: Cache pinned DSH installation
+        uses: actions/cache@v4
+        with:
+          path: ~/.dsh-npm-global
+          key: ${{ runner.os }}-dsh-node24-${{ env.DSH_VERSION }}
+
+      - name: Install pinned DSH CLI (cache-aware)
         run: |
           set -euo pipefail
-          npm install --global --no-audit --no-fund "@deepseek-ai/dsh@$DSH_VERSION"
+          export NPM_CONFIG_PREFIX="$HOME/.dsh-npm-global"
+          export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+          echo "$NPM_CONFIG_PREFIX/bin" >> "$GITHUB_PATH"
+          if ! dsh --version 2>/dev/null | grep -Fq "$DSH_VERSION"; then
+            npm install --global --no-audit --no-fund "@deepseek-ai/dsh@$DSH_VERSION"
+          fi
           dsh --version | tee artifacts-dsh-install.txt
 
       - name: Configure isolated DSH and verify uploads are disabled
@@ -295,11 +306,23 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Cache Playwright Python packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-playwright-1.64.1
+
       - name: Install pinned Playwright
         run: |
           set -euo pipefail
           python -m pip install --disable-pip-version-check "playwright==1.64.1"
           python -c "import playwright; from importlib.metadata import version; print('Playwright', version('playwright'))"
+
+      - name: Cache Playwright Chromium binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-1.64.1-chromium-shell
 
       - name: Install headless Chromium
         run: python -m playwright install --only-shell chromium
@@ -505,10 +528,21 @@ jobs:
         with:
           node-version: "24.9.0"
 
-      - name: Install pinned DSH CLI
+      - name: Cache pinned DSH installation
+        uses: actions/cache@v4
+        with:
+          path: ~/.dsh-npm-global
+          key: ${{ runner.os }}-dsh-node24-${{ env.DSH_VERSION }}
+
+      - name: Install pinned DSH CLI (cache-aware)
         run: |
           set -euo pipefail
-          npm install --global --no-audit --no-fund "@deepseek-ai/dsh@$DSH_VERSION"
+          export NPM_CONFIG_PREFIX="$HOME/.dsh-npm-global"
+          export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+          echo "$NPM_CONFIG_PREFIX/bin" >> "$GITHUB_PATH"
+          if ! dsh --version 2>/dev/null | grep -Fq "$DSH_VERSION"; then
+            npm install --global --no-audit --no-fund "@deepseek-ai/dsh@$DSH_VERSION"
+          fi
           dsh --version
 
       - name: Configure isolated DSH and stage Builder Skill
@@ -1134,16 +1168,39 @@ jobs:
         with:
           node-version: "24.9.0"
 
-      - name: Install pinned DSH CLI
+      - name: Cache pinned DSH installation
+        uses: actions/cache@v4
+        with:
+          path: ~/.dsh-npm-global
+          key: ${{ runner.os }}-dsh-node24-${{ env.DSH_VERSION }}
+
+      - name: Install pinned DSH CLI (cache-aware)
         run: |
           set -euo pipefail
-          npm install --global --no-audit --no-fund "@deepseek-ai/dsh@$DSH_VERSION"
+          export NPM_CONFIG_PREFIX="$HOME/.dsh-npm-global"
+          export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+          echo "$NPM_CONFIG_PREFIX/bin" >> "$GITHUB_PATH"
+          if ! dsh --version 2>/dev/null | grep -Fq "$DSH_VERSION"; then
+            npm install --global --no-audit --no-fund "@deepseek-ai/dsh@$DSH_VERSION"
+          fi
           dsh --version
 
       - name: Set up Python and Playwright
         uses: actions/setup-python@v5
         with:
           python-version: "3.12.16"
+
+      - name: Cache Playwright Python packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-playwright-1.64.1
+
+      - name: Cache Playwright Chromium binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-1.64.1-chromium-shell
 
       - name: Install pinned Playwright and Chromium
         run: |
