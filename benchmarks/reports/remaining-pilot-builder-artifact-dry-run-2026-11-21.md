@@ -52,3 +52,12 @@ Stop the sequence if any case is BLOCKED, FAIL, UNKNOWN, or has evidence-integri
 ## Verification boundary
 
 The artifact hashes and semantic role-to-case mapping were independently inspected and checked in an offline dry-run. The repository's committed selector and plan scripts were reviewed, but they were **not executed in this local environment against this artifact**. This report therefore records the direct artifact resolution, not a claim that the scripts' end-to-end artifact command was run. The next engineering step is to wire this exact-artifact dry-run into CI or run the scripts in a checkout, then verify the generated JSON matches this mapping before any paid execution.
+
+
+## Reverification addendum (2026-11-21)
+
+- Re-downloaded Builder artifact ID `14624897819` and independently recomputed all nine archived SHA-256 values. The ZIP stores files under `webapp-testing-builder-output/`, while the hash manifest prefixes paths with `artifacts/`; stripping that prefix for archive lookup yields nine/ nine matches.
+- Parsed the original `wb-core.jsonl` directly: 14 cases, all IDs unique. For the 11 remaining roles, each match was checked against structured `test_data.kind`, required business-rule refs, and workflow refs as defined in the committed selector. Each role matched exactly one case; all selected cases were `candidate`, `NOT_RUN`, target the local fixture URL, and had no unresolved OPEN/IN_PROGRESS gaps.
+- Generated the resolved matrix from those matches and executed a local copy of the committed plan generator's source logic. Output: 11 steps, 2,220 seconds cumulative timeout ceiling, `DRY_RUN_PLAN_ONLY`, `execution_authorized=false`, `execution_started=false`, and every step `NOT_AUTHORIZED`. Assertions on uniqueness, exact role coverage, sequence, and authorization state passed.
+- Boundary: the committed selector script itself was **not executed** from a repository checkout in this environment. The role resolution was a direct artifact-based implementation of its current matching requirements; the plan generator source was copied for local execution. CI run [#44837433532](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44837433532) passed repository validation and selector self-tests, but the artifact-specific matrix dry-run was not part of that CI run.
+- No model, DSH, browser, or paid execution was started.
