@@ -585,6 +585,8 @@ def _visible(node: dict, nodes: list[dict]) -> bool:
         attrs = current.get("attrs") or {}
         if "hidden" in attrs or str(attrs.get("aria-hidden", "")).lower() == "true":
             return False
+        if current.get("tag") == "dialog" and "open" not in attrs:
+            return False
         parent = current.get("parent")
         current = nodes[parent] if parent is not None else None
     return True
@@ -777,7 +779,8 @@ def adjudicate_remaining_case(case: dict, pilot: Path, role: str) -> dict:
         new_items = [item for item in post_tasks if item.get("id") not in {old.get("id") for old in initial_tasks}]
         server_ok = len(events) == 1 and len(successful) == 1 and created.get("title") == title and created.get("priority") == priority and normalize_status(created.get("status")) == status and bool(created.get("id"))
         state_ok = len(new_items) == 1 and new_items[0].get("title") == title and new_items[0].get("priority") == priority and new_items[0].get("status") == status and post.get("summary") == (td.get("expected_summary") or {}) and pre_ok
-        dom_ok = any(title and title in row and created.get("id") in row for row in rows) and dom_summary_ok(snaps, td.get("expected_summary") or {})
+        messages = dom_by_id(snaps, "status-message")
+        dom_ok = any(title and title in row for row in rows) and any(created.get("id") and created.get("id") in item["text"] for item in messages) and dom_summary_ok(snaps, td.get("expected_summary") or {})
         add("Exactly one server-audited create matches title, priority and status", server_ok, {"events": events, "created": created, "expected_title": title})
         add("Post-state has exactly one new item and expected summary", state_ok, {"new_items": new_items, "summary": post.get("summary")})
         add("Rendered DOM shows the created item and summary", dom_ok, rows)
@@ -789,11 +792,12 @@ def adjudicate_remaining_case(case: dict, pilot: Path, role: str) -> dict:
         success = [item for item in events if item.get("status") == 201]
         messages = dom_by_id(snaps, "status-message")
         message_ok = any(item["visible"] and td.get("expected_error_contains", "Title").casefold() in item["text"].casefold() and item["attrs"].get("data-state") == "error" for item in messages)
-        state_ok = len(events) == 1 and len(rejected) == 1 and not success and pre_ok and tasks_match_declared(post_tasks, initial_tasks) and len(post_tasks) == td.get("expected_row_count") and post.get("summary") == (td.get("expected_summary") or initial_summary) and not writes
+        unexpected_writes = [item for item in writes if not (item.get("method") == "POST" and item.get("path") == "/api/tasks" and item.get("status") == 400 and item.get("action") == "create-rejected")]
+        state_ok = len(events) == 1 and len(rejected) == 1 and not success and pre_ok and tasks_match_declared(post_tasks, initial_tasks) and len(post_tasks) == td.get("expected_row_count") and post.get("summary") == (td.get("expected_summary") or initial_summary) and not unexpected_writes
         no_false_success = not any("Created " in item["text"] for item in messages)
         add("Whitespace-only create was rejected once and no successful response occurred", len(events) == 1 and len(rejected) == 1 and not success, events)
         add("Rendered status region communicates an error without false success", message_ok and no_false_success, messages)
-        add("Rejected create preserved all rows and summary without writes", state_ok, {"row_count": len(post_tasks), "summary": post.get("summary"), "writes": writes})
+        add("Rejected create preserved all rows and summary without writes", state_ok, {"row_count": len(post_tasks), "summary": post.get("summary"), "write_attempts": writes, "unexpected_writes": unexpected_writes})
         behavior = "PASS" if len(events) == 1 and len(rejected) == 1 and message_ok and no_false_success and state_ok and report_ok else "FAIL"
 
     else:
@@ -1141,7 +1145,7 @@ def build_report(suite: dict, entries: list[dict], results: list[dict]) -> dict:
         "builder_version": suite.get("version"),
         "case_count": len(results),
         "passed_cases": passed,
-        "failed_cases": len(results) - passed,
+        "failed_cases": sum(value == "FAIL" for value in verdicts),
         "required_pilot_roles": [item.get("pilot_role") for item in entries],
         "required_case_ids": [item.get("case_id") for item in entries],
         "observed_case_ids": [
