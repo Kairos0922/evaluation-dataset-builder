@@ -42,6 +42,8 @@
 
 独立验证器按文件名和字段读取产物。不要自行发明等价字段名。使用以下精确路径和键名：
 
+0. **可观察断言必须放在两个不同层级，不能互相替代。** 每条用例必须在 `execution_requirements.observable_assertions` 中提供非空字符串数组，描述运行时可直接观察和核验的断言；如同时提供结构化评分断言，则放在用例顶层 `observable_assertions`，使用 `assertion_id`、`observation`、`pass_condition` 等对象字段。不得只输出顶层结构化断言而遗漏 `execution_requirements.observable_assertions`。
+
 1. 每个数据集输出一个 JSONL，文件名由数据集 ID 决定，例如 `wb-core.jsonl`；另输出对应 Manifest，文件名必须以 `.manifest.json` 结尾，例如 `wb-core.manifest.json`。
 2. `SUITE-MANIFEST.json` 必须包含非空字符串 `suite_id`、`version`、`built_at`、`evaluation_target`，以及 `case_count`、`quality_status`、`execution_status`、`coverage`。不要用 `created_at` 替代 `built_at`。
 3. `SUITE-MANIFEST.json.datasets` 中每个数据集对象必须包含 `dataset_id`、`purpose`、`quality_status`、`execution_status`、`case_count`、`jsonl` 和 `manifest`。其中 `jsonl`、`manifest` 是相对套件目录的实际文件路径；不要使用 `path` 或 `manifest_path` 代替。
