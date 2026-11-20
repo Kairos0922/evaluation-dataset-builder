@@ -877,35 +877,36 @@ def adjudicate_remaining_case(case: dict, pilot: Path, role: str) -> dict:
             and created.get("title") == title and created.get("priority") == priority
             and normalize_status(created.get("status")) == status and bool(created.get("id"))
             and (expected_description is None or created.get("description") == expected_description)
-        )
-        allowed_create_only = len(writes) == 1 and writes[0].get("method") == "POST" and writes[0].get("path") == "/api/tasks" and writes[0].get("status") == 201 and writes[0].get("action") == "created"
-        preserves_initial = tasks_contain_declared(post_tasks, initial_tasks)
-        state_ok = len(new_items) == 1 and new_items[0].get("title") == title and new_items[0].get("priority") == priority and new_items[0].get("status") == status and post.get("summary") == (td.get("expected_summary") or {}) and pre_ok and preserves_initial
+        ) if audit_available else None
+        allowed_create_only = (len(writes) == 1 and writes[0].get("method") == "POST" and writes[0].get("path") == "/api/tasks" and writes[0].get("status") == 201 and writes[0].get("action") == "created") if audit_available else None
+        preserves_initial = tasks_contain_declared(post_tasks, initial_tasks) if state_available else None
+        state_ok = (len(new_items) == 1 and new_items[0].get("title") == title and new_items[0].get("priority") == priority and new_items[0].get("status") == status and post.get("summary") == (td.get("expected_summary") or {}) and pre_ok and preserves_initial) if state_available else None
         messages = dom_by_id(snaps, "status-message")
-        dom_ok = any(title and title in row for row in rows) and any(created.get("id") and created.get("id") in item["text"] for item in messages) and dom_summary_ok(snaps, td.get("expected_summary") or {})
+        dom_ok = (any(title and title in row for row in rows) and any(created.get("id") and created.get("id") in item["text"] for item in messages) and dom_summary_ok(snaps, td.get("expected_summary") or {})) if snaps else None
         add("Exactly one server-audited create matches title, priority, status and declared description", server_ok, {"events": events, "created": created, "expected_title": title})
         if role == "create_boundary_80":
             add("Eighty-character boundary input is exactly the declared length", title_length_ok, {"declared_length": td.get("title_length"), "observed_length": len(title) if isinstance(title, str) else None})
         else:
-            add("Trimmed title matches the Builder-declared stored title", title_length_ok and created.get("title") == td.get("expected_stored_title"), {"observed": created.get("title"), "expected": td.get("expected_stored_title")})
-        add("Only one successful create write occurred; the initial tasks were preserved", allowed_create_only and preserves_initial, {"writes": writes, "preserves_initial": preserves_initial})
+            trimmed_title_ok = (title_length_ok and created.get("title") == td.get("expected_stored_title")) if audit_available else None
+            add("Trimmed title matches the Builder-declared stored title", trimmed_title_ok, {"observed": created.get("title"), "expected": td.get("expected_stored_title")})
+        one_create_and_preserved = (allowed_create_only and preserves_initial) if allowed_create_only is not None and preserves_initial is not None else None
+        add("Only one successful create write occurred; the initial tasks were preserved", one_create_and_preserved, {"writes": writes, "preserves_initial": preserves_initial})
         add("Post-state has exactly one new item and expected summary", state_ok, {"new_items": new_items, "summary": post.get("summary")})
         add("Rendered DOM shows the created item, returned ID and summary", dom_ok, {"rows": rows, "status_message": messages})
-        behavior = "PASS" if server_ok and title_length_ok and allowed_create_only and state_ok and dom_ok and report_ok else "FAIL"
 
     elif role == "create_rejected":
         events = [item for item in audit if item.get("method") == "POST" and item.get("path") == "/api/tasks"]
         rejected = [item for item in events if item.get("status") == 400 and item.get("action") == "create-rejected"]
         success = [item for item in events if item.get("status") == 201]
         messages = dom_by_id(snaps, "status-message")
-        message_ok = any(item["visible"] and td.get("expected_error_contains", "Title").casefold() in item["text"].casefold() and item["attrs"].get("data-state") == "error" for item in messages)
+        message_ok = (any(item["visible"] and td.get("expected_error_contains", "Title").casefold() in item["text"].casefold() and item["attrs"].get("data-state") == "error" for item in messages)) if snaps else None
         unexpected_writes = [item for item in writes if not (item.get("method") == "POST" and item.get("path") == "/api/tasks" and item.get("status") == 400 and item.get("action") == "create-rejected")]
-        state_ok = len(events) == 1 and len(rejected) == 1 and not success and pre_ok and tasks_match_declared(post_tasks, initial_tasks) and len(post_tasks) == td.get("expected_row_count") and post.get("summary") == (td.get("expected_summary") or initial_summary) and not unexpected_writes
-        no_false_success = not any("Created " in item["text"] for item in messages)
-        add("Whitespace-only create was rejected once and no successful response occurred", len(events) == 1 and len(rejected) == 1 and not success, events)
-        add("Rendered status region communicates an error without false success", message_ok and no_false_success, messages)
-        add("Rejected create preserved all rows and summary without writes", state_ok, {"row_count": len(post_tasks), "summary": post.get("summary"), "write_attempts": writes, "unexpected_writes": unexpected_writes})
-        behavior = "PASS" if len(events) == 1 and len(rejected) == 1 and message_ok and no_false_success and state_ok and report_ok else "FAIL"
+        state_ok = (len(events) == 1 and len(rejected) == 1 and not success and pre_ok and tasks_match_declared(post_tasks, initial_tasks) and len(post_tasks) == td.get("expected_row_count") and post.get("summary") == (td.get("expected_summary") or initial_summary) and not unexpected_writes) if audit_available and state_available else None
+        no_false_success = (not any("Created " in item["text"] for item in messages)) if snaps else None
+        rejection_ok = (len(events) == 1 and len(rejected) == 1 and not success) if audit_available else None
+        add("Whitespace-only create was rejected once and no successful response occurred", rejection_ok, events)
+        add("Rendered status region communicates an error without false success", (message_ok and no_false_success) if snaps else None, messages)
+        add("Rejected create preserved all rows and summary without unexpected writes", state_ok, {"row_count": len(post_tasks), "summary": post.get("summary"), "write_attempts": writes, "unexpected_writes": unexpected_writes})
 
     else:
         add("Unsupported remaining semantic role", False, role)
