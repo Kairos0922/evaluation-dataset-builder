@@ -38,6 +38,8 @@
 14. 运行器在每条用例开始前负责执行一次 `POST /api/reset`，并确认初始数据和摘要。被测 Skill 不得调用 `POST /api/reset`，也不得通过其他方式重置应用状态。每条用例使用独立的 Workboard 服务进程；用例结束后运行器会关闭该服务进程，不需要也不得执行第二次 reset。每条用例的 `reset_plan` 必须准确描述这一生命周期；`forbidden_behavior` 必须明确禁止 Skill 调用 reset。
 15. **明确每条用例的动作预算和执行次数**：对于会改变应用状态的测试，必须在 `execution_requirements.cost_and_rate_limits` 中声明 `max_mutating_actions`、`max_test_script_executions`，并在 `allowed_actions`、`steps`、`expected_behavior`、`forbidden_side_effects` 和 `grading` 中保持一致。测试脚本重复执行、重新点击和重试都计入总预算；不得只报告最后一次运行。根据 `assets/public/runtime-and-tool-contracts.md` 定义预算。本 fixture 的 WB-101 状态循环用例必须限制为 3 次状态变更、1 次脚本执行；删除确认用例必须限制为 1 次确认删除。执行失败或预算耗尽时应停止写操作并报告 FAIL/UNKNOWN，不得为了补齐证据重复执行或重置。
 
+16. **README 用例分组必须与实际用例语义一致。** 分组应从正式 JSONL 的每条用例目标、allowed_actions、forbidden_side_effects 和 cost_and_rate_limits 推导，不得按 case_id 连续编号或文件顺序机械切分。区分“只读检查”“状态变更/创建/确认删除”等实际写操作，以及“删除取消”等不产生状态变更的写操作安全边界；不得把只读侦察用例归入写操作组，也不得把取消操作描述为已执行删除。README 中每组必须列出完整 case_id，所有 case_id 恰好出现一次，分组数量之和必须等于 JSONL 实际用例数。
+
 ## 机器验证契约（必须遵守）
 
 独立验证器按文件名和字段读取产物。不要自行发明等价字段名。使用以下精确路径和键名：
