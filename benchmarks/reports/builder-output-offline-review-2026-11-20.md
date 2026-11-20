@@ -66,9 +66,41 @@ Token counts below are sums of the per-turn `usage` records in the archived DSH 
 | Pilot `WB-CORE-14` | 40 | 35,762 | 65,256 | 2,524,800 | 2,625,818 |
 | **Combined** | **169** | **200,689** | **314,123** | **20,052,224** | **20,567,036** |
 
-The Builder trace contains 101 tool calls: 46 bash, 29 read, 16 edit, 9 write and 1 Skill invocation. The delete-confirmation Pilot is the largest Pilot cost centre: 40 usage-bearing turns, 65,256 output tokens and 2,524,800 cache-read tokens. This warrants investigation before any repeat execution.
+The Builder trace contains 101 tool calls: 46 bash, 29 read, 16 edit, 9 write and 1 Skill invocation. The delete-confirmation Pilot is the largest cost centre. **Correction to the earlier wording:** its 40 usage records are 40 model steps inside one DSH user turn, not 40 separate turns or 40 independent sessions. The trace has 214 events, 44 tool calls (30 bash, 5 read, 3 edit, 3 read_image, 2 write, 1 Skill call), 123,656 characters of recorded thinking text, 65,256 output tokens and 2,524,800 cache-read tokens.
 
-The offline Gold Oracle replay in run `44733891829` used the archived Builder/Pilot artifacts and Python adjudication only. It did not invoke DSH or a model.
+Across the three Pilots, WB-CORE-14 accounts for 66.6% of aggregate trace tokens, 57.1% of output tokens and 67.3% of cache reads. Compared with WB-CORE-02 it used 4.14x aggregate tokens; compared with WB-CORE-12 it used 3.86x.
+
+### WB-CORE-14 step-level attribution
+
+| Phase | Steps | Input | Output | Cache reads | Aggregate |
+|---|---:|---:|---:|---:|---:|
+| Initial planning, script authoring and pre-run checks | 1–17 | 19,054 | 41,428 | 586,880 | 647,362 |
+| Single Playwright test execution step | 18 | 134 | 673 | 64,256 | 65,063 |
+| Evidence inspection | 19–26 | 7,082 | 6,110 | 565,760 | 578,952 |
+| Post-processing and report correction | 27–40 | 9,492 | 17,045 | 1,307,904 | 1,334,441 |
+| **Total** | **40** | **35,762** | **65,256** | **2,524,800** | **2,625,818** |
+
+The Playwright test itself ran once for approximately 3.18 seconds. The DSH runner envelope lasted 362.596 seconds from runner start to finish. The Builder-generated task carried a 240-second execution budget, but the old runner only passed that value in the prompt; its configured DSH process timeout was 1,500 seconds and it did not enforce or separately record actual DSH elapsed time. Since runner wall time includes fixture setup and teardown, this does not prove the DSH process itself exceeded 240 seconds. It does mean compliance with that case budget is **UNKNOWN**, not proven PASS. This is a runner control/evidence gap.
+
+The major avoidable cost is not the browser test. It is the repeated model reasoning, iterative script edits and post-run evidence/report correction. In particular, steps 27–40 alone consumed 1,334,441 aggregate trace tokens. The initial script's dialog-title extractor selected the Delete button text instead of the dialog heading; the agent then wrote a separate postprocessor and spent 14 further model steps correcting and re-verifying the report.
+
+The offline Gold Oracle replay in run `44733891829` used archived Builder/Pilot artifacts and deterministic Python adjudication only. It did not invoke DSH or a model. Its PASS verdicts describe business behavior; they do not retroactively prove DSH time-budget compliance.
+
+### Operational budget controls added
+
+The runner now records usage totals, usage-record count, model-step count, model-turn count and tool-call counts. It monitors the trace while DSH is running and stops the process when a ceiling is crossed. It also enforces the effective DSH wall-clock timeout as the smaller of the configured DSH timeout and the Builder-declared case timeout, and records actual DSH start/end timestamps and elapsed time.
+
+The provisional per-case stop ceilings for future authorized Pilot runs are:
+- 32 model steps;
+- 60,000 uncached input tokens;
+- 55,000 output tokens;
+- 1,600,000 cache-read tokens;
+- 1,750,000 aggregate `totalTokens`;
+- DSH process timeout 600 seconds, additionally bounded by the case's own declared timeout.
+
+These are operational cost/safety controls, not evaluation-quality thresholds. They are calibrated to allow the observed pre/post-browser core of WB-CORE-14 (26 steps, 48,211 output tokens, 1,216,896 cache reads) with limited headroom, while stopping the observed 14-step post-processing tail before it can repeat. If a ceiling is crossed, the case is BLOCKED and its partial evidence is preserved; no automatic model repair or retry is allowed. No future run is authorized by adding these controls.
+
+The old runner result did not record actual DSH elapsed time or usage summaries. The updated runner will do so on future executions.
 
 ## 6. Cost-control decision
 
