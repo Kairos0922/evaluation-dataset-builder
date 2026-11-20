@@ -120,7 +120,7 @@ def resolve_user_input(case: dict) -> tuple[list[dict[str, str]], str | None]:
 
 
 def resolve_dsh_timeout(override: int | None) -> int:
-    timeout = 1500 if override is None else override
+    timeout = 600 if override is None else override
     if isinstance(timeout, bool) or not isinstance(timeout, int):
         raise ValueError("dsh_timeout_seconds must be an integer")
     if timeout < 60 or timeout > 1500:
@@ -340,11 +340,29 @@ def main() -> int:
     parser.add_argument("--fixture-profile", choices=("clean", "mutant"))
     parser.add_argument("--fixture-mutations")
     parser.add_argument("--case-timeout", type=int, help="Override the case execution budget passed to the Skill")
-    parser.add_argument("--dsh-timeout", type=int, help="Maximum DSH session duration in seconds (default: 1500)")
+    parser.add_argument("--dsh-timeout", type=int, default=600, help="Maximum DSH session duration in seconds (default: 600)")
+    parser.add_argument("--max-model-steps", type=int, default=32, help="Hard stop after this many DSH model steps")
+    parser.add_argument("--max-input-tokens", type=int, default=60000, help="Hard stop at cumulative uncached input tokens")
+    parser.add_argument("--max-output-tokens", type=int, default=55000, help="Hard stop at cumulative output tokens")
+    parser.add_argument("--max-cache-read-tokens", type=int, default=1600000, help="Hard stop at cumulative cache-read tokens")
+    parser.add_argument("--max-total-tokens", type=int, default=1750000, help="Hard stop at cumulative DSH totalTokens")
     args = parser.parse_args()
 
     if args.self_test:
         return self_test()
+    budget_limits = {
+        "model_steps": args.max_model_steps,
+        "input_tokens": args.max_input_tokens,
+        "output_tokens": args.max_output_tokens,
+        "cache_read_tokens": args.max_cache_read_tokens,
+        "total_tokens": args.max_total_tokens,
+    }
+    invalid_budgets = [
+        name for name, value in budget_limits.items()
+        if isinstance(value, bool) or not isinstance(value, int) or value < 1
+    ]
+    if invalid_budgets:
+        parser.error("trace budget limits must be positive integers: " + ", ".join(invalid_budgets))
     required = ("dataset", "dataset_id", "case_id", "fixture_source",
                 "public_assets", "skill_source", "work_root", "output_dir",
                 "skill_commit")
@@ -524,13 +542,15 @@ def main() -> int:
                     command, cwd=str(workspace), env=dsh_env, stdin=subprocess.PIPE,
                     stdout=stdout, stderr=stderr, text=True, start_new_session=True,
                 )
-                try:
-                    dsh.communicate(prompt, timeout=remaining)
-                    dsh_exit = dsh.returncode
-                except subprocess.TimeoutExpired:
-                    error = f"DSH session timed out after {dsh_timeout}s"
-                    stop_process_group(dsh, timeout=5)
-                    dsh_exit = 124
+                dsh_exit, monitor_error = wait_for_dsh_with_budget(
+                    dsh,
+                    prompt,
+                    events_path,
+                    max(1, int(remaining)),
+                    budget_limits,
+                )
+                if monitor_error:
+                    error = monitor_error
                 stdout.flush()
                 stderr.flush()
                 partial_trace = parse_trace(events_path)
@@ -574,6 +594,7 @@ def main() -> int:
 
     port_closed = not port_open(host, port)
     trace = parse_trace(case_dir / "dsh-events.jsonl")
+    budget_violations = trace_budget_violations(trace, budget_limits)
     evidence_files = []
     for path in sorted(case_dir.rglob("*")):
         if path.is_file():
@@ -588,6 +609,7 @@ def main() -> int:
         and trace["webapp_testing_skill_calls"] > 0
         and trace["completed_skill_calls"] > 0
         and trace["final_reason"] == "completed"
+        and not budget_violations
         and trace["turn_start_count"] == len(user_turns)
         and trace["turn_end_count"] == len(user_turns)
         and len(session_turn_results) == len(user_turns)
@@ -621,6 +643,7 @@ def main() -> int:
         "case_timeout_seconds": case_timeout,
         "dsh_timeout_seconds": dsh_timeout,
         "trace": trace,
+        "trace_budget": {"limits": budget_limits, "violations": budget_violations},
         "user_turn_count": len(user_turns),
         "completed_user_turn_count": len(session_turn_results),
         "session_id": session_id,
@@ -643,6 +666,7 @@ def main() -> int:
         "case_id": args.case_id, "dataset_id": args.dataset_id,
         "runner_status": runner_status, "user_turn_count": len(user_turns),
         "completed_user_turn_count": len(session_turn_results), "trace": trace,
+        "trace_budget": {"limits": budget_limits, "violations": budget_violations},
         "server_port_closed": port_closed, "runner_error": error,
     }, ensure_ascii=False))
     return 0 if runner_status == "INVOCATION_OK" else 1
