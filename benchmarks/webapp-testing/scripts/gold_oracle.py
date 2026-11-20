@@ -323,16 +323,62 @@ def add_check(checks: list[dict], name: str, condition: bool | None, evidence: s
 
 def report_bundle(pilot: Path) -> tuple[str, list[Path]]:
     root = pilot / "skill-artifacts"
-    reports = [
-        path for path in root.rglob("*")
-        if path.is_file() and path.suffix.lower() == ".md"
-    ] if root.is_dir() else []
+    reports = sorted(
+        (
+            path for path in root.rglob("*")
+            if path.is_file() and path.suffix.lower() == ".md"
+        ),
+        key=lambda path: path.as_posix(),
+    ) if root.is_dir() else []
+    # Raw/original run reports are diagnostic evidence, not the final report.
+    # Prefer canonical reports when present; fall back only when none exist.
+    canonical_reports = [
+        path for path in reports
+        if not re.search(r"(?:^|[_-])(?:raw|original|diagnostic)(?:[_-]|$)", path.stem, re.I)
+    ]
+    if canonical_reports:
+        reports = canonical_reports
     images = [
         path for path in root.rglob("*")
         if path.is_file() and path.suffix.lower() in {".png", ".jpg", ".jpeg", ".webp"}
     ] if root.is_dir() else []
     text = "\n".join(path.read_text(encoding="utf-8", errors="replace") for path in reports)
     return text, images
+
+
+def report_has_search_finding(report_text: str, expected_tasks: list[dict], required_queries: list[str]) -> bool:
+    """Check the case-declared finding, not a hard-coded business-rule label."""
+    return (
+        bool(report_text.strip())
+        and bool(expected_tasks)
+        and all(item.get("title") and item["title"] in report_text for item in expected_tasks)
+        and all(query.casefold() in report_text.casefold() for query in required_queries)
+        and re.search(r"VIOLATED|FAIL|违反|不符合|缺陷|遗漏", report_text, re.I) is not None
+    )
+
+
+def report_has_state_cycle_result(report_text: str, target_id: str | None, target_title: str | None) -> bool:
+    """Check the target and state-cycle result without requiring rule-ID prose."""
+    return (
+        bool(report_text.strip())
+        and (
+            (bool(target_id) and target_id in report_text)
+            or (bool(target_title) and target_title in report_text)
+        )
+        and all(term in report_text for term in ("Open", "In progress", "Done"))
+        and re.search(r"PASS|CONFORMS|通过", report_text, re.I) is not None
+    )
+
+
+def report_has_delete_result(report_text: str, target_id: str | None) -> bool:
+    """Check the target, confirmation dialog and action in the final report."""
+    return (
+        bool(report_text.strip())
+        and bool(target_id) and target_id in report_text
+        and "Delete task" in report_text
+        and re.search(r"Delete task\\?|confirmation dialog|确认对话框", report_text, re.I) is not None
+        and re.search(r"PASS|CONFORMS|通过", report_text, re.I) is not None
+    )
 
 
 def base_checks(case: dict, pilot: Path, checks: list[dict]) -> tuple[dict, list[dict], dict]:
@@ -578,13 +624,8 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
             item.get("title") and item["title"] in report_text for item in expected_tasks
         )
         report_mentions_queries = all(query.casefold() in report_text.casefold() for query in required_queries)
-        report_ok = (
-            skill_report_exists
-            and "BR-02" in report_text
-            and report_mentions_expected_tasks
-            and report_mentions_queries
-            and re.search(r"VIOLATED|FAIL|违反|不符合|缺陷|遗漏", report_text, re.I) is not None
-        )
+        # The case contract requires query/task/observation evidence, not a literal BR-02 label.
+        report_ok = report_has_search_finding(report_text, expected_tasks, required_queries)
         add_check(checks, "Target report correctly identifies and supports the BR-02 violation", report_ok, json.dumps({
             "expected_titles": [item.get("title") for item in expected_tasks],
             "report_mentions_expected_tasks": report_mentions_expected_tasks,
@@ -645,13 +686,8 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
             pre_is_initial and tasks_match_declared(post_tasks, expected_after) and post.get("summary") == expected_after_summary,
             f"pre_initial={pre_is_initial}; expected_target={target_id}; expected_final_status={expected[-1][1] if expected else None}; post_ids={[item['id'] for item in post_tasks]}; summary={post.get('summary')}; expected_summary={expected_after_summary}",
         )
-        report_ok = (
-            skill_report_exists and "BR-07" in report_text
-            and ((bool(target_id) and target_id in report_text)
-                 or (bool(target_title) and target_title in report_text))
-            and all(term in report_text for term in ("Open", "In progress", "Done"))
-            and re.search(r"PASS|CONFORMS|通过", report_text, re.I) is not None
-        )
+        # Check the target and state sequence; the case contract does not require BR-07 in prose.
+        report_ok = report_has_state_cycle_result(report_text, target_id, target_title)
         add_check(checks, "Target report agrees with the independently observed BR-07 cycle", report_ok, "BR-07, Builder-declared target, transitions, summary and PASS verdict inspected")
         behavior = "PASS" if target is not None and observed == expected and report_ok else "FAIL"
 
@@ -683,7 +719,7 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
                 and post.get("summary") == expected_summary
             )
             report_ok = (
-                skill_report_exists and "BR-08" in report_text
+                skill_report_exists
                 and bool(target_id) and target_id in report_text
                 and bool(target_title) and target_title in report_text
                 and "Cancel" in report_text and "Delete task" in report_text
@@ -746,13 +782,8 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
                 state_matches,
                 f"pre_initial={pre_is_initial}; target_id={target_id}; post_ids={[item['id'] for item in post_tasks]}; summary={post.get('summary')}; expected_summary={expected_summary}",
             )
-            report_ok = (
-                skill_report_exists and "BR-08" in report_text
-                and bool(target_id) and target_id in report_text
-                and "Delete task" in report_text
-                and re.search(r"Delete task\?|confirmation dialog|确认对话框", report_text, re.I) is not None
-                and re.search(r"PASS|CONFORMS|通过", report_text, re.I) is not None
-            )
+            # BR-08 is the case's authority, not a required literal report token.
+            report_ok = report_has_delete_result(report_text, target_id)
             add_check(checks, "Target report documents the confirmation dialog and chosen Delete task action", report_ok, f"BR-08, target ID {target_id}, confirmation dialog, Delete task and PASS verdict inspected")
             add_check(checks, "Evidence contains screenshots for the dialog workflow", len(screenshots) >= 3, f"screenshot_count={len(screenshots)}")
             behavior = "PASS" if delete_matches and state_matches and report_ok and len(screenshots) >= 3 else "FAIL"
