@@ -131,7 +131,7 @@ def role_score(case: dict, role: str) -> int:
         has_delete_action = any(term in message for term in ("点击 delete", "click delete", "删除"))
         if (
             has_rule("BR-08")
-            and (not workflows or any(ref.startswith(("WF-DELETE", "WF-08")) for ref in workflows))
+            and (not workflows or any(ref.startswith(("WF-DELETE", "WF-07", "WF-08")) for ref in workflows))
             and has_confirmation
             and has_delete_action
         ):
