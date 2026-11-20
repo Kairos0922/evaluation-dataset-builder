@@ -564,11 +564,17 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
                     for query in required_queries
                 )
             ]
+        declared_expected = ((case.get("reference_outcome") or {}).get("expected") or {})
+        declared_titles = list(dict.fromkeys(
+            title for values in declared_expected.values() if isinstance(values, list)
+            for title in values if isinstance(title, str)
+        ))
+        if declared_titles:
+            expected_tasks = [item for item in initial_tasks if item.get("title") in declared_titles]
         report_mentions_expected_tasks = bool(expected_tasks) and all(
-            item["id"] in report_text or item["title"] in report_text
-            for item in expected_tasks
+            item.get("title") and item["title"] in report_text for item in expected_tasks
         )
-        report_mentions_queries = all(query in report_text for query in required_queries)
+        report_mentions_queries = all(query.casefold() in report_text.casefold() for query in required_queries)
         report_ok = (
             skill_report_exists
             and "BR-02" in report_text
@@ -576,7 +582,14 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
             and report_mentions_queries
             and re.search(r"VIOLATED|FAIL|违反|不符合|缺陷|遗漏", report_text, re.I) is not None
         )
-        add_check(checks, "Target report correctly identifies and supports the BR-02 violation", report_ok, "BR-02, Builder-required query variants, affected task IDs and both defect classes inspected")
+        add_check(checks, "Target report correctly identifies and supports the BR-02 violation", report_ok, json.dumps({
+            "expected_titles": [item.get("title") for item in expected_tasks],
+            "report_mentions_expected_tasks": report_mentions_expected_tasks,
+            "required_queries": required_queries,
+            "report_mentions_queries": report_mentions_queries,
+            "mentions_BR02": "BR-02" in report_text,
+            "mentions_violation": bool(re.search(r"VIOLATED|FAIL|违反|不符合|缺陷|遗漏", report_text, re.I)),
+        }, ensure_ascii=False))
         behavior = "EXPECTED_VIOLATION_DETECTED" if all_match and report_ok else "UNKNOWN"
 
     elif role == "state_cycle":
@@ -616,10 +629,18 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
             ),
             json.dumps({"expected_target": target_id, "write_count": len(writes), "writes": writes}, ensure_ascii=False),
         )
+        expected_after = [dict(item) for item in initial_tasks]
+        if target_id and expected:
+            final_status = expected[-1][1]
+            for item in expected_after:
+                if item.get("id") == target_id:
+                    item["status"] = final_status
+                    break
+        expected_after_summary = task_summary(expected_after)
         add_check(
-            checks, "Task rows and summary returned to the Builder-declared initial state",
-            pre_is_initial and tasks_match_declared(post_tasks, initial_tasks) and post.get("summary") == initial_summary,
-            f"pre_initial={pre_is_initial}; post_ids={[item['id'] for item in post_tasks]}; summary={post.get('summary')}",
+            checks, "Task rows and summary match the Builder-declared transition outcome",
+            pre_is_initial and tasks_match_declared(post_tasks, expected_after) and post.get("summary") == expected_after_summary,
+            f"pre_initial={pre_is_initial}; expected_target={target_id}; expected_final_status={expected[-1][1] if expected else None}; post_ids={[item['id'] for item in post_tasks]}; summary={post.get('summary')}; expected_summary={expected_after_summary}",
         )
         report_ok = (
             skill_report_exists and "BR-07" in report_text
