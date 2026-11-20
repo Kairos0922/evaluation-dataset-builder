@@ -18,6 +18,21 @@ import tempfile
 from pathlib import Path, PurePosixPath
 
 PILOT_ROLES = ("search_mutation", "state_cycle", "delete_confirmation")
+# The default selector remains the already-accepted three-case pilot. This
+# opt-in list contains only the eleven unexecuted Builder-authored cases.
+REMAINING_ROLES = (
+    "initial_board",
+    "search_description",
+    "search_empty",
+    "status_filter",
+    "search_filter_combo",
+    "accessible_names",
+    "visible_title_mapping",
+    "create_success",
+    "create_rejected",
+    "create_boundary_80",
+    "delete_cancel",
+)
 ALLOWED_QUALITY = {"candidate", "needs_info"}
 
 
@@ -147,6 +162,39 @@ def role_score(case: dict, role: str) -> int:
         ):
             return 100 + len(message)
 
+    remaining_specs = {
+        "initial_board": ("initial_board", ("BR-01",), ("WF-INITIAL",)),
+        "search_description": ("search_description", ("BR-02",), ("WF-SEARCH",)),
+        "search_empty": ("search_empty", ("BR-02",), ("WF-SEARCH",)),
+        "status_filter": ("status_filter", ("BR-03",), ("WF-FILTER",)),
+        "search_filter_combo": ("search_filter_combo", ("BR-02", "BR-03"), ("WF-SEARCH", "WF-FILTER")),
+        "accessible_names": ("accessible_names", ("BR-10",), ("WF-INITIAL",)),
+        "visible_title_mapping": ("recon_only", ("BR-07",), ("WF-INITIAL",)),
+        "create_success": ("create_task", ("BR-01", "BR-04", "BR-05", "BR-06"), ("WF-CREATE-DEFAULT",)),
+        "create_rejected": ("invalid_create", ("BR-04",), ("WF-CREATE-BOUNDARY",)),
+        "create_boundary_80": ("boundary_create", ("BR-01", "BR-04", "BR-05", "BR-06"), ("WF-CREATE-BOUNDARY",)),
+        "delete_cancel": ("delete_cancel", ("BR-08",), ("WF-DELETE-CANCEL",)),
+    }
+    if role in remaining_specs:
+        expected_kind, required_rules, required_workflows = remaining_specs[role]
+        test_data = ((case.get("execution_requirements") or {}).get("test_data") or [])
+        kinds = {
+            item.get("kind") for item in test_data
+            if isinstance(item, dict) and isinstance(item.get("kind"), str)
+        }
+        # The Builder's structured test-data kind is the primary semantic
+        # discriminator. Rules and workflow refs are corroborating evidence;
+        # titles or user prose alone never make a case eligible.
+        if (
+            expected_kind in kinds
+            and all(has_rule(rule) for rule in required_rules)
+            and all(
+                any(isinstance(ref, str) and ref.startswith(prefix) for ref in workflows)
+                for prefix in required_workflows
+            )
+        ):
+            return 1000 + len(message)
+
     return 0
 
 
@@ -180,7 +228,7 @@ def validate_case(case: dict, dataset_id: str) -> None:
         fail(f"{dataset_id}/{case_id}: unresolved information gaps block pilot execution")
 
 
-def load_suite(root: Path) -> dict:
+def load_suite(root: Path, roles: tuple[str, ...] = PILOT_ROLES) -> dict:
     root = root.resolve()
     manifest_path = root / "SUITE-MANIFEST.json"
     if not manifest_path.is_file():
@@ -236,7 +284,7 @@ def load_suite(root: Path) -> dict:
 
     selected: list[tuple[dict, str]] = []
     used: set[str] = set()
-    for role in PILOT_ROLES:
+    for role in roles:
         scored = [(role_score(case, role), case) for case in all_cases if case["case_id"] not in used]
         scored = [(score, case) for score, case in scored if score > 0]
         if not scored:
@@ -266,6 +314,37 @@ def load_suite(root: Path) -> dict:
 
 
 def self_test() -> int:
+    # Regression: every remaining case is classified only when its structured
+    # test-data kind and source-backed rule/workflow references agree.
+    remaining_examples = {
+        "initial_board": ("initial_board", ["BR-01"], ["WF-INITIAL"]),
+        "search_description": ("search_description", ["BR-02"], ["WF-SEARCH"]),
+        "search_empty": ("search_empty", ["BR-02"], ["WF-SEARCH"]),
+        "status_filter": ("status_filter", ["BR-03"], ["WF-FILTER"]),
+        "search_filter_combo": ("search_filter_combo", ["BR-02", "BR-03"], ["WF-SEARCH", "WF-FILTER"]),
+        "accessible_names": ("accessible_names", ["BR-10"], ["WF-INITIAL"]),
+        "visible_title_mapping": ("recon_only", ["BR-07"], ["WF-INITIAL"]),
+        "create_success": ("create_task", ["BR-01", "BR-04", "BR-05", "BR-06"], ["WF-CREATE-DEFAULT"]),
+        "create_rejected": ("invalid_create", ["BR-04"], ["WF-CREATE-BOUNDARY"]),
+        "create_boundary_80": ("boundary_create", ["BR-01", "BR-04", "BR-05", "BR-06"], ["WF-CREATE-BOUNDARY"]),
+        "delete_cancel": ("delete_cancel", ["BR-08"], ["WF-DELETE-CANCEL"]),
+    }
+    for role, (kind, rules, workflows) in remaining_examples.items():
+        example = {
+            "business_rule_refs": rules,
+            "workflow_refs": workflows,
+            "user_input": "Run the structured Builder-authored case once.",
+            "execution_requirements": {"test_data": [{"kind": kind}]},
+        }
+        if role_score(example, role) <= 0:
+            fail(f"remaining Builder case shape did not resolve: {role}")
+        wrong_kind = {
+            **example,
+            "execution_requirements": {"test_data": [{"kind": "unrelated"}]},
+        }
+        if role_score(wrong_kind, role) != 0:
+            fail(f"selector accepted unrelated test-data kind for {role}")
+
     # Regression: Builder-authored BR-02 cases may put "大小写不敏感" in the
     # title and demonstrate it through an uppercase query, without repeating
     # that exact phrase in user_input.
@@ -393,12 +472,14 @@ def main() -> int:
     parser.add_argument("--write-output")
     parser.add_argument("--github-output", action="store_true")
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--include-remaining-candidates", action="store_true", help="resolve only the eleven unexecuted semantic roles; does not run them")
     args = parser.parse_args()
     if args.self_test:
         return self_test()
     if not args.output_root:
         parser.error("--output-root is required unless --self-test is used")
-    matrix = load_suite(Path(args.output_root))
+    roles = REMAINING_ROLES if args.include_remaining_candidates else PILOT_ROLES
+    matrix = load_suite(Path(args.output_root), roles=roles)
     serialized = json.dumps(matrix, ensure_ascii=False, separators=(",", ":"))
     if args.write_output:
         Path(args.write_output).write_text(serialized + "\n", encoding="utf-8")
