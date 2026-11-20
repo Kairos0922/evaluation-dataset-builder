@@ -207,7 +207,7 @@ def expected_status_transitions(case: dict, target: dict | None) -> list[tuple[s
     if from_status and to_status:
         return [(normalize_status(from_status), normalize_status(to_status))]
 
-    execution = case.get("execution_requirements") or {
+    execution = case.get("execution_requirements") or {}
     test_data = execution.get("test_data") or []
     test_sequence = []
     for item in test_data:
