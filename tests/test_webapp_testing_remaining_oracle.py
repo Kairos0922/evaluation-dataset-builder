@@ -386,11 +386,14 @@ class RemainingOracleTests(unittest.TestCase):
                 "kind": "delete_cancel", "target_data_id": "WB-104", "target_visible_title": "Verify email notification",
             }]},
         }
-        html = (
+        html = [
             render_board([f'<td>{item["title"]}</td>' for item in INITIAL]) +
-            '<dialog open aria-labelledby="delete-heading"><h2 id="delete-heading">Delete task?</h2>'
-            '<button>Cancel</button><button>Delete task</button></dialog>'
-        )
+            '<dialog id="delete-dialog" open aria-labelledby="delete-heading"><h2 id="delete-heading">Delete task?</h2>'
+            '<button>Cancel</button><button>Delete task</button></dialog>',
+            render_board([f'<td>{item["title"]}</td>' for item in INITIAL]) +
+            '<dialog id="delete-dialog" aria-labelledby="delete-heading"><h2 id="delete-heading">Delete task?</h2>'
+            '<button>Cancel</button><button>Delete task</button></dialog>',
+        ]
         result = adjudicate_fixture(
             "delete_cancel", case, html, [],
             report="WB-104 Verify email notification: dialog opened; clicked Cancel. "
