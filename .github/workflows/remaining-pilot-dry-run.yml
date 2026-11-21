@@ -1,6 +1,11 @@
 name: Remaining Pilot Artifact Dry Run
 
 on:
+  push:
+    branches:
+      - experiment/webapp-testing-contract
+    paths:
+      - .github/workflows/remaining-pilot-dry-run.yml
   workflow_dispatch:
     inputs:
       artifact_id:
@@ -26,7 +31,7 @@ jobs:
       - name: Download exact Builder artifact by ID from prior workflow run
         env:
           GH_TOKEN: ${{ github.token }}
-          ARTIFACT_ID: ${{ inputs.artifact_id }}
+          ARTIFACT_ID: ${{ github.event_name == 'workflow_dispatch' && inputs.artifact_id || '14624897819' }}
           REPOSITORY: ${{ github.repository }}
         run: |
           set -euo pipefail
