@@ -247,7 +247,7 @@ def test_gold_oracle_uses_correlated_output_for_truncated_test_heredoc_command()
             "type": "tool_result",
             "callId": call_id,
             "status": "completed",
-            "result": "[step] search_filled_once\\n=== SUMMARY ===\\n{\\\"verdict\\\": \\"FAIL\\"}\\nEXIT_CODE=0",
+            "result": '[step] search_filled_once\\n=== SUMMARY ===\\n{"verdict": "FAIL"}\\nEXIT_CODE=0',
         },
     ]
     result = oracle.count_test_script_executions(events, runner)
