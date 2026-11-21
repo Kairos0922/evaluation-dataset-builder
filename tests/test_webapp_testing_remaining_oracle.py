@@ -120,6 +120,18 @@ def adjudicate_fixture(role, case, html, audit_events, post_items=None, post_sum
         if screenshot_count > 1:
             for index in range(1, screenshot_count):
                 (pilot / "skill-artifacts" / f"step-{index}.png").write_bytes(b"offline-test-image")
+        runner_path = pilot / "runner-result.json"
+        runner = __import__("json").loads(runner_path.read_text(encoding="utf-8"))
+        runner["evidence_files"] = [
+            {
+                "path": path.relative_to(pilot).as_posix(),
+                "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                "size_bytes": path.stat().st_size,
+            }
+            for path in sorted(pilot.rglob("*"))
+            if path.is_file() and path.name != "runner-result.json"
+        ]
+        runner_path.write_text(__import__("json").dumps(runner), encoding="utf-8")
         if role == "delete_cancel":
             return ORACLE.adjudicate(case, pilot, role)
         return ORACLE.adjudicate_remaining_case(case, pilot, role)
