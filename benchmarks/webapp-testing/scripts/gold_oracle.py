@@ -374,13 +374,31 @@ def expected_status_transitions(case: dict, target: dict | None) -> list[tuple[s
     """Derive the state cycle from the Builder-authored case contract."""
     rule_expected = ((case.get("reference_outcome") or {}).get("rule_expected") or {})
     steps = rule_expected.get("steps") or []
-    expected = [
-        (normalize_status(step.get("from")), normalize_status(step.get("to")))
-        for step in steps
-        if isinstance(step, dict)
-    ]
-    if expected:
-        return expected
+    if steps:
+        # Builder contracts may encode a transition as {action, status, summary}
+        # rather than explicit {from, to}. Derive the previous state from the
+        # target's declared initial status, then advance through each declared
+        # destination. Do not return empty ("", "") transitions for a valid
+        # action/status contract.
+        structured = []
+        previous = normalize_status(target.get("status")) if target else ""
+        for step in steps:
+            if not isinstance(step, dict):
+                continue
+            from_status = step.get("from") or step.get("from_status")
+            to_status = step.get("to") or step.get("to_status") or step.get("status")
+            if from_status and to_status:
+                source = normalize_status(from_status)
+                destination = normalize_status(to_status)
+            elif to_status and previous:
+                source = previous
+                destination = normalize_status(to_status)
+            else:
+                continue
+            structured.append((source, destination))
+            previous = destination
+        if len(structured) == len(steps) and structured:
+            return structured
 
     outcome = case.get("reference_outcome") or {}
     from_status = outcome.get("from_status") or outcome.get("from")
