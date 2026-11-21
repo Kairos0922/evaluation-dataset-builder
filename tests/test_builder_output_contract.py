@@ -524,3 +524,17 @@ def test_validator_accepts_agent_fail_condition_that_attributes_missing_detectio
         },
     }
     validator.validate_evaluation_subject_contract(case)
+
+
+def test_semantic_contract_lint_failure_is_machine_readable():
+    issues = [
+        "Case WC-09 criterion C3 has an ambiguous priority/status mismatch condition.",
+        "Case WC-12 criterion C3 has a bare status/DOM mismatch condition.",
+        "Case WC-12 criterion C4 has a bare summary/DOM mismatch condition.",
+    ]
+    report = validator.semantic_contract_failure_report(issues)
+    assert report["status"] == "FAIL"
+    assert report["scope"] == "agent_skill_grading_subject_semantics"
+    assert report["issue_count"] == 3
+    assert report["issues"] == issues
+    assert "immutable output was not modified" in report["interpretation"]
