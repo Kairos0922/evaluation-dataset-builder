@@ -122,11 +122,39 @@ jobs:
           set -euo pipefail
           python -m py_compile benchmarks/webapp-testing/scripts/gold_oracle.py
           python benchmarks/webapp-testing/scripts/gold_oracle.py --self-test
+          set +e
           python benchmarks/webapp-testing/scripts/gold_oracle.py \
             --builder-output artifacts/builder-replay/webapp-testing-builder-output \
             --pilots-root artifacts/pilots \
             --pilot-matrix artifacts/pilot-matrix.json \
             --output artifacts/oracle-adjudication-corrected.json
+          oracle_exit=$?
+          set -e
+          test -s artifacts/oracle-adjudication-corrected.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("artifacts/oracle-adjudication-corrected.json").read_text(encoding="utf-8"))
+          if report.get("status") not in {"PASS", "FAIL", "UNKNOWN"}:
+              raise SystemExit("Oracle output status is missing or invalid.")
+          if report.get("completion_status") not in {
+              "COMPLETED", "COMPLETED_WITH_FAIL", "COMPLETED_WITH_UNKNOWN"
+          }:
+              raise SystemExit("Oracle adjudication did not complete with a valid completion status.")
+          print(
+              "Adjudication report generated: "
+              f"status={report['status']}, cases={report['case_count']}, "
+              f"passed={report['passed_cases']}, failed={report['failed_cases']}. "
+              "The report verdict is authoritative; workflow success means adjudication completed."
+          )
+          PY
+          # The Oracle returns 1 when the evidence correctly adjudicates to
+          # FAIL or UNKNOWN. Preserve that verdict in the JSON artifact while
+          # treating report generation itself as a successful workflow.
+          case "$oracle_exit" in
+            0|1) ;;
+            *) echo "::error::Oracle failed before producing a valid adjudication report (exit=$oracle_exit)."; exit "$oracle_exit" ;;
+          esac
           cat artifacts/oracle-adjudication-corrected.json
 
       - name: Archive corrected independent adjudication
