@@ -60,3 +60,20 @@
 可采集的证据包括页面截图、Playwright 执行日志、浏览器页面错误、HTTP 响应、服务端请求审计和用例执行前后的应用状态。Agent 自述不能替代这些证据。
 
 本文件定义执行环境，不包含正式评测用例或其评分答案。
+
+## 8. DSH 执行资源预算
+
+本实验当前 Pilot Runner 的 DSH Trace 资源硬限制如下，生成用例时必须把这些限制视为执行可行性约束，而不只检查 case wall-clock：
+
+| 资源 | 每次 DSH case 上限 |
+|---|---:|
+| Model steps | 32 |
+| Input tokens | 60,000 |
+| Output tokens | 55,000 |
+| Cache-read tokens | 1,600,000 |
+| Total tokens | 1,750,000 |
+| DSH wall-clock | 默认最多 600 秒，且不得超过 case timeout |
+
+Runner 会按实际 usage telemetry 检查上述预算。达到任一硬限制后，执行可能被阻断，脚本可能尚未运行或报告尚未完成。用例预算必须为任务步骤、证据采集和最终报告留出足够余量；不能把刚好达到限制视为合理计划。
+
+Builder 应优先设计最小充分的测试任务和证据流程：避免为单条用例生成大型探索/测试框架，重复读取同一页面、重复输出完整 DOM 或过量截图。不得减少业务断言、必要证据、错误分支或安全约束来压缩成本。若在现有 Runner 预算下无法合理完成，应标记 execution feasibility 为 needs_info，并记录具体资源缺口，而不是单纯提高 timeout 或虚构通过。
