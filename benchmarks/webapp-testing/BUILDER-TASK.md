@@ -26,6 +26,11 @@
 3. 仅在能力确实需要跨用户消息承接上下文或跨轮业务状态连续变化时设计多轮任务。只有当 `user_input` 是至少包含两条独立 `{turn_id, content}` 消息的数组，并且预期行为依赖前一条用户消息时，才可将 `scenario_bucket` 标记为 `multi_turn`。一条消息中包含多个点击、查询或状态变更步骤，不属于多轮对话。若输入资产不支持真正的跨消息能力，不得为了试点数量强行生成多轮用例。
 4. 每条正式用例必须包含可执行任务、目标能力、前置状态、允许动作、预期行为、禁止行为、证据要求和 case-level grading contract。 每条 `source_refs` 必须包含可定位的 `title`、`locator` 和 `quoted_evidence`；`quoted_evidence` 必须是对应来源中的原文连续片段，不得写摘要、转述或自拟引文。
 5. 判定契约必须适配 Web 应用测试能力，并明确 PASS、FAIL 和 UNKNOWN 条件。应区分页面交互、业务状态、缺陷发现和证据完整性。
+
+
+
+**评分主体与缺陷发现语义（强制）：** 本任务的评测对象是执行 Web 应用测试的 webapp-testing Skill，不是 Workboard 应用本身。Workboard 违反 BR-02 等业务规则时，该偏差是 Skill 应当发现的测试对象；Skill 若准确观察、正确解释并如实报告 FAIL，且证据充分，应判为 Skill 表现 PASS。不得把“应用返回错误结果”直接写成 Skill 的 criterion fail_condition。每个 criterion 的 pass_condition 和 fail_condition 必须评价 Skill 的操作、观察、推理、报告或证据质量。若需要评价应用是否符合规则，必须另设明确的应用状态观察项，不得与 Skill 的得分混为一谈。生成后必须逐项核对 case-level pass_conditions / fail_conditions 与每个 criterion 的语义一致性；发现“正确报告缺陷却被 criterion 判失败”的矛盾时，必须修正后才能交付。
+
 6. 业务预期以 `assets/public/business-rules.md` 为准。应用源代码是被测实现，不是业务规则的替代来源。代码检查不能替代真实页面交互。
 7. **UI 定位必须基于实际可见界面。** `assets/public/application-overview.md` 中的任务 ID 是数据标识，不保证在页面中显示。对于 WB-101，必须将其映射到唯一可见标题 `Reset password flow`，通过渲染后的 DOM/可访问角色定位对应任务行及其状态按钮；不得使用 `text=WB-101` 作为可见文本等待条件。导航并等待 `networkidle` 后，先检查页面截图或 DOM，再执行任何变更操作。若定位失败，立即停止，不得重试或超出用例预算；在失败路径保存页面截图、页面文本/DOM 摘要、浏览器日志和明确的 UNKNOWN 结论。
 7. 将所有合成资产标记为 SYNTHETIC。不得编造生产缺陷、真实用户、真实执行轨迹或外部来源。
