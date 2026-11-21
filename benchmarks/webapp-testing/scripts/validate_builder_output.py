@@ -60,6 +60,55 @@ def require_nonempty_value(value, location: str) -> None:
         raise SystemExit(f"{location} must not be empty")
 
 
+def validate_evaluation_subject_contract(case: dict) -> None:
+    """Reject grading contracts that score the SUT's defect as the test agent's failure."""
+    case_id = case.get("case_id", "<unknown>")
+    grading = case.get("grading") or {}
+    subject = grading.get("evaluation_subject")
+    if not isinstance(subject, str) or not subject.strip():
+        raise SystemExit(f"Case {case_id} grading must declare evaluation_subject")
+    if case_id != "WBT-CORE-02-SEARCH-MATCH":
+        return
+
+    if "webapp-testing Skill" not in subject:
+        raise SystemExit(
+            f"Case {case_id} evaluates the webapp-testing Skill; evaluation_subject must say so explicitly"
+        )
+    case_pass = " ".join(str(value) for value in grading.get("pass_conditions", []))
+    defect_detection_allowed = bool(
+        re.search(r"(?:如实|准确|正确).{0,12}(?:报告|识别).{0,8}FAIL|报告 FAIL", case_pass, re.I)
+    )
+    if not defect_detection_allowed:
+        raise SystemExit(
+            f"Case {case_id} case-level PASS must explicitly allow accurate defect detection and reporting"
+        )
+
+    for criterion in grading.get("criteria", []):
+        pass_condition = str(criterion.get("pass_condition") or "")
+        fail_condition = str(criterion.get("fail_condition") or "")
+        raw_sut_failure = re.search(
+            r"(?:任一查询返回空|查询返回空|结果为空|返回多余任务|结果不符合 BR-02)",
+            fail_condition,
+            re.I,
+        )
+        agent_misjudgment = re.search(
+            r"(?:误报|误判|未发现|未报告|错误报告|报告 PASS|判定为 PASS)",
+            fail_condition,
+            re.I,
+        )
+        if raw_sut_failure and not agent_misjudgment:
+            raise SystemExit(
+                f"Case {case_id} criterion {criterion.get('criterion_id')} "
+                "treats an application defect as the Skill's failure; "
+                "the condition must evaluate the Skill's detection/reporting"
+            )
+        if criterion.get("criterion_id") == "WBT-CORE-02-G2":
+            if not re.search(r"(?:如实|准确|正确).{0,20}(?:报告|识别|判断)", pass_condition, re.I):
+                raise SystemExit(
+                    f"Case {case_id} G2 pass_condition must reward accurate Skill defect detection"
+                )
+
+
 def validate_case_timeout_seconds(case_id: str, execution: dict) -> int:
     """Validate the timeout field at its contract-defined execution_requirements level."""
     environment = execution.get("environment") or {}
@@ -584,6 +633,7 @@ def main() -> int:
                 require_nonempty_value(execution.get(field), f"{case_id}.execution_requirements.{field}")
 
             grading = case["grading"]
+            validate_evaluation_subject_contract(case)
             if not grading.get("uncertainty_policy"):
                 raise SystemExit(f"Case {case_id} grading lacks an explicit UNKNOWN policy")
             if not grading.get("pass_conditions") or not grading.get("fail_conditions"):
