@@ -1,5 +1,6 @@
 """Contract regressions for Builder-authored nested execution requirements."""
 from pathlib import Path
+import json
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -127,3 +128,12 @@ def test_validator_accepts_truthful_defect_detection_by_test_skill():
         },
     }
     validator.validate_evaluation_subject_contract(coherent)
+
+
+def test_dataset_schema_requires_explicit_grading_evaluation_subject():
+    schema_path = ROOT / "skills" / "evaluation-dataset-builder" / "references" / "dataset-schema.json"
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    grading = schema["properties"]["grading"]
+    assert "evaluation_subject" in grading["required"]
+    assert grading["properties"]["evaluation_subject"]["type"] == "string"
+    assert grading["properties"]["evaluation_subject"]["minLength"] == 1
