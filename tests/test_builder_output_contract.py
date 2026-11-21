@@ -312,6 +312,50 @@ def test_validator_applies_agent_failure_attribution_check_to_arbitrary_case_ids
 
 
 
+
+
+def test_validator_rejects_bare_sut_outcome_even_when_another_clause_is_agent_attributed():
+    case = {
+        "case_id": "CASE-ARBITRARY-21",
+        "grading": {
+            "evaluation_subject": "web page testing Skill",
+            "pass_conditions": ["Skill correctly reports observed defects."],
+            "criteria": [{
+                "criterion_id": "C-21",
+                "description": "Checks summary consistency.",
+                "pass_condition": "Skill reads each summary and reports deviations.",
+                "fail_condition": "Skill does not compare each step, summary value differs from the DOM.",
+                "evidence_required": ["step summaries", "DOM"],
+            }],
+        },
+    }
+    try:
+        validator.validate_evaluation_subject_contract(case)
+    except SystemExit as exc:
+        assert "raw application outcome" in str(exc)
+    else:
+        raise AssertionError("A bare SUT mismatch clause was masked by a neighboring agent-behavior clause")
+
+
+def test_validator_accepts_each_clause_when_it_attributes_the_failure_to_agent_behavior():
+    case = {
+        "case_id": "CASE-ARBITRARY-22",
+        "grading": {
+            "evaluation_subject": "web page testing Skill",
+            "pass_conditions": ["Skill correctly reports observed defects."],
+            "criteria": [{
+                "criterion_id": "C-22",
+                "description": "Checks summary consistency.",
+                "pass_condition": "Skill reads each summary and reports deviations.",
+                "fail_condition": "Skill does not compare each step; Skill ignores a summary that is out of sync.",
+                "evidence_required": ["step summaries", "DOM"],
+            }],
+        },
+    }
+    validator.validate_evaluation_subject_contract(case)
+
+
+
 def test_validator_accepts_skill_explicitly_misreporting_application_result():
     case = {
         "case_id": "CASE-ARBITRARY-19",
@@ -359,7 +403,7 @@ def test_validator_accepts_agent_fail_condition_that_attributes_missing_detectio
                 "criterion_id": "C-18",
                 "description": "验证搜索缺陷发现。",
                 "pass_condition": "Skill 正确检查搜索并提供证据。",
-                "fail_condition": "查询返回空结果时，Skill 未发现该偏差或错误报告 PASS。",
+                "fail_condition": "查询返回空结果时 Skill 未发现该偏差或错误报告 PASS.",
                 "evidence_required": ["查询记录", "最终报告"],
             }],
         },
