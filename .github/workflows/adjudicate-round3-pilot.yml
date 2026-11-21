@@ -1,6 +1,10 @@
 name: Adjudicate Round 3 archived Skill pilots
 
 on:
+  push:
+    branches: ["experiment/webapp-testing-contract"]
+    paths:
+      - ".github/dispatch/adjudicate-round3-pilot-44914129348"
   workflow_dispatch:
     inputs:
       builder_run_id:
