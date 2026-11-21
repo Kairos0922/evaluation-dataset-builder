@@ -1806,14 +1806,22 @@ def self_test() -> int:
         (cancel_pilot / "dsh-events.jsonl").write_text(
             "".join(json.dumps(item) + "\n" for item in trace_events), encoding="utf-8"
         )
+        cancel_run_id = "oracle-self-test-delete-cancel"
         cancel_audit = [
-            {"method": "POST", "path": "/api/reset", "status": 200, "action": "reset"},
+            {"method": "POST", "path": "/api/reset", "status": 200, "action": "reset", "run_id": cancel_run_id},
         ]
         (cancel_pilot / "server-audit.jsonl").write_text(
             "".join(json.dumps(item) + "\n" for item in cancel_audit), encoding="utf-8"
         )
+        cancel_trace_path = cancel_pilot / "dsh-events.jsonl"
+        (cancel_pilot / "trace-run-context.json").write_text(json.dumps({
+            "run_id": cancel_run_id,
+            "trace_sha256": hashlib.sha256(cancel_trace_path.read_bytes()).hexdigest(),
+            "trace_event_count": len(trace_events),
+        }), encoding="utf-8")
         cancel_runner = {
             "case_id": cancel_case["case_id"],
+            "run_id": cancel_run_id,
             "runner_status": "INVOCATION_OK",
             "dsh_exit_code": 0,
             "completed_user_turn_count": 1,
