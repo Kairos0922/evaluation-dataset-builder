@@ -124,8 +124,16 @@ def role_score(case: dict, role: str) -> int:
         )
         ordered_expected_steps = True
         previous_position = -1
-        for number, state in ((1, "inprogress"), (2, "done"), (3, "open")):
-            step_position = expected_contract.find(f"第{number}次")
+        for number, chinese_ordinal, state in (
+            (1, "第一次", "inprogress"),
+            (2, "第二次", "done"),
+            (3, "第三次", "open"),
+        ):
+            ordinal_candidates = (
+                expected_contract.find(f"第{number}次"),
+                expected_contract.find(chinese_ordinal),
+            )
+            step_position = min((p for p in ordinal_candidates if p >= 0), default=-1)
             state_position = expected_contract.find(state, step_position + 1)
             if step_position <= previous_position or state_position <= step_position:
                 ordered_expected_steps = False
@@ -133,7 +141,10 @@ def role_score(case: dict, role: str) -> int:
             previous_position = state_position
         builder_status_cycle = (
             has_rule("BR-07")
-            and any(ref.startswith(("WF-STATUS", "WF-05")) for ref in workflows)
+            and (
+                not workflows
+                or any(ref.startswith(("WF-STATUS", "WF-05")) for ref in workflows)
+            )
             and three_click_request
             and expected_transitions
             and ordered_expected_steps
@@ -372,6 +383,26 @@ def self_test() -> int:
     }
     if role_score(builder_state_shape, "state_cycle") <= 0:
         fail("Builder-shaped BR-07 three-click state cycle did not resolve")
+
+    # Regression: actual Builder output uses Chinese ordinal words
+    # ("第一次/第二次/第三次") and omits optional workflow_refs.
+    actual_builder_state_shape = {
+        "title": "WB-101 可见标题定位与三次状态循环",
+        "business_rule_refs": ["BR-07"],
+        "scenario_bucket": ["business_rule", "state_anomaly", "tool_interaction", "negative"],
+        "user_input": (
+            "测试 WB-101 的状态流转。先等待页面稳定，确认初始状态为 Open；"
+            "然后通过渲染后的页面定位任务行，点击状态按钮三次，验证状态依次变为 "
+            "In progress、Done、Open，并在每次变化后核对四项摘要。"
+        ),
+        "expected_behavior": [
+            "第一次点击后状态为 In progress。",
+            "第二次点击后状态为 Done。",
+            "第三次点击后状态为 Open。",
+        ],
+    }
+    if role_score(actual_builder_state_shape, "state_cycle") <= 0:
+        fail("Actual Builder-shaped Chinese-ordinal state cycle did not resolve")
 
     with tempfile.TemporaryDirectory() as temp:
         root = Path(temp)
