@@ -842,10 +842,29 @@ def adjudicate_remaining_case(case: dict, pilot: Path, role: str) -> dict:
         actions_ok = (any(item["role"] == "button" and item["name"] == "Cancel" for item in controls) and any(item["role"] == "button" and item["name"] == "Delete task" for item in controls)) if dom_available else None
         target_title = td.get("dialog_target_visible_title")
         target_dom_ok = any(target_title and target_title in row for row in rows) if dom_available else None
+        # WB-CORE-07 is an open-then-Cancel workflow. A single open-dialog
+        # snapshot proves control names, but cannot prove that Cancel closed it.
+        open_dialog_snapshots = [
+            snap for snap in snaps
+            if any(node.get("tag") == "dialog" and "open" in (node.get("attrs") or {}) for node in snap["nodes"])
+        ]
+        closed_dialog_snapshots = [
+            snap for snap in snaps
+            if any(node.get("tag") == "dialog" and "open" not in (node.get("attrs") or {}) for node in snap["nodes"])
+        ]
+        post_cancel_target_ok = (
+            any(target_title and target_title in row for row in dom_rows(closed_dialog_snapshots))
+            if closed_dialog_snapshots else None
+        )
+        cancel_lifecycle_ok = (
+            bool(open_dialog_snapshots) and bool(closed_dialog_snapshots) and post_cancel_target_ok
+            if dom_available else None
+        )
         state_ok = (pre_ok and tasks_match_declared(post_tasks, initial_tasks) and post.get("summary") == initial_summary) if state_available else None
         add("Every Builder-declared role/accessibility-name pair exists in rendered DOM", names_ok, {"missing": missing, "observed": controls})
         add("Delete dialog exposes its semantic name and safe action names", (dialog_ok and actions_ok) if dom_available else None, {"dialog": dialog_ok, "actions": actions_ok})
         add("Builder-declared delete target remains identifiable by its visible title", target_dom_ok, {"target_title": target_title, "rows": rows})
+        add("Cancel closes the previously open dialog and the target remains visible afterward", cancel_lifecycle_ok, {"open_dialog_snapshots": len(open_dialog_snapshots), "closed_dialog_snapshots": len(closed_dialog_snapshots), "target_visible_after_cancel": post_cancel_target_ok})
         add("Accessibility inspection and Cancel caused no application mutation", no_writes and state_ok, writes)
 
     elif role == "visible_title_mapping":
