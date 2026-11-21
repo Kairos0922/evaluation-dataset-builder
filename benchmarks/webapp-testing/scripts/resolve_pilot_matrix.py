@@ -161,9 +161,30 @@ def role_score(case: dict, role: str) -> int:
             return 200 + len(message)
 
     elif role == "delete_confirmation":
-        has_confirmation = any(
-            term in message for term in ("delete task", "confirm delete", "点击确认删除按钮")
+        # A case that merely mentions the destructive confirmation button
+        # while explicitly forbidding its use is a delete-cancel case, not a
+        # delete-confirmation pilot.
+        negative_confirmation = any(
+            phrase in message
+            for phrase in (
+                "不得点击 delete task",
+                "不要点击 delete task",
+                "do not click delete task",
+                "must not click delete task",
+                "never click delete task",
+            )
         )
+        positive_confirmation = any(
+            phrase in message
+            for phrase in (
+                "点击一次 delete task",
+                "点击 delete task",
+                "点击确认删除按钮",
+                "click delete task",
+                "confirm delete",
+            )
+        )
+        has_confirmation = positive_confirmation and not negative_confirmation
         has_delete_action = any(term in message for term in ("点击 delete", "click delete", "删除"))
         if (
             has_rule("BR-08")
@@ -370,6 +391,27 @@ def self_test() -> int:
     }
     if role_score(builder_search_shape, "search_mutation") <= 0:
         fail("Builder-shaped BR-02 search case did not resolve to search_mutation")
+
+    # Regression: mentioning a confirmation button in a cancel-only case
+    # must not make it eligible for the destructive delete-confirmation role.
+    builder_delete_cancel_shape = {
+        "business_rule_refs": ["BR-08"],
+        "user_input": (
+            "点击 Delete 打开确认对话框，核对 Cancel 和 Delete task 按钮；"
+            "然后只点击 Cancel。不得点击 Delete task。"
+        ),
+    }
+    if role_score(builder_delete_cancel_shape, "delete_confirmation") != 0:
+        fail("Selector misclassified a delete-cancel case as delete_confirmation")
+    builder_delete_confirm_shape = {
+        "business_rule_refs": ["BR-08"],
+        "user_input": (
+            "点击 Delete 打开确认对话框，核对后点击一次 Delete task，"
+            "确认目标任务删除。"
+        ),
+    }
+    if role_score(builder_delete_confirm_shape, "delete_confirmation") <= 0:
+        fail("Builder-shaped delete-confirmation case did not resolve")
 
     # Regression: Builder may use WF-STATUS and ordered per-click expectations
     # instead of WF-01/WF-02/WF-03 or a literal transition arrow.
