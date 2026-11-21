@@ -80,6 +80,8 @@ Running the updated lint against the exact immutable Round 2 Builder artifact fo
 
 The exact archived validation is [run 44909794116](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44909794116), which rejects the artifact with all three findings. This is an expected quality-gate rejection, not a runtime or artifact-download failure. The previous manual review statement that no such defect remained was incorrect and is superseded by this stricter, clause-level review.
 
+The latest archived validation report is [run 44909978524](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44909978524), artifact `14709456479`, report SHA-256 `f6ae783892a6f43ae7177329306d85c34089687bdcda583fb132b97b9194caaa`. It stores the 3 findings as machine-readable JSON. The archive job correctly remains failed because the candidate output fails the semantic quality gate, while evidence download, input integrity, and DSH trace checks pass.
+
 ## 5. Builder generation cost and production-efficiency evidence
 
 Round 2 Builder DSH telemetry:
