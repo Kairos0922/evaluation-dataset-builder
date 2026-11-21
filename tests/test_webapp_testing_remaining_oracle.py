@@ -337,9 +337,41 @@ class RemainingOracleTests(unittest.TestCase):
             "case_id": "WB-CORE-07", "dataset_id": "D-WB",
             "execution_requirements": {"test_data": [{"kind": "accessible_names", "dialog_target_visible_title": "Verify email notification", "expected_controls": expected}]},
         }
-        html = render_board([f'<td>{item["title"]}</td>' for item in INITIAL], controls=controls)
-        result = adjudicate_fixture("accessible_names", case, html, [], screenshot_count=3)
+        board = [f'<td>{item["title"]}</td>' for item in INITIAL]
+        open_html = render_board(board, controls=controls)
+        closed_controls = (
+            '<label for="task-search">Search tasks</label><input id="task-search" type="search">'
+            '<select aria-label="Filter tasks by status"></select><button>Create task</button>'
+            '<button>Delete</button><button>Move to In progress</button><button>Move to Done</button><button>Move to Open</button>'
+            '<dialog aria-labelledby="delete-heading"><h2 id="delete-heading">Delete task?</h2>'
+            '<button>Cancel</button><button>Delete task</button></dialog>'
+        )
+        closed_html = render_board(board, controls=closed_controls)
+        result = adjudicate_fixture("accessible_names", case, [open_html, closed_html], [], screenshot_count=3)
         self.assertEqual(result["oracle_verdict"], "PASS", result["checks"])
+
+    def test_accessible_names_is_unknown_without_post_cancel_closed_dialog_snapshot(self):
+        expected = [
+            {"role": "dialog", "name": "Delete task?"},
+            {"role": "button", "name": "Cancel"},
+            {"role": "button", "name": "Delete task"},
+        ]
+        controls = (
+            '<dialog open aria-labelledby="heading"><h2 id="heading">Delete task?</h2>'
+            '<button>Cancel</button><button>Delete task</button></dialog>'
+        )
+        case = {
+            "case_id": "WB-CORE-07", "dataset_id": "D-WB",
+            "execution_requirements": {"test_data": [{
+                "kind": "accessible_names", "dialog_target_visible_title": "Verify email notification",
+                "expected_controls": expected,
+            }]},
+        }
+        html = render_board([f'<td>{item["title"]}</td>' for item in INITIAL], controls=controls)
+        result = adjudicate_fixture("accessible_names", case, html, [])
+        self.assertEqual(result["oracle_verdict"], "UNKNOWN", result["checks"])
+        lifecycle = next(item for item in result["checks"] if item["check"].startswith("Cancel closes"))
+        self.assertEqual(lifecycle["status"], "UNKNOWN")
 
     def test_visible_title_mapping_role_rejects_identifier_as_visible_text(self):
         case = {
