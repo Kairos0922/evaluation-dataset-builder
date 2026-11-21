@@ -110,15 +110,21 @@ Trace inspection found avoidable production rework:
 
 These are operation-count observations, not proof that every edit or command lacked value. Necessary source review and quality checks must remain. The goal is to avoid preventable schema omissions and repetitive validation, not to reduce quality.
 
-## 6. Current offline improvements underway
+## 6. Current offline improvements and verified CI
 
 After observing the actual Round 2 trace and adjudication:
-1. `validate_evaluation_subject_contract` was generalized beyond the historical case ID. New regression tests use arbitrary case IDs to ensure a raw application failure cannot masquerade as an Agent/Skill failure.
-2. `BUILDER-TASK.md` now requires a Schema field checklist before the first formal JSONL write, complete case objects (including `scenario_bucket` and `grading.evaluation_subject`) at initial insertion, and a frozen source registry instead of repetitive source-map repair.
-3. Regression tests were added for the one-pass Schema/source planning contract.
-4. Oracle changes and corrected archived adjudication are complete; no further paid calls or target-Skill pilots are currently justified.
+1. `validate_evaluation_subject_contract` was generalized beyond the historical case ID. New regression tests use arbitrary case IDs and clauses so a raw application failure cannot masquerade as an Agent/Skill failure, and a neighboring valid clause cannot mask the defect.
+2. The validator checks each fail-condition disjunct independently and aggregates all findings across the dataset. It emits a machine-readable FAIL report rather than stopping at the first semantic issue.
+3. `BUILDER-TASK.md` and `grader-guidelines.md` require explicit distinction between application deviation and Skill failure. A truthful report of actual application behavior must pass the Skill-behavior criterion; a Skill report that conflicts with same-step DOM/response/trace evidence can fail.
+4. `BUILDER-TASK.md` now requires a Schema field checklist before the first formal JSONL write, complete case objects (including `scenario_bucket` and `grading.evaluation_subject`) at initial insertion, and a frozen source registry instead of repetitive source-map repair.
+5. Regression tests cover arbitrary case IDs, WC-09/WC-12-like clauses, report-to-evidence mismatch, script execution counting, and the one-pass Schema/source planning contract.
+6. Oracle field parsing, budget accounting, and corrected archived re-adjudication are complete; no new Builder or target-Skill model calls were made for these offline fixes.
 
-Latest offline CI validation is running for the new generic subject lint and generation-efficiency constraints. Record its final result here after checking the exact PR head and workflow run. Do not infer pass from a previous commit's run.
+Latest PR head: `3d104206558601c5bafe7d5d7709b1a5d1d85d43`. Exact PR validation [run 44910066159](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44910066159) passed, including the offline test step: **207 tests in 2.388 seconds**, plus a separate **6-test** sub-suite. Runner preflight [run 44910063765](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44910063765) also passed. Builder production, independent validation rerun, Pilot and adjudication jobs were skipped on that PR-only validation run, as intended.
+
+The separate archived-output validation [run 44909978524](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44909978524) intentionally failed the semantic quality gate on immutable Round 2 artifact `14706494963`; its machine-readable finding report is artifact `14709456479`, SHA-256 `f6ae783892a6f43ae7177329306d85c34089687bdcda583fb132b97b9194caaa`. It found exactly three issues: WC-09 C3-OBSERVE-TITLE, WC-12 C3-STATUS-SEQUENCE, and WC-12 C4-SUMMARY-SYNC. This quality rejection is not a CI implementation failure.
+
+Do not treat the semantic rejection as a reason to rewrite the immutable Round 2 output. Any next formal production must create a new artifact and pass the updated structural plus semantic validator before any target-Skill pilot is considered.
 
 ## 7. Current decision and gates
 
