@@ -29,6 +29,7 @@
 - 当评测对象是应用/API 本身时，应用实际违反业务规则可以是 FAIL。不得把这套规则机械套用到不同的评测主体。
 - 不得在同一 criterion 中混用“被测系统是否符合规则”和“Agent/Skill 是否正确发现并报告偏差”两个层级。若用例同时测量二者，必须拆成独立判定项，并明确各自的评分主体及合成规则。
 - 集中审查时，将 case-level `pass_conditions`、`fail_conditions` 与每个 criterion 的通过/失败条件逐项对照。若 case-level 明确允许“观察到缺陷并如实报告 FAIL”获得通过，任何 criterion 都不得仅因观察到该缺陷就判 Agent/Skill 失败。
+- **逐分支区分应用偏差与 Agent/Skill 失误。** 当应用实际状态可能与预期不一致时，criterion 的 `pass_condition` 应允许 Agent/Skill 准确报告该实际状态及相应规则偏差；`fail_condition` 只能描述 Agent/Skill 漏检、误报、报告值与实际证据不一致、遗漏关键步骤、违反执行契约或证据不足。不得把“状态/按钮/摘要/优先级与预期不一致”或“应用返回空结果”单独作为测试型 Agent/Skill 的失败条件。若应用状态与 Skill 报告值不一致，必须明确写成“Skill 报告值与同一步 DOM/响应/轨迹证据不一致”。
 
 
 
