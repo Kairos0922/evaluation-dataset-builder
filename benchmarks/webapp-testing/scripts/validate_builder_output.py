@@ -61,52 +61,61 @@ def require_nonempty_value(value, location: str) -> None:
 
 
 def validate_evaluation_subject_contract(case: dict) -> None:
-    """Reject grading contracts that score the SUT's defect as the test agent's failure."""
+    """Reject rubrics that attribute a bare SUT outcome to an Agent/Skill failure.
+
+    This is a conservative semantic lint, not a full natural-language grader.
+    It targets a known high-impact contradiction: case-level grading permits
+    truthful defect discovery, while a criterion fails solely because the
+    application exhibits that defect.
+    """
     case_id = case.get("case_id", "<unknown>")
     grading = case.get("grading") or {}
     subject = grading.get("evaluation_subject")
     if not isinstance(subject, str) or not subject.strip():
         raise SystemExit(f"Case {case_id} grading must declare evaluation_subject")
-    if case_id != "WBT-CORE-02-SEARCH-MATCH":
+
+    if not re.search(r"\b(?:agent|skill|智能体|助手|代理|测试型)\b", subject, re.I):
         return
 
-    if "webapp-testing Skill" not in subject:
-        raise SystemExit(
-            f"Case {case_id} evaluates the webapp-testing Skill; evaluation_subject must say so explicitly"
-        )
-    case_pass = " ".join(str(value) for value in grading.get("pass_conditions", []))
-    defect_detection_allowed = bool(
-        re.search(r"(?:如实|准确|正确).{0,12}(?:报告|识别).{0,8}FAIL|报告 FAIL", case_pass, re.I)
+    raw_sut_outcome = re.compile(
+        r"(?:应用|页面|系统|接口|API|查询|搜索|结果|列表|状态|摘要|服务器|Workboard|"
+        r"application|page|system|API|query|search|result|list|status|server)"
+        r".{0,28}(?:为空|无结果|未命中|返回(?:了)?(?:空|错误|异常|失败)|失败|错误|"
+        r"不符合|不一致|缺失|异常|超时|未更新|未变化|empty|no results?|miss(?:es|ed)?|"
+        r"returns? (?:empty|an? error)|fails?|does not match|missing|tim(?:e|ed) out)"
+        r"|(?:为空|无结果|未命中|返回(?:了)?(?:空|错误|异常|失败)|失败|错误|不符合|"
+        r"不一致|缺失|异常|超时|未更新|未变化|empty|no results?|returns? (?:empty|an? error)|"
+        r"fails?|does not match|missing|tim(?:e|ed) out)"
+        r".{0,28}(?:应用|页面|系统|接口|API|查询|搜索|结果|列表|状态|摘要|服务器|Workboard|"
+        r"application|page|system|API|query|search|result|list|status|server)",
+        re.I,
     )
-    if not defect_detection_allowed:
-        raise SystemExit(
-            f"Case {case_id} case-level PASS must explicitly allow accurate defect detection and reporting"
-        )
+    subject_failure = re.compile(
+        r"(?:Skill|Agent|智能体|助手|测试者|测试脚本|执行者|其报告|报告|判定|证据|轨迹|操作|执行)"
+        r".{0,28}(?:未发现|未识别|未报告|未说明|未记录|未核验|未验证|未观察|未检查|未执行|"
+        r"未完成|未按|未能|错误报告|错误判断|误报|误判|漏报|遗漏|忽略|跳过|重复|多次|"
+        r"超出|超过|违反|调用了|修改了|删除了|重置了|缺少|不足|不完整|"
+        r"did not detect|failed to report|failed to verify|failed to observe|failed to execute|"
+        r"missed|ignored|skipped|repeated|exceeded|violated|called|changed|deleted|reset|"
+        r"lacks?|insufficient|incomplete)"
+        r"|(?:未发现|未识别|未报告|未说明|未记录|未核验|未验证|未观察|未检查|未执行|"
+        r"未完成|未按|未能|错误报告|错误判断|误报|误判|漏报|遗漏|忽略|跳过|重复|多次|"
+        r"超出|超过|违反|缺少|不足|不完整|did not detect|failed to report|failed to verify|"
+        r"failed to observe|failed to execute|missed|ignored|skipped|repeated|exceeded|"
+        r"violated|lacks?|insufficient|incomplete)"
+        r".{0,28}(?:Skill|Agent|智能体|助手|测试者|测试脚本|执行者|报告|判定|证据|轨迹|操作|执行)",
+        re.I,
+    )
 
     for criterion in grading.get("criteria", []):
-        pass_condition = str(criterion.get("pass_condition") or "")
         fail_condition = str(criterion.get("fail_condition") or "")
-        raw_sut_failure = re.search(
-            r"(?:任一查询返回空|查询返回空|结果为空|返回多余任务|结果不符合 BR-02)",
-            fail_condition,
-            re.I,
-        )
-        agent_misjudgment = re.search(
-            r"(?:误报|误判|未发现|未报告|错误报告|报告 PASS|判定为 PASS)",
-            fail_condition,
-            re.I,
-        )
-        if raw_sut_failure and not agent_misjudgment:
+        if raw_sut_outcome.search(fail_condition) and not subject_failure.search(fail_condition):
             raise SystemExit(
                 f"Case {case_id} criterion {criterion.get('criterion_id')} "
-                "treats an application defect as the Skill's failure; "
-                "the condition must evaluate the Skill's detection/reporting"
+                "uses a raw application outcome as the Agent/Skill failure. "
+                "The fail condition must evaluate the Agent/Skill's detection, "
+                "reasoning, action, report, evidence, or contract compliance."
             )
-        if criterion.get("criterion_id") == "WBT-CORE-02-G2":
-            if not re.search(r"(?:如实|准确|正确).{0,20}(?:报告|识别|判断)", pass_condition, re.I):
-                raise SystemExit(
-                    f"Case {case_id} G2 pass_condition must reward accurate Skill defect detection"
-                )
 
 
 def validate_case_timeout_seconds(case_id: str, execution: dict) -> int:
