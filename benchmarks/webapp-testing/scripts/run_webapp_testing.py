@@ -1,0 +1,818 @@
+#!/usr/bin/env python3
+"""Run one Builder-produced webapp-testing case in an isolated local fixture."""
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import math
+import os
+import shutil
+import signal
+import socket
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+from urllib.parse import urlparse
+
+
+def utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
+def sha256(path: Path) -> str:
+    h = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            h.update(chunk)
+    return h.hexdigest()
+
+
+def http_json(url: str, method: str = "GET", payload: dict | None = None) -> tuple[int, dict]:
+    data = None if payload is None else json.dumps(payload).encode("utf-8")
+    request = urllib.request.Request(
+        url, data=data, method=method,
+        headers={"Content-Type": "application/json", "Accept": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=5) as response:
+        raw = response.read()
+        return response.status, json.loads(raw.decode("utf-8"))
+
+
+def wait_health(url: str, timeout: int = 30) -> dict:
+    deadline = time.monotonic() + timeout
+    last_error = "not ready"
+    while time.monotonic() < deadline:
+        try:
+            status, payload = http_json(url + "/api/health")
+            if status == 200 and payload.get("status") == "ok":
+                return payload
+        except Exception as exc:
+            last_error = str(exc)
+        time.sleep(0.25)
+    raise TimeoutError(f"HTTP health check timed out: {last_error}")
+
+
+def port_open(host: str, port: int) -> bool:
+    with socket.socket() as sock:
+        sock.settimeout(0.2)
+        try:
+            sock.connect((host, port))
+            return True
+        except OSError:
+            return False
+
+
+def stop_process_group(process: subprocess.Popen | None, timeout: int = 8) -> None:
+    if process is None:
+        return
+    # Kill the process group even when its leader has exited; browser/helper
+    # children may still be alive in the same session.
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    try:
+        process.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        process.wait(timeout=timeout)
+
+
+def resolve_user_input(case: dict) -> tuple[list[dict[str, str]], str | None]:
+    """Normalize user_input into separately submitted DSH user turns."""
+    raw = case.get("user_input")
+    target_url = None
+    if isinstance(raw, str):
+        value = raw.strip()
+        turns = [{"turn_id": "T1", "content": value}]
+    elif isinstance(raw, dict):
+        task_value = raw.get("task") or raw.get("prompt") or raw.get("content")
+        value = task_value.strip() if isinstance(task_value, str) else ""
+        url_value = raw.get("target_url") or raw.get("url")
+        target_url = url_value.strip() if isinstance(url_value, str) and url_value.strip() else None
+        turns = [{"turn_id": "T1", "content": value}]
+    elif isinstance(raw, list):
+        turns = []
+        for index, item in enumerate(raw, 1):
+            if isinstance(item, str):
+                turn_id, content = f"T{index}", item.strip()
+            elif isinstance(item, dict):
+                turn_id = item.get("turn_id") or f"T{index}"
+                content_value = item.get("content") or item.get("message") or item.get("prompt")
+                content = content_value.strip() if isinstance(content_value, str) else ""
+            else:
+                raise ValueError(f"user_input turn {index} must be a string or object")
+            if not isinstance(turn_id, str) or not turn_id.strip() or not content:
+                raise ValueError(f"user_input turn {index} must contain non-empty turn_id and content")
+            turns.append({"turn_id": turn_id.strip(), "content": content})
+    else:
+        raise ValueError("case user_input must be a non-empty string, object, or array of turns")
+    if not turns or any(not turn["content"] for turn in turns):
+        raise ValueError("case user_input does not contain usable user turns")
+    return turns, target_url
+
+
+def resolve_dsh_timeout(override: int | None) -> int:
+    timeout = 600 if override is None else override
+    if isinstance(timeout, bool) or not isinstance(timeout, int):
+        raise ValueError("dsh_timeout_seconds must be an integer")
+    if timeout < 60 or timeout > 1500:
+        raise ValueError("DSH timeout must be between 60 and 1500 seconds")
+    return timeout
+
+
+def resolve_effective_dsh_timeout(case_timeout: int, override: int | None) -> int:
+    """The DSH process must never outlive the Builder-declared case budget."""
+    return min(resolve_dsh_timeout(override), case_timeout)
+
+
+def resolve_case_timeout(environment: dict, override: int | None) -> int:
+    raw = override if override is not None else environment.get("case_timeout_seconds", 900)
+    if isinstance(raw, bool):
+        raise ValueError("case_timeout_seconds must be an integer")
+    try:
+        timeout = int(raw)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("case_timeout_seconds must be an integer") from exc
+    if timeout < 1 or timeout > 900:
+        raise ValueError("case timeout must be between 1 and 900 seconds")
+    return timeout
+
+
+def summarize_trace_events(events: list[dict]) -> dict:
+    """Summarize DSH turns, model steps, tool calls and cumulative usage."""
+    usage_events = [
+        item for item in events
+        if item.get("type") == "status" and isinstance(item.get("usage"), dict)
+    ]
+    usage_fields = (
+        "inputTokens", "outputTokens", "cacheReadTokens",
+        "cacheWriteTokens", "totalTokens",
+    )
+    usage_totals = {
+        field: sum(
+            value[field]
+            for item in usage_events
+            if isinstance((value := item.get("usage")), dict)
+            and isinstance(value.get(field), (int, float))
+            and not isinstance(value.get(field), bool)
+        )
+        for field in usage_fields
+    }
+    required_budget_fields = (
+        "inputTokens", "outputTokens", "cacheReadTokens", "totalTokens",
+    )
+    incomplete_usage_record_count = sum(
+        1 for item in usage_events
+        if any(
+            not isinstance(item["usage"].get(field), (int, float))
+            or isinstance(item["usage"].get(field), bool)
+            or not math.isfinite(item["usage"].get(field))
+            or item["usage"].get(field) < 0
+            for field in required_budget_fields
+        )
+    )
+    step_keys = {
+        (item.get("turn"), item.get("step"))
+        for item in usage_events
+        if item.get("turn") is not None and item.get("step") is not None
+    }
+    model_turns = {
+        item.get("turn") for item in usage_events if item.get("turn") is not None
+    }
+    tool_calls = [
+        item for item in events if item.get("type") == "tool_call"
+    ]
+    tool_counts: dict[str, int] = {}
+    for item in tool_calls:
+        name = item.get("tool") or "unknown"
+        tool_counts[name] = tool_counts.get(name, 0) + 1
+    return {
+        "usage_record_count": len(usage_events),
+        "incomplete_usage_record_count": incomplete_usage_record_count,
+        "usage_telemetry_complete": bool(usage_events) and incomplete_usage_record_count == 0,
+        "model_step_count": len(step_keys),
+        "model_turn_count": len(model_turns),
+        "model_turn_numbers": sorted(model_turns),
+        "tool_call_count": len(tool_calls),
+        "tool_calls_by_name": dict(sorted(tool_counts.items())),
+        "usage_totals": usage_totals,
+    }
+
+
+def trace_budget_violations(
+    trace: dict, limits: dict, *, require_usage_telemetry: bool = True
+) -> list[str]:
+    """Return exceeded ceilings; final adjudication fails closed on missing telemetry."""
+    usage = trace.get("usage") or {}
+    totals = usage.get("usage_totals") or {}
+    observed = {
+        "model_steps": usage.get("model_step_count", 0),
+        "input_tokens": totals.get("inputTokens", 0),
+        "output_tokens": totals.get("outputTokens", 0),
+        "cache_read_tokens": totals.get("cacheReadTokens", 0),
+        "total_tokens": totals.get("totalTokens", 0),
+    }
+    violations = []
+    if usage.get("usage_record_count", 0) < 1 and require_usage_telemetry:
+        violations.append("usage telemetry missing; token budgets cannot be verified")
+    elif usage.get("usage_record_count", 0) > 0 and not usage.get("usage_telemetry_complete", False):
+        violations.append(
+            "usage telemetry incomplete in "
+            f"{usage.get('incomplete_usage_record_count', 'unknown')} record(s); "
+            "token budgets cannot be verified"
+        )
+    violations.extend(
+        f"{name}={observed[name]} exceeds limit {limit}"
+        for name, limit in limits.items()
+        if limit is not None and observed[name] > limit
+    )
+    return violations
+
+
+def copy_skill_artifacts(source: Path, destination: Path) -> tuple[list[Path], list[str]]:
+    """Copy Skill artifacts without dereferencing links; return regular files and link paths."""
+    if source.is_symlink():
+        return [], ["."]
+    if not source.is_dir():
+        return [], []
+    shutil.copytree(source, destination, dirs_exist_ok=True, symlinks=True)
+    paths = list(destination.rglob("*"))
+    symlinks = sorted(
+        path.relative_to(destination).as_posix()
+        for path in paths if path.is_symlink()
+    )
+    regular_files = [
+        path for path in paths if path.is_file() and not path.is_symlink()
+    ]
+    return regular_files, symlinks
+
+
+def parse_trace(path: Path) -> dict:
+    events = []
+    if path.exists():
+        for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+            try:
+                item = json.loads(line)
+                if isinstance(item, dict):
+                    events.append(item)
+            except json.JSONDecodeError:
+                continue
+    calls = [
+        item for item in events
+        if item.get("type") == "tool_call"
+        and item.get("tool") == "skill"
+        and (item.get("input") or {}).get("name") == "webapp-testing"
+    ]
+    results = {
+        item.get("callId"): item
+        for item in events
+        if item.get("type") == "tool_result" and item.get("callId")
+    }
+    finals = [item for item in events if item.get("type") == "final"]
+    sessions = [item.get("sessionId") for item in events if item.get("type") == "session" and item.get("sessionId")]
+    turn_starts = [item for item in events if item.get("type") == "status" and item.get("phase") == "turn_start"]
+    turn_ends = [item for item in events if item.get("type") == "status" and item.get("phase") == "turn_end"]
+    summary = summarize_trace_events(events)
+    return {
+        "event_count": len(events),
+        "webapp_testing_skill_calls": len(calls),
+        "completed_skill_calls": sum(
+            results.get(call.get("callId"), {}).get("status") == "completed"
+            for call in calls
+        ),
+        "session_id": sessions[0] if sessions else None,
+        "session_ids": list(dict.fromkeys(sessions)),
+        "turn_start_count": len(turn_starts),
+        "turn_end_count": len(turn_ends),
+        "turn_numbers_started": [item.get("turn") for item in turn_starts],
+        "final_event_count": len(finals),
+        "final_reason": (finals[-1].get("reason") or {}).get("kind") if finals else None,
+        "usage": summary,
+    }
+
+
+def wait_for_dsh_with_budget(
+    process: subprocess.Popen,
+    prompt: str,
+    events_path: Path,
+    timeout_seconds: int,
+    budget_limits: dict,
+) -> tuple[int, str | None]:
+    """Feed one prompt and monitor flushed trace events until exit or a budget stop."""
+    deadline = time.monotonic() + timeout_seconds
+    first_wait = True
+    while process.poll() is None:
+        trace = parse_trace(events_path)
+        # DSH may need startup time before emitting its first usage event.
+        # During live monitoring, enforce every observed ceiling and reject
+        # malformed usage immediately; require at least one record only after exit.
+        violations = trace_budget_violations(
+            trace, budget_limits, require_usage_telemetry=False
+        )
+        if violations:
+            stop_process_group(process, timeout=5)
+            return 124, "DSH usage budget exceeded: " + "; ".join(violations)
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            stop_process_group(process, timeout=5)
+            return 124, f"DSH session timed out after {timeout_seconds}s"
+        try:
+            if first_wait:
+                process.communicate(prompt, timeout=min(1.0, remaining))
+                first_wait = False
+            else:
+                process.communicate(timeout=min(1.0, remaining))
+        except subprocess.TimeoutExpired:
+            first_wait = False
+            continue
+    return process.returncode or 0, None
+
+
+def self_test() -> int:
+    import tempfile
+    with tempfile.TemporaryDirectory() as directory:
+        path = Path(directory) / "events.jsonl"
+        events = [
+            {"type": "session", "sessionId": "session-test"},
+            {"type": "status", "phase": "turn_start", "turn": 1},
+            {"type": "status", "phase": "step_end", "turn": 1, "step": 1,
+             "usage": {"inputTokens": 10, "outputTokens": 50, "cacheReadTokens": 200,
+                       "cacheWriteTokens": 0, "totalTokens": 260}},
+            {"type": "tool_call", "tool": "skill", "input": {"name": "webapp-testing"}, "callId": "c1"},
+            {"type": "tool_result", "callId": "c1", "status": "completed"},
+            {"type": "status", "phase": "turn_end", "turn": 1},
+            {"type": "final", "sessionId": "session-test", "reason": {"kind": "completed"}},
+            {"type": "status", "phase": "turn_start", "turn": 2},
+            {"type": "status", "phase": "step_end", "turn": 2, "step": 1,
+             "usage": {"inputTokens": 5, "outputTokens": 7, "cacheReadTokens": 30,
+                       "cacheWriteTokens": 0, "totalTokens": 42}},
+            {"type": "status", "phase": "turn_end", "turn": 2},
+            {"type": "final", "sessionId": "session-test", "reason": {"kind": "completed"}},
+        ]
+        path.write_text("".join(json.dumps(event) + "\n" for event in events), encoding="utf-8")
+        parsed = parse_trace(path)
+        assert parsed["webapp_testing_skill_calls"] == 1
+        assert parsed["completed_skill_calls"] == 1
+        assert parsed["final_reason"] == "completed"
+        assert parsed["session_id"] == "session-test"
+        assert parsed["session_ids"] == ["session-test"]
+        assert parsed["turn_start_count"] == 2 and parsed["turn_end_count"] == 2
+        assert parsed["usage"]["usage_record_count"] == 2
+        assert parsed["usage"]["usage_telemetry_complete"] is True
+        assert parsed["usage"]["incomplete_usage_record_count"] == 0
+        assert parsed["usage"]["model_step_count"] == 2
+        invalid_numeric_usage = summarize_trace_events([{
+            "type": "status", "turn": 1, "step": 1,
+            "usage": {"inputTokens": float("nan"), "outputTokens": 1,
+                      "cacheReadTokens": 0, "totalTokens": 1},
+        }])
+        assert invalid_numeric_usage["usage_telemetry_complete"] is False
+        assert invalid_numeric_usage["incomplete_usage_record_count"] == 1
+        missing_usage = trace_budget_violations(
+            {"usage": {"usage_record_count": 0, "usage_totals": {}}},
+            {"total_tokens": 100},
+        )
+        assert missing_usage == [
+            "usage telemetry missing; token budgets cannot be verified"
+        ]
+        incomplete_usage = trace_budget_violations(
+            {"usage": {
+                "usage_record_count": 1,
+                "incomplete_usage_record_count": 1,
+                "usage_telemetry_complete": False,
+                "usage_totals": {"inputTokens": 0, "outputTokens": 0,
+                                 "cacheReadTokens": 0, "totalTokens": 0},
+            }},
+            {"total_tokens": 100},
+        )
+        assert incomplete_usage == [
+            "usage telemetry incomplete in 1 record(s); token budgets cannot be verified"
+        ]
+        assert parsed["usage"]["model_turn_count"] == 2
+        assert parsed["usage"]["tool_calls_by_name"] == {"skill": 1}
+        assert parsed["usage"]["usage_totals"]["outputTokens"] == 57
+        assert trace_budget_violations(parsed, {
+            "model_steps": 1, "input_tokens": 100, "output_tokens": 40,
+            "cache_read_tokens": 300, "total_tokens": 500,
+        }) == ["model_steps=2 exceeds limit 1", "output_tokens=57 exceeds limit 40"]
+        string_turns, string_url = resolve_user_input({"user_input": "  run this task  "})
+        assert string_turns == [{"turn_id": "T1", "content": "run this task"}] and string_url is None
+        object_turns, object_url = resolve_user_input({
+            "user_input": {"task": "inspect the app", "target_url": "http://127.0.0.1:4173"}
+        })
+        assert object_turns == [{"turn_id": "T1", "content": "inspect the app"}]
+        assert object_url == "http://127.0.0.1:4173"
+        array_turns, array_url = resolve_user_input({"user_input": [
+            {"turn_id": "T1", "content": "step one"}, {"turn_id": "T2", "content": "step two"}
+        ]})
+        assert [x["turn_id"] for x in array_turns] == ["T1", "T2"]
+        assert [x["content"] for x in array_turns] == ["step one", "step two"]
+        assert array_url is None
+        assert resolve_case_timeout({"case_timeout_seconds": 180}, None) == 180
+        assert resolve_case_timeout({"case_timeout_seconds": 600}, None) == 600
+        assert resolve_case_timeout({"case_timeout_seconds": 600}, 300) == 300
+        assert resolve_dsh_timeout(None) == 600
+        assert resolve_dsh_timeout(900) == 900
+        assert resolve_effective_dsh_timeout(240, None) == 240
+        assert resolve_effective_dsh_timeout(900, 600) == 600
+    print("PASS: runner self-test (trace, input formats, case budget, and DSH timeout)")
+    return 0
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--self-test", action="store_true")
+    parser.add_argument("--dataset")
+    parser.add_argument("--dataset-id")
+    parser.add_argument("--case-id")
+    parser.add_argument("--fixture-source")
+    parser.add_argument("--public-assets")
+    parser.add_argument("--skill-source")
+    parser.add_argument("--work-root")
+    parser.add_argument("--output-dir")
+    parser.add_argument("--skill-commit")
+    parser.add_argument("--fixture-profile", choices=("clean", "mutant"))
+    parser.add_argument("--fixture-mutations")
+    parser.add_argument("--case-timeout", type=int, help="Override the case execution budget passed to the Skill")
+    parser.add_argument("--dsh-timeout", type=int, default=600, help="Maximum DSH session duration in seconds (default: 600)")
+    parser.add_argument("--max-model-steps", type=int, default=32, help="Hard stop after this many DSH model steps")
+    parser.add_argument("--max-input-tokens", type=int, default=60000, help="Hard stop at cumulative uncached input tokens")
+    parser.add_argument("--max-output-tokens", type=int, default=55000, help="Hard stop at cumulative output tokens")
+    parser.add_argument("--max-cache-read-tokens", type=int, default=1600000, help="Hard stop at cumulative cache-read tokens")
+    parser.add_argument("--max-total-tokens", type=int, default=1750000, help="Hard stop at cumulative DSH totalTokens")
+    args = parser.parse_args()
+
+    if args.self_test:
+        return self_test()
+    budget_limits = {
+        "model_steps": args.max_model_steps,
+        "input_tokens": args.max_input_tokens,
+        "output_tokens": args.max_output_tokens,
+        "cache_read_tokens": args.max_cache_read_tokens,
+        "total_tokens": args.max_total_tokens,
+    }
+    invalid_budgets = [
+        name for name, value in budget_limits.items()
+        if isinstance(value, bool) or not isinstance(value, int) or value < 1
+    ]
+    if invalid_budgets:
+        parser.error("trace budget limits must be positive integers: " + ", ".join(invalid_budgets))
+    required = ("dataset", "dataset_id", "case_id", "fixture_source",
+                "public_assets", "skill_source", "work_root", "output_dir",
+                "skill_commit")
+    missing = [name for name in required if not getattr(args, name)]
+    if missing:
+        parser.error("missing required arguments: " + ", ".join("--" + x.replace("_", "-") for x in missing))
+
+    dataset = Path(args.dataset).resolve()
+    fixture = Path(args.fixture_source).resolve()
+    public_assets = Path(args.public_assets).resolve()
+    skill_source = Path(args.skill_source).resolve()
+    work_root = Path(args.work_root).resolve()
+    output = Path(args.output_dir).resolve()
+    for path in (dataset, fixture, public_assets, skill_source):
+        if not path.exists():
+            raise SystemExit(f"required path does not exist: {path}")
+    output.mkdir(parents=True, exist_ok=True)
+    work_root.mkdir(parents=True, exist_ok=True)
+
+    cases = [json.loads(line) for line in dataset.read_text(encoding="utf-8").splitlines() if line.strip()]
+    selected = [case for case in cases if case.get("case_id") == args.case_id]
+    if len(selected) != 1:
+        raise SystemExit(f"expected exactly one case_id={args.case_id!r}; found {len(selected)}")
+    case = selected[0]
+    if case.get("dataset_id") != args.dataset_id:
+        raise SystemExit("dataset_id does not match selected case")
+
+    execution = case.get("execution_requirements") or {}
+    environment = execution.get("environment") or {}
+    initial_state = execution.get("initial_state") or {}
+    try:
+        user_turns, input_target_url = resolve_user_input(case)
+    except ValueError as exc:
+        raise SystemExit(str(exc))
+    target_url = input_target_url or initial_state.get("url") or environment.get("app_url")
+    if not target_url:
+        raise SystemExit("case has no target URL in user_input or execution_requirements")
+    parsed = urlparse(target_url)
+    host = parsed.hostname or ""
+    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    if parsed.scheme != "http" or host not in ("127.0.0.1", "localhost"):
+        raise SystemExit(f"only local HTTP loopback targets are allowed: {target_url}")
+    if port != 4173:
+        raise SystemExit(f"unexpected fixture port {port}; expected 4173")
+
+    profile = args.fixture_profile or initial_state.get("fixture_profile") or environment.get("fixture_profile") or "clean"
+    case_mutations = initial_state.get("fixture_mutations") or environment.get("fixture_mutations") or []
+    if args.fixture_mutations is not None:
+        mutations = [item.strip() for item in args.fixture_mutations.split(",") if item.strip()]
+    else:
+        mutations = case_mutations
+    allowed_mutations = {"search-case-sensitive", "stale-summary", "blank-title"}
+    if not isinstance(mutations, list) or not set(mutations).issubset(allowed_mutations):
+        raise SystemExit("invalid fixture mutations in case or pilot arguments")
+    if profile == "clean" and mutations:
+        raise SystemExit("clean fixture profile cannot include mutations")
+    server_state = initial_state.get("server_state") or environment.get("server_state_at_start") or "running"
+    if server_state != "running":
+        raise SystemExit("pilot runner supports server_state=running only; stopped-server cases are deferred")
+    if profile not in ("clean", "mutant"):
+        raise SystemExit("invalid fixture profile in Builder case")
+    try:
+        case_timeout = resolve_case_timeout(environment, args.case_timeout)
+        configured_dsh_timeout = resolve_dsh_timeout(args.dsh_timeout)
+        dsh_timeout = resolve_effective_dsh_timeout(case_timeout, configured_dsh_timeout)
+    except ValueError as exc:
+        raise SystemExit(str(exc))
+
+    run_id = str(uuid.uuid4())
+    case_dir = output / args.case_id
+    if case_dir.exists():
+        raise SystemExit(f"refusing to overwrite existing evidence directory: {case_dir}")
+    case_dir.mkdir(parents=True)
+    workspace = work_root / args.case_id
+    if workspace.exists():
+        shutil.rmtree(workspace)
+    workspace.mkdir(parents=True)
+    shutil.copytree(public_assets, workspace / "assets" / "public")
+    shutil.copytree(skill_source, workspace / ".dsh" / "skills" / "webapp-testing")
+
+    audit_log = case_dir / "server-audit.jsonl"
+    server_log = (case_dir / "server.log").open("w", encoding="utf-8")
+    env = os.environ.copy()
+    env.update({
+        "APP_HOST": host, "APP_PORT": str(port), "APP_PROFILE": profile,
+        "APP_MUTATIONS": ",".join(mutations), "APP_AUDIT_LOG": str(audit_log),
+        "APP_RUN_ID": run_id,
+    })
+    if port_open(host, port):
+        raise SystemExit(f"fixture port already occupied: {host}:{port}")
+
+    server = None
+    dsh = None
+    error = None
+    dsh_exit = None
+    session_id = None
+    session_turn_results = []
+    dsh_started_at_utc = None
+    dsh_started_monotonic = None
+    dsh_finished_at_utc = None
+    dsh_elapsed_seconds = None
+    started = utc_now()
+    pre_state = post_state = None
+    try:
+        server = subprocess.Popen(
+            [sys.executable, str(fixture / "server.py")],
+            cwd=str(fixture), env=env, stdout=server_log, stderr=subprocess.STDOUT,
+            start_new_session=True,
+        )
+        health = wait_health(target_url)
+        _, reset_result = http_json(target_url + "/api/reset", "POST", {})
+        _, pre_state = http_json(target_url + "/api/tasks")
+        dsh_env = os.environ.copy()
+        dsh_env.update({
+            "DSH_TELEMETRY_MODE": "DISABLED",
+            "DSH_TELEMETRY_DISABLED": "1",
+        })
+        events_path = case_dir / "dsh-events.jsonl"
+        stderr_path = case_dir / "dsh-stderr.log"
+        public_task = {
+            "case_id": case["case_id"],
+            "dataset_id": case["dataset_id"],
+            "title": case.get("title"),
+            "objective": case.get("objective"),
+            "user_turns": user_turns,
+            "user_turn_count": len(user_turns),
+            "target_url": target_url,
+            "execution_budget_seconds": case_timeout,
+            "public_assets": "assets/public/",
+            "constraints": [
+                "Use the webapp-testing Skill and real Playwright browser interaction.",
+                "Only access the local loopback application. Do not access external networks.",
+                "Do not read, modify, or infer hidden Oracle data.",
+                "Do not modify application source files.",
+                "Save reports, screenshots, scripts, and evidence in artifacts/ only.",
+                "Do not claim PASS without observable browser evidence.",
+            ],
+        }
+        (case_dir / "consumer-task.json").write_text(
+            json.dumps(public_task, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+        )
+        artifacts_dir = workspace / "artifacts"
+        artifacts_dir.mkdir()
+
+        def prompt_for_turn(turn: dict[str, str], first: bool) -> str:
+            if not first:
+                return f"[User turn {turn['turn_id']}]\n{turn['content']}\n"
+            first_task = {
+                "case_id": case["case_id"],
+                "dataset_id": case["dataset_id"],
+                "title": case.get("title"),
+                "objective": case.get("objective"),
+                "turn_id": turn["turn_id"],
+                "user_message": turn["content"],
+                "target_url": target_url,
+                "execution_budget_seconds": case_timeout,
+                "public_assets": "assets/public/",
+                "constraints": public_task["constraints"],
+            }
+            return (
+                "Execute this Builder-generated web application testing task. "
+                "Follow the webapp-testing Skill instructions. The application is already "
+                "running and healthy at the supplied URL. Use the public assets for rules. "
+                "Do not inspect application source code. Create Playwright tests and keep "
+                "all reports, screenshots, scripts, and evidence in artifacts/ only. "
+                "Do not claim PASS without observable browser evidence.\n\n"
+                + json.dumps(first_task, ensure_ascii=False, indent=2) + "\n"
+            )
+
+        dsh_deadline = time.monotonic() + dsh_timeout
+        with events_path.open("w", encoding="utf-8") as stdout, stderr_path.open("w", encoding="utf-8") as stderr:
+            for turn_index, turn in enumerate(user_turns):
+                remaining = max(0.0, dsh_deadline - time.monotonic())
+                if remaining < 1:
+                    error = f"DSH session exceeded the total {dsh_timeout}s timeout"
+                    dsh_exit = 124
+                    break
+                command = ["dsh", "--profile", "headless", "--json"]
+                if session_id:
+                    command.extend(["--session-id", session_id])
+                command.extend(["--permission-mode", "workspace-write", "-"])
+                prompt = prompt_for_turn(turn, turn_index == 0)
+                if dsh_started_monotonic is None:
+                    dsh_started_at_utc = utc_now()
+                    dsh_started_monotonic = time.monotonic()
+                dsh = subprocess.Popen(
+                    command, cwd=str(workspace), env=dsh_env, stdin=subprocess.PIPE,
+                    stdout=stdout, stderr=stderr, text=True, start_new_session=True,
+                )
+                dsh_exit, monitor_error = wait_for_dsh_with_budget(
+                    dsh,
+                    prompt,
+                    events_path,
+                    max(1, int(remaining)),
+                    budget_limits,
+                )
+                if monitor_error:
+                    error = monitor_error
+                stdout.flush()
+                stderr.flush()
+                partial_trace = parse_trace(events_path)
+                if turn_index == 0:
+                    session_id = partial_trace.get("session_id")
+                    if not session_id:
+                        error = "DSH did not emit a sessionId; cannot safely continue multi-turn input"
+                        break
+                session_turn_results.append({
+                    "turn_id": turn["turn_id"],
+                    "session_id_argument": session_id if turn_index > 0 else None,
+                    "dsh_exit_code": dsh_exit,
+                    "final_reason": partial_trace.get("final_reason"),
+                })
+                if dsh_exit != 0 or partial_trace.get("final_reason") != "completed":
+                    error = error or f"DSH turn {turn['turn_id']} did not complete successfully"
+                    break
+                stop_process_group(dsh)
+            if len(session_turn_results) != len(user_turns) and error is None:
+                error = f"Only {len(session_turn_results)} of {len(user_turns)} DSH user turns completed"
+        _, post_state = http_json(target_url + "/api/tasks")
+    except Exception as exc:
+        error = f"{type(exc).__name__}: {exc}"
+    finally:
+        stop_process_group(dsh)
+        if dsh_started_monotonic is not None and dsh_finished_at_utc is None:
+            dsh_finished_at_utc = utc_now()
+            dsh_elapsed_seconds = round(time.monotonic() - dsh_started_monotonic, 3)
+        stop_process_group(server)
+        server_log.close()
+
+    # Preserve all files created by the Skill in its isolated workspace.
+    skill_artifact_root = workspace / "artifacts"
+    skill_artifact_files, artifact_symlink_paths = copy_skill_artifacts(
+        skill_artifact_root, case_dir / "skill-artifacts"
+    )
+    artifact_suffixes = {path.suffix.lower() for path in skill_artifact_files}
+    if artifact_symlink_paths:
+        error = error or (
+            "Skill artifacts contain symbolic links and were not dereferenced: "
+            + ", ".join(artifact_symlink_paths)
+        )
+    has_markdown_report = ".md" in artifact_suffixes
+    has_json_evidence_index = ".json" in artifact_suffixes
+    has_screenshot = bool({".png", ".jpg", ".jpeg", ".webp"} & artifact_suffixes)
+
+    port_closed = not port_open(host, port)
+    trace_path = case_dir / "dsh-events.jsonl"
+    trace = parse_trace(trace_path)
+    trace_context = {
+        "run_id": run_id,
+        "trace_sha256": sha256(trace_path) if trace_path.is_file() else None,
+        "trace_event_count": trace.get("event_count"),
+    }
+    (case_dir / "trace-run-context.json").write_text(
+        json.dumps(trace_context, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    budget_violations = trace_budget_violations(trace, budget_limits)
+    case_budget_status = (
+        "PASS" if dsh_elapsed_seconds is not None and dsh_elapsed_seconds <= case_timeout
+        else "FAIL" if dsh_elapsed_seconds is not None
+        else "UNKNOWN"
+    )
+    evidence_files = []
+    for path in sorted(case_dir.rglob("*")):
+        if path.is_file() and not path.is_symlink():
+            evidence_files.append({
+                "path": str(path.relative_to(case_dir)),
+                "sha256": sha256(path),
+                "size_bytes": path.stat().st_size,
+            })
+    runner_status = (
+        "INVOCATION_OK"
+        if dsh_exit == 0
+        and trace["webapp_testing_skill_calls"] > 0
+        and trace["completed_skill_calls"] > 0
+        and trace["final_reason"] == "completed"
+        and not budget_violations
+        and case_budget_status == "PASS"
+        and trace["turn_start_count"] == len(user_turns)
+        and trace["turn_end_count"] == len(user_turns)
+        and len(session_turn_results) == len(user_turns)
+        and all(
+            item["dsh_exit_code"] == 0 and item["final_reason"] == "completed"
+            for item in session_turn_results
+        )
+        and port_closed
+        and error is None
+        and has_markdown_report
+        and has_json_evidence_index
+        and has_screenshot
+        else "BLOCKED"
+    )
+    result = {
+        "case_id": args.case_id,
+        "dataset_id": args.dataset_id,
+        "run_id": run_id,
+        "runner_status": runner_status,
+        "scope": "pilot invocation evidence only; not grading or Oracle adjudication",
+        "started_at_utc": started,
+        "finished_at_utc": utc_now(),
+        "builder_case_sha256": sha256(dataset),
+        "webapp_testing_skill_commit": args.skill_commit,
+        "fixture_profile": profile,
+        "fixture_mutations": mutations,
+        "server_health": health if "health" in locals() else None,
+        "reset_response": reset_result if "reset_result" in locals() else None,
+        "pre_state": pre_state,
+        "post_state": post_state,
+        "dsh_exit_code": dsh_exit,
+        "case_timeout_seconds": case_timeout,
+        "dsh_timeout_seconds": dsh_timeout,
+        "configured_dsh_timeout_seconds": configured_dsh_timeout,
+        "dsh_started_at_utc": dsh_started_at_utc,
+        "dsh_finished_at_utc": dsh_finished_at_utc,
+        "dsh_elapsed_seconds": dsh_elapsed_seconds,
+        "case_budget_status": case_budget_status,
+        "trace": trace,
+        "trace_budget": {"limits": budget_limits, "violations": budget_violations},
+        "user_turn_count": len(user_turns),
+        "completed_user_turn_count": len(session_turn_results),
+        "session_id": session_id,
+        "session_turn_results": session_turn_results,
+        "server_port_closed": port_closed,
+        "skill_artifact_file_count": len(skill_artifact_files),
+        "skill_artifact_types": sorted(artifact_suffixes),
+        "skill_artifact_symlink_paths": artifact_symlink_paths,
+        "required_skill_evidence": {
+            "markdown_report": has_markdown_report,
+            "json_evidence_index": has_json_evidence_index,
+            "screenshot": has_screenshot,
+        },
+        "runner_error": error,
+        "evidence_files": evidence_files,
+    }
+    (case_dir / "runner-result.json").write_text(
+        json.dumps(result, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+    )
+    print(json.dumps({
+        "case_id": args.case_id, "dataset_id": args.dataset_id,
+        "runner_status": runner_status, "user_turn_count": len(user_turns),
+        "completed_user_turn_count": len(session_turn_results), "trace": trace,
+        "trace_budget": {"limits": budget_limits, "violations": budget_violations},
+        "dsh_elapsed_seconds": dsh_elapsed_seconds, "case_budget_status": case_budget_status,
+        "server_port_closed": port_closed, "runner_error": error,
+    }, ensure_ascii=False))
+    return 0 if runner_status == "INVOCATION_OK" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

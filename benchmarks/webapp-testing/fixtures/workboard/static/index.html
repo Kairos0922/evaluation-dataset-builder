@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Workboard Lite</title>
+  <link rel="stylesheet" href="/assets/style.css">
+  <script src="/assets/app.js" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div>
+      <p class="eyebrow">LOCAL TEST APPLICATION</p>
+      <h1>Workboard Lite</h1>
+      <p class="subtitle">A small task board for testing common web application flows.</p>
+    </div>
+    <span class="environment-label">Synthetic workspace</span>
+  </header>
+
+  <main>
+    <section class="summary-grid" aria-label="Task summary">
+      <article class="summary-card">
+        <span>All tasks</span>
+        <strong id="count-all">0</strong>
+      </article>
+      <article class="summary-card">
+        <span>Open</span>
+        <strong id="count-open">0</strong>
+      </article>
+      <article class="summary-card">
+        <span>In progress</span>
+        <strong id="count-in-progress">0</strong>
+      </article>
+      <article class="summary-card">
+        <span>Done</span>
+        <strong id="count-done">0</strong>
+      </article>
+    </section>
+
+    <section class="panel" aria-labelledby="tasks-heading">
+      <div class="section-heading">
+        <div>
+          <h2 id="tasks-heading">Tasks</h2>
+          <p>Search, filter, update, and remove tasks.</p>
+        </div>
+        <label class="filter-control">
+          <span>Status</span>
+          <select id="status-filter" aria-label="Filter tasks by status">
+            <option value="all">All statuses</option>
+            <option value="open">Open</option>
+            <option value="in_progress">In progress</option>
+            <option value="done">Done</option>
+          </select>
+        </label>
+      </div>
+
+      <label class="search-control" for="task-search">
+        <span>Search tasks</span>
+        <input id="task-search" type="search" placeholder="Search title or description">
+      </label>
+
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Task</th>
+              <th scope="col">Priority</th>
+              <th scope="col">Status</th>
+              <th scope="col">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="task-rows">
+            <tr><td colspan="4">Loading tasks...</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p id="empty-state" class="empty-state" hidden>No tasks match the current filters.</p>
+      <p id="status-message" role="status" aria-live="polite"></p>
+    </section>
+
+    <section class="panel" aria-labelledby="create-heading">
+      <div class="section-heading">
+        <div>
+          <h2 id="create-heading">Create a task</h2>
+          <p>Add a task to the current workspace.</p>
+        </div>
+      </div>
+      <form id="create-form">
+        <div class="form-grid">
+          <label>
+            <span>Title <b aria-hidden="true">*</b></span>
+            <input id="task-title" name="title" type="text" maxlength="80" required>
+          </label>
+          <label>
+            <span>Priority</span>
+            <select id="task-priority" name="priority">
+              <option>Low</option>
+              <option selected>Medium</option>
+              <option>High</option>
+            </select>
+          </label>
+        </div>
+        <label>
+          <span>Description</span>
+          <textarea id="task-description" name="description" rows="3"></textarea>
+        </label>
+        <div class="form-actions">
+          <button type="submit" class="primary-button">Create task</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <dialog id="delete-dialog" aria-labelledby="delete-heading">
+    <form method="dialog">
+      <h2 id="delete-heading">Delete task?</h2>
+      <p>This action removes the selected task from the workspace.</p>
+      <div class="dialog-actions">
+        <button id="cancel-delete" value="cancel" type="submit" class="secondary-button">Cancel</button>
+        <button id="confirm-delete" value="confirm" type="button" class="danger-button">Delete task</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>

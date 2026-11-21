@@ -1,0 +1,94 @@
+name: Adjudicate archived Builder pilot evidence
+
+on:
+  push:
+    branches: ["experiment/webapp-testing-contract"]
+    paths:
+      - ".github/dispatch/adjudicate-pilot-44892669832-v2"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  adjudicate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Download the exact Builder output from its production run
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-builder-result
+          path: artifacts/builder-result
+          repository: ${{ github.repository }}
+          run-id: 44889956698
+          github-token: ${{ github.token }}
+
+      - name: Download the original independent-validator PASS evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-independent-builder-validation
+          path: artifacts/independent-validation
+          repository: ${{ github.repository }}
+          run-id: 44889956698
+          github-token: ${{ github.token }}
+
+      - name: Download all three archived pilot evidence packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: webapp-testing-pilot-*
+          path: artifacts/pilot-results
+          merge-multiple: true
+          repository: ${{ github.repository }}
+          run-id: 44892669832
+          github-token: ${{ github.token }}
+
+      - name: Reconfirm Builder validation and resolve exact original cases
+        id: resolve
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path(
+              "artifacts/independent-validation/independent-builder-output-validation.json"
+          ).read_text(encoding="utf-8"))
+          trace = json.loads(Path(
+              "artifacts/independent-validation/independent-builder-trace-verification.json"
+          ).read_text(encoding="utf-8"))
+          if report.get("status") != "PASS":
+              raise SystemExit("Original independent Builder validator did not PASS")
+          if trace.get("status") != "PASS" or trace.get("builder_skill_tool_calls") != 1:
+              raise SystemExit("Original Builder DSH trace verification did not PASS")
+          print("PASS: exact archived Builder output retains its independent PASS.")
+          PY
+          python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py \
+            --output-root artifacts/builder-result/webapp-testing-builder-output \
+            --write-output "$RUNNER_TEMP/pilot-matrix.json"
+          cat "$RUNNER_TEMP/pilot-matrix.json"
+
+      - name: Run independent Gold Oracle on all archived pilot evidence
+        env:
+          PILOT_MATRIX_PATH: ${{ runner.temp }}/pilot-matrix.json
+        run: |
+          set -euo pipefail
+          python -m py_compile benchmarks/webapp-testing/scripts/gold_oracle.py
+          python benchmarks/webapp-testing/scripts/gold_oracle.py \
+            --builder-output artifacts/builder-result/webapp-testing-builder-output \
+            --pilots-root artifacts/pilot-results \
+            --pilot-matrix "$PILOT_MATRIX_PATH" \
+            --output artifacts/independent-adjudication.json
+          cat artifacts/independent-adjudication.json
+
+      - name: Archive independent adjudication
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-independent-adjudication-archived-pilot
+          path: artifacts/independent-adjudication.json
+          if-no-files-found: warn
+          retention-days: 90

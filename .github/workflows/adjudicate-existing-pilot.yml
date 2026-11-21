@@ -1,0 +1,139 @@
+name: Re-adjudicate archived Webapp Testing pilot
+
+on:
+  push:
+    branches: ["experiment/webapp-testing-contract"]
+    paths:
+      - ".github/re-adjudicate-webapp-testing-trigger.txt"
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: "Completed source run with Builder output and pilot artifacts"
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  adjudicate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SOURCE_RUN_ID: ${{ inputs.source_run_id || '' }}
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Resolve source run ID
+        run: |
+          set -euo pipefail
+          if [ -z "$SOURCE_RUN_ID" ] && [ -f .github/re-adjudicate-webapp-testing-trigger.txt ]; then
+            SOURCE_RUN_ID="$(sed -n 's/^source_run_id=//p' .github/re-adjudicate-webapp-testing-trigger.txt | head -n 1)"
+          fi
+          [[ "$SOURCE_RUN_ID" =~ ^[0-9]+$ ]] || {
+            echo "::error::A numeric source_run_id is required."
+            exit 2
+          }
+          echo "SOURCE_RUN_ID=$SOURCE_RUN_ID" >> "$GITHUB_ENV"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.16"
+
+      - name: Verify source run and Builder artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID")"
+          jq -e '.status == "completed"' <<< "$run_json" >/dev/null
+          artifacts_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100")"
+          jq -e 'any(.artifacts[]; (.name == "webapp-testing-builder-result" or .name == "webapp-testing-replay-builder-input") and .expired == false)' \
+            <<< "$artifacts_json" >/dev/null || {
+              echo "::error::Builder result or replay input artifact is missing or expired."
+              exit 2
+            }
+          echo "PASS: source run $SOURCE_RUN_ID completed and its immutable Builder result is available."
+
+      - name: Download immutable Builder result
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          artifacts_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100")"
+          if jq -e 'any(.artifacts[]; .name == "webapp-testing-builder-result" and .expired == false)' \
+            <<< "$artifacts_json" >/dev/null; then
+            gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+              --name webapp-testing-builder-result --dir artifacts/builder-replay
+          else
+            # Replay runs archive the immutable Builder output together with
+            # its input bundle and resolved matrix in a single artifact.
+            gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+              --name webapp-testing-replay-builder-input --dir artifacts/builder-replay
+          fi
+          test -s artifacts/builder-replay/webapp-testing-builder-output/SUITE-MANIFEST.json
+
+      - name: Resolve semantic pilot matrix from the original Builder output
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py \
+            --output-root artifacts/builder-replay/webapp-testing-builder-output \
+            --write-output artifacts/pilot-matrix.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          matrix = json.loads(Path("artifacts/pilot-matrix.json").read_text(encoding="utf-8"))
+          expected = {"search_mutation", "state_cycle", "delete_confirmation"}
+          entries = matrix.get("include", [])
+          if len(entries) != 3 or {item.get("pilot_role") for item in entries} != expected:
+              raise SystemExit("Resolved pilot matrix must contain the three expected semantic roles.")
+          if len({item.get("case_id") for item in entries}) != 3:
+              raise SystemExit("Pilot matrix must contain distinct Builder case IDs.")
+          print("PASS: semantic pilot matrix resolved from the archived Builder output.")
+          PY
+
+      - name: Verify and download the exact archived pilot artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          artifacts_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/artifacts?per_page=100")"
+          mkdir -p artifacts/pilots
+          while IFS= read -r case_id; do
+            artifact_name="webapp-testing-pilot-$case_id"
+            jq -e --arg name "$artifact_name" 'any(.artifacts[]; .name == $name and .expired == false)' \
+              <<< "$artifacts_json" >/dev/null || {
+                echo "::error::Missing or expired pilot artifact: $artifact_name"
+                exit 2
+              }
+            gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+              --name "$artifact_name" --dir "artifacts/pilots/$case_id"
+          done < <(jq -r '.include[].case_id' artifacts/pilot-matrix.json)
+          echo "PASS: downloaded all three exact archived pilot artifacts. No target Skill was run."
+
+      - name: Run corrected independent Gold Oracle without repeating target calls
+        run: |
+          set -euo pipefail
+          python -m py_compile benchmarks/webapp-testing/scripts/gold_oracle.py
+          python benchmarks/webapp-testing/scripts/gold_oracle.py --self-test
+          python benchmarks/webapp-testing/scripts/gold_oracle.py \
+            --builder-output artifacts/builder-replay/webapp-testing-builder-output \
+            --pilots-root artifacts/pilots \
+            --pilot-matrix artifacts/pilot-matrix.json \
+            --output artifacts/oracle-adjudication-corrected.json
+          cat artifacts/oracle-adjudication-corrected.json
+
+      - name: Archive corrected independent adjudication
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-oracle-adjudication-corrected
+          path: artifacts/oracle-adjudication-corrected.json
+          if-no-files-found: error
+          retention-days: 90

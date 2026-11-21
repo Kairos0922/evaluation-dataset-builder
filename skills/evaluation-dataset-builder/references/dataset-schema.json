@@ -181,12 +181,18 @@
       "type": "object",
       "required": [
         "method",
+        "evaluation_subject",
         "criteria",
         "pass_conditions",
         "fail_conditions",
         "evidence_required"
       ],
       "properties": {
+        "evaluation_subject": {
+          "type": "string",
+          "minLength": 1,
+          "description": "明确本判定契约实际评分的主体，例如被测应用/API 本身，或负责测试、诊断和报告的 Agent/Skill。"
+        },
         "method": {
           "enum": [
             "rule_based",

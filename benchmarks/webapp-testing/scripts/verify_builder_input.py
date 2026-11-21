@@ -1,0 +1,144 @@
+#!/usr/bin/env python3
+"""Independently verify the public Builder input bundle and its SHA-256 records."""
+from __future__ import annotations
+
+import hashlib
+import json
+from datetime import datetime
+from pathlib import Path
+
+ROOT = Path("artifacts/webapp-testing-builder-input")
+MANIFEST_PATH = ROOT / "asset-manifest.json"
+EXPECTED_UPSTREAM = {
+    "upstream-skill/LICENSE.txt",
+    "upstream-skill/SKILL.md",
+    "upstream-skill/examples/console_logging.py",
+    "upstream-skill/examples/element_discovery.py",
+    "upstream-skill/examples/static_html_automation.py",
+    "upstream-skill/scripts/with_server.py",
+}
+
+
+def main() -> int:
+    if not MANIFEST_PATH.is_file():
+        raise SystemExit(f"Input manifest missing: {MANIFEST_PATH}")
+    manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+
+    if manifest.get("bundle_status") != "COMPLETE":
+        raise SystemExit("Builder input bundle is not marked COMPLETE")
+    captured_at = manifest.get("captured_at_utc")
+    if not captured_at:
+        raise SystemExit("Input bundle lacks a capture timestamp")
+    datetime.fromisoformat(captured_at.replace("Z", "+00:00"))
+    if manifest.get("source_snapshot", {}).get("upstream_skill_tree_sha") != "5ffb7dc66b9fd4c25c3e400a4c00da99a349b714":
+        raise SystemExit("Unexpected upstream Skill tree SHA in input bundle")
+    if manifest.get("visibility") != "PUBLIC_FOR_BUILDER_AND_CONSUMER":
+        raise SystemExit("Unexpected Builder input visibility")
+    if manifest.get("formal_evaluation_cases_included") is not False:
+        raise SystemExit("Formal cases must not be present in the Builder input bundle")
+    if manifest.get("grading_contracts_included") is not False:
+        raise SystemExit("Grading contracts must not be present in the Builder input bundle")
+    if manifest.get("gold_oracle_included") is not False:
+        raise SystemExit("Gold Oracle must not be present in the Builder input bundle")
+
+    actual_files = [
+        path for path in ROOT.rglob("*")
+        if path.is_file() and path != MANIFEST_PATH
+    ]
+    transient_files = [
+        path.relative_to(ROOT).as_posix()
+        for path in actual_files
+        if path.suffix.lower() in {".pyc", ".pyo"} or "__pycache__" in path.parts
+    ]
+    if transient_files:
+        raise SystemExit(
+            "Python cache artifacts must not enter the public Builder input: "
+            + ", ".join(transient_files[:10])
+        )
+    actual_paths = {path.relative_to(ROOT).as_posix() for path in actual_files}
+    records = manifest.get("assets")
+    if not isinstance(records, list) or not records:
+        raise SystemExit("Manifest assets must be a non-empty list")
+    declared_paths = {record["path"] for record in records}
+    if actual_paths != declared_paths:
+        raise SystemExit(
+            f"Input file set mismatch; missing_records={sorted(actual_paths - declared_paths)}; "
+            f"missing_files={sorted(declared_paths - actual_paths)}"
+        )
+
+    if manifest.get("file_count") != len(records):
+        raise SystemExit("Input manifest file_count does not match its asset records")
+    record_by_path = {record["path"]: record for record in records}
+    if len(record_by_path) != len(records):
+        raise SystemExit("Duplicate input asset paths")
+    asset_ids = [record.get("asset_id") for record in records]
+    if any(not isinstance(asset_id, str) or not asset_id for asset_id in asset_ids):
+        raise SystemExit("Every input asset must have a non-empty asset_id")
+    if len(set(asset_ids)) != len(asset_ids):
+        raise SystemExit("Duplicate input asset IDs")
+    for path in sorted(actual_paths):
+        file_path = ROOT / path
+        if file_path.is_symlink() or not file_path.is_file():
+            raise SystemExit(f"Unsupported file type: {path}")
+        data = file_path.read_bytes()
+        record = record_by_path[path]
+        digest = hashlib.sha256(data).hexdigest()
+        if record.get("sha256") != digest:
+            raise SystemExit(f"SHA-256 mismatch: {path}")
+        if record.get("size_bytes") != len(data):
+            raise SystemExit(f"Size mismatch: {path}")
+        if record.get("visibility") != "PUBLIC":
+            raise SystemExit(f"Asset is not marked PUBLIC: {path}")
+        if record.get("asset_id") != f"webapp-testing:{path}":
+            raise SystemExit(f"Asset ID does not match its stable path: {path}")
+        source = record.get("source") or {}
+        for field in ("repository", "revision", "source_path", "asset_type"):
+            if not isinstance(source.get(field), str) or not source[field].strip():
+                raise SystemExit(f"Asset source.{field} is missing: {path}")
+
+    if not EXPECTED_UPSTREAM.issubset(actual_paths):
+        raise SystemExit(f"Pinned upstream Skill inventory incomplete: {sorted(EXPECTED_UPSTREAM - actual_paths)}")
+    for required in (
+        "BUILDER-TASK.md",
+        "UPSTREAM-ASSET-REVIEW.md",
+        "assets/public/ASSET-INDEX.md",
+        "assets/public/business-rules.md",
+        "assets/public/application-overview.md",
+        "assets/public/capability-description.md",
+        "assets/public/runtime-and-tool-contracts.md",
+        "fixtures/workboard/server.py",
+        "fixtures/workboard/static/index.html",
+    ):
+        if required not in actual_paths:
+            raise SystemExit(f"Required public input asset missing: {required}")
+
+    forbidden_markers = ("gold-oracle", "gold_oracle", "hidden-oracle", "hidden_oracle")
+    forbidden = [
+        path for path in actual_paths
+        if any(marker in path.casefold() for marker in forbidden_markers)
+    ]
+    if forbidden:
+        raise SystemExit(f"Oracle-related files must not enter Builder input: {forbidden}")
+
+    canonical = json.dumps(
+        records, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+    ).encode("utf-8")
+    digest = hashlib.sha256(canonical).hexdigest()
+    if digest != manifest.get("package_manifest_sha256"):
+        raise SystemExit("Package manifest digest mismatch")
+
+    print(json.dumps({
+        "status": "PASS",
+        "scope": "public_builder_input_bundle_integrity",
+        "file_count": len(actual_paths),
+        "upstream_skill_file_count": len(EXPECTED_UPSTREAM),
+        "per_file_sha256_verified": len(actual_paths),
+        "package_manifest_sha256": digest,
+        "formal_evaluation_cases_included": False,
+        "gold_oracle_included": False,
+    }, ensure_ascii=False, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

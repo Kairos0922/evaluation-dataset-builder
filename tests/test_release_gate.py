@@ -399,7 +399,10 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn('select(.event == "pull_request" or .event == "push")', workflow)
         self.assertIn('(.conclusion == "success" or .conclusion == "skipped")', workflow)
         validate_workflow = (ROOT / ".github" / "workflows" / "validate.yml").read_text(encoding="utf-8")
-        self.assertIn('branches: ["main", "release/0.0.1-finalize"]', validate_workflow)
+        self.assertIn('branches: ["main", "release/0.0.1-finalize", "experiment/webapp-testing-contract"]', validate_workflow)
+        self.assertIn('".github/dispatch/execute-builder-production-once"', validate_workflow)
+        self.assertIn('".github/dispatch/execute-builder-production-repair-once"', validate_workflow)
+        self.assertIn("github.ref == 'refs/heads/experiment/webapp-testing-contract'", validate_workflow)
         self.assertIn("resume_candidate_sha", workflow)
         self.assertIn("RESUME_CANDIDATE_SHA", workflow)
         self.assertIn("actions/runs?head_sha=$CANDIDATE_SHA", workflow)
@@ -1787,6 +1790,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "expected_behavior": "要求用户补充账期，不返回猜测金额",
             "grading": {
                 "method": "rule_based",
+                "evaluation_subject": "账单查询 Agent",
                 "criteria": [{
                     "criterion_id": "G-001",
                     "description": "识别缺失账期",

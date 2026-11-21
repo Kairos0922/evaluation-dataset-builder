@@ -1,0 +1,82 @@
+{
+  "schema_version": "1.0",
+  "status": "COMPLETE",
+  "source": {
+    "repository": "https://github.com/anthropics/skills",
+    "path": "skills/webapp-testing",
+    "commit": "2c5958ecac7cee2b583967a2c4981d0f4a75c579",
+    "license": "Apache-2.0"
+  },
+  "completeness": {
+    "recursive_tree_verified": true,
+    "recursive_tree_truncated": false,
+    "full_file_inventory_verified": true,
+    "file_count": 6,
+    "directory_count": 2,
+    "symlink_count": 0,
+    "submodule_count": 0,
+    "git_tree_sha": "5ffb7dc66b9fd4c25c3e400a4c00da99a349b714",
+    "inventory_sha256": "ca5f067e6fc69cd9b6286df33517fd7e0b45fb6fa9d643b23309865b7e47ab88",
+    "inventory_hash_spec": "SHA-256 of UTF-8 JSON for sorted file records containing path, mode, type, blob_sha, and size; JSON uses sort_keys=true, ensure_ascii=false, and separators=(',', ':')."
+  },
+  "directories": [
+    {
+      "path": "skills/webapp-testing/examples",
+      "git_tree_sha": "d18b45eccd4e8cafe1cc7b3e060e5aa811f76689"
+    },
+    {
+      "path": "skills/webapp-testing/scripts",
+      "git_tree_sha": "7266adeb444f007795fd860b01572e6e4379fdfc"
+    }
+  ],
+  "files": [
+    {
+      "path": "skills/webapp-testing/LICENSE.txt",
+      "mode": "100644",
+      "type": "blob",
+      "blob_sha": "4f881c52d1f72f4cfb720e339e2d35c3058d01a9",
+      "size": 11345,
+      "role": "license"
+    },
+    {
+      "path": "skills/webapp-testing/SKILL.md",
+      "mode": "100644",
+      "type": "blob",
+      "blob_sha": "4726215301db64a0cc4d41fc3219c61f37a30f4a",
+      "size": 3913,
+      "role": "instructions"
+    },
+    {
+      "path": "skills/webapp-testing/examples/console_logging.py",
+      "mode": "100644",
+      "type": "blob",
+      "blob_sha": "9329b5e232ed53d944bfe95e750070117d31b9ab",
+      "size": 1027,
+      "role": "example"
+    },
+    {
+      "path": "skills/webapp-testing/examples/element_discovery.py",
+      "mode": "100644",
+      "type": "blob",
+      "blob_sha": "917ba72f52421a1b324f93ae8e38af72010a87b9",
+      "size": 1463,
+      "role": "example"
+    },
+    {
+      "path": "skills/webapp-testing/examples/static_html_automation.py",
+      "mode": "100644",
+      "type": "blob",
+      "blob_sha": "90bbedcc08cdb345c74fb938ebad02c0baf56603",
+      "size": 953,
+      "role": "example"
+    },
+    {
+      "path": "skills/webapp-testing/scripts/with_server.py",
+      "mode": "100755",
+      "type": "blob",
+      "blob_sha": "431f2eba16b268b7f3e2ae4daae9db41c0289b6d",
+      "size": 3693,
+      "role": "helper_script"
+    }
+  ]
+}
