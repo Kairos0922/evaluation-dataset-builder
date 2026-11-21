@@ -33,7 +33,7 @@
 
 
 
-**评分主体与缺陷发现语义（强制）：** 本任务的评测对象是执行 Web 应用测试的 webapp-testing Skill，不是 Workboard 应用本身。Workboard 违反 BR-02 等业务规则时，该偏差是 Skill 应当发现的测试对象；Skill 若准确观察、正确解释并如实报告 FAIL，且证据充分，应判为 Skill 表现 PASS。不得把“应用返回错误结果”直接写成 Skill 的 criterion fail_condition。每个 criterion 的 pass_condition 和 fail_condition 必须评价 Skill 的操作、观察、推理、报告或证据质量。若需要评价应用是否符合规则，必须另设明确的应用状态观察项，不得与 Skill 的得分混为一谈。生成后必须逐项核对 case-level pass_conditions / fail_conditions 与每个 criterion 的语义一致性；发现“正确报告缺陷却被 criterion 判失败”的矛盾时，必须修正后才能交付。
+**评分主体与缺陷发现语义（强制）：** 本任务的评测对象是执行 Web 应用测试的 webapp-testing Skill，不是 Workboard 应用本身。Workboard 违反 BR-02 等业务规则时，该偏差是 Skill 应当发现的测试对象；Skill 若准确观察、正确解释并如实报告 FAIL，且证据充分，应判为 Skill 表现 PASS。不得把“应用返回错误结果”直接写成 Skill 的 criterion fail_condition。每个 criterion 的 pass_condition 和 fail_condition 必须评价 Skill 的操作、观察、推理、报告或证据质量。若需要评价应用是否符合规则，必须另设明确的应用状态观察项，不得与 Skill 的得分混为一谈。生成后必须逐项核对 case-level pass_conditions / fail_conditions 与每个 criterion 的语义一致性；发现“正确报告缺陷却被 criterion 判失败”的矛盾时，必须修正后才能交付。 对于应用实际状态可能偏离预期的用例，必须分别写清符合分支和偏差分支：Skill 准确观察并报告真实偏差应得到 Skill 表现 PASS（报告的业务判定可为 FAIL）；只有 Skill 漏检、误报、报告值与同一步 DOM/响应/轨迹证据不一致、遗漏必要步骤或违反执行契约时，才将该 criterion 判为 Skill FAIL。不得单独使用“状态/按钮/摘要/优先级与预期不一致”作为 Skill 失败条件。若要检查报告准确性，必须明确写成“Skill 报告值与实际 DOM/响应/轨迹不一致”。
 
 6. 业务预期以 `assets/public/business-rules.md` 为准。应用源代码是被测实现，不是业务规则的替代来源。代码检查不能替代真实页面交互。
 7. **UI 定位必须基于实际可见界面。** `assets/public/application-overview.md` 中的任务 ID 是数据标识，不保证在页面中显示。对于 WB-101，必须将其映射到唯一可见标题 `Reset password flow`，通过渲染后的 DOM/可访问角色定位对应任务行及其状态按钮；不得使用 `text=WB-101` 作为可见文本等待条件。导航并等待 `networkidle` 后，先检查页面截图或 DOM，再执行任何变更操作。若定位失败，立即停止，不得重试或超出用例预算；在失败路径保存页面截图、页面文本/DOM 摘要、浏览器日志和明确的 UNKNOWN 结论。
