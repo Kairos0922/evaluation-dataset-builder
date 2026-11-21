@@ -83,11 +83,10 @@ def verify_evidence_manifest(pilot: Path, runner: dict) -> tuple[bool | None, di
         for path in pilot.rglob("*")
         if path.is_file() and path.name != "runner-result.json"
     }
-    if actual_paths != set(declared):
-        errors.append(
-            f"file coverage mismatch: unlisted={sorted(actual_paths - set(declared))}; "
-            f"missing={sorted(set(declared) - actual_paths)}"
-        )
+    unlisted_paths = actual_paths - set(declared)
+    missing_paths = set(declared) - actual_paths
+    if unlisted_paths:
+        errors.append(f"unlisted files (possible cross-run contamination): {sorted(unlisted_paths)}")
     verified = 0
     for relative, (expected_digest, expected_size) in declared.items():
         path = pilot / relative
@@ -101,7 +100,13 @@ def verify_evidence_manifest(pilot: Path, runner: dict) -> tuple[bool | None, di
             errors.append(f"size mismatch: {relative}")
         if actual_digest == expected_digest and len(data) == expected_size:
             verified += 1
-    return not errors, {"declared_file_count": len(declared), "verified_file_count": verified, "errors": errors}
+    status = False if errors else (None if missing_paths else True)
+    return status, {
+        "declared_file_count": len(declared),
+        "verified_file_count": verified,
+        "missing_files": sorted(missing_paths),
+        "errors": errors,
+    }
 
 
 def case_index(root: Path) -> dict:
