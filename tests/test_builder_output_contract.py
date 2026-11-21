@@ -137,3 +137,92 @@ def test_dataset_schema_requires_explicit_grading_evaluation_subject():
     assert "evaluation_subject" in grading["required"]
     assert grading["properties"]["evaluation_subject"]["type"] == "string"
     assert grading["properties"]["evaluation_subject"]["minLength"] == 1
+
+
+
+def test_gold_oracle_reads_builder_data_id_visible_title_and_expected_cycle_steps():
+    case = {
+        "execution_requirements": {"test_data": [
+            {
+                "name": "target_task",
+                "data_id": "WB-101",
+                "visible_title": "Reset password flow",
+                "initial_status": "Open",
+            },
+            {
+                "name": "expected_cycle",
+                "steps": [
+                    {"step": 1, "status": "In progress", "button": "Move to Done"},
+                    {"step": 2, "status": "Done", "button": "Move to Open"},
+                    {"step": 3, "status": "Open", "button": "Move to In progress"},
+                ],
+            },
+        ]},
+    }
+    target = oracle.target_task(case, oracle.INITIAL)
+    assert target == oracle.INITIAL[0]
+    assert oracle.expected_status_transitions(case, target) == [
+        ("open", "in_progress"),
+        ("in_progress", "done"),
+        ("done", "open"),
+    ]
+
+
+def test_gold_oracle_reads_builder_delete_target_from_data_id_and_visible_title():
+    case = {
+        "execution_requirements": {"test_data": [
+            {
+                "name": "target_task",
+                "synthetic": True,
+                "data_id": "WB-105",
+                "visible_title": "Review accessibility",
+                "initial_status": "In progress",
+            },
+            {"name": "expected_remaining_tasks", "titles": ["Reset password flow"]},
+        ]},
+    }
+    target = oracle.target_task(case, oracle.INITIAL)
+    assert target == oracle.INITIAL[4]
+
+
+def test_gold_oracle_counts_test_script_invocations_and_excludes_python_c_syntax_checks():
+    runner = {
+        "evidence_files": [
+            {"path": "skill-artifacts/wc11_delete_confirm_test.py"},
+            {"path": "skill-artifacts/recon.py"},
+        ],
+    }
+    events = [
+        {"type": "tool_call", "tool": "bash", "input": {
+            "command": "python3 -c \"compile(open('artifacts/wc11_delete_confirm_test.py').read(), 'wc11', 'exec')\""
+        }},
+        {"type": "tool_call", "tool": "bash", "input": {
+            "command": "python3 artifacts/wc11_delete_confirm_test.py 2>&1 | tee artifacts/run-attempt1.log"
+        }},
+        {"type": "tool_call", "tool": "bash", "input": {
+            "command": "python3 artifacts/wc11_delete_confirm_test.py 2>&1 | tee artifacts/run-attempt2.log"
+        }},
+        {"type": "tool_call", "tool": "bash", "input": {
+            "command": "python3 artifacts/recon.py"
+        }},
+    ]
+    result = oracle.count_test_script_executions(events, runner)
+    assert result["count"] == 2
+    assert [item["script"] for item in result["invocations"]] == [
+        "wc11_delete_confirm_test.py",
+        "wc11_delete_confirm_test.py",
+    ]
+
+
+def test_gold_oracle_accepts_skill_reported_fail_when_observed_state_cycle_is_incomplete():
+    report = (
+        "# WC-12 状态循环测试报告\\n"
+        "**判定：FAIL**\\n"
+        "目标 WB-101 Reset password flow。预期 Open → In progress → Done → Open。"
+    )
+    assert oracle.report_has_state_cycle_result(
+        report, "WB-101", "Reset password flow", "FAIL"
+    )
+    assert not oracle.report_has_state_cycle_result(
+        report, "WB-101", "Reset password flow", "PASS"
+    )
