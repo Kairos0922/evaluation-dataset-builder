@@ -88,3 +88,11 @@ This cross-check confirms the quoted source passages for these six cases are pre
 Static baseline review supports the six-case tranche as a defensible candidate, with no confirmed Builder defect found in the generated definitions. It specifically flags WB-CORE-07's subjective accessibility-name criterion and WB-CORE-10's error-message determinacy for focused review during actual evidence adjudication.
 
 This document is a baseline review only. The six cases remain `NOT_RUN`; no execution authorization is implied.
+
+
+## 9. Repository verification refresh (2026-11-21)
+
+- PR #38 head verified as `67c1ffd36f2cf73c90fdf985a80cc48073f8bfac`, Draft/Open, unmerged.
+- Exact-head workflow run [#44885094352](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44885094352) completed successfully: `require-main-target`, `validate` (formal package validation, benchmark validation, offline tests, Gold Oracle/validator self-tests, source-evidence smoke checks, pilot selector tests), and `audit-upstream-assets` all PASS.
+- Paid/runtime jobs (`runtime-preflight`, Builder production, independent validation, pilot execution, Oracle adjudication) were skipped as intended. This is CI evidence only, not new Builder or Skill execution evidence.
+- Next action remains one real WB-CORE-03 run, contingent on explicit user authorization for the paid DSH/model execution. No such execution was started in this refresh.
