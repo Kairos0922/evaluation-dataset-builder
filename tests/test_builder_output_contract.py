@@ -89,3 +89,41 @@ def test_gold_oracle_does_not_classify_confirmed_delete_as_cancel():
         }]},
     }
     assert not oracle.is_delete_cancel_case(case)
+
+
+
+def test_validator_rejects_sut_failure_as_agent_failure():
+    contradictory = {
+        "case_id": "WBT-CORE-02-SEARCH-MATCH",
+        "grading": {
+            "evaluation_subject": "webapp-testing Skill 的测试与缺陷识别表现",
+            "pass_conditions": ["若结果不符合规则，Skill 如实报告 FAIL 并提供证据。"],
+            "criteria": [{
+                "criterion_id": "WBT-CORE-02-G2",
+                "pass_condition": "查询结果恰好符合业务规则。",
+                "fail_condition": "任一查询返回空或返回多余任务。",
+            }],
+        },
+    }
+    try:
+        validator.validate_evaluation_subject_contract(contradictory)
+    except SystemExit as exc:
+        assert "application defect as the Skill's failure" in str(exc)
+    else:
+        raise AssertionError("Contradictory grading contract was accepted")
+
+
+def test_validator_accepts_truthful_defect_detection_by_test_skill():
+    coherent = {
+        "case_id": "WBT-CORE-02-SEARCH-MATCH",
+        "grading": {
+            "evaluation_subject": "webapp-testing Skill 的测试与缺陷识别表现",
+            "pass_conditions": ["若结果不符合规则，Skill 如实报告 FAIL 并提供证据。"],
+            "criteria": [{
+                "criterion_id": "WBT-CORE-02-G2",
+                "pass_condition": "Skill 准确识别查询结果与 BR-02 的差异，并如实报告 FAIL。",
+                "fail_condition": "Skill 未发现差异、错误报告 PASS，或证据不足却作出确定结论。",
+            }],
+        },
+    }
+    validator.validate_evaluation_subject_contract(coherent)
