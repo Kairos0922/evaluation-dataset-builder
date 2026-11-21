@@ -96,7 +96,7 @@ def validate_evaluation_subject_contract(case: dict) -> None:
         r"只读取|只报告|仅报告|错误报告|错误判断|误报|误判|漏报|遗漏|忽略|隐藏|跳过|"
         r"重复|多次|超出|超过|违反|调用了|修改了|删除了|重置了|缺少|不足|不完整|"
         r"编造|假设|制造|把.{0,20}当作|把.{0,20}描述(?:为|成)|"
-        r"报告\s*(?:PASS|FAIL|UNKNOWN)|声称.{0,16}(?:PASS|FAIL|正确|无错误)|"
+        r"报告\s*(?:PASS|FAIL|UNKNOWN)|报告(?:值|内容)?(?:与|和).{0,20}(?:DOM|页面|快照|实际).{0,10}(?:不一致|不匹配|不同|不符)|声称.{0,16}(?:PASS|FAIL|正确|无错误)|"
         r"did not detect|failed to report|failed to verify|failed to observe|failed to execute|"
         r"missed|ignored|hidden|skipped|repeated|exceeded|violated|called|changed|deleted|"
         r"reset|fabricated|assumed|reported?\s*(?:PASS|FAIL|UNKNOWN)|"
