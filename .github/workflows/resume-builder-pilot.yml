@@ -179,15 +179,16 @@ jobs:
           dsh --profile headless --dump-config > "$RUNNER_TEMP/dsh-config.txt"
           python - <<'PY'
           from pathlib import Path
+          import os
           import re
-          text = Path("$RUNNER_TEMP/dsh-config.txt").read_text(encoding="utf-8")
+          text = (Path(os.environ["RUNNER_TEMP"]) / "dsh-config.txt").read_text(encoding="utf-8")
           marker = "id: session-log-deepseek"
           if marker not in text:
               raise SystemExit("Session Log config missing; refusing model request")
           tail = text.split(marker, 1)[1]
-          next_item = re.search(r"\\n\\s*- id:", tail)
+          next_item = re.search(r"\n\s*- id:", tail)
           section = tail[:next_item.start()] if next_item else tail
-          if not re.search(r"\\benabled:\\s*false\\b", section):
+          if not re.search(r"\benabled:\s*false\b", section):
               raise SystemExit("Session Log upload is not disabled")
           print("PASS: Session Log upload disabled; OTel disabled by environment flags.")
           PY
