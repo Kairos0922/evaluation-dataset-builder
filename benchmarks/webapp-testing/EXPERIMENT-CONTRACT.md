@@ -247,6 +247,7 @@ CI 运行成功不等于评测成功；依赖安装成功不等于 Skill 运行�
 - **P4 Gold Oracle：** 首次 3/3 FAIL 被定位为 Oracle 报告检查过度要求规则 ID 字面量，并混合原始报告与最终报告。修正后对同一批不可变 Builder/Pilot 证据离线重判，业务行为 PASS 3/3；run 44733891829。未重跑 Builder 或 Pilot。
 - **成本审计：** 三条 Pilot 的累计 Trace Token Usage 为 634,679、680,321、2,625,818。WB-CORE-14 的 40 条 usage 记录是一个 DSH turn 内的 40 个模型步骤，不是 40 个对话轮次。详细分段和成本归因见 `benchmarks/reports/builder-output-offline-review-2026-11-20.md`。
 - **运行器改进：** Runner 现在统计模型步骤/turn、工具调用和 Token 用量；执行期间监控并在超限时终止 DSH；实际记录 DSH 起止时间；有效 DSH wall-clock 上限不得超过 Builder 用例声明的 case timeout。离线测试覆盖预算计算、超限终止和 turn/step 口径。剩余 11 条用例的场景分类与 Oracle 缺口见 `benchmarks/reports/remaining-pilot-readiness-2026-11-20.md`。
+- **预算遥测 fail-closed：** 后续审查发现 Runner 原先把缺失的 usage 字段默认为 0，可能在 DSH Trace 没有完整 Token 遥测时错误地认为预算未超限。现已改为：没有 usage 记录，或任一 usage 记录缺少/包含非数值、负数、NaN/Infinity 的 input/output/cache-read/total Token 字段时，预算校验直接产生阻断项，Runner 不得返回 `INVOCATION_OK`。自检覆盖完整、缺失和非法数值遥测；该修复尚待本次 CI 验证，且不代表已经进行新的付费 DSH 实测。
 - **CI 验证：** 最新完整 PR 验证 run [44756938809](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44756938809) 通过，执行 185 项离线测试，并通过 Gold Oracle 自检、真实 Builder 产物审计与 selector 自检。Runner preflight run [44756928738](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44756928738) 通过。该 PR run 中的 runtime-preflight、Builder production、independent-validation、resolve-pilot-matrix、webapp-testing-pilot 和 adjudicate-pilot 付费/运行阶段均为 skipped；本阶段没有发起新的 DSH 或模型调用。
 
 ### 已知限制与未决事项
