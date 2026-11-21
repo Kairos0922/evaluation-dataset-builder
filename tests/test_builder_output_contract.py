@@ -420,6 +420,57 @@ def test_validator_accepts_report_to_dom_mismatch_as_agent_error():
 
 
 
+
+
+def test_validator_collects_wc12_like_state_and_summary_contract_issues():
+    case = {
+        "case_id": "CASE-WC12-LIKE",
+        "grading": {
+            "evaluation_subject": "webapp-testing Skill",
+            "criteria": [
+                {
+                    "criterion_id": "C3-STATUS",
+                    "description": "Skill reports each status and button step.",
+                    "pass_condition": "Skill reports each step from the observed DOM and flags deviations from the expected cycle.",
+                    "fail_condition": "缺少某一步、状态/按钮序列与 DOM 不一致、或只报告最终状态。",
+                    "evidence_required": ["step DOM", "PATCH trace"],
+                },
+                {
+                    "criterion_id": "C4-SUMMARY",
+                    "description": "Skill reports each summary value.",
+                    "pass_condition": "Skill reports actual summary values and identifies any desynchronization.",
+                    "fail_condition": "只读取最终摘要、未逐步对照、摘要值与 DOM 不一致，或忽略摘要未同步。",
+                    "evidence_required": ["summary DOM snapshots"],
+                },
+            ],
+        },
+    }
+    issues = validator.evaluation_subject_contract_issues(case)
+    assert len(issues) == 2
+    assert any("C3-STATUS" in issue and "状态/按钮序列与 DOM 不一致" in issue for issue in issues)
+    assert any("C4-SUMMARY" in issue and "摘要值与 DOM 不一致" in issue for issue in issues)
+
+
+def test_validator_flags_ambiguous_priority_and_status_condition_for_arbitrary_case():
+    case = {
+        "case_id": "CASE-WC09-LIKE",
+        "grading": {
+            "evaluation_subject": "webapp-testing Skill",
+            "criteria": [{
+                "criterion_id": "C3-OBSERVE",
+                "description": "Skill reports title length, priority and status from actual evidence.",
+                "pass_condition": "Skill reports actual values and flags deviations from expected business behavior.",
+                "fail_condition": "只读取视觉截断文本、未计算字符长度、报告长度不是 80，或优先级/状态不一致。",
+                "evidence_required": ["DOM", "POST response"],
+            }],
+        },
+    }
+    issues = validator.evaluation_subject_contract_issues(case)
+    assert len(issues) == 1
+    assert "优先级/状态不一致" in issues[0]
+
+
+
 def test_validator_accepts_skill_explicitly_misreporting_application_result():
     case = {
         "case_id": "CASE-ARBITRARY-19",
