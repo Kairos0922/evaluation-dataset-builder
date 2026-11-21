@@ -24,7 +24,7 @@
 1. 先解析全部输入资产，建立来源、事实、规则、能力、风险和信息缺口。
 2. 规划覆盖范围和数据集划分。数据集数量和用例数量由你根据资产、目标能力、覆盖缺口、风险和执行成本决定。必须推荐数量并解释理由，不得按预设数量凑数。
 3. 仅在能力确实需要跨用户消息承接上下文或跨轮业务状态连续变化时设计多轮任务。只有当 `user_input` 是至少包含两条独立 `{turn_id, content}` 消息的数组，并且预期行为依赖前一条用户消息时，才可将 `scenario_bucket` 标记为 `multi_turn`。一条消息中包含多个点击、查询或状态变更步骤，不属于多轮对话。若输入资产不支持真正的跨消息能力，不得为了试点数量强行生成多轮用例。
-4. 每条正式用例必须包含可执行任务、目标能力、前置状态、允许动作、预期行为、禁止行为、证据要求和 case-level grading contract。 每条 `source_refs` 必须包含可定位的 `title`、`locator` 和 `quoted_evidence`；`quoted_evidence` 必须是对应来源中的原文连续片段，不得写摘要、转述或自拟引文。
+4. 每条正式用例必须包含可执行任务、目标能力、前置状态、允许动作、预期行为、禁止行为、证据要求和 case-level grading contract。 grading contract 必须包含非空字段 `evaluation_subject`，明确评分主体。 每条 `source_refs` 必须包含可定位的 `title`、`locator` 和 `quoted_evidence`；`quoted_evidence` 必须是对应来源中的原文连续片段，不得写摘要、转述或自拟引文。
 5. 判定契约必须适配 Web 应用测试能力，并明确 PASS、FAIL 和 UNKNOWN 条件。应区分页面交互、业务状态、缺陷发现和证据完整性。
 
 
