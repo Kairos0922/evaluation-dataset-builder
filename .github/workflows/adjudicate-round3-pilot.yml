@@ -32,9 +32,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      BUILDER_RUN_ID: ${{ inputs.builder_run_id }}
-      VALIDATION_RUN_ID: ${{ inputs.validation_run_id }}
-      PILOT_RUN_ID: ${{ inputs.pilot_run_id }}
+      BUILDER_RUN_ID: ${{ inputs.builder_run_id || '44910360571' }}
+      VALIDATION_RUN_ID: ${{ inputs.validation_run_id || '44914032444' }}
+      PILOT_RUN_ID: ${{ inputs.pilot_run_id || '44914129348' }}
     steps:
       - name: Checkout benchmark repository
         uses: actions/checkout@v4
