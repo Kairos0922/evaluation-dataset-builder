@@ -1,5 +1,6 @@
 """Offline regression tests for the eleven remaining Webapp Testing Oracle roles."""
 import copy
+import hashlib
 import importlib.util
 import tempfile
 import unittest
@@ -81,6 +82,18 @@ def write_pilot_bundle(root, runner, audit, report):
     ]
     (root / "dsh-events.jsonl").write_text("".join(__import__("json").dumps(item) + "\n" for item in events), encoding="utf-8")
     (root / "server-audit.jsonl").write_text("".join(__import__("json").dumps(item) + "\n" for item in audit), encoding="utf-8")
+    runner["evidence_files"] = [
+        {
+            "path": path.relative_to(root).as_posix(),
+            "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+            "size_bytes": path.stat().st_size,
+        }
+        for path in sorted(root.rglob("*"))
+        if path.is_file() and path.name != "runner-result.json"
+    ]
+    (root / "runner-result.json").write_text(
+        __import__("json").dumps(runner), encoding="utf-8"
+    )
 
 
 
@@ -216,6 +229,54 @@ class RemainingOracleTests(unittest.TestCase):
         target = ORACLE.target_task(case, INITIAL)
         self.assertIsNotNone(target)
         self.assertEqual(target["id"], "WB-104")
+
+    def test_evidence_manifest_detects_tampered_artifact(self):
+        with tempfile.TemporaryDirectory() as temp:
+            pilot = Path(temp) / "pilot"
+            case = {
+                "case_id": "WB-CORE-03", "dataset_id": "D-WB",
+                "execution_requirements": {"test_data": [{
+                    "kind": "search_description", "query": "token expiry",
+                    "expected_rows": [{"title": "Reset password flow"}],
+                    "expected_summary": SUMMARY,
+                }]},
+            }
+            audit = [
+                {"method": "POST", "path": "/api/reset", "status": 200, "action": "reset"},
+                {"method": "GET", "path": "/api/tasks", "query": "q=token+expiry&status=all", "result_count": 1},
+            ]
+            html = render_board(['<td>Reset password flow</td><td>High</td><td>Open</td>'])
+            write_dom(pilot, html)
+            write_pilot_bundle(pilot, base_runner(), audit, "Search evidence recorded. PASS.")
+            (pilot / "skill-artifacts" / "report.md").write_text("tampered after manifest", encoding="utf-8")
+            result = ORACLE.adjudicate_remaining_case(case, pilot, "search_description")
+            check = next(item for item in result["checks"] if item["check"] == "Archived evidence files match the Runner SHA-256 manifest")
+            self.assertEqual(check["status"], "FAIL")
+            self.assertEqual(result["oracle_verdict"], "FAIL")
+
+    def test_evidence_manifest_detects_unlisted_artifact(self):
+        with tempfile.TemporaryDirectory() as temp:
+            pilot = Path(temp) / "pilot"
+            case = {
+                "case_id": "WB-CORE-03", "dataset_id": "D-WB",
+                "execution_requirements": {"test_data": [{
+                    "kind": "search_description", "query": "token expiry",
+                    "expected_rows": [{"title": "Reset password flow"}],
+                    "expected_summary": SUMMARY,
+                }]},
+            }
+            audit = [
+                {"method": "POST", "path": "/api/reset", "status": 200, "action": "reset"},
+                {"method": "GET", "path": "/api/tasks", "query": "q=token+expiry&status=all", "result_count": 1},
+            ]
+            html = render_board(['<td>Reset password flow</td><td>High</td><td>Open</td>'])
+            write_dom(pilot, html)
+            write_pilot_bundle(pilot, base_runner(), audit, "Search evidence recorded. PASS.")
+            (pilot / "skill-artifacts" / "foreign-run.html").write_text("<p>foreign run</p>", encoding="utf-8")
+            result = ORACLE.adjudicate_remaining_case(case, pilot, "search_description")
+            check = next(item for item in result["checks"] if item["check"] == "Archived evidence files match the Runner SHA-256 manifest")
+            self.assertEqual(check["status"], "FAIL")
+            self.assertIn("unlisted", check["detail"])
 
     def test_report_does_not_count_unknown_as_failed_case(self):
         entries = [{"case_id": str(i), "dataset_id": "D", "pilot_role": role}
