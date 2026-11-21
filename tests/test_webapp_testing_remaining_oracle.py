@@ -288,7 +288,7 @@ class RemainingOracleTests(unittest.TestCase):
             result = ORACLE.adjudicate_remaining_case(case, pilot, "search_description")
             check = next(item for item in result["checks"] if item["check"] == "Archived evidence files match the Runner SHA-256 manifest")
             self.assertEqual(check["status"], "FAIL")
-            self.assertIn("unlisted", check["detail"])
+            self.assertIn("unlisted", check["evidence"])
 
     def test_report_does_not_count_unknown_as_failed_case(self):
         entries = [{"case_id": str(i), "dataset_id": "D", "pilot_role": role}
