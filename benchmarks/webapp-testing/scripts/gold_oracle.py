@@ -61,7 +61,7 @@ def verify_evidence_manifest(pilot: Path, runner: dict) -> tuple[bool | None, di
     declared = {}
     try:
         root = pilot.resolve(strict=True)
-    except OSError as exc:
+    except (OSError, RuntimeError) as exc:
         return False, {"reason": f"pilot evidence root cannot be resolved: {exc}"}
     if pilot.is_symlink() or not root.is_dir():
         return False, {"reason": "pilot evidence root must be a real directory, not a symlink"}
@@ -84,11 +84,16 @@ def verify_evidence_manifest(pilot: Path, runner: dict) -> tuple[bool | None, di
         if (
             candidate.is_absolute() or ".." in candidate.parts
             or candidate.as_posix() != relative or relative in declared
+            or relative == "runner-result.json"
             or (candidate.parts and ":" in candidate.parts[0])
         ):
             errors.append(f"unsafe, non-canonical or duplicate path: {relative!r}")
             continue
-        resolved = (root / candidate).resolve(strict=False)
+        try:
+            resolved = (root / candidate).resolve(strict=False)
+        except (OSError, RuntimeError) as exc:
+            errors.append(f"path cannot be safely resolved: {relative!r}: {exc}")
+            continue
         if not resolved.is_relative_to(root):
             errors.append(f"path resolves outside evidence root: {relative!r}")
             continue
@@ -101,7 +106,12 @@ def verify_evidence_manifest(pilot: Path, runner: dict) -> tuple[bool | None, di
         declared[relative] = (digest, size)
 
     actual_paths = set()
-    for current, dirnames, filenames in os.walk(root, topdown=True, followlinks=False):
+    def walk_error(exc):
+        errors.append(f"cannot enumerate evidence directory: {exc}")
+
+    for current, dirnames, filenames in os.walk(
+        root, topdown=True, onerror=walk_error, followlinks=False
+    ):
         current_path = Path(current)
         for name in list(dirnames):
             child = current_path / name
@@ -128,7 +138,12 @@ def verify_evidence_manifest(pilot: Path, runner: dict) -> tuple[bool | None, di
                 errors.append(f"symlink path component is not allowed: {relative}")
                 break
             ancestor = ancestor.parent
-        if not candidate.resolve(strict=False).is_relative_to(root):
+        try:
+            resolved = candidate.resolve(strict=False)
+        except (OSError, RuntimeError) as exc:
+            errors.append(f"path cannot be safely resolved: {relative!r}: {exc}")
+            continue
+        if not resolved.is_relative_to(root):
             errors.append(f"path resolves outside evidence root: {relative!r}")
 
     unlisted_paths = actual_paths - set(declared)
@@ -141,7 +156,11 @@ def verify_evidence_manifest(pilot: Path, runner: dict) -> tuple[bool | None, di
         path = root / relative
         if relative not in actual_paths:
             continue
-        data = path.read_bytes()
+        try:
+            data = path.read_bytes()
+        except OSError as exc:
+            errors.append(f"cannot read evidence file {relative}: {exc}")
+            continue
         actual_digest = hashlib.sha256(data).hexdigest()
         if actual_digest != expected_digest:
             errors.append(f"SHA-256 mismatch: {relative}")
