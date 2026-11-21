@@ -356,6 +356,70 @@ def test_validator_accepts_each_clause_when_it_attributes_the_failure_to_agent_b
 
 
 
+
+
+def test_validator_rejects_raw_summary_mismatch_clause_in_multi_clause_criterion():
+    case = {
+        "case_id": "WC-12-LIKE",
+        "grading": {
+            "evaluation_subject": "webapp-testing Skill",
+            "criteria": [{
+                "criterion_id": "C-SUMMARY",
+                "description": "The Skill reports every intermediate summary.",
+                "pass_condition": "The Skill reports actual values and identifies any desynchronization.",
+                "fail_condition": "只读取最终摘要、未逐步对照、摘要值与 DOM 不一致，或忽略摘要未同步。",
+                "evidence_required": ["intermediate summary snapshots"],
+            }],
+        },
+    }
+    try:
+        validator.validate_evaluation_subject_contract(case)
+    except SystemExit as exc:
+        assert "摘要值与 DOM 不一致" in str(exc)
+    else:
+        raise AssertionError("A raw application-summary mismatch clause was accepted")
+
+
+def test_validator_rejects_ambiguous_priority_status_mismatch_clause():
+    case = {
+        "case_id": "WC-09-LIKE",
+        "grading": {
+            "evaluation_subject": "webapp-testing Skill",
+            "criteria": [{
+                "criterion_id": "C-OBSERVE",
+                "description": "The Skill reads the created task fields.",
+                "pass_condition": "The Skill reports actual priority and status from DOM and response.",
+                "fail_condition": "报告长度不是 80，或优先级/状态不一致。",
+                "evidence_required": ["DOM snapshot", "POST response"],
+            }],
+        },
+    }
+    try:
+        validator.validate_evaluation_subject_contract(case)
+    except SystemExit as exc:
+        assert "优先级/状态不一致" in str(exc)
+    else:
+        raise AssertionError("An ambiguous priority/status mismatch clause was accepted")
+
+
+def test_validator_accepts_report_to_dom_mismatch_as_agent_error():
+    case = {
+        "case_id": "CASE-ARBITRARY-23",
+        "grading": {
+            "evaluation_subject": "webapp-testing Skill",
+            "criteria": [{
+                "criterion_id": "C-REPORT",
+                "description": "The Skill reports actual DOM values.",
+                "pass_condition": "The Skill's report matches the observed DOM.",
+                "fail_condition": "报告与实际 DOM 不一致。",
+                "evidence_required": ["DOM", "report"],
+            }],
+        },
+    }
+    validator.validate_evaluation_subject_contract(case)
+
+
+
 def test_validator_accepts_skill_explicitly_misreporting_application_result():
     case = {
         "case_id": "CASE-ARBITRARY-19",
