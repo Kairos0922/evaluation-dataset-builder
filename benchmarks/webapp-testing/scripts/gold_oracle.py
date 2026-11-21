@@ -372,6 +372,7 @@ def normalize_status(value) -> str:
 
 def expected_status_transitions(case: dict, target: dict | None) -> list[tuple[str, str]]:
     """Derive the state cycle from the Builder-authored case contract."""
+    expected: list[tuple[str, str]] = []
     rule_expected = ((case.get("reference_outcome") or {}).get("rule_expected") or {})
     steps = rule_expected.get("steps") or []
     if steps:
