@@ -112,3 +112,13 @@ class BuilderReadmeCaseGroupingTests(unittest.TestCase):
         )
         missing = [phrase for phrase in required if phrase not in text]
         self.assertFalse(missing, f"README case grouping contract is incomplete: {missing}")
+
+
+def test_builder_task_requires_actual_dsh_resource_budgets_and_minimal_cases():
+    task = TASK.read_text(encoding="utf-8")
+    runtime = RUNTIME_CONTRACT.read_text(encoding="utf-8")
+    required_task = ["执行资源预算与最小充分实现","model steps 32","output tokens 55,000","cache-read tokens 1,600,000","最小充分实现","execution feasibility 为 needs_info"]
+    required_runtime = ["## 8. DSH 执行资源预算","Model steps | 32","Output tokens | 55,000","Cache-read tokens | 1,600,000","不得减少业务断言、必要证据"]
+    missing = [phrase for phrase in required_task if phrase not in task]
+    missing.extend(f"runtime:{phrase}" for phrase in required_runtime if phrase not in runtime)
+    assert not missing, f"Builder resource-feasibility contract is incomplete: {missing}"
