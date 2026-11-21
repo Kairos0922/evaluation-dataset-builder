@@ -94,15 +94,19 @@ def validate_evaluation_subject_contract(case: dict) -> None:
         r"(?:Skill|Agent|智能体|助手|测试者|测试脚本|执行者|其报告|报告|判定|证据|轨迹|操作|执行)"
         r".{0,28}(?:未发现|未识别|未报告|未说明|未记录|未核验|未验证|未观察|未检查|未执行|"
         r"未完成|未按|未能|错误报告|错误判断|误报|误判|漏报|遗漏|忽略|跳过|重复|多次|"
-        r"超出|超过|违反|调用了|修改了|删除了|重置了|缺少|不足|不完整|"
+        r"超出|超过|违反|调用了|修改了|删除了|重置了|缺少|不足|不完整|不一致|偏差|"
+        r"报告\\s*(?:PASS|FAIL|UNKNOWN)|报告(?:为|成)|描述(?:为|成)|"
         r"did not detect|failed to report|failed to verify|failed to observe|failed to execute|"
         r"missed|ignored|skipped|repeated|exceeded|violated|called|changed|deleted|reset|"
+        r"reports?\\s*(?:PASS|FAIL|UNKNOWN)|describ(?:es|ed) as|inconsistent|mismatch|"
         r"lacks?|insufficient|incomplete)"
         r"|(?:未发现|未识别|未报告|未说明|未记录|未核验|未验证|未观察|未检查|未执行|"
         r"未完成|未按|未能|错误报告|错误判断|误报|误判|漏报|遗漏|忽略|跳过|重复|多次|"
-        r"超出|超过|违反|缺少|不足|不完整|did not detect|failed to report|failed to verify|"
+        r"超出|超过|违反|缺少|不足|不完整|不一致|偏差|报告\\s*(?:PASS|FAIL|UNKNOWN)|"
+        r"报告(?:为|成)|描述(?:为|成)|did not detect|failed to report|failed to verify|"
         r"failed to observe|failed to execute|missed|ignored|skipped|repeated|exceeded|"
-        r"violated|lacks?|insufficient|incomplete)"
+        r"violated|reports?\\s*(?:PASS|FAIL|UNKNOWN)|describ(?:es|ed) as|inconsistent|"
+        r"mismatch|lacks?|insufficient|incomplete)"
         r".{0,28}(?:Skill|Agent|智能体|助手|测试者|测试脚本|执行者|报告|判定|证据|轨迹|操作|执行)",
         re.I,
     )
