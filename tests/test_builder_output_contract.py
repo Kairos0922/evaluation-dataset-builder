@@ -214,6 +214,65 @@ def test_gold_oracle_counts_test_script_invocations_and_excludes_python_c_syntax
     ]
 
 
+
+
+def test_gold_oracle_counts_direct_script_invocation_before_semicolon():
+    runner = {"evidence_files": [{"path": "skill-artifacts/run1/test_wc12.py"}]}
+    events = [{
+        "type": "tool_call",
+        "tool": "bash",
+        "input": {"command": "cd artifacts/run1 && python3 test_wc12.py; echo EXIT_CODE=$?"},
+    }]
+    result = oracle.count_test_script_executions(events, runner)
+    assert result["count"] == 1
+    assert result["invocations"][0]["execution_evidence"] == "direct_python_invocation"
+
+
+def test_gold_oracle_uses_correlated_output_for_truncated_test_heredoc_command():
+    call_id = "call-wc03"
+    runner = {"evidence_files": [{
+        "path": "skill-artifacts/wc03_br02_search_test.py",
+    }]}
+    events = [
+        {
+            "type": "tool_call",
+            "callId": call_id,
+            "tool": "bash",
+            "truncated": True,
+            "input": {
+                "command": "cd /workspace && cat > artifacts/wc03_br02_search_test.py <<'PY'\\n# long test body"
+            },
+        },
+        {
+            "type": "tool_result",
+            "callId": call_id,
+            "status": "completed",
+            "result": "[step] search_filled_once\\n=== SUMMARY ===\\n{\\\"verdict\\\": \\"FAIL\\"}\\nEXIT_CODE=0",
+        },
+    ]
+    result = oracle.count_test_script_executions(events, runner)
+    assert result["count"] == 1
+    assert result["invocations"][0]["execution_evidence"] == (
+        "truncated_heredoc_with_correlated_runtime_output"
+    )
+
+
+def test_gold_oracle_does_not_count_static_compile_or_posthoc_import_as_test_run():
+    runner = {"evidence_files": [{"path": "skill-artifacts/run1/test_wc12.py"}]}
+    events = [
+        {
+            "type": "tool_call", "tool": "bash",
+            "input": {"command": "python3 -c \\"compile(open('test_wc12.py').read(), 'test_wc12', 'exec')\\""},
+        },
+        {
+            "type": "tool_call", "tool": "bash",
+            "input": {"command": "python3 - <<'PY'\\nimport importlib.util\\nspec=importlib.util.spec_from_file_location('t','test_wc12.py')\\nm=importlib.util.module_from_spec(spec)\\nspec.loader.exec_module(m)\\nprint(m.parse_status('Open'))\\nPY"},
+        },
+    ]
+    result = oracle.count_test_script_executions(events, runner)
+    assert result["count"] == 0
+
+
 def test_gold_oracle_accepts_skill_reported_fail_when_observed_state_cycle_is_incomplete():
     report = (
         "# WC-12 状态循环测试报告\\n"
