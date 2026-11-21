@@ -401,6 +401,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         validate_workflow = (ROOT / ".github" / "workflows" / "validate.yml").read_text(encoding="utf-8")
         self.assertIn('branches: ["main", "release/0.0.1-finalize", "experiment/webapp-testing-contract"]', validate_workflow)
         self.assertIn('".github/dispatch/execute-builder-production-once"', validate_workflow)
+        self.assertIn('".github/dispatch/execute-builder-production-repair-once"', validate_workflow)
         self.assertIn("github.ref == 'refs/heads/experiment/webapp-testing-contract'", validate_workflow)
         self.assertIn("resume_candidate_sha", workflow)
         self.assertIn("RESUME_CANDIDATE_SHA", workflow)
