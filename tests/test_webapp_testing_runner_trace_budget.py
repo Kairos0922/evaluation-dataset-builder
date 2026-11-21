@@ -39,7 +39,7 @@ class DshTraceBudgetTests(unittest.TestCase):
             self.assertEqual(set(symlink_paths), {"linked.txt", "linked-dir"})
             self.assertTrue((destination / "linked.txt").is_symlink())
             self.assertTrue((destination / "linked-dir").is_symlink())
-            self.assertFalse((destination / "linked-dir" / "secret.txt").exists())
+            self.assertNotIn("secret.txt", {item.name for item in destination.rglob("*")})
 
     def test_skill_artifact_root_symlink_is_blocked(self):
         with tempfile.TemporaryDirectory() as temp:
