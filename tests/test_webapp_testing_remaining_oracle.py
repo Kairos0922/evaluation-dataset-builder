@@ -548,7 +548,7 @@ class RemainingOracleTests(unittest.TestCase):
             audit_path = pilot / "server-audit.jsonl"
             events = [json.loads(line) for line in audit_path.read_text(encoding="utf-8").splitlines()]
             events[0].pop("run_id")
-            audit_path.write_text("".join(json.dumps(item) + "\\n" for item in events), encoding="utf-8")
+            audit_path.write_text("".join(json.dumps(item) + "\n" for item in events), encoding="utf-8")
             refresh_manifest(pilot)
             result = ORACLE.adjudicate_remaining_case(case, pilot, "search_description")
             check = next(item for item in result["checks"] if item["check"] == "Runner, server audit and DSH Trace belong to the same run")
