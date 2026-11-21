@@ -66,7 +66,24 @@ It does **not** justify paying for all six automatically. Continue sequentially 
 - Stop if the case is blocked, evidence is incomplete/inconsistent, attribution is contaminated, a budget limit is reached, or a side effect violates the contract.
 - Continue only when the case yields usable Builder-quality evidence and the remaining expected information is still worth the marginal cost.
 
-## 6. Recommendation
+
+## 7. Source quote cross-check
+
+The frozen Builder input artifact `14623409443` was downloaded and inspected. For the six selected cases, every source path resolved within that input artifact and every `quoted_evidence` string was found as an exact substring in its referenced source file: **19/19 source quote checks PASS**.
+
+| Case | Referenced sources | Path resolution | Exact quote checks |
+|---|---:|---|---:|
+| WB-CORE-03 | 2 | PASS | 2/2 |
+| WB-CORE-05 | 2 | PASS | 2/2 |
+| WB-CORE-07 | 3 | PASS | 3/3 |
+| WB-CORE-13 | 3 | PASS | 3/3 |
+| WB-CORE-10 | 4 | PASS | 4/4 |
+| WB-CORE-09 | 5 | PASS | 5/5 |
+| **Total** | **19** | **PASS** | **19/19** |
+
+This cross-check confirms the quoted source passages for these six cases are present in the frozen input files. It does not independently establish that Builder interpreted the passages correctly or that the cases' assertions are behaviorally complete.
+
+## 8. Recommendation
 
 Static baseline review supports the six-case tranche as a defensible candidate, with no confirmed Builder defect found in the generated definitions. It specifically flags WB-CORE-07's subjective accessibility-name criterion and WB-CORE-10's error-message determinacy for focused review during actual evidence adjudication.
 
