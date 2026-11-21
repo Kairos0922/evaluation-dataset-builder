@@ -50,6 +50,19 @@ def test_builder_task_requires_mutation_and_script_execution_budgets():
     assert not missing, f"Explicit action-budget contract is incomplete: {missing}"
 
 
+def test_builder_task_separates_skill_defect_detection_from_application_compliance():
+    task = TASK.read_text(encoding="utf-8")
+    required = (
+        "评分主体与缺陷发现语义（强制）",
+        "本任务的评测对象是执行 Web 应用测试的 webapp-testing Skill，不是 Workboard 应用本身。",
+        "准确观察、正确解释并如实报告 FAIL",
+        "不得把“应用返回错误结果”直接写成 Skill 的 criterion fail_condition",
+        "case-level pass_conditions / fail_conditions 与每个 criterion 的语义一致性",
+    )
+    missing = [phrase for phrase in required if phrase not in task]
+    assert not missing, f"Builder task does not disambiguate the evaluation subject: {missing}"
+
+
 class BuilderReadmeCaseGroupingTests(unittest.TestCase):
     def test_case_groups_must_match_case_semantics(self):
         text = TASK.read_text(encoding="utf-8")
