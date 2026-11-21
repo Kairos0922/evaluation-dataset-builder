@@ -208,8 +208,10 @@ def summarize_trace_events(events: list[dict]) -> dict:
     }
 
 
-def trace_budget_violations(trace: dict, limits: dict) -> list[str]:
-    """Return exceeded operational ceilings; these are stop controls, not quality scores."""
+def trace_budget_violations(
+    trace: dict, limits: dict, *, require_usage_telemetry: bool = True
+) -> list[str]:
+    """Return exceeded ceilings; final adjudication fails closed on missing telemetry."""
     usage = trace.get("usage") or {}
     totals = usage.get("usage_totals") or {}
     observed = {
@@ -220,9 +222,9 @@ def trace_budget_violations(trace: dict, limits: dict) -> list[str]:
         "total_tokens": totals.get("totalTokens", 0),
     }
     violations = []
-    if usage.get("usage_record_count", 0) < 1:
+    if usage.get("usage_record_count", 0) < 1 and require_usage_telemetry:
         violations.append("usage telemetry missing; token budgets cannot be verified")
-    elif not usage.get("usage_telemetry_complete", False):
+    elif usage.get("usage_record_count", 0) > 0 and not usage.get("usage_telemetry_complete", False):
         violations.append(
             "usage telemetry incomplete in "
             f"{usage.get('incomplete_usage_record_count', 'unknown')} record(s); "
@@ -292,7 +294,12 @@ def wait_for_dsh_with_budget(
     first_wait = True
     while process.poll() is None:
         trace = parse_trace(events_path)
-        violations = trace_budget_violations(trace, budget_limits)
+        # DSH may need startup time before emitting its first usage event.
+        # During live monitoring, enforce every observed ceiling and reject
+        # malformed usage immediately; require at least one record only after exit.
+        violations = trace_budget_violations(
+            trace, budget_limits, require_usage_telemetry=False
+        )
         if violations:
             stop_process_group(process, timeout=5)
             return 124, "DSH usage budget exceeded: " + "; ".join(violations)
