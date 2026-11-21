@@ -98,6 +98,7 @@ def evaluation_subject_contract_issues(case: dict) -> list[str]:
         r"编造|假设|制造|把.{0,20}当作|把.{0,40}(?:偏差|缺陷|异常|错误).{0,24}(?:写成|判为|归因于|认为)|"
         r"把.{0,24}(?:应用|页面|系统|结果).{0,24}(?:写成|判为|归因于).{0,24}(?:Skill|Agent|智能体|助手)|"
         r"仍(?:报告|报|称|判定|判断|认为|写成|描述|归类|标记).{0,24}(?:PASS|FAIL|符合|不符合|正确|错误)|"
+        r"(?:称|报|报告|判定|判断|认为|写成|描述|归类|标记).{0,24}(?:PASS|FAIL|符合|不符合|正确|错误)|"
         r"报告\s*(?:PASS|FAIL|UNKNOWN)|报告(?:值|内容)?(?:与|和).{0,20}(?:DOM|页面|快照|实际).{0,10}(?:不一致|不匹配|不同|不符)|声称.{0,16}(?:PASS|FAIL|正确|无错误)|"
         r"did not detect|failed to report|failed to verify|failed to observe|failed to execute|"
         r"missed|ignored|hidden|skipped|repeated|exceeded|violated|called|changed|deleted|"
