@@ -1650,11 +1650,20 @@ def self_test() -> int:
                 })
                 post_items = [item for item in INITIAL if item["id"] != target["id"]]
                 post_state = {"items": post_items, "summary": task_summary(normalized_tasks({"items": post_items}))}
+            run_id = "oracle-self-test-" + role
+            audit = [{**item, "run_id": run_id} for item in audit]
             (pilot / "server-audit.jsonl").write_text(
                 "".join(json.dumps(item) + "\n" for item in audit), encoding="utf-8"
             )
+            trace_path = pilot / "dsh-events.jsonl"
+            (pilot / "trace-run-context.json").write_text(json.dumps({
+                "run_id": run_id,
+                "trace_sha256": hashlib.sha256(trace_path.read_bytes()).hexdigest(),
+                "trace_event_count": len(trace_events),
+            }), encoding="utf-8")
             runner = {
                 "case_id": spec["case_id"],
+                "run_id": run_id,
                 "runner_status": "INVOCATION_OK",
                 "dsh_exit_code": 0,
                 "completed_user_turn_count": 1,
