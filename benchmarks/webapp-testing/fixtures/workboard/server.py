@@ -167,6 +167,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(200, {"items": deepcopy(matches), "summary": deepcopy(counts)})
             record({"method": "GET", "path": "/api/tasks", "query": parsed.query, "status": 200, "result_count": len(matches)})
             return
+        if parsed.path.startswith("/api/"):
+            record({"method": "GET", "path": parsed.path, "query": parsed.query, "status": 404, "action": "not-found"})
         self.send_error(404)
 
     def do_POST(self) -> None:  # noqa: N802
@@ -176,6 +178,7 @@ class Handler(BaseHTTPRequestHandler):
             data = self.read_json()
         except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
             self.send_json(400, {"error": f"Invalid JSON: {exc}"})
+            record({"method": "POST", "path": parsed.path, "status": 400, "action": "request-rejected", "reason": "invalid-json"})
             return
         if parsed.path == "/api/reset":
             TASKS = deepcopy(INITIAL_TASKS)
@@ -196,10 +199,12 @@ class Handler(BaseHTTPRequestHandler):
                     return
             if len(title) > 80:
                 self.send_json(400, {"error": "Title must be 80 characters or fewer"})
+                record({"method": "POST", "path": parsed.path, "status": 400, "action": "create-rejected", "reason": "title-too-long"})
                 return
             priority = str(data.get("priority", "Medium"))
             if priority not in {"Low", "Medium", "High"}:
                 self.send_json(400, {"error": "Priority is invalid"})
+                record({"method": "POST", "path": parsed.path, "status": 400, "action": "create-rejected", "reason": "invalid-priority"})
                 return
             task = {
                 "id": f"WB-{NEXT_ID}",
@@ -215,6 +220,8 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(201, {"item": deepcopy(task), "summary": summary(TASKS)})
             record({"method": "POST", "path": parsed.path, "status": 201, "action": "created", "item": deepcopy(task)})
             return
+        if parsed.path.startswith("/api/"):
+            record({"method": "POST", "path": parsed.path, "status": 404, "action": "not-found"})
         self.send_error(404)
 
     def do_PATCH(self) -> None:  # noqa: N802
@@ -229,15 +236,18 @@ class Handler(BaseHTTPRequestHandler):
             data = self.read_json()
         except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
             self.send_json(400, {"error": f"Invalid JSON: {exc}"})
+            record({"method": "PATCH", "path": parsed.path, "status": 400, "action": "request-rejected", "reason": "invalid-json"})
             return
         task = next((item for item in TASKS if item["id"] == task_id), None)
         if task is None:
             self.send_json(404, {"error": "Task not found"})
+            record({"method": "PATCH", "path": parsed.path, "status": 404, "action": "update-rejected", "reason": "task-not-found"})
             return
         old_status = task["status"]
         new_status = str(data.get("status", old_status))
         if new_status not in {"open", "in_progress", "done"}:
             self.send_json(400, {"error": "Status is invalid"})
+            record({"method": "PATCH", "path": parsed.path, "status": 400, "action": "update-rejected", "reason": "invalid-status"})
             return
         task["status"] = new_status
         if "stale-summary" not in MUTATIONS:
@@ -257,6 +267,7 @@ class Handler(BaseHTTPRequestHandler):
         task = next((item for item in TASKS if item["id"] == task_id), None)
         if task is None:
             self.send_json(404, {"error": "Task not found"})
+            record({"method": "DELETE", "path": parsed.path, "status": 404, "action": "delete-rejected", "reason": "task-not-found"})
             return
         TASKS = [item for item in TASKS if item["id"] != task_id]
         if "stale-summary" not in MUTATIONS:
