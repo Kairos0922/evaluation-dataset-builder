@@ -69,3 +69,15 @@ These figures are cumulative trace usage, not unique prompt size and not provide
 - **Offline technical prerequisite for full coverage:** selector and independent Oracle expansion for the 11 remaining cases is implemented and passes synthetic regression tests.
 - **Real 11-case execution:** not started; all eleven cases remain NOT_RUN. Offline self-tests do not count as case execution.
 - **Paid execution:** none authorized or started by this phase.
+
+
+## Engineering integrity addendum (2026-11-21)
+
+The offline Oracle/Runner evidence chain has since been hardened beyond the original readiness review:
+
+- Runner-generated per-run UUID is recorded in Runner output, the Trace sidecar and every fixture-server audit event.
+- Oracle checks all IDs, Trace SHA-256 and event count; missing correlation data is UNKNOWN and conflicting/corrupt evidence is FAIL.
+- The evidence manifest rejects path traversal, absolute and non-canonical paths, symlinks, out-of-root resolution, duplicate entries, non-regular files, and unlisted files. Missing declared files remain UNKNOWN; tampering is FAIL.
+- New synthetic regression cases cover these failure modes. These checks improve evidence integrity but do not convert any of the eleven candidates from NOT_RUN to executed.
+
+The exact-head CI run for these latest changes is tracked in the PR #38 engineering completion checklist. No DSH/model execution was performed.
