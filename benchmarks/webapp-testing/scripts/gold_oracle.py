@@ -946,7 +946,7 @@ def adjudicate_remaining_case(case: dict, pilot: Path, role: str) -> dict:
         "contract_verdict": verdict, "oracle_verdict": verdict, "business_behavior_verdict": behavior,
         "checks": checks,
         "target_report_excerpt": [line.strip() for line in report_text.splitlines() if re.search(r"PASS|FAIL|CONFORMS|VIOLATES|BR-0[1-9]", line, re.I)][:12],
-        "limitations": [],
+        "limitations": (["DOM snapshots are target-produced files copied from the Skill workspace; they are corroborative evidence, not independent browser instrumentation."] if parse_dom_snapshots(pilot) else []),
     }
 
 
@@ -1192,7 +1192,7 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
                 f"pre_initial={pre_is_initial}; retained={expected_retained}; target_id={target_id}; post_ids={[item['id'] for item in post_tasks]}; summary={post.get('summary')}; expected_summary={expected_summary}",
             )
             add_check(
-                checks, "Rendered DOM independently confirms the open dialog, Cancel/Delete actions and visible target",
+                checks, "Target-produced DOM snapshots show the open dialog, Cancel/Delete actions and visible target",
                 dom_ok,
                 json.dumps({"dialog": dialog_dom_ok, "cancel": cancel_dom_ok, "delete": delete_dom_ok, "closed_after_cancel": closed_after_cancel_ok, "target_retained_after_cancel": target_dom_ok}, ensure_ascii=False),
             )
