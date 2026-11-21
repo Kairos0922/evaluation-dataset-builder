@@ -310,6 +310,45 @@ def test_validator_applies_agent_failure_attribution_check_to_arbitrary_case_ids
         raise AssertionError("Generic case ID bypassed Agent/Skill failure attribution lint")
 
 
+
+
+def test_validator_accepts_skill_explicitly_misreporting_application_result():
+    case = {
+        "case_id": "CASE-ARBITRARY-19",
+        "grading": {
+            "evaluation_subject": "负责页面测试与缺陷报告的 Skill",
+            "pass_conditions": ["发现异常并如实报告 FAIL。"],
+            "criteria": [{
+                "criterion_id": "C-19",
+                "description": "检查查询结果和报告一致性。",
+                "pass_condition": "Skill 准确核验查询结果并报告正确结论。",
+                "fail_condition": "查询返回 0 行时 Skill 报告 PASS。",
+                "evidence_required": ["查询记录", "最终报告"],
+            }],
+        },
+    }
+    validator.validate_evaluation_subject_contract(case)
+
+
+def test_validator_accepts_skill_describing_empty_result_as_nonempty():
+    case = {
+        "case_id": "CASE-ARBITRARY-20",
+        "grading": {
+            "evaluation_subject": "负责页面测试的 Agent",
+            "pass_conditions": ["Agent 准确报告观测结果。"],
+            "criteria": [{
+                "criterion_id": "C-20",
+                "description": "检查空结果报告。",
+                "pass_condition": "Agent 报告的行数与 DOM 一致。",
+                "fail_condition": "Agent 把空结果描述成有结果。",
+                "evidence_required": ["最终 DOM", "最终报告"],
+            }],
+        },
+    }
+    validator.validate_evaluation_subject_contract(case)
+
+
+
 def test_validator_accepts_agent_fail_condition_that_attributes_missing_detection():
     case = {
         "case_id": "CASE-ARBITRARY-18",
