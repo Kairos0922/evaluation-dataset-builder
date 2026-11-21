@@ -63,6 +63,11 @@ def test_builder_task_separates_skill_defect_detection_from_application_complian
     assert not missing, f"Builder task does not disambiguate the evaluation subject: {missing}"
 
 
+def test_builder_task_requires_explicit_grading_evaluation_subject():
+    task = TASK.read_text(encoding="utf-8")
+    assert "grading contract 必须包含非空字段 `evaluation_subject`" in task
+
+
 class BuilderReadmeCaseGroupingTests(unittest.TestCase):
     def test_case_groups_must_match_case_semantics(self):
         text = TASK.read_text(encoding="utf-8")
