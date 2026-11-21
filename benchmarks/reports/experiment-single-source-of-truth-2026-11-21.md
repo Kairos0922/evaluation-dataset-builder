@@ -1,137 +1,130 @@
 # Evaluation Dataset Builder experiment: single source of truth
 
 Updated: 2026-11-21  
-PR: #38, Draft/Open. Do not merge or close.  
+PR: [#38](https://github.com/Kairos0922/evaluation-dataset-builder/pull/38), Draft/Open. Do not merge or close.  
 Branch: `experiment/webapp-testing-contract`  
-HEAD when this update was prepared: `fba670ce37e18e3a21059fc46c41a81d88e0dfcd`
+Current scope: evaluate **Builder-generated evaluation dataset quality and generation cost**. Target-Skill performance, Runner/CI changes, and Oracle implementation work are separate evidence categories, not Builder benefits.
 
-## 1. Evaluation object and attribution boundary
+## 1. Current authoritative experiment state
 
-This experiment assesses the quality and cost of **Evaluation Dataset Builder-generated evaluation datasets**.
+The latest completed formal Builder round is **Round 2**, workflow [44901698634](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44901698634). This run supersedes Round 1 as the current production candidate. Round 1 remains historical evidence and must not be substituted for Round 2.
 
-Do not count target-Skill performance, Runner/CI engineering, infrastructure checks, or downstream skill execution as Builder benefit. Those are separate evidence categories. A target-Skill PASS/FAIL is not itself a Builder quality score.
-
-Per case, use exactly one Builder-quality outcome:
-- `ADEQUATE_FOR_THIS_CASE`
-- `BUILDER_DEFECT_FOUND`
-- `INCONCLUSIVE`
-
-Review source fidelity, specification sufficiency, contract coherence, grading sufficiency, evidence determinacy, coverage contribution, discriminative intent, and cost proportionality. Do not invent weights or thresholds.
-
-## 2. Immutable formal Builder production
-
-| Item | Value |
+| Item | Current value |
 |---|---|
-| Formal Builder workflow run | `44889956698` |
-| Builder result artifact | `14702092011` |
-| Artifact SHA-256 | `11b10519fdc87ac35fcd2493c57f84600954374e3a5a490b935f27512773d1c9` |
-| Frozen input artifact | `14701272903` |
-| Frozen input artifact SHA-256 | `1a801304a29b5c2b883f35426a2c3a5e39e61dae1bf95c1f7f8e801fd29f11f6` |
-| Independent validation artifact | `14702560789` |
-| Independent validation SHA-256 | `5802192a6923da574a2adf91a667393707a052ba9eeab78fa585441fa89f7277` |
-| Builder Skill invocation | One actual DSH Skill tool call; exit 0; final reason completed; 783 trace events |
-| Output | 13 formal files; 2 JSONL datasets; 15 cases total |
+| Formal Builder run | `44901698634` |
+| Builder result artifact | `14706494963` |
+| Independent structural validation artifact | `14706599576` |
+| Frozen Builder input artifact | `14706331453` |
+| Builder Skill calls | 1 actual DSH Skill call; exit 0; final reason `completed` |
+| DSH trace | 988 events; 187 model usage records |
+| Formal output | 1 dataset, 15 cases, 9 files |
+| Case quality status | 14 candidate; 1 needs_info |
+| Dataset/suite quality status | `needs_info` |
+| Execution status at generation | `NOT_RUN` |
 
-The Builder output is immutable. Do not hand-edit, replace, or repair its generated cases. No new paid Builder production has been run.
+The Round 2 Builder output is immutable. Do not hand-edit, replace, or repair its generated JSONL, manifests, coverage matrix, source map, or quality report. Any subsequent Builder run must create a new immutable artifact.
 
-### Independent validator
+## 2. Independent validation: structural PASS, not quality approval
 
-<badge>PASS</badge> The independent validator passed on the exact archived Builder output.
+Independent validator result: **PASS**.
 
-- Frozen input: 18/18 files SHA-256 verified; 6 pinned upstream Skill files.
-- Datasets: `wb-core` 10 cases, `wb-advanced` 5 cases.
 - Schema errors: 0.
-- Source evidence references: 57/57 exact references verified against the frozen input.
-- Coverage: 42/42 applicable items represented across 4 dimensions: business rules 10/10, capabilities 9/9, risks 10/10, scenarios 13/13.
-- Universe: 46 items total, comprising 42 applicable, 1 `needs_info` (`BR-09-RF`), 3 `not_applicable`.
-- Suite quality status: `needs_info`; `wb-core` `candidate`; `wb-advanced` `needs_info`.
-- Generation-time execution status: `NOT_RUN`.
+- Source evidence: 86/86 references verified.
+- Frozen input integrity: 18/18 files SHA-256 verified, including 6 pinned upstream Skill files.
+- Coverage universe: 64 items; 52 applicable, 11 not_applicable, 1 needs_info.
+- Applicable coverage: 52/52 covered (capability 16/16; business rule 11/11; risk 15/15; scenario 10/10).
+- The one unresolved gap is `BR-09-RF` / WC-15: the frozen inputs do not provide a supported request-failure injection contract. The Builder correctly preserved this as `needs_info`; do not invent an endpoint or mark it covered.
 
-The validator establishes structural, schema, manifest, provenance, and exact-source integrity. It does not establish semantic grading coherence or runtime executability.
+The validator establishes schema, manifest, provenance, evidence-source, and declared coverage integrity. It does **not** prove that every rubric is semantically optimal or every case is executable. The suite is not Approved.
 
-## 3. Builder production cost
+## 3. Independent pilot adjudication on immutable Round 2 evidence
 
-Formal Builder production DSH telemetry:
+The three pilot cases were selected from the exact Round 2 Builder JSONL. No cases were hand-authored or substituted.
 
-| Metric | Tokens |
-|---|---:|
-| Input | 229 |
-| Output | 1,316 |
-| Cache read | 251,904 |
-| Cache write | 0 |
-| Total | **253,449** |
+- Original production/pilot workflow: [44901698634](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44901698634)
+- Corrected offline re-adjudication: [44908652144](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44908652144)
+- Corrected adjudication artifact: `14709295258`
+- Adjudication JSON SHA-256: `db4f6ecec37c159746c8bc9bdedaca75723f876cb8bcde8a90332e39a008969e`
+- No Builder or target-Skill model calls were made during re-adjudication.
 
-The separate minimal connectivity probe used 5,610 tokens and is excluded from the Builder production total. USD billing is unknown because no provider billing record was captured. Token telemetry is not a USD price.
-
-Target-Skill pilot tokens are downstream execution costs, not Builder generation cost or Builder benefit.
-
-## 4. Builder-quality adjudication
-
-| Case | Outcome | Finding |
-|---|---|---|
-| `WBT-CORE-02-SEARCH-MATCH` | `BUILDER_DEFECT_FOUND` | Criterion G2 conflicts with case-level pass conditions on the mutant fixture. A correct defect-detection report can be failed by a generic grader that follows G2 literally. |
-| `WBT-CORE-06-STATUS-CYCLE` | `INCONCLUSIVE` | Builder-authored timeout is 240s; one run timed out after 239.119s without a final response. This is a timeout-calibration risk, but one run cannot attribute cause conclusively. |
-| `WBT-CORE-08-DELETE-CONFIRM` | `ADEQUATE_FOR_THIS_CASE` | One confirmed deletion, correct remaining state and summary, 22/22 checks, independent Oracle PASS. |
-
-### Confirmed Builder defect: WBT-CORE-02 grading contradiction
-
-The case is assigned to the controlled `search-case-sensitive` mutant. Its overall `pass_conditions` correctly require the Skill to report FAIL with evidence when the mutant violates BR-02. But criterion `WBT-CORE-02-G2` requires the two expected results in its `pass_condition` and treats an empty result as a `fail_condition`.
-
-On the assigned mutant fixture, the two queries return no results. A correct Skill report identifying that violation can therefore satisfy the case-level contract while failing G2. This is a Builder defect in grading sufficiency and contract coherence.
-
-The Builder's own `QUALITY-REVIEW.md` finding F-03 claims pass-condition semantics were corrected, but this criterion-level contradiction remained.
-
-### Timeout risk: WBT-CORE-06
-
-The case sets 240 seconds. DSH was terminated after 239.119 seconds, before the final event; no PATCH requests, report, evidence index, or screenshot were produced. The case budget itself was not exceeded, and the fixture server closed correctly. This is recorded as `INCONCLUSIVE`, not as a proven Builder defect or target-Skill business failure.
-
-## 5. Three real target-Skill pilots
-
-The corrected selector resolved three cases directly from the immutable Builder output. The original independent Builder PASS was rechecked before the pilot-only workflow reused the artifact. No Builder production was repeated.
-
-| Case | Runner outcome | Oracle business-behavior outcome | Notes |
+| Builder case | Target Skill/business behavior | Execution contract | Evidence-based interpretation |
 |---|---|---|---|
-| `WBT-CORE-02-SEARCH-MATCH` | BLOCKED: 33 model steps exceeded Runner cap 32; DSH completed in 170.134s | `EXPECTED_VIOLATION_DETECTED` | Target report identified the two search defects and preserved read-only invariants. Contract still fails the Runner step budget. |
-| `WBT-CORE-06-STATUS-CYCLE` | BLOCKED: 239.119s of 240s case timeout; no final response | `UNKNOWN` | Incomplete execution; no business verdict justified. |
-| `WBT-CORE-08-DELETE-CONFIRM` | `INVOCATION_OK` | PASS | 100.658s, 16 model steps, one DELETE, 22/22 report checks. |
+| WC-03 search mutation | `EXPECTED_VIOLATION_DETECTED` | PASS | One test-script execution (1/1), zero mutations (0/0); the Skill correctly found the controlled case-sensitivity defect and truthfully reported FAIL. |
+| WC-11 delete confirmation | PASS | FAIL | One correct deletion of WB-105; final state and summary correct. However, the test script was invoked twice against max 1 and `no_retry`; the first run aborted without writes and a second run succeeded. Correct business result does not erase the execution-contract violation. |
+| WC-12 state cycle | FAIL | FAIL | One script execution (1/1) but only one of the three expected state transitions occurred. The target-generated test script stopped with `NameError: initial_info is not defined`. |
 
-All three were attempted once. No retries, case substitutions, or additional paid model calls were made.
+Aggregate: **1/3 contract PASS, 2/3 contract FAIL**. This is not 3/3 PASS and must not be generalized to the other 12 unexecuted cases.
 
-### Corrected independent Oracle
+A prior Oracle version misread the Builder's actual target fields and expected-cycle structure, and failed to count two kinds of script invocation. Those Oracle defects have been corrected and covered with tests:
+- targets support Builder `data_id` and `visible_title`;
+- state cycles support `expected_cycle.steps[].status`;
+- direct script invocations with immediate shell separators are counted;
+- truncated heredoc executions are counted only when the paired DSH tool result contains distinctive runtime output and exit evidence;
+- static compilation and post-run imports are not counted as test runs;
+- script-execution and mutation budgets are checked independently.
 
-The first offline Oracle report exposed Oracle parsing defects: it over-extracted search terms from task titles, misread three Chinese ordinal clauses contained in one Builder list item, and treated an incomplete state-cycle run as business FAIL. These were Oracle defects, not Builder case defects. The Oracle parser and uncertainty handling were corrected and self-tested.
+The archived re-adjudication workflow now distinguishes successful report generation from the verdict inside the report. A generated FAIL report is a completed adjudication, not a workflow implementation error.
 
-Corrected offline adjudication:
-- Workflow run: `44894303807`
-- Artifact: `14702569034`
-- Contract verdicts: 1 PASS, 2 FAIL.
-- Business-behavior verdicts: 1 PASS, 1 `EXPECTED_VIOLATION_DETECTED`, 1 `UNKNOWN`.
+## 4. Builder-specific grading quality
 
-The two contract FAIL outcomes are caused by the Runner's model-step cap and the case timeout. They are not evidence that the Builder's business expectations were false. The pilot tranche is not 3/3 PASS.
+Round 1 found a material grading-contract contradiction in the earlier immutable artifact: a case-level rule accepted truthful detection of an application defect, while criterion G2 could fail the same Skill for observing the defect. That was a Builder output defect, not a target-Skill failure.
 
-## 6. Current decision
+For Round 2, all 15 grading contracts were manually inspected for evaluation subject and consistency between case-level and criterion-level conditions. The prior direct contradiction was **not found** in the Round 2 JSONL. This is a documented manual review, not a validated semantic evaluator or guarantee against future defects.
 
-The Builder output has strong structural and source-provenance quality, but is not fully quality-approved:
-- One direct Builder grading-contract defect is confirmed.
-- The suite remains `needs_info` because the BR-09 request-failure branch lacks a controlled, auditable injection contract.
-- One case timeout has insufficient observed margin, but attribution remains inconclusive.
-- Only three of fifteen cases were piloted; two executions were incomplete under Runner limits.
+The validator now has a generic, conservative Agent/Skill subject lint that rejects a bare application outcome used as the Agent/Skill failure condition, irrespective of case ID. This semantic lint is a targeted safeguard, not a complete natural-language understanding system.
 
-Do not describe the suite as fully validated or quality-PASS. Any Builder repair experiment requires separate explicit authorization, a new immutable Builder artifact, and a fresh independent validation.
+## 5. Builder generation cost and production-efficiency evidence
 
-## 7. Evidence links
+Round 2 Builder DSH telemetry:
 
-- Formal Builder run: https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44889956698
-- Corrected pilot run: https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44892669832
-- Corrected offline Oracle: https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44894303807
-- Quality adjudication report: [builder-output-quality-adjudication-2026-11-21.md](builder-output-quality-adjudication-2026-11-21.md)
+| Metric | Usage |
+|---|---:|
+| Input tokens | 120,724 |
+| Output tokens | 297,681 |
+| Cache-read tokens | 52,279,936 |
+| Cache-write tokens | 0 |
+| **Total tokens** | **52,698,341** |
+| Model usage records/steps | 187 |
+| Tool calls | 210 (114 bash, 54 edit, 32 read, 9 write, 1 skill) |
+
+Separate connectivity probe: 5,610 tokens, excluded from the Builder-production total.
+
+Downstream target-Skill pilots: WC-03 350,721 tokens; WC-11 631,600; WC-12 1,008,585; combined 1,990,906 tokens. These are downstream experiment costs, not Builder-generation costs or Builder benefits.
+
+**USD billing is unknown.** No provider invoice/export was captured. Token telemetry is not a USD price, and cache-read tokens must not be assumed to have the same unit price as ordinary input tokens.
+
+Trace inspection found avoidable production rework:
+- 15 separate follow-up edits added `scenario_bucket` after the case records had been written.
+- The source map was read 5 times and edited 5 times during the same production.
+- The JSONL was edited 35 times; total edit tool calls were 54.
+- There were 114 bash calls, including multiple separate deterministic checks that could be consolidated.
+
+These are operation-count observations, not proof that every edit or command lacked value. Necessary source review and quality checks must remain. The goal is to avoid preventable schema omissions and repetitive validation, not to reduce quality.
+
+## 6. Current offline improvements underway
+
+After observing the actual Round 2 trace and adjudication:
+1. `validate_evaluation_subject_contract` was generalized beyond the historical case ID. New regression tests use arbitrary case IDs to ensure a raw application failure cannot masquerade as an Agent/Skill failure.
+2. `BUILDER-TASK.md` now requires a Schema field checklist before the first formal JSONL write, complete case objects (including `scenario_bucket` and `grading.evaluation_subject`) at initial insertion, and a frozen source registry instead of repetitive source-map repair.
+3. Regression tests were added for the one-pass Schema/source planning contract.
+4. Oracle changes and corrected archived adjudication are complete; no further paid calls or target-Skill pilots are currently justified.
+
+Latest offline CI validation is running for the new generic subject lint and generation-efficiency constraints. Record its final result here after checking the exact PR head and workflow run. Do not infer pass from a previous commit's run.
+
+## 7. Current decision and gates
+
+- Current Round 2 output remains `needs_info`, not Approved.
+- Independent structural Validator PASS remains necessary but is not sufficient for semantic quality approval.
+- The three pilot verdicts remain 1 PASS / 2 FAIL, with WC-11 business behavior PASS but execution contract FAIL, and WC-12 business behavior FAIL.
+- Do not rerun Builder production or the target Skill merely to seek a green aggregate. A new paid generation is only justified after offline rules are complete and the expected incremental Builder-quality benefit outweighs the measured ~52.7M-token production usage.
+- Before any next production, preflight the Oracle against the generated field shapes and run offline structural/semantic lint.
+- PR #38 must remain Draft/Open. Do not merge, close, apply the `run-builder-production` label, or bypass the independent validator.
+
+## 8. Reports and evidence
+
+- Current detailed Round 2 review: [builder-output-quality-cost-adjudication-round2-2026-11-21.md](builder-output-quality-cost-adjudication-round2-2026-11-21.md)
+- Historical Round 1 review: [builder-output-quality-adjudication-2026-11-21.md](builder-output-quality-adjudication-2026-11-21.md)
+- Adjudication protocol: [builder-output-quality-adjudication-protocol-2026-11-21.md](builder-output-quality-adjudication-protocol-2026-11-21.md)
+- Round 2 Builder workflow: https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44901698634
+- Round 2 corrected re-adjudication: https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44908652144
 - PR #38: https://github.com/Kairos0922/evaluation-dataset-builder/pull/38
-
-## 8. Authorization and release gate
-
-- PR #38 must remain Draft/Open and must not be merged or closed.
-- Do not apply the `run-builder-production` label.
-- Do not rerun Builder production or any target-Skill pilot without explicit authorization.
-- Do not bypass the independent validator.
-- Do not modify or replace formal Builder-generated cases.
-- Treat current pilot evidence as limited, case-specific evidence only.
