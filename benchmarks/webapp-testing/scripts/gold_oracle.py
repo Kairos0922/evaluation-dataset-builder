@@ -543,23 +543,56 @@ def base_checks(case: dict, pilot: Path, checks: list[dict]) -> tuple[dict, list
         "server_audit_event_count": len(audit),
     }
     if isinstance(run_id, str) and run_id.strip() and context_path.is_file() and audit_available and audit:
-        audit_ids = [item.get("run_id") for item in audit if isinstance(item, dict)]
-        trace_digest_ok = (
-            context.get("trace_sha256") == hashlib.sha256(trace_path.read_bytes()).hexdigest()
-            if trace_available and trace_path.is_file() else None
-        )
-        identity_status = (
-            False if context.get("run_id") != run_id
-            or len(audit_ids) != len(audit)
-            or any(value != run_id for value in audit_ids)
-            or trace_digest_ok is False
-            else None if trace_digest_ok is None
-            else True
-        )
-        identity_detail.update({
-            "server_audit_run_ids": sorted({str(value) for value in audit_ids}),
-            "trace_sha256_matches_context": trace_digest_ok,
-        })
+        if not isinstance(context, dict):
+            identity_status = False
+            identity_detail["reason"] = "trace run context is not a JSON object"
+        else:
+            audit_ids = [item.get("run_id") if isinstance(item, dict) else None for item in audit]
+            trace_digest = context.get("trace_sha256")
+            expected_event_count = context.get("trace_event_count")
+            actual_digest = (
+                hashlib.sha256(trace_path.read_bytes()).hexdigest()
+                if trace_available and trace_path.is_file() else None
+            )
+            actual_event_count = trace.get("event_count") if trace_available else None
+            missing_fields = []
+            if not context.get("run_id"):
+                missing_fields.append("trace_context.run_id")
+            if not isinstance(trace_digest, str) or not trace_digest:
+                missing_fields.append("trace_context.trace_sha256")
+            if isinstance(expected_event_count, bool) or not isinstance(expected_event_count, int):
+                missing_fields.append("trace_context.trace_event_count")
+            if not audit_ids or any(not isinstance(value, str) or not value for value in audit_ids):
+                missing_fields.append("server_audit.run_id")
+            if actual_digest is None:
+                missing_fields.append("dsh_trace")
+            if actual_event_count is None:
+                missing_fields.append("dsh_trace.event_count")
+
+            mismatches = []
+            if context.get("run_id") and context.get("run_id") != run_id:
+                mismatches.append("trace context run_id differs from Runner")
+            if any(isinstance(value, str) and value and value != run_id for value in audit_ids):
+                mismatches.append("server audit run_id differs from Runner")
+            if trace_digest and actual_digest and trace_digest != actual_digest:
+                mismatches.append("DSH Trace SHA-256 differs from sidecar")
+            if isinstance(expected_event_count, int) and not isinstance(expected_event_count, bool) and actual_event_count is not None and expected_event_count != actual_event_count:
+                mismatches.append("DSH Trace event count differs from sidecar")
+
+            identity_status = False if mismatches else (None if missing_fields else True)
+            identity_detail.update({
+                "server_audit_run_ids": sorted({str(value) for value in audit_ids}),
+                "trace_sha256_matches_context": (
+                    actual_digest == trace_digest if actual_digest and trace_digest else None
+                ),
+                "trace_event_count_matches_context": (
+                    actual_event_count == expected_event_count
+                    if actual_event_count is not None and isinstance(expected_event_count, int)
+                    and not isinstance(expected_event_count, bool) else None
+                ),
+                "missing_fields": missing_fields,
+                "mismatches": mismatches,
+            })
     add_check(
         checks, "Runner, server audit and DSH Trace belong to the same run",
         identity_status, json.dumps(identity_detail, ensure_ascii=False),
