@@ -49,3 +49,10 @@ For create cases, check audit, pre/post state, summary, DOM and the exact expect
 ## Authorization
 
 **No additional paid execution is authorized by this plan.** The three-case Pilot acceptance gate remains complete and unchanged. The eleven cases remain NOT_RUN. To proceed to real execution, the user must explicitly authorize the additional paid DSH/model calls and confirm the budget policy. After authorization, the safest starting point is one read-only case (WB-CORE-01), not the whole matrix.
+
+
+## Evidence-integrity requirements added (2026-11-21)
+
+Every future real case must preserve the Runner-generated `run_id` across `runner-result.json`, the fixture server audit log, and the Trace sidecar. Oracle must verify all audit event IDs, Trace SHA-256 and Trace event count. Missing correlation evidence is UNKNOWN; mismatches or malformed evidence are FAIL.
+
+The Runner evidence manifest is also checked for canonical relative paths, traversal, symlinks, out-of-root resolution, duplicate/unlisted files, file sizes and SHA-256 values. The self-referential `runner-result.json` is intentionally excluded from its own manifest. These checks are part of the offline acceptance gate; they do not count as a real case run.
