@@ -1,0 +1,168 @@
+name: Adjudicate Round 3 archived Skill pilots
+
+on:
+  workflow_dispatch:
+    inputs:
+      builder_run_id:
+        description: "Run containing the immutable Builder output"
+        required: true
+        default: "44910360571"
+        type: string
+      validation_run_id:
+        description: "Run containing the original independent-validator PASS evidence"
+        required: true
+        default: "44914032444"
+        type: string
+      pilot_run_id:
+        description: "Run containing the three archived real Skill pilot artifacts"
+        required: true
+        default: "44914129348"
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  adjudicate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      BUILDER_RUN_ID: ${{ inputs.builder_run_id }}
+      VALIDATION_RUN_ID: ${{ inputs.validation_run_id }}
+      PILOT_RUN_ID: ${{ inputs.pilot_run_id }}
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Verify source runs and required artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for run_id in "$BUILDER_RUN_ID" "$VALIDATION_RUN_ID" "$PILOT_RUN_ID"; do
+            [[ "$run_id" =~ ^[0-9]+$ ]] || { echo "::error::Invalid run ID: $run_id"; exit 2; }
+            run_json="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id")"
+            jq -e '.status == "completed"' <<< "$run_json" >/dev/null
+          done
+          builder_artifacts="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILDER_RUN_ID/artifacts?per_page=100")"
+          jq -e 'any(.artifacts[]; .name == "webapp-testing-builder-result" and .expired == false)' <<< "$builder_artifacts" >/dev/null
+          validation_artifacts="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$VALIDATION_RUN_ID/artifacts?per_page=100")"
+          jq -e 'any(.artifacts[]; .name == "archived-builder-independent-validation" and .expired == false)' <<< "$validation_artifacts" >/dev/null
+          pilot_artifacts="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$PILOT_RUN_ID/artifacts?per_page=100")"
+          for case_id in WB-C02 WB-C06 WB-C08; do
+            jq -e --arg name "webapp-testing-pilot-$case_id" 'any(.artifacts[]; .name == $name and .expired == false)' <<< "$pilot_artifacts" >/dev/null
+          done
+          echo "PASS: all three source runs and all five required immutable artifacts are available."
+
+      - name: Download immutable Builder output
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-builder-result
+          path: artifacts/builder-result
+          repository: ${{ github.repository }}
+          run-id: ${{ env.BUILDER_RUN_ID }}
+          github-token: ${{ github.token }}
+
+      - name: Download original independent-validator evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: archived-builder-independent-validation
+          path: artifacts/independent-validation
+          repository: ${{ github.repository }}
+          run-id: ${{ env.VALIDATION_RUN_ID }}
+          github-token: ${{ github.token }}
+
+      - name: Download the three exact pilot evidence packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: webapp-testing-pilot-WB-C*
+          path: artifacts/pilots
+          merge-multiple: false
+          repository: ${{ github.repository }}
+          run-id: ${{ env.PILOT_RUN_ID }}
+          github-token: ${{ github.token }}
+
+      - name: Reconfirm original Builder validation and trace
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          validation = json.loads(Path(
+              "artifacts/independent-validation/independent-builder-output-validation.json"
+          ).read_text(encoding="utf-8"))
+          trace = json.loads(Path(
+              "artifacts/independent-validation/independent-builder-trace-verification.json"
+          ).read_text(encoding="utf-8"))
+          if validation.get("status") != "PASS":
+              raise SystemExit("Original independent Builder validator did not PASS")
+          if trace.get("status") != "PASS" or trace.get("builder_skill_tool_calls") != 1:
+              raise SystemExit("Original Builder DSH trace verification did not PASS")
+          if not Path("artifacts/builder-result/webapp-testing-builder-output/SUITE-MANIFEST.json").is_file():
+              raise SystemExit("Immutable Builder suite manifest is missing")
+          print("PASS: exact Builder output retains its original independent PASS and one-call trace.")
+          PY
+
+      - name: Resolve the three semantic pilot roles from Builder output
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py \
+            --output-root artifacts/builder-result/webapp-testing-builder-output \
+            --write-output artifacts/pilot-matrix.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          matrix = json.loads(Path("artifacts/pilot-matrix.json").read_text(encoding="utf-8"))
+          expected = {"search_mutation", "state_cycle", "delete_confirmation"}
+          entries = matrix.get("include", [])
+          if len(entries) != 3 or {item.get("pilot_role") for item in entries} != expected:
+              raise SystemExit("The original Builder output did not resolve to the required three semantic roles")
+          print(json.dumps(matrix, ensure_ascii=False, indent=2))
+          PY
+
+      - name: Run independent Gold Oracle without repeating target Skill calls
+        run: |
+          set -euo pipefail
+          python -m py_compile benchmarks/webapp-testing/scripts/gold_oracle.py
+          python benchmarks/webapp-testing/scripts/gold_oracle.py --self-test
+          set +e
+          python benchmarks/webapp-testing/scripts/gold_oracle.py \
+            --builder-output artifacts/builder-result/webapp-testing-builder-output \
+            --pilots-root artifacts/pilots \
+            --pilot-matrix artifacts/pilot-matrix.json \
+            --output artifacts/oracle-adjudication-round3.json
+          oracle_exit=$?
+          set -e
+          test -s artifacts/oracle-adjudication-round3.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("artifacts/oracle-adjudication-round3.json").read_text(encoding="utf-8"))
+          if report.get("status") not in {"PASS", "FAIL", "UNKNOWN"}:
+              raise SystemExit("Gold Oracle report status is invalid")
+          if report.get("completion_status") not in {"COMPLETED", "COMPLETED_WITH_FAIL", "COMPLETED_WITH_UNKNOWN"}:
+              raise SystemExit("Gold Oracle did not complete adjudication")
+          print(
+              f"Adjudication completed: status={report['status']}, "
+              f"cases={report['case_count']}, passed={report['passed_cases']}, "
+              f"failed={report['failed_cases']}, counts={report['verdict_counts']}"
+          )
+          PY
+          case "$oracle_exit" in
+            0|1) ;;
+            *) echo "::error::Gold Oracle failed before producing a valid report (exit=$oracle_exit)"; exit "$oracle_exit" ;;
+          esac
+
+      - name: Archive independent adjudication
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-round3-independent-adjudication
+          path: |
+            artifacts/oracle-adjudication-round3.json
+            artifacts/pilot-matrix.json
+          if-no-files-found: warn
+          retention-days: 90
