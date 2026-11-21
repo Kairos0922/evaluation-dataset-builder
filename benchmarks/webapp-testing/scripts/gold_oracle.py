@@ -1637,6 +1637,13 @@ def self_test() -> int:
                 "pre_state": {"items": INITIAL, "summary": INITIAL_SUMMARY},
                 "post_state": post_state,
             }
+            runner["evidence_files"] = [
+                {"path": path.relative_to(pilot).as_posix(),
+                 "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                 "size_bytes": path.stat().st_size}
+                for path in sorted(pilot.rglob("*"))
+                if path.is_file() and path.name != "runner-result.json"
+            ]
             (pilot / "runner-result.json").write_text(
                 json.dumps(runner, ensure_ascii=False), encoding="utf-8"
             )
@@ -1780,6 +1787,13 @@ def self_test() -> int:
             "pre_state": {"items": INITIAL, "summary": INITIAL_SUMMARY},
             "post_state": {"items": INITIAL, "summary": INITIAL_SUMMARY},
         }
+        cancel_runner["evidence_files"] = [
+            {"path": path.relative_to(cancel_pilot).as_posix(),
+             "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+             "size_bytes": path.stat().st_size}
+            for path in sorted(cancel_pilot.rglob("*"))
+            if path.is_file() and path.name != "runner-result.json"
+        ]
         (cancel_pilot / "runner-result.json").write_text(
             json.dumps(cancel_runner, ensure_ascii=False), encoding="utf-8"
         )
