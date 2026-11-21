@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import os
 import shutil
 import signal
@@ -174,6 +175,7 @@ def summarize_trace_events(events: list[dict]) -> dict:
         if any(
             not isinstance(item["usage"].get(field), (int, float))
             or isinstance(item["usage"].get(field), bool)
+            or not math.isfinite(item["usage"].get(field))
             or item["usage"].get(field) < 0
             for field in required_budget_fields
         )
