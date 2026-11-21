@@ -109,7 +109,7 @@ def validate_evaluation_subject_contract(case: dict) -> None:
         fail_condition = str(criterion.get("fail_condition") or "")
         clauses = [
             clause.strip()
-            for clause in re.split(r"[;；，,。]|\s+\bor\b\s+|或", fail_condition, flags=re.I)
+            for clause in re.split(r"[;；，、,。]|\s+\bor\b\s+|或", fail_condition, flags=re.I)
             if clause.strip()
         ]
         for clause in clauses:
