@@ -158,13 +158,26 @@ def summarize_trace_events(events: list[dict]) -> dict:
     )
     usage_totals = {
         field: sum(
-            value.get(field, 0)
+            value[field]
             for item in usage_events
             if isinstance((value := item.get("usage")), dict)
-            and isinstance(value.get(field, 0), (int, float))
+            and isinstance(value.get(field), (int, float))
+            and not isinstance(value.get(field), bool)
         )
         for field in usage_fields
     }
+    required_budget_fields = (
+        "inputTokens", "outputTokens", "cacheReadTokens", "totalTokens",
+    )
+    incomplete_usage_record_count = sum(
+        1 for item in usage_events
+        if any(
+            not isinstance(item["usage"].get(field), (int, float))
+            or isinstance(item["usage"].get(field), bool)
+            or item["usage"].get(field) < 0
+            for field in required_budget_fields
+        )
+    )
     step_keys = {
         (item.get("turn"), item.get("step"))
         for item in usage_events
@@ -182,6 +195,8 @@ def summarize_trace_events(events: list[dict]) -> dict:
         tool_counts[name] = tool_counts.get(name, 0) + 1
     return {
         "usage_record_count": len(usage_events),
+        "incomplete_usage_record_count": incomplete_usage_record_count,
+        "usage_telemetry_complete": bool(usage_events) and incomplete_usage_record_count == 0,
         "model_step_count": len(step_keys),
         "model_turn_count": len(model_turns),
         "model_turn_numbers": sorted(model_turns),
@@ -202,11 +217,21 @@ def trace_budget_violations(trace: dict, limits: dict) -> list[str]:
         "cache_read_tokens": totals.get("cacheReadTokens", 0),
         "total_tokens": totals.get("totalTokens", 0),
     }
-    return [
+    violations = []
+    if usage.get("usage_record_count", 0) < 1:
+        violations.append("usage telemetry missing; token budgets cannot be verified")
+    elif not usage.get("usage_telemetry_complete", False):
+        violations.append(
+            "usage telemetry incomplete in "
+            f"{usage.get('incomplete_usage_record_count', 'unknown')} record(s); "
+            "token budgets cannot be verified"
+        )
+    violations.extend(
         f"{name}={observed[name]} exceeds limit {limit}"
         for name, limit in limits.items()
         if limit is not None and observed[name] > limit
-    ]
+    )
+    return violations
 
 
 def parse_trace(path: Path) -> dict:
@@ -315,7 +340,29 @@ def self_test() -> int:
         assert parsed["session_ids"] == ["session-test"]
         assert parsed["turn_start_count"] == 2 and parsed["turn_end_count"] == 2
         assert parsed["usage"]["usage_record_count"] == 2
+        assert parsed["usage"]["usage_telemetry_complete"] is True
+        assert parsed["usage"]["incomplete_usage_record_count"] == 0
         assert parsed["usage"]["model_step_count"] == 2
+        missing_usage = trace_budget_violations(
+            {"usage": {"usage_record_count": 0, "usage_totals": {}}},
+            {"total_tokens": 100},
+        )
+        assert missing_usage == [
+            "usage telemetry missing; token budgets cannot be verified"
+        ]
+        incomplete_usage = trace_budget_violations(
+            {"usage": {
+                "usage_record_count": 1,
+                "incomplete_usage_record_count": 1,
+                "usage_telemetry_complete": False,
+                "usage_totals": {"inputTokens": 0, "outputTokens": 0,
+                                 "cacheReadTokens": 0, "totalTokens": 0},
+            }},
+            {"total_tokens": 100},
+        )
+        assert incomplete_usage == [
+            "usage telemetry incomplete in 1 record(s); token budgets cannot be verified"
+        ]
         assert parsed["usage"]["model_turn_count"] == 2
         assert parsed["usage"]["tool_calls_by_name"] == {"skill": 1}
         assert parsed["usage"]["usage_totals"]["outputTokens"] == 57
