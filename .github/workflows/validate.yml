@@ -5,6 +5,7 @@ on:
     paths:
       - ".github/dispatch/execute-builder-production-once"
       - ".github/dispatch/execute-builder-production-repair-once"
+      - ".github/dispatch/execute-builder-production-only-once"
   pull_request:
     branches: ["main"]
     types: [opened, synchronize, reopened, labeled, unlabeled]
@@ -13,6 +14,11 @@ on:
       run_builder_production:
         description: "确认 DeepSeek API 余额可用后，执行真实 Builder 生产及三条试运行"
         required: true
+        type: boolean
+        default: false
+      builder_only:
+        description: "仅执行 Builder 生产与独立验证，不启动付费 Pilot"
+        required: false
         type: boolean
         default: false
 
@@ -1094,7 +1100,7 @@ jobs:
           retention-days: 90
 
   resolve-pilot-matrix:
-    if: ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract')) && needs.independent-validation.outputs.validation_status == 'PASS'
+    if: ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract')) && !(github.event_name == 'workflow_dispatch' && inputs.builder_only) && !(github.event_name == 'push' && contains(github.event.head_commit.message, 'Builder production only')) && needs.independent-validation.outputs.validation_status == 'PASS'
     needs: [builder-production, independent-validation]
     runs-on: ubuntu-latest
     outputs:
@@ -1123,7 +1129,7 @@ jobs:
           cat "$RUNNER_TEMP/pilot-matrix.json"
 
   webapp-testing-pilot:
-    if: ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract')) && needs.independent-validation.outputs.validation_status == 'PASS'
+    if: ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract')) && !(github.event_name == 'workflow_dispatch' && inputs.builder_only) && !(github.event_name == 'push' && contains(github.event.head_commit.message, 'Builder production only')) && needs.independent-validation.outputs.validation_status == 'PASS'
     needs: [runtime-preflight, builder-production, independent-validation, resolve-pilot-matrix]
     strategy:
       fail-fast: false
@@ -1287,7 +1293,7 @@ jobs:
           retention-days: 30
 
   adjudicate-pilot:
-    if: always() && ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract')) && needs.builder-production.result == 'success' && needs.independent-validation.outputs.validation_status == 'PASS' && needs.resolve-pilot-matrix.result == 'success'
+    if: always() && ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract')) && !(github.event_name == 'workflow_dispatch' && inputs.builder_only) && !(github.event_name == 'push' && contains(github.event.head_commit.message, 'Builder production only')) && needs.builder-production.result == 'success' && needs.independent-validation.outputs.validation_status == 'PASS' && needs.resolve-pilot-matrix.result == 'success'
     needs: [builder-production, independent-validation, resolve-pilot-matrix, webapp-testing-pilot]
     runs-on: ubuntu-latest
     timeout-minutes: 10
