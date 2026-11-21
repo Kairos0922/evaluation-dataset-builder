@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: resume-builder-pilot-44889956698
+  group: resume-builder-pilot-round3
   cancel-in-progress: false
 
 env:
@@ -45,7 +45,7 @@ jobs:
           name: archived-builder-independent-validation
           path: artifacts/independent-validation
           repository: ${{ github.repository }}
-          run-id: ${{ env.SOURCE_RUN_ID }}
+          run-id: ${{ env.SOURCE_VALIDATION_RUN_ID }}
           github-token: ${{ github.token }}
 
       - name: Reconfirm original independent PASS and Builder trace
