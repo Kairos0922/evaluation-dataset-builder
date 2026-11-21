@@ -60,7 +60,7 @@ def require_nonempty_value(value, location: str) -> None:
         raise SystemExit(f"{location} must not be empty")
 
 
-def validate_evaluation_subject_contract(case: dict) -> None:
+def evaluation_subject_contract_issues(case: dict) -> list[str]:
     """Reject grading clauses that score a bare SUT outcome as Agent/Skill failure.
 
     This is a conservative semantic lint, not a natural-language grader. Each
@@ -74,7 +74,7 @@ def validate_evaluation_subject_contract(case: dict) -> None:
         raise SystemExit(f"Case {case_id} grading must declare evaluation_subject")
 
     if not re.search(r"\b(?:agent|skill|智能体|助手|代理|测试型)\b", subject, re.I):
-        return
+        return []
 
     raw_sut_outcome = re.compile(
         r"(?:应用|页面|系统|接口|API|查询|搜索|结果|列表|状态|摘要|服务器|Workboard|"
@@ -105,6 +105,7 @@ def validate_evaluation_subject_contract(case: dict) -> None:
         re.I,
     )
 
+    issues = []
     for criterion in grading.get("criteria", []):
         fail_condition = str(criterion.get("fail_condition") or "")
         clauses = [
@@ -114,12 +115,20 @@ def validate_evaluation_subject_contract(case: dict) -> None:
         ]
         for clause in clauses:
             if raw_sut_outcome.search(clause) and not agent_behavior_failure.search(clause):
-                raise SystemExit(
+                issues.append(
                     f"Case {case_id} criterion {criterion.get('criterion_id')} "
                     f"contains a raw application outcome in fail_condition clause: {clause!r}. "
                     "Rewrite it to evaluate the Agent/Skill's detection, reasoning, action, "
                     "report, evidence, or contract compliance."
                 )
+    return issues
+
+
+def validate_evaluation_subject_contract(case: dict) -> None:
+    """Fail on the first grading-subject issue for direct unit-test callers."""
+    issues = evaluation_subject_contract_issues(case)
+    if issues:
+        raise SystemExit(issues[0])
 
 
 def validate_case_timeout_seconds(case_id: str, execution: dict) -> int:
@@ -588,6 +597,7 @@ def main() -> int:
     coverage_counts: dict[str, int] = defaultdict(int)
     case_file_count = {}
     file_dataset_ids: dict[str, set[str]] = defaultdict(set)
+    semantic_contract_issues: list[str] = []
 
     for path in dataset_files:
         file_count = 0
@@ -646,7 +656,7 @@ def main() -> int:
                 require_nonempty_value(execution.get(field), f"{case_id}.execution_requirements.{field}")
 
             grading = case["grading"]
-            validate_evaluation_subject_contract(case)
+            semantic_contract_issues.extend(evaluation_subject_contract_issues(case))
             if not grading.get("uncertainty_policy"):
                 raise SystemExit(f"Case {case_id} grading lacks an explicit UNKNOWN policy")
             if not grading.get("pass_conditions") or not grading.get("fail_conditions"):
@@ -680,6 +690,12 @@ def main() -> int:
         if len(file_dataset_ids[relative_dataset_path]) != 1:
             raise SystemExit(f"Dataset file must contain cases from exactly one dataset: {relative_dataset_path}")
         case_file_count[relative_dataset_path] = file_count
+
+    if semantic_contract_issues:
+        details = "\\n".join(f"- {issue}" for issue in semantic_contract_issues)
+        raise SystemExit(
+            f"Agent/Skill grading-subject semantic lint found {len(semantic_contract_issues)} issue(s):\\n{details}"
+        )
 
     manifest_files = sorted(
         path for path in OUTPUT.rglob("*.json")
