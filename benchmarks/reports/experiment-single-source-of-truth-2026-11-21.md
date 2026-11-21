@@ -71,7 +71,14 @@ Round 1 found a material grading-contract contradiction in the earlier immutable
 
 For Round 2, all 15 grading contracts were manually inspected for evaluation subject and consistency between case-level and criterion-level conditions. The prior direct contradiction was **not found** in the Round 2 JSONL. This is a documented manual review, not a validated semantic evaluator or guarantee against future defects.
 
-The validator now has a generic, conservative Agent/Skill subject lint that rejects a bare application outcome used as the Agent/Skill failure condition, irrespective of case ID. This semantic lint is a targeted safeguard, not a complete natural-language understanding system.
+The validator now has a generic, conservative Agent/Skill subject lint that checks each disjunctive fail-condition clause for bare application outcomes, irrespective of case ID. It aggregates findings across the dataset. This is a targeted heuristic safeguard, not a complete natural-language understanding system.
+
+Running the updated lint against the exact immutable Round 2 Builder artifact found three additional Builder grading defects:
+- WC-09 / C3-OBSERVE-TITLE: `priority/status inconsistent` does not distinguish application deviation from the Skill's report being inconsistent with DOM/POST evidence.
+- WC-12 / C3-STATUS-SEQUENCE: `state/button sequence inconsistent with DOM` does not distinguish an application transition defect that the Skill should correctly report from an inaccurate Skill report.
+- WC-12 / C4-SUMMARY-SYNC: `summary value inconsistent with DOM` conflicts with the case's explicit stale-summary branch, which requires truthful Skill detection and FAIL reporting.
+
+The exact archived validation is [run 44909794116](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44909794116), which rejects the artifact with all three findings. This is an expected quality-gate rejection, not a runtime or artifact-download failure. The previous manual review statement that no such defect remained was incorrect and is superseded by this stricter, clause-level review.
 
 ## 5. Builder generation cost and production-efficiency evidence
 
@@ -116,6 +123,7 @@ Latest offline CI validation is running for the new generic subject lint and gen
 - Current Round 2 output remains `needs_info`, not Approved.
 - Independent structural Validator PASS remains necessary but is not sufficient for semantic quality approval.
 - The three pilot verdicts remain 1 PASS / 2 FAIL, with WC-11 business behavior PASS but execution contract FAIL, and WC-12 business behavior FAIL.
+- The Round 2 dataset now also has 3 independently identified grading-contract defects (WC-09 C3, WC-12 C3, WC-12 C4). Its prior structural Validator PASS is not a semantic quality approval; the updated semantic lint rejects it. Do not edit the immutable output.
 - Do not rerun Builder production or the target Skill merely to seek a green aggregate. A new paid generation is only justified after offline rules are complete and the expected incremental Builder-quality benefit outweighs the measured ~52.7M-token production usage.
 - Before any next production, preflight the Oracle against the generated field shapes and run offline structural/semantic lint.
 - PR #38 must remain Draft/Open. Do not merge, close, apply the `run-builder-production` label, or bypass the independent validator.
