@@ -1270,7 +1270,7 @@ jobs:
             --output-dir "$RUNNER_TEMP/wbt-output/$DATASET_ID" \
             --skill-commit "2c5958ecac7cee2b583967a2c4981d0f4a75c579" \
             --dsh-timeout 600 \
-            --max-model-steps 32 \
+            --max-model-steps 40 \
             --max-input-tokens 60000 \
             --max-output-tokens 55000 \
             --max-cache-read-tokens 1600000 \
