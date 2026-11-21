@@ -1,2 +1,2 @@
-source_run_id=44643378744
-replay_attempt=oracle-schema-compatibility-fix-4
+source_run_id=44901698634
+replay_attempt=oracle-builder-field-and-budget-fix-2026-11-21
