@@ -700,7 +700,7 @@ def main() -> int:
         "trace_event_count": trace.get("event_count"),
     }
     (case_dir / "trace-run-context.json").write_text(
-        json.dumps(trace_context, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8"
+        json.dumps(trace_context, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     budget_violations = trace_budget_violations(trace, budget_limits)
     case_budget_status = (
