@@ -317,7 +317,7 @@ class RemainingOracleTests(unittest.TestCase):
             audit_path = pilot / "server-audit.jsonl"
             events = [__import__("json").loads(line) for line in audit_path.read_text(encoding="utf-8").splitlines()]
             events[0]["run_id"] = "different-run"
-            audit_path.write_text("".join(__import__("json").dumps(item) + "\\n" for item in events), encoding="utf-8")
+            audit_path.write_text("".join(__import__("json").dumps(item) + "\n" for item in events), encoding="utf-8")
             runner_path = pilot / "runner-result.json"
             runner = __import__("json").loads(runner_path.read_text(encoding="utf-8"))
             runner["evidence_files"] = [
