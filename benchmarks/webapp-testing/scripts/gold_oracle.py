@@ -616,11 +616,13 @@ def report_has_delete_result(report_text: str, target_id: str | None) -> bool:
 
 
 def count_test_script_executions(events: list[dict], runner: dict) -> dict:
-    """Count actual invocations of archived test scripts in DSH bash tool calls.
+    """Count actual runs of Builder-relevant test scripts in DSH Bash calls.
 
-    Static syntax checks using Python's -c option are not script executions.
-    Each shell invocation of an archived test script is counted, including
-    failed starts and later retries.
+    Counts direct Python script invocations. For a length-truncated command
+    payload, a script heredoc plus its correlated execution output is counted
+    only when the output has the test's distinctive runtime markers and exit
+    status. Static -c compile checks, imports, edits and analysis snippets do
+    not count as test-script executions.
     """
     evidence = runner.get("evidence_files") or []
     candidates = sorted({
@@ -634,6 +636,12 @@ def count_test_script_executions(events: list[dict], runner: dict) -> dict:
     })
     if not candidates:
         return {"count": None, "scripts": [], "invocations": [], "reason": "no archived test-script path found"}
+
+    result_by_call = {
+        event.get("callId"): event
+        for event in events
+        if event.get("type") == "tool_result" and event.get("callId")
+    }
     invocations = []
     for event_index, event in enumerate(events):
         if event.get("type") != "tool_call" or event.get("tool") != "bash":
@@ -642,23 +650,55 @@ def count_test_script_executions(events: list[dict], runner: dict) -> dict:
         if not isinstance(command, str):
             continue
         for script in candidates:
-            pattern = re.compile(
-                r"(?:^|[\s;&|])(?:python(?:\d+(?:\.\d+)*)?)(?:\s+-u)?\s+"
-                r"(?:[^\s;&|]+/)?" + re.escape(script) + r"(?=\s|$)",
+            # A command separator can follow the script immediately (e.g.
+            # "python3 test_wc12.py; echo ..."), not only whitespace.
+            direct_pattern = re.compile(
+                r"(?:^|[\\s;&|])(?:python(?:\\d+(?:\\.\\d+)*)?)(?:\\s+-u)?\\s+"
+                r"(?:[^\\s;&|]+/)?" + re.escape(script) + r"(?=[\\s;&|]|$)",
                 re.M,
             )
-            count = len(pattern.findall(command))
-            for occurrence in range(count):
+            direct_count = len(direct_pattern.findall(command))
+            for occurrence in range(direct_count):
                 invocations.append({
                     "event_index": event_index,
                     "script": script,
+                    "execution_evidence": "direct_python_invocation",
                     "occurrence_in_command": occurrence + 1,
                 })
+
+            # DSH may truncate long bash command input in its event trace.
+            # When the retained prefix writes the exact archived test script
+            # by heredoc and the matching tool result contains the runtime's
+            # distinctive output, we can still verify its execution once.
+            if direct_count == 0 and event.get("truncated") is True:
+                escaped = re.escape(script)
+                heredoc = re.search(
+                    r"(?:cat|tee)\\s+>+\\s+[^\\n]*" + escaped + r"\\s+<<",
+                    command,
+                )
+                result_event = result_by_call.get(event.get("callId")) or {}
+                output = result_event.get("result")
+                if isinstance(output, dict):
+                    output = json.dumps(output, ensure_ascii=False)
+                output = output if isinstance(output, str) else ""
+                has_runtime_result = (
+                    "EXIT_CODE=" in output
+                    and ("[step]" in output or "=== SUMMARY ===" in output)
+                    and ("verdict" in output.casefold() or "FINAL STATUS" in output)
+                )
+                if heredoc and has_runtime_result:
+                    invocations.append({
+                        "event_index": event_index,
+                        "script": script,
+                        "execution_evidence": "truncated_heredoc_with_correlated_runtime_output",
+                        "call_id": event.get("callId"),
+                    })
+
     return {
         "count": len(invocations),
         "scripts": candidates,
         "invocations": invocations,
-        "reason": "counted DSH bash calls that execute archived test-script files",
+        "reason": "direct test-script calls plus verified truncated heredoc executions; static checks/imports excluded",
     }
 
 
