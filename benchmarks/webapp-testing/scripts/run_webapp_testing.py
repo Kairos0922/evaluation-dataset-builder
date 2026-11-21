@@ -15,6 +15,7 @@ import sys
 import time
 import urllib.error
 import urllib.request
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import urlparse
@@ -516,6 +517,7 @@ def main() -> int:
     except ValueError as exc:
         raise SystemExit(str(exc))
 
+    run_id = str(uuid.uuid4())
     case_dir = output / args.case_id
     if case_dir.exists():
         raise SystemExit(f"refusing to overwrite existing evidence directory: {case_dir}")
@@ -533,6 +535,7 @@ def main() -> int:
     env.update({
         "APP_HOST": host, "APP_PORT": str(port), "APP_PROFILE": profile,
         "APP_MUTATIONS": ",".join(mutations), "APP_AUDIT_LOG": str(audit_log),
+        "APP_RUN_ID": run_id,
     })
     if port_open(host, port):
         raise SystemExit(f"fixture port already occupied: {host}:{port}")
@@ -689,7 +692,16 @@ def main() -> int:
     has_screenshot = bool({".png", ".jpg", ".jpeg", ".webp"} & artifact_suffixes)
 
     port_closed = not port_open(host, port)
-    trace = parse_trace(case_dir / "dsh-events.jsonl")
+    trace_path = case_dir / "dsh-events.jsonl"
+    trace = parse_trace(trace_path)
+    trace_context = {
+        "run_id": run_id,
+        "trace_sha256": sha256(trace_path) if trace_path.is_file() else None,
+        "trace_event_count": trace.get("event_count"),
+    }
+    (case_dir / "trace-run-context.json").write_text(
+        json.dumps(trace_context, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8"
+    )
     budget_violations = trace_budget_violations(trace, budget_limits)
     case_budget_status = (
         "PASS" if dsh_elapsed_seconds is not None and dsh_elapsed_seconds <= case_timeout
@@ -729,6 +741,7 @@ def main() -> int:
     result = {
         "case_id": args.case_id,
         "dataset_id": args.dataset_id,
+        "run_id": run_id,
         "runner_status": runner_status,
         "scope": "pilot invocation evidence only; not grading or Oracle adjudication",
         "started_at_utc": started,
