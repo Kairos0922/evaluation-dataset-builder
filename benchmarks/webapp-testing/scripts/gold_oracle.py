@@ -535,15 +535,24 @@ def base_checks(case: dict, pilot: Path, checks: list[dict]) -> tuple[dict, list
     audit = load_jsonl(audit_path) if audit_available else []
     run_id = runner.get("run_id")
     context_path = pilot / "trace-run-context.json"
-    context = load_json(context_path) if context_path.is_file() else {}
+    context_error = None
+    try:
+        context = load_json(context_path) if context_path.is_file() else {}
+    except (OSError, json.JSONDecodeError) as exc:
+        context = {}
+        context_error = str(exc)
     identity_status = None
     identity_detail = {
         "runner_run_id": run_id,
         "trace_context_run_id": context.get("run_id") if isinstance(context, dict) else None,
         "server_audit_event_count": len(audit),
+        "trace_context_error": context_error,
     }
     if isinstance(run_id, str) and run_id.strip() and context_path.is_file() and audit_available and audit:
-        if not isinstance(context, dict):
+        if context_error is not None:
+            identity_status = False
+            identity_detail["reason"] = "trace run context is not valid JSON"
+        elif not isinstance(context, dict):
             identity_status = False
             identity_detail["reason"] = "trace run context is not a JSON object"
         else:
