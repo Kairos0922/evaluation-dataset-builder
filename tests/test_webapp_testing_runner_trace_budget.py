@@ -49,6 +49,9 @@ class DshTraceBudgetTests(unittest.TestCase):
         trace = {
             "usage": {
                 "model_step_count": 33,
+                "usage_record_count": 1,
+                "incomplete_usage_record_count": 0,
+                "usage_telemetry_complete": True,
                 "usage_totals": {
                     "inputTokens": 100,
                     "outputTokens": 55001,
@@ -71,6 +74,21 @@ class DshTraceBudgetTests(unittest.TestCase):
                 "output_tokens=55001 exceeds limit 55000",
                 "cache_read_tokens=1600001 exceeds limit 1600000",
             ],
+        )
+        self.assertEqual(
+            RUNNER.trace_budget_violations(
+                {"usage": {"usage_record_count": 0, "usage_totals": {}}},
+                {"total_tokens": 100},
+                require_usage_telemetry=False,
+            ),
+            [],
+        )
+        self.assertEqual(
+            RUNNER.trace_budget_violations(
+                {"usage": {"usage_record_count": 0, "usage_totals": {}}},
+                {"total_tokens": 100},
+            ),
+            ["usage telemetry missing; token budgets cannot be verified"],
         )
 
     def test_dsh_wall_clock_never_exceeds_case_budget(self):
