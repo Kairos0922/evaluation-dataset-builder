@@ -31,6 +31,7 @@ MUTATIONS = {
 if PROFILE == "mutant" and not MUTATIONS:
     MUTATIONS = {"search-case-sensitive", "stale-summary", "blank-title"}
 AUDIT_PATH = Path(os.environ.get("APP_AUDIT_LOG", "/tmp/workboard-audit.jsonl"))
+RUN_ID = os.environ.get("APP_RUN_ID", "").strip()
 
 INITIAL_TASKS = [
     {
@@ -86,8 +87,9 @@ def summary(items: list[dict]) -> dict[str, int]:
 def record(event: dict) -> None:
     AUDIT_PATH.parent.mkdir(parents=True, exist_ok=True)
     event = {
-        "timestamp": datetime.now(timezone.utc).isoformat(),
         **event,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "run_id": RUN_ID or None,
     }
     with AUDIT_PATH.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(event, ensure_ascii=False, separators=(",", ":")) + "\n")
