@@ -15,7 +15,7 @@
 | T06 | Audit Runner evidence finalization | Confirm evidence files are finalized before manifest; runner-result excluded intentionally; no overwrite or stale case directory reuse | DONE |
 | T07 | Audit fixture isolation and server audit provenance | Each run gets a fresh fixture/log, audit events carry Runner ID, server shuts down, port closes, cleanup is deterministic | DONE (code review; runtime not re-exercised) |
 | T08 | Audit workflow safety and paid gates | Ordinary PR CI cannot invoke paid Builder/Skill runs; only explicit opt-in gates can; no automatic retry; main runs are not canceled | DONE |
-| T09 | Reconcile experiment docs and execution plan | Documents agree on the accepted three-case pilot, eleven remaining NOT_RUN cases, cost unknowns, and authorization boundary | IN_PROGRESS |
+| T09 | Reconcile experiment docs and execution plan | Documents agree on the accepted three-case pilot, eleven remaining NOT_RUN cases, cost unknowns, and authorization boundary | DONE |
 | T10 | Run final exact-head CI and inspect logs | Required jobs pass; test count and Oracle self-test verified from logs; paid jobs remain skipped | TODO |
 | T11 | Verify final PR state and evidence | PR remains Draft/Open/unmerged; latest SHA, checks, and artifact status recorded | TODO |
 | T12 | Final self-review | No unsupported PASS claims; list completed, blocked/NOT_RUN, and unverified items separately | TODO |
