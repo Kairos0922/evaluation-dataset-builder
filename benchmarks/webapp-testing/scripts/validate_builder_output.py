@@ -569,6 +569,21 @@ def verify_source_evidence(
     if not any(normalized_quote in text for text in candidates.values()):
         raise SystemExit(f'{case_id}: quoted_evidence cannot be found in the source selected by title/locator ({title!r}, {locator!r})')
 
+def semantic_contract_failure_report(issues: list[str]) -> dict:
+    """Return a machine-readable rejection report for grading-subject lint."""
+    return {
+        "status": "FAIL",
+        "scope": "agent_skill_grading_subject_semantics",
+        "issue_count": len(issues),
+        "issues": issues,
+        "interpretation": (
+            "The Builder output contains fail-condition clauses that can score "
+            "an application deviation as an Agent/Skill failure. The immutable "
+            "output was not modified."
+        ),
+    }
+
+
 def main() -> int:
     if not OUTPUT.is_dir():
         raise SystemExit(f"Builder output directory not found: {OUTPUT}")
@@ -692,10 +707,12 @@ def main() -> int:
         case_file_count[relative_dataset_path] = file_count
 
     if semantic_contract_issues:
-        details = "\\n".join(f"- {issue}" for issue in semantic_contract_issues)
-        raise SystemExit(
-            f"Agent/Skill grading-subject semantic lint found {len(semantic_contract_issues)} issue(s):\\n{details}"
-        )
+        print(json.dumps(
+            semantic_contract_failure_report(semantic_contract_issues),
+            ensure_ascii=False,
+            indent=2,
+        ))
+        raise SystemExit(1)
 
     manifest_files = sorted(
         path for path in OUTPUT.rglob("*.json")
