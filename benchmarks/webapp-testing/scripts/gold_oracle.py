@@ -580,7 +580,7 @@ def report_has_state_cycle_result(
     report_text: str,
     target_id: str | None,
     target_title: str | None,
-    expected_verdict: str,
+    expected_verdict: str = "PASS",
 ) -> bool:
     """Check that the Skill report's explicit verdict matches the observed cycle."""
     match = re.search(
@@ -588,6 +588,10 @@ def report_has_state_cycle_result(
         report_text,
         re.I,
     )
+    if match is None:
+        # Backward compatibility for earlier reports that label the result as
+        # "BR-07 PASS" without a separate summary verdict line.
+        match = re.search(r"\bBR-07\s+(PASS|FAIL|UNKNOWN)\b", report_text, re.I)
     observed_verdict = match.group(1).upper() if match else None
     return (
         bool(report_text.strip())
