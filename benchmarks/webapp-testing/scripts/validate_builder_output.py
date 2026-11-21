@@ -61,12 +61,11 @@ def require_nonempty_value(value, location: str) -> None:
 
 
 def validate_evaluation_subject_contract(case: dict) -> None:
-    """Reject rubrics that attribute a bare SUT outcome to an Agent/Skill failure.
+    """Reject grading clauses that score a bare SUT outcome as Agent/Skill failure.
 
-    This is a conservative semantic lint, not a full natural-language grader.
-    It targets a known high-impact contradiction: case-level grading permits
-    truthful defect discovery, while a criterion fails solely because the
-    application exhibits that defect.
+    This is a conservative semantic lint, not a natural-language grader. Each
+    disjunct is checked independently so a valid agent-behavior clause cannot
+    mask a separate raw-application-outcome clause.
     """
     case_id = case.get("case_id", "<unknown>")
     grading = case.get("grading") or {}
@@ -81,45 +80,46 @@ def validate_evaluation_subject_contract(case: dict) -> None:
         r"(?:应用|页面|系统|接口|API|查询|搜索|结果|列表|状态|摘要|服务器|Workboard|"
         r"application|page|system|API|query|search|result|list|status|server)"
         r".{0,28}(?:为空|无结果|未命中|返回(?:了)?(?:空|错误|异常|失败)|失败|错误|"
-        r"不符合|不一致|缺失|异常|超时|未更新|未变化|empty|no results?|miss(?:es|ed)?|"
-        r"returns? (?:empty|an? error)|fails?|does not match|missing|tim(?:e|ed) out)"
+        r"不符合|不符|不一致|缺失|异常|超时|未更新|未变化|未同步|empty|no results?|"
+        r"miss(?:es|ed)?|returns? (?:empty|an? error)|fails?|does not match|missing|"
+        r"tim(?:e|ed) out|out of sync)"
         r"|(?:为空|无结果|未命中|返回(?:了)?(?:空|错误|异常|失败)|失败|错误|不符合|"
-        r"不一致|缺失|异常|超时|未更新|未变化|empty|no results?|returns? (?:empty|an? error)|"
-        r"fails?|does not match|missing|tim(?:e|ed) out)"
-        r".{0,28}(?:应用|页面|系统|接口|API|查询|搜索|结果|列表|状态|摘要|服务器|Workboard|"
-        r"application|page|system|API|query|search|result|list|status|server)",
+        r"不符|不一致|缺失|异常|超时|未更新|未变化|未同步|empty|no results?|"
+        r"returns? (?:empty|an? error)|fails?|does not match|missing|tim(?:e|ed) out|"
+        r"out of sync).{0,28}(?:应用|页面|系统|接口|API|查询|搜索|结果|列表|状态|摘要|"
+        r"服务器|Workboard|application|page|system|API|query|search|result|list|status|server)",
         re.I,
     )
-    subject_failure = re.compile(
-        r"(?:Skill|Agent|智能体|助手|测试者|测试脚本|执行者|其报告|报告|判定|证据|轨迹|操作|执行)"
-        r".{0,28}(?:未发现|未识别|未报告|未说明|未记录|未核验|未验证|未观察|未检查|未执行|"
-        r"未完成|未按|未能|错误报告|错误判断|误报|误判|漏报|遗漏|忽略|跳过|重复|多次|"
-        r"超出|超过|违反|调用了|修改了|删除了|重置了|缺少|不足|不完整|不一致|偏差|"
-        r"报告\s*(?:PASS|FAIL|UNKNOWN)|报告(?:为|成)|描述(?:为|成)|"
+    agent_behavior_failure = re.compile(
+        r"(?:未发现|未识别|未报告|未说明|未记录|未核验|未验证|未观察|未检查|未采集|"
+        r"未执行|未完成|未按|未能|未逐步|未给出|未指出|未对照|未比对|"
+        r"只读取|只报告|仅报告|错误报告|错误判断|误报|误判|漏报|遗漏|忽略|隐藏|跳过|"
+        r"重复|多次|超出|超过|违反|调用了|修改了|删除了|重置了|缺少|不足|不完整|"
+        r"编造|假设|制造|把.{0,20}当作|把.{0,20}描述(?:为|成)|"
+        r"报告\s*(?:PASS|FAIL|UNKNOWN)|声称.{0,16}(?:PASS|FAIL|正确|无错误)|"
         r"did not detect|failed to report|failed to verify|failed to observe|failed to execute|"
-        r"missed|ignored|skipped|repeated|exceeded|violated|called|changed|deleted|reset|"
-        r"reports?\s*(?:PASS|FAIL|UNKNOWN)|describ(?:es|ed) as|inconsistent|mismatch|"
-        r"lacks?|insufficient|incomplete)"
-        r"|(?:未发现|未识别|未报告|未说明|未记录|未核验|未验证|未观察|未检查|未执行|"
-        r"未完成|未按|未能|错误报告|错误判断|误报|误判|漏报|遗漏|忽略|跳过|重复|多次|"
-        r"超出|超过|违反|缺少|不足|不完整|不一致|偏差|报告\s*(?:PASS|FAIL|UNKNOWN)|"
-        r"报告(?:为|成)|描述(?:为|成)|did not detect|failed to report|failed to verify|"
-        r"failed to observe|failed to execute|missed|ignored|skipped|repeated|exceeded|"
-        r"violated|reports?\s*(?:PASS|FAIL|UNKNOWN)|describ(?:es|ed) as|inconsistent|"
-        r"mismatch|lacks?|insufficient|incomplete)"
-        r".{0,28}(?:Skill|Agent|智能体|助手|测试者|测试脚本|执行者|报告|判定|证据|轨迹|操作|执行)",
+        r"missed|ignored|hidden|skipped|repeated|exceeded|violated|called|changed|deleted|"
+        r"reset|fabricated|assumed|reported?\s*(?:PASS|FAIL|UNKNOWN)|"
+        r"describ(?:es|ed) as|claims? (?:PASS|FAIL|success|no error)|"
+        r"lacks?|insufficient|incomplete)",
         re.I,
     )
 
     for criterion in grading.get("criteria", []):
         fail_condition = str(criterion.get("fail_condition") or "")
-        if raw_sut_outcome.search(fail_condition) and not subject_failure.search(fail_condition):
-            raise SystemExit(
-                f"Case {case_id} criterion {criterion.get('criterion_id')} "
-                "uses a raw application outcome as the Agent/Skill failure. "
-                "The fail condition must evaluate the Agent/Skill's detection, "
-                "reasoning, action, report, evidence, or contract compliance."
-            )
+        clauses = [
+            clause.strip()
+            for clause in re.split(r"[;；，,。]|\s+\bor\b\s+|或", fail_condition, flags=re.I)
+            if clause.strip()
+        ]
+        for clause in clauses:
+            if raw_sut_outcome.search(clause) and not agent_behavior_failure.search(clause):
+                raise SystemExit(
+                    f"Case {case_id} criterion {criterion.get('criterion_id')} "
+                    f"contains a raw application outcome in fail_condition clause: {clause!r}. "
+                    "Rewrite it to evaluate the Agent/Skill's detection, reasoning, action, "
+                    "report, evidence, or contract compliance."
+                )
 
 
 def validate_case_timeout_seconds(case_id: str, execution: dict) -> int:
