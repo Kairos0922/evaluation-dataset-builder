@@ -1962,3 +1962,18 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+
+def test_archived_adjudication_workflow_distinguishes_report_generation_from_verdict():
+    workflow = (ROOT / ".github" / "workflows" / "adjudicate-existing-pilot.yml").read_text(encoding="utf-8")
+    required = (
+        "oracle_exit=$?",
+        "test -s artifacts/oracle-adjudication-corrected.json",
+        'report.get("status") not in {"PASS", "FAIL", "UNKNOWN"}',
+        "The report verdict is authoritative; workflow success means adjudication completed.",
+        "0|1)",
+        "webapp-testing-oracle-adjudication-corrected",
+    )
+    missing = [phrase for phrase in required if phrase not in workflow]
+    assert not missing, f"Archived adjudication workflow must preserve verdict while validating report generation: {missing}"
