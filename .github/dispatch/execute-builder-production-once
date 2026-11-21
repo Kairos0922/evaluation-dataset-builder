@@ -1,0 +1,3 @@
+One-time explicit opt-in for the authorized Evaluation Dataset Builder production and pilot workflow on this branch.
+
+Scope: run the existing runtime preflight, Builder production, independent validation, and the configured three-case pilot/adjudication pipeline. This marker is intentionally a dedicated path trigger; ordinary branch pushes do not trigger paid execution.
