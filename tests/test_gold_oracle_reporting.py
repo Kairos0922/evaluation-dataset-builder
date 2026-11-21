@@ -45,6 +45,24 @@ class GoldOracleReportingTests(unittest.TestCase):
         self.assertTrue(ORACLE.report_has_delete_result(report, "WB-105"))
         self.assertNotIn("BR-08", report)
 
+    def test_builder_action_status_steps_derive_exact_state_cycle(self):
+        case = {
+            "reference_outcome": {
+                "rule_expected": {
+                    "steps": [
+                        {"action": "Move to In progress", "status": "In progress", "summary": {"open": 1, "in_progress": 3}},
+                        {"action": "Move to Done", "status": "Done", "summary": {"open": 1, "in_progress": 2, "done": 2}},
+                        {"action": "Move to Open", "status": "Open", "summary": {"open": 2, "in_progress": 2, "done": 1}},
+                    ]
+                }
+            }
+        }
+        target = {"id": "WB-101", "title": "Reset password flow", "status": "Open"}
+        self.assertEqual(
+            ORACLE.expected_status_transitions(case, target),
+            [("open", "in_progress"), ("in_progress", "done"), ("done", "open")],
+        )
+
     def test_canonical_report_excludes_raw_diagnostic_report(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp) / "pilot" / "skill-artifacts"
