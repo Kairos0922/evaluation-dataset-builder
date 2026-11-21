@@ -4,7 +4,7 @@ on:
   push:
     branches: ["experiment/webapp-testing-contract"]
     paths:
-      - ".github/dispatch/resume-pilot-from-44889956698-v2"
+      - ".github/dispatch/resume-pilot-from-round3-44910360571"
 
 permissions:
   actions: read
@@ -15,9 +15,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  SOURCE_RUN_ID: "44889956698"
-  SOURCE_BUILDER_ARTIFACT_ID: "14702092011"
-  SOURCE_VALIDATION_ARTIFACT_ID: "14702560789"
+  SOURCE_RUN_ID: "44910360571"
+  SOURCE_BUILDER_ARTIFACT_ID: "14710317851"
+  SOURCE_VALIDATION_RUN_ID: "44914032444"
   UPSTREAM_SKILL_COMMIT: "2c5958ecac7cee2b583967a2c4981d0f4a75c579"
 
 jobs:
@@ -42,7 +42,7 @@ jobs:
       - name: Download the original independent-validator evidence
         uses: actions/download-artifact@v4
         with:
-          name: webapp-testing-independent-builder-validation
+          name: archived-builder-independent-validation
           path: artifacts/independent-validation
           repository: ${{ github.repository }}
           run-id: ${{ env.SOURCE_RUN_ID }}
