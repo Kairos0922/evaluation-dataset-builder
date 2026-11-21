@@ -49,6 +49,8 @@
 
 16. **README 用例分组必须与实际用例语义一致。** 分组应从正式 JSONL 的每条用例目标、allowed_actions、forbidden_side_effects 和 cost_and_rate_limits 推导，不得按 case_id 连续编号或文件顺序机械切分。区分“只读检查”“状态变更/创建/确认删除”等实际写操作，以及“删除取消”等不产生状态变更的写操作安全边界；不得把只读侦察用例归入写操作组，也不得把取消操作描述为已执行删除。README 中每组必须列出完整 case_id，所有 case_id 恰好出现一次，分组数量之和必须等于 JSONL 实际用例数。
 
+17. **执行资源预算与最小充分实现（强制）：** 读取 runtime-and-tool-contracts.md 中的 DSH 硬限制，并在每条用例的 cost_and_rate_limits 中声明或明确引用继承预算：model steps 32、input tokens 60,000、output tokens 55,000、cache-read tokens 1,600,000、total tokens 1,750,000；DSH wall-clock 默认最多 600 秒且不得超过 case timeout。评估任务复杂度时必须为交互、证据采集和最终报告预留余量，不得按理论上限规划。测试脚本和证据流程必须采用最小充分实现，避免生成大型 bespoke harness、重复读取/输出 DOM、过量截图或无必要的调试代码；不得降低业务断言、必要证据、偏差分支或安全约束。若执行预算无法合理支持完整任务，标记 execution feasibility 为 needs_info 并指出具体限制，不得仅通过扩大 timeout 或虚构可行性来处理。
+
 ## 机器验证契约（必须遵守）
 
 独立验证器按文件名和字段读取产物。不要自行发明等价字段名。使用以下精确路径和键名：
