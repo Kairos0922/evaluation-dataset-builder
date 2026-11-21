@@ -8,6 +8,7 @@ target-produced evidence. It never edits or repairs target output.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import tempfile
@@ -47,6 +48,60 @@ def load_jsonl(path: Path) -> list[dict]:
             except json.JSONDecodeError as exc:
                 raise ValueError(f"{path}:{number}: {exc}") from exc
     return values
+
+
+def verify_evidence_manifest(pilot: Path, runner: dict) -> tuple[bool | None, dict]:
+    """Verify the Runner's pre-finalization SHA-256 manifest against archived files."""
+    entries = runner.get("evidence_files")
+    if not isinstance(entries, list) or not entries:
+        return None, {"reason": "evidence_files manifest is missing or empty"}
+    declared = {}
+    errors = []
+    for entry in entries:
+        if not isinstance(entry, dict):
+            errors.append("manifest entry is not an object")
+            continue
+        relative = entry.get("path")
+        digest = entry.get("sha256")
+        size = entry.get("size_bytes")
+        if not isinstance(relative, str) or not relative or relative.startswith(("/", "\\\\")):
+            errors.append(f"invalid relative path: {relative!r}")
+            continue
+        candidate = Path(relative)
+        if candidate.is_absolute() or ".." in candidate.parts or relative in declared:
+            errors.append(f"unsafe or duplicate path: {relative!r}")
+            continue
+        if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
+            errors.append(f"invalid SHA-256 for {relative}")
+            continue
+        if isinstance(size, bool) or not isinstance(size, int) or size < 0:
+            errors.append(f"invalid size for {relative}")
+            continue
+        declared[relative] = (digest, size)
+    actual_paths = {
+        path.relative_to(pilot).as_posix()
+        for path in pilot.rglob("*")
+        if path.is_file() and path.name != "runner-result.json"
+    }
+    if actual_paths != set(declared):
+        errors.append(
+            f"file coverage mismatch: unlisted={sorted(actual_paths - set(declared))}; "
+            f"missing={sorted(set(declared) - actual_paths)}"
+        )
+    verified = 0
+    for relative, (expected_digest, expected_size) in declared.items():
+        path = pilot / relative
+        if not path.is_file():
+            continue
+        data = path.read_bytes()
+        actual_digest = hashlib.sha256(data).hexdigest()
+        if actual_digest != expected_digest:
+            errors.append(f"SHA-256 mismatch: {relative}")
+        if len(data) != expected_size:
+            errors.append(f"size mismatch: {relative}")
+        if actual_digest == expected_digest and len(data) == expected_size:
+            verified += 1
+    return not errors, {"declared_file_count": len(declared), "verified_file_count": verified, "errors": errors}
 
 
 def case_index(root: Path) -> dict:
@@ -414,6 +469,11 @@ def base_checks(case: dict, pilot: Path, checks: list[dict]) -> tuple[dict, list
         add_check(checks, "Runner result archived", None, "runner-result.json is missing")
         return {}, [], {"trace": {}, "expected_user_turns": None}
     runner = load_json(runner_path)
+    manifest_ok, manifest_detail = verify_evidence_manifest(pilot, runner)
+    add_check(
+        checks, "Archived evidence files match the Runner SHA-256 manifest",
+        manifest_ok, json.dumps(manifest_detail, ensure_ascii=False),
+    )
     trace_available = trace_path.is_file()
     audit_available = audit_path.is_file()
     trace = read_trace(trace_path) if trace_available else {}
