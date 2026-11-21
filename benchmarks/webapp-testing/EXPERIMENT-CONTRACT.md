@@ -271,3 +271,16 @@ CI 运行成功不等于评测成功；依赖安装成功不等于 Skill 运行�
 4. 剩余 11 条用例的离线 Selector/Oracle 分支和合成自测已完成，但它们仍全部是 NOT_RUN。只有取得额外付费执行的明确授权后，才可考虑逐条启动；离线自测不得作为真实执行证据。
 5. 如果触发任何 Token、模型步骤或时间上限，Runner 应停止 DSH、保存部分证据并将该用例标记为 BLOCKED；禁止自动重试或自动模型修复。
 6. 实际美元成本必须从模型提供方账单/用量导出中核对，不能从缓存读取 Token 数量推断。
+
+
+## Latest engineering hardening (2026-11-21)
+
+The following offline engineering changes extend the previously accepted three-case Pilot without changing its historical results:
+
+- Runner now creates a per-invocation UUID and writes it to `runner-result.json`, the fixture server environment, and a Trace sidecar. The fixture server stamps every audit event with the same Runner-generated ID.
+- Gold Oracle checks the Runner ID against every server audit event and the Trace sidecar. It also checks the Trace SHA-256 and parsed event count. Missing correlation evidence is `UNKNOWN`; conflicting IDs, malformed sidecar data, digest mismatch, or event-count mismatch are `FAIL`.
+- Evidence-manifest verification rejects absolute/non-canonical/traversal paths, duplicate entries, Windows-style path forms, symlink files/directories, non-regular evidence entries, and paths resolving outside the evidence root. Missing declared files remain `UNKNOWN`; tampering and unlisted files are `FAIL`.
+- The Runner finalizes the trace sidecar and evidence manifest before writing `runner-result.json`; the result file is intentionally excluded from its own manifest to avoid a self-referential hash.
+- Offline regression tests cover path traversal, absolute paths, symlinks, duplicate/non-canonical paths, missing files, tampering, unlisted files, cross-run audit IDs, missing IDs, malformed sidecars, Trace digest mismatch, and event-count mismatch.
+
+These are code-level and synthetic-fixture validations only. They do not add real Skill execution evidence and do not change the eleven remaining cases from `NOT_RUN`. They do not establish independent browser instrumentation: HTML/DOM snapshots remain target-produced artifacts copied by Runner.
