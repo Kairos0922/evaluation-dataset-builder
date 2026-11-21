@@ -250,6 +250,83 @@ class RemainingOracleTests(unittest.TestCase):
         self.assertIsNotNone(target)
         self.assertEqual(target["id"], "WB-104")
 
+
+    def test_manifest_rejects_parent_traversal_and_absolute_paths(self):
+        with tempfile.TemporaryDirectory() as temp:
+            pilot = Path(temp) / "pilot"
+            pilot.mkdir()
+            outside = Path(temp) / "outside.txt"
+            outside.write_text("outside", encoding="utf-8")
+            digest = hashlib.sha256(outside.read_bytes()).hexdigest()
+            for unsafe in ("../outside.txt", str(outside), "nested/../../outside.txt", "nested\\\\outside.txt"):
+                status, detail = ORACLE.verify_evidence_manifest(pilot, {
+                    "evidence_files": [{"path": unsafe, "sha256": digest, "size_bytes": outside.stat().st_size}]
+                })
+                self.assertFalse(status, unsafe)
+                self.assertTrue(detail["errors"], unsafe)
+
+    def test_manifest_rejects_symlink_file_and_directory(self):
+        with tempfile.TemporaryDirectory() as temp:
+            base = Path(temp)
+            pilot = base / "pilot"
+            pilot.mkdir()
+            outside = base / "outside.txt"
+            outside.write_text("secret", encoding="utf-8")
+            (pilot / "linked.txt").symlink_to(outside)
+            status, detail = ORACLE.verify_evidence_manifest(pilot, {"evidence_files": []})
+            self.assertIsNone(status)
+            status, detail = ORACLE.verify_evidence_manifest(pilot, {
+                "evidence_files": [{
+                    "path": "linked.txt",
+                    "sha256": hashlib.sha256(outside.read_bytes()).hexdigest(),
+                    "size_bytes": outside.stat().st_size,
+                }]
+            })
+            self.assertFalse(status)
+            self.assertTrue(any("symlink file" in error for error in detail["errors"]))
+
+            (pilot / "linked-dir").symlink_to(base, target_is_directory=True)
+            status, detail = ORACLE.verify_evidence_manifest(pilot, {
+                "evidence_files": [{
+                    "path": "linked.txt",
+                    "sha256": hashlib.sha256(outside.read_bytes()).hexdigest(),
+                    "size_bytes": outside.stat().st_size,
+                }]
+            })
+            self.assertFalse(status)
+            self.assertTrue(any("symlink directory" in error for error in detail["errors"]))
+
+    def test_manifest_missing_declared_file_is_unknown(self):
+        with tempfile.TemporaryDirectory() as temp:
+            pilot = Path(temp) / "pilot"
+            pilot.mkdir()
+            status, detail = ORACLE.verify_evidence_manifest(pilot, {
+                "evidence_files": [{
+                    "path": "not-yet-archived.txt",
+                    "sha256": "0" * 64,
+                    "size_bytes": 1,
+                }]
+            })
+            self.assertIsNone(status)
+            self.assertEqual(detail["missing_files"], ["not-yet-archived.txt"])
+
+    def test_manifest_rejects_noncanonical_and_duplicate_paths(self):
+        with tempfile.TemporaryDirectory() as temp:
+            pilot = Path(temp) / "pilot"
+            pilot.mkdir()
+            content = b"evidence"
+            (pilot / "evidence.txt").write_bytes(content)
+            entry = {
+                "path": "evidence.txt",
+                "sha256": hashlib.sha256(content).hexdigest(),
+                "size_bytes": len(content),
+            }
+            status, detail = ORACLE.verify_evidence_manifest(pilot, {
+                "evidence_files": [entry, dict(entry), {**entry, "path": "./evidence.txt"}]
+            })
+            self.assertFalse(status)
+            self.assertTrue(any("duplicate" in error or "non-canonical" in error for error in detail["errors"]))
+
     def test_evidence_manifest_detects_tampered_artifact(self):
         with tempfile.TemporaryDirectory() as temp:
             pilot = Path(temp) / "pilot"
