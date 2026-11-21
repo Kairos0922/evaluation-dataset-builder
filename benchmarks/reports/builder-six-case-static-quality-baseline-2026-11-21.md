@@ -3,7 +3,7 @@
 **Date:** 2026-11-21  
 **Builder artifact:** workflow run [44726278657](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44726278657), artifact `14624897819`  
 **Artifact inspected:** `webapp-testing-builder-output/wb-core.jsonl` extracted from the downloaded immutable ZIP.  
-**SHA-256:** `$(sha256sum /tmp/builder-art/webapp-testing-builder-output/wb-core.jsonl | cut -d' ' -f1)`  
+**SHA-256:** `0a1f549af5adbb790b134e7b740750b58b86845583acb7bea4e21131753271c1`  
 **Scope:** static review of six selected Builder-authored cases only. No DSH/model calls or Skill execution.
 
 ## 1. Review approach
