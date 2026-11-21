@@ -653,8 +653,8 @@ def count_test_script_executions(events: list[dict], runner: dict) -> dict:
             # A command separator can follow the script immediately (e.g.
             # "python3 test_wc12.py; echo ..."), not only whitespace.
             direct_pattern = re.compile(
-                r"(?:^|[\\s;&|])(?:python(?:\\d+(?:\\.\\d+)*)?)(?:\\s+-u)?\\s+"
-                r"(?:[^\\s;&|]+/)?" + re.escape(script) + r"(?=[\\s;&|]|$)",
+                r"(?:^|[\s;&|])(?:python(?:\d+(?:\.\d+)*)?)(?:\s+-u)?\s+"
+                r"(?:[^\s;&|]+/)?" + re.escape(script) + r"(?=[\s;&|]|$)",
                 re.M,
             )
             direct_count = len(direct_pattern.findall(command))
@@ -673,7 +673,7 @@ def count_test_script_executions(events: list[dict], runner: dict) -> dict:
             if direct_count == 0 and event.get("truncated") is True:
                 escaped = re.escape(script)
                 heredoc = re.search(
-                    r"(?:cat|tee)\\s+>+\\s+[^\\n]*" + escaped + r"\\s+<<",
+                    r"(?:cat|tee)\s+>+\s+[^\n]*" + escaped + r"\s+<<",
                     command,
                 )
                 result_event = result_by_call.get(event.get("callId")) or {}
