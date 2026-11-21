@@ -1790,6 +1790,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "expected_behavior": "要求用户补充账期，不返回猜测金额",
             "grading": {
                 "method": "rule_based",
+                "evaluation_subject": "账单查询 Agent",
                 "criteria": [{
                     "criterion_id": "G-001",
                     "description": "识别缺失账期",
