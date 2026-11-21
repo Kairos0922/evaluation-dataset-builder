@@ -11,7 +11,7 @@ Scope: **quality and cost of the Builder-generated evaluation datasets only**. T
 | Builder artifact | `14702092011` |
 | Artifact SHA-256 | `11b10519fdc87ac35fcd2493c57f84600954374e3a5a490b935f27512773d1c9` |
 | Frozen input artifact | `14701272903` |
-| Frozen input SHA-256 | `1a801304a29b5c2b883f35426a2c3a5e39e61dae95f1c1f7f8e801fd29f11f6` |
+| Frozen input SHA-256 | `1a801304a29b5c2b883f35426a2c3a5e39e61dae1bf95c1f7f8e801fd29f11f6` |
 | Independent validation artifact | `14702560789` |
 | Independent validation artifact SHA-256 | `5802192a6923da574a2adf91a667393707a052ba9eeab78fa585441fa89f7277` |
 | Builder invocation | One actual Evaluation Dataset Builder Skill tool call; DSH exit 0; final reason `completed`; 783 trace events |
