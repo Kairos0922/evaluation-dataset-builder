@@ -391,14 +391,27 @@ def expected_status_transitions(case: dict, target: dict | None) -> list[tuple[s
             matched_state = None
             for item in expected_behavior:
                 text = str(item)
-                if re.search(ordinal, text):
+                ordinal_matches = list(re.finditer(ordinal, text))
+                for ordinal_match in ordinal_matches:
+                    # Limit state extraction to this ordinal's clause. A single
+                    # Builder sentence may describe all three clicks in sequence.
+                    later_ordinals = [
+                        match.start()
+                        for pattern in ordinal_patterns
+                        for match in re.finditer(pattern, text)
+                        if match.start() > ordinal_match.start()
+                    ]
+                    clause_end = min(later_ordinals, default=len(text))
+                    clause = text[ordinal_match.end():clause_end]
                     match = re.search(
                         r"(?:变为|回到|状态(?:为|回到))\s*(Open|In progress|Done)",
-                        text, re.I,
-                    ) or re.search(r"(Open|In progress|Done)", text, re.I)
+                        clause, re.I,
+                    ) or re.search(r"(Open|In progress|Done)", clause, re.I)
                     if match:
                         matched_state = match.group(1)
                         break
+                if matched_state:
+                    break
             if matched_state:
                 sequence.append(matched_state)
         if not sequence:
@@ -706,12 +719,24 @@ def user_message(case: dict) -> str:
 
 
 def extract_search_queries(case: dict, tasks: list[dict]) -> list[str]:
-    """Extract explicit probes from the Builder's ordered query list or test data."""
+    """Extract only explicitly requested search probes; never infer probes from task titles."""
     message = user_message(case)
     outcome = case.get("reference_outcome") or {}
     queries = [outcome["query"]] if isinstance(outcome.get("query"), str) and outcome.get("query") else []
+    expected_behavior = case.get("expected_behavior") or {}
+    if not queries and isinstance(expected_behavior, dict):
+        required = expected_behavior.get("required_queries") or []
+        if isinstance(required, list):
+            queries = [str(item) for item in required if isinstance(item, str) and item.strip()]
+
+    # Explicitly quoted queries following a search/input verb are authoritative.
+    # This handles Builder prose such as: 搜索大写 'PASSWORD'，再搜索小写 'screenshots'。
     if not queries:
-        queries = re.findall(r"\x60([^\x60]+)\x60", message)
+        quoted_probe = re.compile(
+            r"(?:搜索|查询|输入|键入)\s*(?:大写|小写)?\s*['\"“‘\x60]([^'\"”’\x60]+)['\"”’\x60]"
+        )
+        queries = [match.strip() for match in quoted_probe.findall(message) if match.strip()]
+
     searchable_text = [
         " ".join(str(task.get(field) or "") for field in ("title", "description"))
         for task in tasks
@@ -735,22 +760,28 @@ def extract_search_queries(case: dict, tasks: list[dict]) -> list[str]:
     if not queries:
         test_data = ((case.get("execution_requirements") or {}).get("test_data") or [])
         for item in test_data:
-            if isinstance(item, str):
+            if isinstance(item, dict):
+                value = item.get("query") or item.get("queries")
+                if isinstance(value, str):
+                    queries = retain_probe_tokens(value)
+                elif isinstance(value, list):
+                    queries = [str(part) for part in value if isinstance(part, str)]
+                if queries:
+                    break
+            elif isinstance(item, str):
                 query_list = re.search(r"查询[:：]\s*(.*?)(?:。|$)", item)
                 if query_list:
                     queries = retain_probe_tokens(query_list.group(1))
                     if queries:
                         break
-    if not queries:
-        expected_behavior = case.get("expected_behavior") or []
-        if isinstance(expected_behavior, list):
-            for item in expected_behavior:
-                match = re.search(r"(?:输入|查询|搜索)\s*([A-Za-z][A-Za-z0-9-]*)", str(item))
-                if match:
-                    queries.append(match.group(1))
-    if not queries:
-        candidates = re.findall(r"[A-Za-z][A-Za-z0-9-]*", message)
-        queries = retain_probe_tokens(" ".join(candidates))
+    if not queries and isinstance(expected_behavior, list):
+        explicit_probe = re.compile(
+            r"(?:输入|查询|搜索)\s*(?:大写|小写)?\s*['\"“‘]?([A-Za-z][A-Za-z0-9-]*)"
+        )
+        for item in expected_behavior:
+            match = explicit_probe.search(str(item))
+            if match:
+                queries.append(match.group(1))
     return list(dict.fromkeys(query for query in queries if query and not query.startswith("<")))
 
 def expected_search_counts(queries: list[str], tasks: list[dict], branch_name: str) -> dict[str, int]:
@@ -1279,7 +1310,15 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
             "mentions_BR02": "BR-02" in report_text,
             "mentions_violation": bool(re.search(r"VIOLATED|FAIL|违反|不符合|缺陷|遗漏", report_text, re.I)),
         }, ensure_ascii=False))
-        behavior = "EXPECTED_VIOLATION_DETECTED" if all_match and report_ok else "UNKNOWN"
+        trace_complete = (
+            trace.get("final_reason") == "completed"
+            and trace.get("turn_end_count") == runtime.get("expected_user_turns")
+        )
+        behavior = (
+            "EXPECTED_VIOLATION_DETECTED"
+            if trace_complete and all_match and report_ok
+            else "UNKNOWN"
+        )
 
     elif role == "state_cycle":
         mutations = runner.get("fixture_mutations") or []
@@ -1334,7 +1373,15 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
         # Check the target and state sequence; the case contract does not require BR-07 in prose.
         report_ok = report_has_state_cycle_result(report_text, target_id, target_title)
         add_check(checks, "Target report agrees with the independently observed BR-07 cycle", report_ok, "BR-07, Builder-declared target, transitions, summary and PASS verdict inspected")
-        behavior = "PASS" if target is not None and observed == expected and report_ok else "FAIL"
+        trace_complete = (
+            runner.get("dsh_exit_code") == 0
+            and trace.get("final_reason") == "completed"
+            and trace.get("turn_end_count") == runtime.get("expected_user_turns")
+        )
+        if not trace_complete:
+            behavior = "UNKNOWN"
+        else:
+            behavior = "PASS" if target is not None and observed == expected and report_ok else "FAIL"
 
     elif role in {"delete_confirmation", "delete_cancel"}:
         mutations = runner.get("fixture_mutations") or []
@@ -1558,6 +1605,22 @@ def self_test() -> int:
         "reset", "SCREENSHOTS", "email", "zzzz-no-match",
     ], extract_search_queries(builder_search_case, INITIAL)
 
+    builder_actual_search_case = {
+        "user_input": (
+            "验证 Workboard Lite 的搜索行为：先搜索大写 'PASSWORD'，再搜索小写 'screenshots'。"
+            "确认 'PASSWORD' 能匹配标题 'Reset password flow'，"
+            "'screenshots' 能匹配描述中包含该词的 'Update onboarding guide'。"
+        ),
+        "expected_behavior": [
+            "搜索 'PASSWORD' 后只显示标题匹配的 Reset password flow。",
+            "搜索 'screenshots' 后只显示描述匹配的 Update onboarding guide。",
+            "每次查询后的摘要必须仍为 all=5、open=2、in_progress=2、done=1。",
+        ],
+    }
+    assert extract_search_queries(builder_actual_search_case, INITIAL) == [
+        "PASSWORD", "screenshots",
+    ], extract_search_queries(builder_actual_search_case, INITIAL)
+
     builder_state_case = {
         "user_input": "定位初始状态为 Open 的 WB-101，预期顺序为 Open → In progress → Done → Open。",
         "expected_behavior": [
@@ -1590,6 +1653,21 @@ def self_test() -> int:
     assert expected_status_transitions(builder_actual_state_case, actual_state_target) == [
         ("open", "in_progress"), ("in_progress", "done"), ("done", "open"),
     ]
+    # Actual Builder output can place all three ordinal clauses in one list item.
+    builder_single_string_state_case = {
+        "user_input": "测试 WB-101 的状态流转。点击状态按钮三次。",
+        "expected_behavior": [
+            "第一次点击后状态为 In progress，摘要为 5/1/3/1，按钮变为 Move to Done；"
+            "第二次点击后状态为 Done，摘要为 5/1/2/2，按钮变为 Move to Open；"
+            "第三次点击后状态为 Open，摘要为 5/2/2/1，按钮变为 Move to In progress。"
+        ],
+    }
+    single_string_target = target_task(builder_single_string_state_case, INITIAL)
+    assert single_string_target and single_string_target["id"] == "WB-101"
+    assert expected_status_transitions(builder_single_string_state_case, single_string_target) == [
+        ("open", "in_progress"), ("in_progress", "done"), ("done", "open"),
+    ], expected_status_transitions(builder_single_string_state_case, single_string_target)
+
     builder_rule_state_only = {
         "execution_requirements": {"test_data": ["目标任务：WB-101 Reset password flow"]},
         "reference_outcome": {"rule_state": "WB-101：Open→In progress→Done→Open"},
