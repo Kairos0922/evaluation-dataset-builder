@@ -285,3 +285,44 @@ def test_gold_oracle_accepts_skill_reported_fail_when_observed_state_cycle_is_in
     assert not oracle.report_has_state_cycle_result(
         report, "WB-101", "Reset password flow", "PASS"
     )
+
+
+def test_validator_applies_agent_failure_attribution_check_to_arbitrary_case_ids():
+    case = {
+        "case_id": "CASE-ARBITRARY-17",
+        "grading": {
+            "evaluation_subject": "负责页面测试与缺陷报告的 Skill",
+            "pass_conditions": ["Skill 发现页面偏差并如实报告 FAIL。"],
+            "criteria": [{
+                "criterion_id": "C-17",
+                "description": "验证搜索缺陷发现。",
+                "pass_condition": "Skill 正确检查搜索并提供证据。",
+                "fail_condition": "任一查询返回空结果。",
+                "evidence_required": ["查询记录", "最终报告"],
+            }],
+        },
+    }
+    try:
+        validator.validate_evaluation_subject_contract(case)
+    except SystemExit as exc:
+        assert "raw application outcome as the Agent/Skill failure" in str(exc)
+    else:
+        raise AssertionError("Generic case ID bypassed Agent/Skill failure attribution lint")
+
+
+def test_validator_accepts_agent_fail_condition_that_attributes_missing_detection():
+    case = {
+        "case_id": "CASE-ARBITRARY-18",
+        "grading": {
+            "evaluation_subject": "负责页面测试与缺陷报告的 Skill",
+            "pass_conditions": ["Skill 发现页面偏差并如实报告 FAIL。"],
+            "criteria": [{
+                "criterion_id": "C-18",
+                "description": "验证搜索缺陷发现。",
+                "pass_condition": "Skill 正确检查搜索并提供证据。",
+                "fail_condition": "查询返回空结果时，Skill 未发现该偏差或错误报告 PASS。",
+                "evidence_required": ["查询记录", "最终报告"],
+            }],
+        },
+    }
+    validator.validate_evaluation_subject_contract(case)
