@@ -1,0 +1,1 @@
+Re-run the independent Gold Oracle using the corrected query extraction, Chinese ordinal parsing, and incomplete-turn uncertainty handling. Reuse only the original Builder output and three already archived pilot evidence packages. No new model calls.
