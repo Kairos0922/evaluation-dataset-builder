@@ -80,6 +80,22 @@ def test_builder_task_calibrates_status_cycle_timeout_from_observed_run():
     assert not missing, f"Status-cycle timeout calibration is missing: {missing}"
 
 
+def test_builder_task_requires_complete_case_writes_and_frozen_source_registry():
+    task = TASK.read_text(encoding="utf-8")
+    required = (
+        "Schema 完整性与一次写齐（强制）",
+        "首次写入时已包含完整的 `scenario_bucket`",
+        "`grading.evaluation_subject`",
+        "不得先写入不完整 JSONL，再对每条记录分别追加相同的必填字段",
+        "每批对象都必须完整",
+        "先修正生成模板",
+        "来源登记一次定稿",
+        "不得反复重读和重写同一来源注册表",
+    )
+    missing = [phrase for phrase in required if phrase not in task]
+    assert not missing, f"Builder generation must prevent repeated schema and source-map patching: {missing}"
+
+
 class BuilderReadmeCaseGroupingTests(unittest.TestCase):
     def test_case_groups_must_match_case_semantics(self):
         text = TASK.read_text(encoding="utf-8")
