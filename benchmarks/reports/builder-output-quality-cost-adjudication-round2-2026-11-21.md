@@ -67,7 +67,10 @@ WC-03 的契约明确区分：应用实际返回 0 行是 BR-02 的被观察偏�
 | WC-12 / C3-STATUS-SEQUENCE | “状态/按钮序列与 DOM 不一致” | Case 的 `wrong-transition` 分支明确规定：若应用状态/按钮没有按预期推进，Skill 应报告 BR-07 FAIL，指出实际步骤和证据。 | 应判 Skill 是否准确报告实际状态，而不是把应用状态不符合预期直接作为 Skill 失败。 |
 | WC-12 / C4-SUMMARY-SYNC | “摘要值与 DOM 不一致” | Case 的通过条件及 `stale-summary` 分支要求：若摘要不同步，Skill 应明确记录偏差、实际值并报告 FAIL。 | 与“摘要值与 DOM 不一致即 criterion FAIL”的条件直接冲突。 |
 
-这 3 项是 **Builder 输出的判定契约缺陷**，不是目标 Skill 的运行失败，也不是 Oracle 的解析缺陷。修复方向是将 fail 条件写成“Skill 报告的值与同一步 DOM/响应不一致”“Skill 未指出摘要未同步”或“Skill 将观察到的偏差错误报告为 PASS”。当应用偏离预期但 Skill 准确报告时，Skill 应获得表现 PASS。
+这 3 项是 **Builder 输出的判定契约缺陷**，不是目标 Skill 的运行失败，也不是 Oracle 的解析缺陷。
+
+结构化证据：正式语义 lint 运行 [44909978524](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44909978524)，读取 Round 2 Builder artifact `14706494963`，归档报告 artifact `14709456479`。报告文件 SHA-256：`f6ae783892a6f43ae7177329306d85c34089687bdcda583fb132b97b9194caaa`，明确记录 `status=FAIL`、`issue_count=3` 和上述三条原始条件。输入完整性与 DSH 调用 Trace 复核均通过；失败仅发生在正式产物评分语义检查。工作流保持失败状态是正确的质量门禁信号。
+修复方向是将 fail 条件写成“Skill 报告的值与同一步 DOM/响应不一致”“Skill 未指出摘要未同步”或“Skill 将观察到的偏差错误报告为 PASS”。当应用偏离预期但 Skill 准确报告时，Skill 应获得表现 PASS。
 
 当前 validator 的语义 lint 是保守的规则检查，不是完整自然语言理解器。它按并列分句检查裸应用结果条件，已对当前不可变产物检出上述 3 条。该检查不证明未来产物无其他语义问题；人工复核和实际证据仍然必要。
 
