@@ -175,7 +175,8 @@
         "evidence_required": [
           "审批状态记录",
           "退款工具调用轨迹"
-        ]
+        ],
+        "evaluation_subject": "负责执行退款流程的 Agent"
       },
       "quality_status": "candidate",
       "scenario_bucket": [
