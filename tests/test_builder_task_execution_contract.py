@@ -122,3 +122,15 @@ def test_builder_task_requires_actual_dsh_resource_budgets_and_minimal_cases():
     missing = [phrase for phrase in required_task if phrase not in task]
     missing.extend(f"runtime:{phrase}" for phrase in required_runtime if phrase not in runtime)
     assert not missing, f"Builder resource-feasibility contract is incomplete: {missing}"
+
+
+def test_builder_only_dispatch_does_not_start_paid_pilots():
+    workflow = (ROOT / ".github" / "workflows" / "validate.yml").read_text(encoding="utf-8")
+    assert "execute-builder-production-only-once" in workflow
+    assert "builder_only:" in workflow
+    for job in ("resolve-pilot-matrix", "webapp-testing-pilot", "adjudicate-pilot"):
+        section_start = workflow.index(f"  {job}:")
+        section_end = workflow.find("\n  ", section_start + 3)
+        section = workflow[section_start:section_end if section_end >= 0 else len(workflow)]
+        assert "inputs.builder_only" in section, f"{job} must respect builder_only dispatch"
+        assert "Builder production only" in section, f"{job} must respect Builder-only push marker"
