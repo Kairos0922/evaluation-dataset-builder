@@ -345,6 +345,13 @@ def self_test() -> int:
         assert parsed["usage"]["usage_telemetry_complete"] is True
         assert parsed["usage"]["incomplete_usage_record_count"] == 0
         assert parsed["usage"]["model_step_count"] == 2
+        invalid_numeric_usage = summarize_trace_events([{
+            "type": "status", "turn": 1, "step": 1,
+            "usage": {"inputTokens": float("nan"), "outputTokens": 1,
+                      "cacheReadTokens": 0, "totalTokens": 1},
+        }])
+        assert invalid_numeric_usage["usage_telemetry_complete"] is False
+        assert invalid_numeric_usage["incomplete_usage_record_count"] == 1
         missing_usage = trace_budget_violations(
             {"usage": {"usage_record_count": 0, "usage_totals": {}}},
             {"total_tokens": 100},
