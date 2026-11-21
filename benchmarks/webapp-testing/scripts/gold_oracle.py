@@ -483,6 +483,37 @@ def base_checks(case: dict, pilot: Path, checks: list[dict]) -> tuple[dict, list
     audit_available = audit_path.is_file()
     trace = read_trace(trace_path) if trace_available else {}
     audit = load_jsonl(audit_path) if audit_available else []
+    run_id = runner.get("run_id")
+    context_path = pilot / "trace-run-context.json"
+    context = load_json(context_path) if context_path.is_file() else {}
+    identity_status = None
+    identity_detail = {
+        "runner_run_id": run_id,
+        "trace_context_run_id": context.get("run_id") if isinstance(context, dict) else None,
+        "server_audit_event_count": len(audit),
+    }
+    if isinstance(run_id, str) and run_id.strip() and context_path.is_file() and audit_available and audit:
+        audit_ids = [item.get("run_id") for item in audit if isinstance(item, dict)]
+        trace_digest_ok = (
+            context.get("trace_sha256") == hashlib.sha256(trace_path.read_bytes()).hexdigest()
+            if trace_available and trace_path.is_file() else None
+        )
+        identity_status = (
+            False if context.get("run_id") != run_id
+            or len(audit_ids) != len(audit)
+            or any(value != run_id for value in audit_ids)
+            or trace_digest_ok is False
+            else None if trace_digest_ok is None
+            else True
+        )
+        identity_detail.update({
+            "server_audit_run_ids": sorted({str(value) for value in audit_ids}),
+            "trace_sha256_matches_context": trace_digest_ok,
+        })
+    add_check(
+        checks, "Runner, server audit and DSH Trace belong to the same run",
+        identity_status, json.dumps(identity_detail, ensure_ascii=False),
+    )
 
     user_input = case.get("user_input")
     expected_turns = len(user_input) if isinstance(user_input, list) else 1
