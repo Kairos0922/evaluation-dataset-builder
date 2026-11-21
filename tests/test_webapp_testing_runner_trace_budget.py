@@ -17,6 +17,45 @@ SPEC.loader.exec_module(RUNNER)
 
 
 class DshTraceBudgetTests(unittest.TestCase):
+
+    def test_skill_artifact_copy_preserves_symlinks_without_reading_targets(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / "workspace" / "artifacts"
+            source.mkdir(parents=True)
+            (source / "report.md").write_text("safe report", encoding="utf-8")
+            outside_file = root / "outside.txt"
+            outside_file.write_text("must not be copied", encoding="utf-8")
+            outside_dir = root / "outside-dir"
+            outside_dir.mkdir()
+            (outside_dir / "secret.txt").write_text("must not be copied", encoding="utf-8")
+            (source / "linked.txt").symlink_to(outside_file)
+            (source / "linked-dir").symlink_to(outside_dir, target_is_directory=True)
+            destination = root / "archive" / "skill-artifacts"
+
+            regular_files, symlink_paths = RUNNER.copy_skill_artifacts(source, destination)
+
+            self.assertEqual({item.name for item in regular_files}, {"report.md"})
+            self.assertEqual(set(symlink_paths), {"linked.txt", "linked-dir"})
+            self.assertTrue((destination / "linked.txt").is_symlink())
+            self.assertTrue((destination / "linked-dir").is_symlink())
+            self.assertFalse((destination / "linked-dir" / "secret.txt").exists())
+
+    def test_skill_artifact_root_symlink_is_blocked(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            outside = root / "outside"
+            outside.mkdir()
+            (outside / "report.md").write_text("outside", encoding="utf-8")
+            link = root / "artifacts"
+            link.symlink_to(outside, target_is_directory=True)
+            regular_files, symlink_paths = RUNNER.copy_skill_artifacts(link, root / "archive")
+
+            self.assertEqual(regular_files, [])
+            self.assertEqual(symlink_paths, ["."])
+            self.assertFalse((root / "archive").exists())
+
+
     def test_steps_are_not_misreported_as_turns(self):
         events = [
             {"type": "status", "phase": "turn_start", "turn": 1},
