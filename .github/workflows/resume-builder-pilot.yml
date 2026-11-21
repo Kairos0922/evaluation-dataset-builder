@@ -1,0 +1,285 @@
+name: Resume Builder-approved pilot
+
+on:
+  push:
+    branches: ["experiment/webapp-testing-contract"]
+    paths:
+      - ".github/dispatch/resume-pilot-from-44889956698"
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: resume-builder-pilot-44889956698
+  cancel-in-progress: false
+
+env:
+  SOURCE_RUN_ID: "44889956698"
+  SOURCE_BUILDER_ARTIFACT_ID: "14702092011"
+  SOURCE_VALIDATION_ARTIFACT_ID: "14702560789"
+  UPSTREAM_SKILL_COMMIT: "2c5958ecac7cee2b583967a2c4981d0f4a75c579"
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Download the exact previously validated Builder artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-builder-result
+          path: artifacts/builder-result
+          repository: ${{ github.repository }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+          github-token: ${{ github.token }}
+
+      - name: Download the original independent-validator evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-independent-builder-validation
+          path: artifacts/independent-validation
+          repository: ${{ github.repository }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+          github-token: ${{ github.token }}
+
+      - name: Reconfirm original independent PASS and Builder trace
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          validation = json.loads(Path(
+              "artifacts/independent-validation/independent-builder-output-validation.json"
+          ).read_text(encoding="utf-8"))
+          trace = json.loads(Path(
+              "artifacts/independent-validation/independent-builder-trace-verification.json"
+          ).read_text(encoding="utf-8"))
+          if validation.get("status") != "PASS":
+              raise SystemExit("Original independent validator did not PASS")
+          if trace.get("status") != "PASS" or trace.get("builder_skill_tool_calls") != 1:
+              raise SystemExit("Original Builder invocation trace is not valid")
+          print("PASS: archived Builder artifact has its original independent-validator PASS.")
+          PY
+          test -s artifacts/builder-result/webapp-testing-builder-output/SUITE-MANIFEST.json
+
+      - name: Resolve the three candidates from the original Builder output
+        id: resolve
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py \
+            --output-root artifacts/builder-result/webapp-testing-builder-output \
+            --github-output \
+            --write-output "$RUNNER_TEMP/pilot-matrix.json"
+          cat "$RUNNER_TEMP/pilot-matrix.json"
+
+  pilot:
+    needs: resolve
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.resolve.outputs.matrix) }}
+    env:
+      DSH_HOME: ${{ github.workspace }}/.dsh-home
+      DSH_MODEL: deepseek-flash
+      DSH_TELEMETRY_MODE: DISABLED
+      DSH_TELEMETRY_DISABLED: "1"
+      DSH_VERSION: "0.2.2-rc.1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Download the exact Builder-produced dataset
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-builder-result
+          path: artifacts/builder-result
+          repository: ${{ github.repository }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+          github-token: ${{ github.token }}
+
+      - name: Checkout pinned webapp-testing Skill
+        uses: actions/checkout@v4
+        with:
+          repository: anthropics/skills
+          ref: ${{ env.UPSTREAM_SKILL_COMMIT }}
+          path: .audit/upstream-skills
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Check model credential availability
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$DEEPSEEK_API_KEY" || {
+            echo "::error::DEEPSEEK_API_KEY is missing; no model request was sent."
+            exit 2
+          }
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.9.0"
+
+      - name: Cache pinned DSH installation
+        uses: actions/cache@v4
+        with:
+          path: ~/.dsh-npm-global
+          key: ${{ runner.os }}-dsh-node24-${{ env.DSH_VERSION }}
+
+      - name: Install pinned DSH CLI
+        run: |
+          set -euo pipefail
+          export NPM_CONFIG_PREFIX="$HOME/.dsh-npm-global"
+          export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+          echo "$NPM_CONFIG_PREFIX/bin" >> "$GITHUB_PATH"
+          if ! dsh --version 2>/dev/null | grep -Fq "$DSH_VERSION"; then
+            npm install --global --no-audit --no-fund "@deepseek-ai/dsh@$DSH_VERSION"
+          fi
+          dsh --version
+
+      - name: Set up Python and Playwright
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.16"
+          cache: pip
+          cache-dependency-path: .github/requirements-ci.txt
+
+      - name: Cache Playwright Chromium binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-1.64.1-chromium-shell
+
+      - name: Install pinned Playwright and Chromium
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "playwright==1.64.1"
+          python -m playwright install --with-deps --only-shell chromium
+
+      - name: Configure isolated DSH and disable Session Log uploads
+        run: |
+          set -euo pipefail
+          mkdir -p "$DSH_HOME"
+          cat > "$DSH_HOME/cordis.patch.yml" <<'YAML'
+          - id: session-log-deepseek
+            config:
+              enabled: false
+          YAML
+          dsh --profile headless --dump-config > "$RUNNER_TEMP/dsh-config.txt"
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          text = Path("$RUNNER_TEMP/dsh-config.txt").read_text(encoding="utf-8")
+          marker = "id: session-log-deepseek"
+          if marker not in text:
+              raise SystemExit("Session Log config missing; refusing model request")
+          tail = text.split(marker, 1)[1]
+          next_item = re.search(r"\\n\\s*- id:", tail)
+          section = tail[:next_item.start()] if next_item else tail
+          if not re.search(r"\\benabled:\\s*false\\b", section):
+              raise SystemExit("Session Log upload is not disabled")
+          print("PASS: Session Log upload disabled; OTel disabled by environment flags.")
+          PY
+
+      - name: Compile and self-test execution runner
+        run: |
+          set -euo pipefail
+          python -m py_compile benchmarks/webapp-testing/scripts/run_webapp_testing.py
+          python benchmarks/webapp-testing/scripts/run_webapp_testing.py --self-test
+
+      - name: Execute the selected Builder-generated case
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DATASET_PATH: ${{ matrix.dataset_path }}
+          DATASET_ID: ${{ matrix.dataset_id }}
+          CASE_ID: ${{ matrix.case_id }}
+          FIXTURE_PROFILE: ${{ matrix.fixture_profile }}
+          FIXTURE_MUTATIONS: ${{ join(matrix.fixture_mutations, ',') }}
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/run_webapp_testing.py \
+            --dataset "artifacts/builder-result/webapp-testing-builder-output/$DATASET_PATH" \
+            --dataset-id "$DATASET_ID" \
+            --case-id "$CASE_ID" \
+            --fixture-profile "$FIXTURE_PROFILE" \
+            --fixture-mutations "$FIXTURE_MUTATIONS" \
+            --fixture-source benchmarks/webapp-testing/fixtures/workboard \
+            --public-assets benchmarks/webapp-testing/assets/public \
+            --skill-source .audit/upstream-skills/skills/webapp-testing \
+            --work-root "$RUNNER_TEMP/wbt-workspaces" \
+            --output-dir "$RUNNER_TEMP/wbt-output/$DATASET_ID" \
+            --skill-commit "$UPSTREAM_SKILL_COMMIT" \
+            --dsh-timeout 600 \
+            --max-model-steps 32 \
+            --max-input-tokens 60000 \
+            --max-output-tokens 55000 \
+            --max-cache-read-tokens 1600000 \
+            --max-total-tokens 1750000
+
+      - name: Archive target-Skill evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-pilot-${{ matrix.case_id }}
+          path: ${{ runner.temp }}/wbt-output/${{ matrix.dataset_id }}/
+          if-no-files-found: warn
+          retention-days: 30
+
+  adjudicate:
+    if: always() && needs.resolve.result == 'success' && needs.pilot.result == 'success'
+    needs: [resolve, pilot]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Download the original Builder-produced suite
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-builder-result
+          path: artifacts/builder-result
+          repository: ${{ github.repository }}
+          run-id: ${{ env.SOURCE_RUN_ID }}
+          github-token: ${{ github.token }}
+
+      - name: Download all target-Skill evidence packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: webapp-testing-pilot-*
+          path: artifacts/pilot-results
+          merge-multiple: true
+
+      - name: Run independent Gold Oracle
+        env:
+          PILOT_MATRIX: ${{ needs.resolve.outputs.matrix }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$PILOT_MATRIX" > "$RUNNER_TEMP/pilot-matrix.json"
+          python -m py_compile benchmarks/webapp-testing/scripts/gold_oracle.py
+          python benchmarks/webapp-testing/scripts/gold_oracle.py \
+            --builder-output artifacts/builder-result/webapp-testing-builder-output \
+            --pilots-root artifacts/pilot-results \
+            --pilot-matrix "$RUNNER_TEMP/pilot-matrix.json" \
+            --output artifacts/independent-adjudication.json
+
+      - name: Archive independent adjudication
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-independent-adjudication
+          path: artifacts/independent-adjudication.json
+          if-no-files-found: warn
+          retention-days: 30
