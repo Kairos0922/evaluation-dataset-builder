@@ -58,6 +58,10 @@ def test_builder_task_separates_skill_defect_detection_from_application_complian
         "准确观察、正确解释并如实报告 FAIL",
         "不得把“应用返回错误结果”直接写成 Skill 的 criterion fail_condition",
         "case-level pass_conditions / fail_conditions 与每个 criterion 的语义一致性",
+        "必须分别写清符合分支和偏差分支",
+        "只有 Skill 漏检、误报、报告值与同一步 DOM/响应/轨迹证据不一致",
+        "不得单独使用“状态/按钮/摘要/优先级与预期不一致”作为 Skill 失败条件",
+        "Skill 报告值与实际 DOM/响应/轨迹不一致",
     )
     missing = [phrase for phrase in required if phrase not in task]
     assert not missing, f"Builder task does not disambiguate the evaluation subject: {missing}"
