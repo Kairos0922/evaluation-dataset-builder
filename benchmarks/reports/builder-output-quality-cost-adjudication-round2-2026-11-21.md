@@ -57,12 +57,19 @@
 
 本轮 Builder Skill、判定指南和生产任务都已明确：本实验评价的是执行测试的 webapp-testing Skill，不是 Workboard 应用本身。Workboard 的异常行为是 Skill 应发现和报告的观察对象；准确发现并报告应用违反规则，应计为 Skill 的正确表现。
 
-对本轮 `wb-core.jsonl` 的 15 条用例 grading subject、case-level PASS/FAIL 条件和全部 criterion 的 pass/fail 条件进行了逐条审阅。与上一轮发现的“应用结果不符合规则本身即判 Skill 失败”相比，本轮 WC-03 的契约已明确区分：
-- 应用实际返回 0 行，是 BR-02 的被观察偏差；
-- Skill 如实指出偏差并报告 BR-02 FAIL，是 Skill 的正确表现；
-- 若观察到 0 行却报告 PASS，才是 Skill 的判定错误。
+WC-03 的契约明确区分：应用实际返回 0 行是 BR-02 的被观察偏差；Skill 如实指出偏差并报告 BR-02 FAIL 是 Skill 的正确表现；观察到 0 行却报告 PASS 才是 Skill 的判定错误。
 
-本次审阅没有在 15 条用例中发现同类的直接矛盾。此项是基于正式 JSONL 的人工语义审阅，不应伪装成已验证的自动语义评分器，也不证明所有领域或未来产物均不会出现类似问题。
+**更严格的通用语义 lint 对不可变 Round 2 JSONL 进行了二次检查，推翻了第一轮人工审阅“未发现同类矛盾”的结论。** 最新正式 Validator 在不修改 Builder 产物的情况下，发现 3 个 grading criterion 的 fail 条件直接把应用结果偏差当作 Skill 失败。证据来自 [Archived Builder Artifact validation run 44909794116](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44909794116)，输入是原始 Builder artifact `14706494963`。
+
+| Case / criterion | 原始 fail 条件 | 冲突证据 | 问题 |
+|---|---|---|---|
+| WC-09 / C3-OBSERVE-TITLE | “优先级/状态不一致” | Case 的 `reference_outcome` 明确规定：若独立观察发现优先级不是 Low、状态不是 Open，Skill 应如实报告对应 BR-05/BR-06/BR-01 FAIL，并提供实际值。 | 未说明是 Skill 报告值与 DOM/POST 不一致，还是应用实际值偏离预期。会把正确报告应用偏差误判为 Skill 失败。 |
+| WC-12 / C3-STATUS-SEQUENCE | “状态/按钮序列与 DOM 不一致” | Case 的 `wrong-transition` 分支明确规定：若应用状态/按钮没有按预期推进，Skill 应报告 BR-07 FAIL，指出实际步骤和证据。 | 应判 Skill 是否准确报告实际状态，而不是把应用状态不符合预期直接作为 Skill 失败。 |
+| WC-12 / C4-SUMMARY-SYNC | “摘要值与 DOM 不一致” | Case 的通过条件及 `stale-summary` 分支要求：若摘要不同步，Skill 应明确记录偏差、实际值并报告 FAIL。 | 与“摘要值与 DOM 不一致即 criterion FAIL”的条件直接冲突。 |
+
+这 3 项是 **Builder 输出的判定契约缺陷**，不是目标 Skill 的运行失败，也不是 Oracle 的解析缺陷。修复方向是将 fail 条件写成“Skill 报告的值与同一步 DOM/响应不一致”“Skill 未指出摘要未同步”或“Skill 将观察到的偏差错误报告为 PASS”。当应用偏离预期但 Skill 准确报告时，Skill 应获得表现 PASS。
+
+当前 validator 的语义 lint 是保守的规则检查，不是完整自然语言理解器。它按并列分句检查裸应用结果条件，已对当前不可变产物检出上述 3 条。该检查不证明未来产物无其他语义问题；人工复核和实际证据仍然必要。
 
 ## 3. 原始 Builder 产物的独立 Pilot 重判
 
@@ -145,12 +152,14 @@
 - **保留集中语义审查：** 逐项核对 subject、case-level PASS/FAIL 和 criterion-level PASS/FAIL。不得通过减少审查来减少 Token。
 - **不盲目加大用例数量：** 当前 15 条用例、一个数据集的覆盖已完整覆盖 52 个 applicable 覆盖项。新增用例必须提供增量覆盖或新的诊断价值。
 
+- 最新补充 Validator 检查：[run 44909794116](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44909794116)，使用 Round 2 不可变 artifact `14706494963`；因上述 3 条语义问题拒绝产物。输入哈希、DSH 调用 Trace 和来源校验仍通过。该失败是预期质量拒绝，不是 Runner/下载故障。
+
 ## 6. Builder 质量结论
 
 本轮可支持的结论：
 - Builder 生成了结构完整、来源可追溯、覆盖声明与数据一致的 15 条用例。
 - 当前正式产物正确保留 1 项 needs_info，没有伪造失败注入能力。
-- 上一轮已知的“发现应用缺陷却被 criterion 判 Skill 失败”问题，在本轮 15 条 grading contract 的人工复核中未重现。
+- WC-03 的判定主体区分正确，但通用语义 lint 对 Round 2 额外发现 3 条同类评分契约缺陷：WC-09 C3、WC-12 C3、WC-12 C4。
 - WC-03/11/12 的三条试运行显示，用例对搜索偏差、重复脚本执行和多步状态循环具有可观察、可判定的契约。
 - 三条真实运行中，只有 WC-03 的 Skill 表现通过；WC-11 的最终业务结果正确但执行契约违规；WC-12 的目标 Skill 脚本中止。
 
