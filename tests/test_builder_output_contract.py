@@ -538,3 +538,49 @@ def test_semantic_contract_lint_failure_is_machine_readable():
     assert report["issue_count"] == 3
     assert report["issues"] == issues
     assert "immutable output was not modified" in report["interpretation"]
+
+
+def test_validator_accepts_agent_attribution_phrases_in_round3_builder_output():
+    cases = [
+        "Skill 在摘要与任务集合不一致时仍报告 BR-01 PASS",
+        "把应用偏差写成 Skill 失败",
+        "在摘要未更新时仍称同步符合",
+        "Skill 在应用错误接受时仍报 PASS",
+        "在摘要未同步时仍称符合",
+        "在摘要未同步时称符合",
+    ]
+    for index, clause in enumerate(cases, start=1):
+        case = {
+            "case_id": f"ROUND3-FALSE-POSITIVE-{index}",
+            "grading": {
+                "evaluation_subject": "webapp-testing Skill 的测试与缺陷识别表现",
+                "criteria": [{
+                    "criterion_id": f"C-{index}",
+                    "pass_condition": "Skill 根据实际证据准确报告应用偏差。",
+                    "fail_condition": clause,
+                }],
+            },
+        }
+        assert validator.evaluation_subject_contract_issues(case) == [], clause
+
+
+def test_validator_still_rejects_unattributed_application_outcome_clauses():
+    cases = [
+        "应用摘要未同步",
+        "查询返回空结果",
+        "页面状态与预期不一致",
+        "应用错误接受空白标题",
+    ]
+    for index, clause in enumerate(cases, start=1):
+        case = {
+            "case_id": f"RAW-SUT-OUTCOME-{index}",
+            "grading": {
+                "evaluation_subject": "webapp-testing Skill 的测试与缺陷识别表现",
+                "criteria": [{
+                    "criterion_id": f"C-{index}",
+                    "pass_condition": "Skill准确报告观察结果。",
+                    "fail_condition": clause,
+                }],
+            },
+        }
+        assert validator.evaluation_subject_contract_issues(case), clause
