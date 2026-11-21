@@ -1276,7 +1276,7 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
             line.strip() for line in report_text.splitlines()
             if re.search(r"PASS|FAIL|CONFORMS|VIOLATES|BR-0[278]", line, re.I)
         ][:12],
-        "limitations": [],
+        "limitations": (["DOM snapshots are target-produced files copied from the Skill workspace; they are corroborative evidence, not independent browser instrumentation."] if parse_dom_snapshots(pilot) else []),
     }
 
 
