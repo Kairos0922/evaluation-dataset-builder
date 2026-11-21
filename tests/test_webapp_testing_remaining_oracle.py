@@ -298,6 +298,41 @@ class RemainingOracleTests(unittest.TestCase):
             self.assertEqual(check["status"], "FAIL")
             self.assertIn("unlisted", check["evidence"])
 
+
+    def test_run_identity_mismatch_fails_oracle(self):
+        with tempfile.TemporaryDirectory() as temp:
+            pilot = Path(temp) / "pilot"
+            case = {
+                "case_id": "WB-CORE-03", "dataset_id": "D-WB",
+                "execution_requirements": {"test_data": [{
+                    "kind": "search_description", "query": "token expiry",
+                    "expected_rows": [{"title": "Reset password flow"}],
+                    "expected_summary": SUMMARY,
+                }]},
+            }
+            html = render_board(['<td>Reset password flow</td><td>High</td><td>Open</td>'])
+            audit = [{"method": "POST", "path": "/api/reset", "status": 200, "action": "reset"}]
+            write_dom(pilot, html)
+            write_pilot_bundle(pilot, base_runner(), audit, "Search evidence recorded. PASS.")
+            audit_path = pilot / "server-audit.jsonl"
+            events = [__import__("json").loads(line) for line in audit_path.read_text(encoding="utf-8").splitlines()]
+            events[0]["run_id"] = "different-run"
+            audit_path.write_text("".join(__import__("json").dumps(item) + "\\n" for item in events), encoding="utf-8")
+            runner_path = pilot / "runner-result.json"
+            runner = __import__("json").loads(runner_path.read_text(encoding="utf-8"))
+            runner["evidence_files"] = [
+                {"path": path.relative_to(pilot).as_posix(),
+                 "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                 "size_bytes": path.stat().st_size}
+                for path in sorted(pilot.rglob("*"))
+                if path.is_file() and path.name != "runner-result.json"
+            ]
+            runner_path.write_text(__import__("json").dumps(runner), encoding="utf-8")
+            result = ORACLE.adjudicate_remaining_case(case, pilot, "search_description")
+            check = next(item for item in result["checks"] if item["check"] == "Runner, server audit and DSH Trace belong to the same run")
+            self.assertEqual(check["status"], "FAIL")
+            self.assertEqual(result["oracle_verdict"], "FAIL")
+
     def test_report_does_not_count_unknown_as_failed_case(self):
         entries = [{"case_id": str(i), "dataset_id": "D", "pilot_role": role}
                    for i, role in enumerate(sorted(ORACLE.REMAINING_ROLES))]
