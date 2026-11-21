@@ -1,6 +1,7 @@
 """Offline regression tests for the eleven remaining Webapp Testing Oracle roles."""
 import copy
 import hashlib
+import json
 import importlib.util
 import tempfile
 import unittest
@@ -105,6 +106,21 @@ def write_pilot_bundle(root, runner, audit, report):
 
 
 
+
+
+def refresh_manifest(root: Path):
+    runner_path = root / "runner-result.json"
+    runner = json.loads(runner_path.read_text(encoding="utf-8"))
+    runner["evidence_files"] = [
+        {
+            "path": item.relative_to(root).as_posix(),
+            "sha256": hashlib.sha256(item.read_bytes()).hexdigest(),
+            "size_bytes": item.stat().st_size,
+        }
+        for item in sorted(root.rglob("*"))
+        if item.is_file() and item.name != "runner-result.json" and not item.is_symlink()
+    ]
+    runner_path.write_text(json.dumps(runner), encoding="utf-8")
 
 
 def render_board(rows, summary=SUMMARY, controls=""):
@@ -409,6 +425,84 @@ class RemainingOracleTests(unittest.TestCase):
             check = next(item for item in result["checks"] if item["check"] == "Runner, server audit and DSH Trace belong to the same run")
             self.assertEqual(check["status"], "FAIL")
             self.assertEqual(result["oracle_verdict"], "FAIL")
+
+
+    def test_run_identity_missing_required_id_is_unknown(self):
+        with tempfile.TemporaryDirectory() as temp:
+            pilot = Path(temp) / "pilot"
+            case = {
+                "case_id": "WB-CORE-03", "dataset_id": "D-WB",
+                "execution_requirements": {"test_data": [{
+                    "kind": "search_description", "query": "token expiry",
+                    "expected_rows": [{"title": "Reset password flow"}],
+                    "expected_summary": SUMMARY,
+                }]},
+            }
+            html = render_board(['<td>Reset password flow</td><td>High</td><td>Open</td>'])
+            write_dom(pilot, html)
+            write_pilot_bundle(pilot, base_runner(), [
+                {"method": "POST", "path": "/api/reset", "status": 200, "action": "reset"},
+                {"method": "GET", "path": "/api/tasks", "query": "q=token+expiry&status=all", "result_count": 1},
+            ], "Search evidence recorded. PASS.")
+            runner_path = pilot / "runner-result.json"
+            runner = json.loads(runner_path.read_text(encoding="utf-8"))
+            runner.pop("run_id")
+            runner_path.write_text(json.dumps(runner), encoding="utf-8")
+            result = ORACLE.adjudicate_remaining_case(case, pilot, "search_description")
+            check = next(item for item in result["checks"] if item["check"] == "Runner, server audit and DSH Trace belong to the same run")
+            self.assertEqual(check["status"], "UNKNOWN")
+
+    def test_run_identity_trace_digest_mismatch_fails_oracle(self):
+        with tempfile.TemporaryDirectory() as temp:
+            pilot = Path(temp) / "pilot"
+            case = {
+                "case_id": "WB-CORE-03", "dataset_id": "D-WB",
+                "execution_requirements": {"test_data": [{
+                    "kind": "search_description", "query": "token expiry",
+                    "expected_rows": [{"title": "Reset password flow"}],
+                    "expected_summary": SUMMARY,
+                }]},
+            }
+            html = render_board(['<td>Reset password flow</td><td>High</td><td>Open</td>'])
+            write_dom(pilot, html)
+            write_pilot_bundle(pilot, base_runner(), [
+                {"method": "POST", "path": "/api/reset", "status": 200, "action": "reset"},
+                {"method": "GET", "path": "/api/tasks", "query": "q=token+expiry&status=all", "result_count": 1},
+            ], "Search evidence recorded. PASS.")
+            context_path = pilot / "trace-run-context.json"
+            context = json.loads(context_path.read_text(encoding="utf-8"))
+            context["trace_sha256"] = "0" * 64
+            context_path.write_text(json.dumps(context), encoding="utf-8")
+            refresh_manifest(pilot)
+            result = ORACLE.adjudicate_remaining_case(case, pilot, "search_description")
+            check = next(item for item in result["checks"] if item["check"] == "Runner, server audit and DSH Trace belong to the same run")
+            self.assertEqual(check["status"], "FAIL")
+
+    def test_run_identity_trace_event_count_mismatch_fails_oracle(self):
+        with tempfile.TemporaryDirectory() as temp:
+            pilot = Path(temp) / "pilot"
+            case = {
+                "case_id": "WB-CORE-03", "dataset_id": "D-WB",
+                "execution_requirements": {"test_data": [{
+                    "kind": "search_description", "query": "token expiry",
+                    "expected_rows": [{"title": "Reset password flow"}],
+                    "expected_summary": SUMMARY,
+                }]},
+            }
+            html = render_board(['<td>Reset password flow</td><td>High</td><td>Open</td>'])
+            write_dom(pilot, html)
+            write_pilot_bundle(pilot, base_runner(), [
+                {"method": "POST", "path": "/api/reset", "status": 200, "action": "reset"},
+                {"method": "GET", "path": "/api/tasks", "query": "q=token+expiry&status=all", "result_count": 1},
+            ], "Search evidence recorded. PASS.")
+            context_path = pilot / "trace-run-context.json"
+            context = json.loads(context_path.read_text(encoding="utf-8"))
+            context["trace_event_count"] += 1
+            context_path.write_text(json.dumps(context), encoding="utf-8")
+            refresh_manifest(pilot)
+            result = ORACLE.adjudicate_remaining_case(case, pilot, "search_description")
+            check = next(item for item in result["checks"] if item["check"] == "Runner, server audit and DSH Trace belong to the same run")
+            self.assertEqual(check["status"], "FAIL")
 
     def test_report_does_not_count_unknown_as_failed_case(self):
         entries = [{"case_id": str(i), "dataset_id": "D", "pilot_role": role}
