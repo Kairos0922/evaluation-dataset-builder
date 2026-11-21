@@ -112,7 +112,7 @@ def main() -> int:
     args = parser.parse_args()
     matrix = json.loads(Path(args.matrix).read_text(encoding="utf-8"))
     plan = build_plan(matrix)
-    Path(args.output).write_text(json.dumps(plan, indent=2, ensure_ascii=False) + "\\n", encoding="utf-8")
+    Path(args.output).write_text(json.dumps(plan, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
     print(json.dumps({"status": plan["status"], "cases": plan["case_count"], "timeout_budget_seconds": plan["sum_case_timeout_seconds"], "execution_started": False}, ensure_ascii=False))
     return 0
 
