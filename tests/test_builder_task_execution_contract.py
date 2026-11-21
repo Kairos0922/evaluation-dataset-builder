@@ -68,6 +68,18 @@ def test_builder_task_requires_explicit_grading_evaluation_subject():
     assert "grading contract 必须包含非空字段 `evaluation_subject`" in task
 
 
+def test_builder_task_calibrates_status_cycle_timeout_from_observed_run():
+    task = TASK.read_text(encoding="utf-8")
+    required = (
+        "239.119 秒",
+        "case_timeout_seconds 不得低于 360 秒",
+        "不是通用质量阈值",
+        "600 秒硬超时",
+    )
+    missing = [phrase for phrase in required if phrase not in task]
+    assert not missing, f"Status-cycle timeout calibration is missing: {missing}"
+
+
 class BuilderReadmeCaseGroupingTests(unittest.TestCase):
     def test_case_groups_must_match_case_semantics(self):
         text = TASK.read_text(encoding="utf-8")
