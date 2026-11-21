@@ -267,38 +267,56 @@ def tasks_contain_declared(actual: list[dict], declared: list[dict]) -> bool:
 
 
 def target_task(case: dict, tasks: list[dict]) -> dict | None:
+    """Resolve a target from explicit Builder fields without guessing from task order."""
     outcome = case.get("reference_outcome") or {}
     rule_expected = outcome.get("rule_expected") or {}
-    target = rule_expected.get("target") or outcome.get("target") or outcome.get("task_id") or outcome.get("target_task") or outcome.get("target_id") or outcome.get("target_data_id")
+    target = (
+        rule_expected.get("target") or outcome.get("target") or outcome.get("task_id")
+        or outcome.get("target_task") or outcome.get("target_id")
+        or outcome.get("target_data_id")
+    )
     if target is None:
         test_data = ((case.get("execution_requirements") or {}).get("test_data") or [])
-        # Builder may list initial-state data before the actual target. Prefer
-        # entries explicitly marked as target, and inspect every test_data item.
         explicit_targets = []
         for item in test_data:
             if isinstance(item, dict):
                 value = (
-                    item.get("target_task")
-                    or item.get("task_id")
-                    or item.get("target_id")
-                    or item.get("target_data_id")
+                    item.get("target_task") or item.get("task_id")
+                    or item.get("target_id") or item.get("target_data_id")
                 )
+                name = str(item.get("name") or item.get("kind") or "").casefold()
+                if value is None and name in {"target_task", "target", "target-task"}:
+                    value = item.get("data_id") or item.get("id")
                 if value is not None:
-                    explicit_targets.append(value)
+                    if isinstance(value, dict):
+                        explicit_targets.append(value)
+                    elif item.get("visible_title") or item.get("target_title"):
+                        explicit_targets.append({
+                            "id": value,
+                            "title": item.get("visible_title") or item.get("target_title"),
+                        })
+                    else:
+                        explicit_targets.append(value)
             elif isinstance(item, str) and any(
                 marker in item.casefold() for marker in ("目标", "target", "删除任务")
             ):
                 match = re.search(r"\b(WB-\d+)\b", item)
                 if match:
                     explicit_targets.append(match.group(1))
-        if explicit_targets and len(set(map(str, explicit_targets))) == 1:
-            target = explicit_targets[0]
+        if explicit_targets:
+            fingerprints = {
+                json.dumps(value, ensure_ascii=False, sort_keys=True)
+                if isinstance(value, dict) else str(value)
+                for value in explicit_targets
+            }
+            if len(fingerprints) == 1:
+                target = explicit_targets[0]
         if target is None:
             message_ids = list(dict.fromkeys(re.findall(r"\b(WB-\d+)\b", user_message(case))))
             if len(message_ids) == 1:
                 target = message_ids[0]
         if target is None:
-            # Backward compatibility for a single concise test-data string.
+            # Backward compatibility for one concise test-data string.
             candidates = []
             for item in test_data:
                 if isinstance(item, str):
@@ -308,8 +326,14 @@ def target_task(case: dict, tasks: list[dict]) -> dict | None:
             if candidates and len(set(candidates)) == 1:
                 target = candidates[0]
     if isinstance(target, dict):
-        target_id = target.get("id")
-        target_title = target.get("title")
+        target_id = (
+            target.get("id") or target.get("data_id")
+            or target.get("target_id") or target.get("target_data_id")
+        )
+        target_title = (
+            target.get("title") or target.get("visible_title")
+            or target.get("target_title")
+        )
     elif isinstance(target, str):
         target_id = target if any(item.get("id") == target for item in tasks) else None
         target_title = None if target_id else target
@@ -368,14 +392,34 @@ def expected_status_transitions(case: dict, target: dict | None) -> list[tuple[s
     test_data = execution.get("test_data") or []
     test_sequence = []
     for item in test_data:
-        if isinstance(item, dict):
-            test_sequence = (
-                item.get("expected_sequence")
-                or item.get("expected")
-                or test_sequence
+        if not isinstance(item, dict):
+            continue
+        cycle_steps = item.get("steps")
+        item_name = str(item.get("name") or item.get("kind") or "").casefold()
+        if isinstance(cycle_steps, list) and cycle_steps and (
+            item_name in {"expected_cycle", "state_cycle", "expected_status_cycle"}
+            or all(isinstance(step, dict) and "status" in step for step in cycle_steps)
+        ):
+            ordered_steps = sorted(
+                enumerate(cycle_steps),
+                key=lambda pair: (
+                    pair[1].get("step") if isinstance(pair[1].get("step"), int) else pair[0],
+                    pair[0],
+                ),
             )
+            test_sequence = [
+                step.get("status") for _, step in ordered_steps
+                if isinstance(step, dict) and step.get("status")
+            ]
             if test_sequence:
                 break
+        test_sequence = (
+            item.get("expected_sequence")
+            or item.get("expected")
+            or test_sequence
+        )
+        if test_sequence:
+            break
     expected_behavior = case.get("expected_behavior") or {}
     conforming = ((case.get("reference_outcome") or {}).get("conforming_branch") or {})
     sequence = []
@@ -532,8 +576,19 @@ def report_has_search_finding(report_text: str, expected_tasks: list[dict], requ
     )
 
 
-def report_has_state_cycle_result(report_text: str, target_id: str | None, target_title: str | None) -> bool:
-    """Check the target and state-cycle result without requiring rule-ID prose."""
+def report_has_state_cycle_result(
+    report_text: str,
+    target_id: str | None,
+    target_title: str | None,
+    expected_verdict: str,
+) -> bool:
+    """Check that the Skill report's explicit verdict matches the observed cycle."""
+    match = re.search(
+        r"(?:判定|结论|verdict)\\s*[：:]\\s*(PASS|FAIL|UNKNOWN)",
+        report_text,
+        re.I,
+    )
+    observed_verdict = match.group(1).upper() if match else None
     return (
         bool(report_text.strip())
         and (
@@ -541,7 +596,7 @@ def report_has_state_cycle_result(report_text: str, target_id: str | None, targe
             or (bool(target_title) and target_title in report_text)
         )
         and all(term in report_text for term in ("Open", "In progress", "Done"))
-        and re.search(r"PASS|CONFORMS|通过", report_text, re.I) is not None
+        and observed_verdict == expected_verdict.upper()
     )
 
 
@@ -554,6 +609,53 @@ def report_has_delete_result(report_text: str, target_id: str | None) -> bool:
         and re.search(r"Delete task\?|confirmation dialog|确认对话框", report_text, re.I) is not None
         and re.search(r"PASS|CONFORMS|通过", report_text, re.I) is not None
     )
+
+
+def count_test_script_executions(events: list[dict], runner: dict) -> dict:
+    """Count actual invocations of archived test scripts in DSH bash tool calls.
+
+    Static syntax checks using Python's -c option are not script executions.
+    Each shell invocation of an archived test script is counted, including
+    failed starts and later retries.
+    """
+    evidence = runner.get("evidence_files") or []
+    candidates = sorted({
+        Path(item.get("path", "")).name
+        for item in evidence
+        if isinstance(item, dict)
+        and isinstance(item.get("path"), str)
+        and item["path"].casefold().endswith(".py")
+        and "test" in Path(item["path"]).name.casefold()
+        and "recon" not in Path(item["path"]).name.casefold()
+    })
+    if not candidates:
+        return {"count": None, "scripts": [], "invocations": [], "reason": "no archived test-script path found"}
+    invocations = []
+    for event_index, event in enumerate(events):
+        if event.get("type") != "tool_call" or event.get("tool") != "bash":
+            continue
+        command = (event.get("input") or {}).get("command")
+        if not isinstance(command, str):
+            continue
+        for script in candidates:
+            pattern = re.compile(
+                r"(?:^|[\\s;&|])(?:python(?:\\d+(?:\\.\\d+)*)?)(?:\\s+-u)?\\s+"
+                r"(?:[^\\s;&|]+/)?" + re.escape(script) + r"(?=\\s|$)",
+                re.M,
+            )
+            count = len(pattern.findall(command))
+            for occurrence in range(count):
+                invocations.append({
+                    "event_index": event_index,
+                    "script": script,
+                    "occurrence_in_command": occurrence + 1,
+                })
+    return {
+        "count": len(invocations),
+        "scripts": candidates,
+        "invocations": invocations,
+        "reason": "counted DSH bash calls that execute archived test-script files",
+    }
 
 
 def base_checks(case: dict, pilot: Path, checks: list[dict]) -> tuple[dict, list[dict], dict]:
@@ -572,8 +674,50 @@ def base_checks(case: dict, pilot: Path, checks: list[dict]) -> tuple[dict, list
     trace_available = trace_path.is_file()
     audit_available = audit_path.is_file()
     trace = read_trace(trace_path) if trace_available else {}
+    trace_events = load_jsonl(trace_path) if trace_available else []
     audit = load_jsonl(audit_path) if audit_available else []
     run_id = runner.get("run_id")
+    execution_requirements = case.get("execution_requirements") or {}
+    limits = execution_requirements.get("cost_and_rate_limits") or {}
+    if "max_test_script_executions" in limits:
+        maximum = limits.get("max_test_script_executions")
+        script_detail = count_test_script_executions(trace_events, runner) if trace_available else {
+            "count": None, "scripts": [], "invocations": [], "reason": "DSH Trace is missing"
+        }
+        count = script_detail.get("count")
+        valid_limit = type(maximum) is int and maximum >= 0
+        within_limit = count <= maximum if count is not None and valid_limit else None
+        retry_policy = str(limits.get("retry_policy") or "").casefold()
+        if within_limit is not None and retry_policy == "no_retry":
+            within_limit = within_limit and count <= 1
+        add_check(
+            checks, "Test-script execution count complies with the Builder budget and retry policy",
+            within_limit,
+            json.dumps({
+                "observed_count": count,
+                "maximum": maximum,
+                "retry_policy": retry_policy or None,
+                **script_detail,
+            }, ensure_ascii=False),
+        )
+    if "max_mutating_actions" in limits:
+        maximum = limits.get("max_mutating_actions")
+        observed_mutations = len(audit_writes(audit)) if audit_available else None
+        valid_limit = type(maximum) is int and maximum >= 0
+        within_limit = (
+            observed_mutations <= maximum
+            if observed_mutations is not None and valid_limit else None
+        )
+        add_check(
+            checks, "Application mutation count complies with the Builder action budget",
+            within_limit,
+            json.dumps({
+                "observed_mutating_actions": observed_mutations,
+                "maximum": maximum,
+                "mutations": audit_writes(audit) if audit_available else None,
+            }, ensure_ascii=False),
+        )
+
     context_path = pilot / "trace-run-context.json"
     context_error = None
     try:
@@ -1370,19 +1514,38 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
                     item["status"] = final_status
                     break
         expected_after_summary = task_summary(expected_after)
+        state_matches = (
+            pre_is_initial
+            and bool(expected)
+            and target_id is not None
+            and tasks_match_declared(post_tasks, expected_after)
+            and post.get("summary") == expected_after_summary
+        )
         add_check(
             checks, "Task rows and summary match the Builder-declared transition outcome",
-            pre_is_initial and tasks_match_declared(post_tasks, expected_after) and post.get("summary") == expected_after_summary,
+            state_matches,
             f"pre_initial={pre_is_initial}; expected_target={target_id}; expected_final_status={expected[-1][1] if expected else None}; post_ids={[item['id'] for item in post_tasks]}; summary={post.get('summary')}; expected_summary={expected_after_summary}",
         )
-        # Check the target and state sequence; the case contract does not require BR-07 in prose.
-        report_ok = report_has_state_cycle_result(report_text, target_id, target_title)
-        add_check(checks, "Target report agrees with the independently observed BR-07 cycle", report_ok, "BR-07, Builder-declared target, transitions, summary and PASS verdict inspected")
         trace_complete = runner.get("dsh_exit_code") == 0 and dsh_turn_completed(runtime)
+        cycle_matches = (
+            target is not None and bool(expected) and observed == expected
+            and correct_target and state_matches
+        )
+        expected_report_verdict = (
+            "UNKNOWN" if not trace_complete else ("PASS" if cycle_matches else "FAIL")
+        )
+        report_ok = report_has_state_cycle_result(
+            report_text, target_id, target_title, expected_report_verdict
+        )
+        add_check(
+            checks, "Target report verdict matches the independently observed BR-07 result",
+            report_ok,
+            f"expected_report_verdict={expected_report_verdict}; target={target_id} ({target_title}); expected={expected}; observed={observed}",
+        )
         if not trace_complete:
             behavior = "UNKNOWN"
         else:
-            behavior = "PASS" if target is not None and observed == expected and report_ok else "FAIL"
+            behavior = "PASS" if cycle_matches and report_ok else "FAIL"
 
     elif role in {"delete_confirmation", "delete_cancel"}:
         mutations = runner.get("fixture_mutations") or []
@@ -1645,6 +1808,22 @@ def self_test() -> int:
     assert expected_status_transitions(builder_state_case, state_target) == [
         ("open", "in_progress"), ("in_progress", "done"), ("done", "open"),
     ]
+    builder_expected_cycle_steps_case = {
+        "execution_requirements": {"test_data": [
+            {"name": "target_task", "data_id": "WB-101", "visible_title": "Reset password flow", "initial_status": "Open"},
+            {"name": "expected_cycle", "steps": [
+                {"step": 1, "status": "In progress"},
+                {"step": 2, "status": "Done"},
+                {"step": 3, "status": "Open"},
+            ]},
+        ]},
+    }
+    cycle_target = target_task(builder_expected_cycle_steps_case, INITIAL)
+    assert cycle_target and cycle_target["id"] == "WB-101", cycle_target
+    assert expected_status_transitions(builder_expected_cycle_steps_case, cycle_target) == [
+        ("open", "in_progress"), ("in_progress", "done"), ("done", "open"),
+    ]
+
     builder_actual_state_case = {
         "user_input": "定位 WB-101（初始 Open），依次点击状态按钮三次。预期：第 1 次 In progress，第 2 次 Done，第 3 次 Open。",
         "expected_behavior": [
