@@ -4,7 +4,7 @@ on:
   push:
     branches: ["experiment/webapp-testing-contract"]
     paths:
-      - ".github/dispatch/resume-pilot-from-44889956698"
+      - ".github/dispatch/resume-pilot-from-44889956698-v2"
 
 permissions:
   actions: read
