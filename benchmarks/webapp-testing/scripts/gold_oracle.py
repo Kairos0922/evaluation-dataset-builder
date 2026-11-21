@@ -584,7 +584,7 @@ def report_has_state_cycle_result(
 ) -> bool:
     """Check that the Skill report's explicit verdict matches the observed cycle."""
     match = re.search(
-        r"(?:判定|结论|verdict)\\s*[：:]\\s*(PASS|FAIL|UNKNOWN)",
+        r"(?:判定|结论|verdict)\s*[：:]\s*(PASS|FAIL|UNKNOWN)",
         report_text,
         re.I,
     )
@@ -639,8 +639,8 @@ def count_test_script_executions(events: list[dict], runner: dict) -> dict:
             continue
         for script in candidates:
             pattern = re.compile(
-                r"(?:^|[\\s;&|])(?:python(?:\\d+(?:\\.\\d+)*)?)(?:\\s+-u)?\\s+"
-                r"(?:[^\\s;&|]+/)?" + re.escape(script) + r"(?=\\s|$)",
+                r"(?:^|[\s;&|])(?:python(?:\d+(?:\.\d+)*)?)(?:\s+-u)?\s+"
+                r"(?:[^\s;&|]+/)?" + re.escape(script) + r"(?=\s|$)",
                 re.M,
             )
             count = len(pattern.findall(command))
