@@ -488,6 +488,14 @@ def add_check(checks: list[dict], name: str, condition: bool | None, evidence: s
     return status == "PASS"
 
 
+def dsh_turn_completed(runtime: dict) -> bool:
+    trace = runtime.get("trace") or {}
+    return (
+        trace.get("final_reason") == "completed"
+        and trace.get("turn_end_count") == runtime.get("expected_user_turns")
+    )
+
+
 def report_bundle(pilot: Path) -> tuple[str, list[Path]]:
     root = pilot / "skill-artifacts"
     reports = sorted(
@@ -1310,10 +1318,7 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
             "mentions_BR02": "BR-02" in report_text,
             "mentions_violation": bool(re.search(r"VIOLATED|FAIL|违反|不符合|缺陷|遗漏", report_text, re.I)),
         }, ensure_ascii=False))
-        trace_complete = (
-            trace.get("final_reason") == "completed"
-            and trace.get("turn_end_count") == runtime.get("expected_user_turns")
-        )
+        trace_complete = dsh_turn_completed(runtime)
         behavior = (
             "EXPECTED_VIOLATION_DETECTED"
             if trace_complete and all_match and report_ok
@@ -1373,11 +1378,7 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
         # Check the target and state sequence; the case contract does not require BR-07 in prose.
         report_ok = report_has_state_cycle_result(report_text, target_id, target_title)
         add_check(checks, "Target report agrees with the independently observed BR-07 cycle", report_ok, "BR-07, Builder-declared target, transitions, summary and PASS verdict inspected")
-        trace_complete = (
-            runner.get("dsh_exit_code") == 0
-            and trace.get("final_reason") == "completed"
-            and trace.get("turn_end_count") == runtime.get("expected_user_turns")
-        )
+        trace_complete = runner.get("dsh_exit_code") == 0 and dsh_turn_completed(runtime)
         if not trace_complete:
             behavior = "UNKNOWN"
         else:
@@ -1585,6 +1586,15 @@ def build_report(suite: dict, entries: list[dict], results: list[dict]) -> dict:
 
 
 def self_test() -> int:
+    assert dsh_turn_completed({
+        "trace": {"final_reason": "completed", "turn_end_count": 1},
+        "expected_user_turns": 1,
+    })
+    assert not dsh_turn_completed({
+        "trace": {"final_reason": None, "turn_end_count": 0},
+        "expected_user_turns": 1,
+    })
+
     production_style_case = {
         "user_input": "请依次输入 reset、RESET、一个只出现在某条任务描述中的英文词（例如 CSV），以及 zzz-no-match。",
     }
