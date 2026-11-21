@@ -262,7 +262,7 @@ def test_gold_oracle_does_not_count_static_compile_or_posthoc_import_as_test_run
     events = [
         {
             "type": "tool_call", "tool": "bash",
-            "input": {"command": "python3 -c \\"compile(open('test_wc12.py').read(), 'test_wc12', 'exec')\\""},
+            "input": {"command": "python3 -m py_compile test_wc12.py"},
         },
         {
             "type": "tool_call", "tool": "bash",
