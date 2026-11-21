@@ -433,6 +433,7 @@ class RemainingOracleTests(unittest.TestCase):
             screenshot_count=3,
         )
         self.assertEqual(result["oracle_verdict"], "PASS", result["checks"])
+        self.assertTrue(any("target-produced" in item for item in result["limitations"]), result["limitations"])
 
 
     def test_missing_dom_snapshot_is_unknown_not_failure(self):
