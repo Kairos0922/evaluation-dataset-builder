@@ -239,6 +239,24 @@ def trace_budget_violations(
     return violations
 
 
+def copy_skill_artifacts(source: Path, destination: Path) -> tuple[list[Path], list[str]]:
+    """Copy Skill artifacts without dereferencing links; return regular files and link paths."""
+    if source.is_symlink():
+        return [], ["."]
+    if not source.is_dir():
+        return [], []
+    shutil.copytree(source, destination, dirs_exist_ok=True, symlinks=True)
+    paths = list(destination.rglob("*"))
+    symlinks = sorted(
+        path.relative_to(destination).as_posix()
+        for path in paths if path.is_symlink()
+    )
+    regular_files = [
+        path for path in paths if path.is_file() and not path.is_symlink()
+    ]
+    return regular_files, symlinks
+
+
 def parse_trace(path: Path) -> dict:
     events = []
     if path.exists():
@@ -680,13 +698,15 @@ def main() -> int:
 
     # Preserve all files created by the Skill in its isolated workspace.
     skill_artifact_root = workspace / "artifacts"
-    if skill_artifact_root.is_dir():
-        shutil.copytree(skill_artifact_root, case_dir / "skill-artifacts", dirs_exist_ok=True)
-    skill_artifact_files = [
-        path for path in (case_dir / "skill-artifacts").rglob("*")
-        if path.is_file()
-    ] if (case_dir / "skill-artifacts").exists() else []
+    skill_artifact_files, artifact_symlink_paths = copy_skill_artifacts(
+        skill_artifact_root, case_dir / "skill-artifacts"
+    )
     artifact_suffixes = {path.suffix.lower() for path in skill_artifact_files}
+    if artifact_symlink_paths:
+        error = error or (
+            "Skill artifacts contain symbolic links and were not dereferenced: "
+            + ", ".join(artifact_symlink_paths)
+        )
     has_markdown_report = ".md" in artifact_suffixes
     has_json_evidence_index = ".json" in artifact_suffixes
     has_screenshot = bool({".png", ".jpg", ".jpeg", ".webp"} & artifact_suffixes)
@@ -710,7 +730,7 @@ def main() -> int:
     )
     evidence_files = []
     for path in sorted(case_dir.rglob("*")):
-        if path.is_file():
+        if path.is_file() and not path.is_symlink():
             evidence_files.append({
                 "path": str(path.relative_to(case_dir)),
                 "sha256": sha256(path),
@@ -771,6 +791,7 @@ def main() -> int:
         "server_port_closed": port_closed,
         "skill_artifact_file_count": len(skill_artifact_files),
         "skill_artifact_types": sorted(artifact_suffixes),
+        "skill_artifact_symlink_paths": artifact_symlink_paths,
         "required_skill_evidence": {
             "markdown_report": has_markdown_report,
             "json_evidence_index": has_json_evidence_index,
