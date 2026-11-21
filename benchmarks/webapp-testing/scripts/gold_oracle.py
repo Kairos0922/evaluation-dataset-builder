@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
 import tempfile
 from collections import Counter
@@ -51,12 +52,20 @@ def load_jsonl(path: Path) -> list[dict]:
 
 
 def verify_evidence_manifest(pilot: Path, runner: dict) -> tuple[bool | None, dict]:
-    """Verify the Runner's pre-finalization SHA-256 manifest against archived files."""
+    """Verify the Runner manifest without following links or escaping the pilot root."""
     entries = runner.get("evidence_files")
     if not isinstance(entries, list) or not entries:
         return None, {"reason": "evidence_files manifest is missing or empty"}
-    declared = {}
+
     errors = []
+    declared = {}
+    try:
+        root = pilot.resolve(strict=True)
+    except OSError as exc:
+        return False, {"reason": f"pilot evidence root cannot be resolved: {exc}"}
+    if pilot.is_symlink() or not root.is_dir():
+        return False, {"reason": "pilot evidence root must be a real directory, not a symlink"}
+
     for entry in entries:
         if not isinstance(entry, dict):
             errors.append("manifest entry is not an object")
@@ -64,12 +73,24 @@ def verify_evidence_manifest(pilot: Path, runner: dict) -> tuple[bool | None, di
         relative = entry.get("path")
         digest = entry.get("sha256")
         size = entry.get("size_bytes")
-        if not isinstance(relative, str) or not relative or relative.startswith(("/", "\\\\")):
-            errors.append(f"invalid relative path: {relative!r}")
+        if (
+            not isinstance(relative, str) or not relative
+            or "\x00" in relative or "\\" in relative
+            or relative.startswith("/")
+        ):
+            errors.append(f"invalid POSIX relative path: {relative!r}")
             continue
         candidate = Path(relative)
-        if candidate.is_absolute() or ".." in candidate.parts or relative in declared:
-            errors.append(f"unsafe or duplicate path: {relative!r}")
+        if (
+            candidate.is_absolute() or ".." in candidate.parts
+            or candidate.as_posix() != relative or relative in declared
+            or (candidate.parts and ":" in candidate.parts[0])
+        ):
+            errors.append(f"unsafe, non-canonical or duplicate path: {relative!r}")
+            continue
+        resolved = (root / candidate).resolve(strict=False)
+        if not resolved.is_relative_to(root):
+            errors.append(f"path resolves outside evidence root: {relative!r}")
             continue
         if not isinstance(digest, str) or not re.fullmatch(r"[0-9a-f]{64}", digest):
             errors.append(f"invalid SHA-256 for {relative}")
@@ -78,19 +99,47 @@ def verify_evidence_manifest(pilot: Path, runner: dict) -> tuple[bool | None, di
             errors.append(f"invalid size for {relative}")
             continue
         declared[relative] = (digest, size)
-    actual_paths = {
-        path.relative_to(pilot).as_posix()
-        for path in pilot.rglob("*")
-        if path.is_file() and path.name != "runner-result.json"
-    }
+
+    actual_paths = set()
+    for current, dirnames, filenames in os.walk(root, topdown=True, followlinks=False):
+        current_path = Path(current)
+        for name in list(dirnames):
+            child = current_path / name
+            if child.is_symlink():
+                errors.append(f"symlink directory is not allowed: {child.relative_to(root).as_posix()}")
+                dirnames.remove(name)
+        for name in filenames:
+            child = current_path / name
+            relative = child.relative_to(root).as_posix()
+            if child.is_symlink():
+                errors.append(f"symlink file is not allowed: {relative}")
+                continue
+            if not child.is_file():
+                errors.append(f"non-regular evidence entry is not allowed: {relative}")
+                continue
+            if relative != "runner-result.json":
+                actual_paths.add(relative)
+
+    for relative in declared:
+        candidate = root / relative
+        ancestor = candidate
+        while ancestor != root:
+            if ancestor.is_symlink():
+                errors.append(f"symlink path component is not allowed: {relative}")
+                break
+            ancestor = ancestor.parent
+        if not candidate.resolve(strict=False).is_relative_to(root):
+            errors.append(f"path resolves outside evidence root: {relative!r}")
+
     unlisted_paths = actual_paths - set(declared)
     missing_paths = set(declared) - actual_paths
     if unlisted_paths:
         errors.append(f"unlisted files (possible cross-run contamination): {sorted(unlisted_paths)}")
+
     verified = 0
     for relative, (expected_digest, expected_size) in declared.items():
-        path = pilot / relative
-        if not path.is_file():
+        path = root / relative
+        if relative not in actual_paths:
             continue
         data = path.read_bytes()
         actual_digest = hashlib.sha256(data).hexdigest()
@@ -100,6 +149,7 @@ def verify_evidence_manifest(pilot: Path, runner: dict) -> tuple[bool | None, di
             errors.append(f"size mismatch: {relative}")
         if actual_digest == expected_digest and len(data) == expected_size:
             verified += 1
+
     status = False if errors else (None if missing_paths else True)
     return status, {
         "declared_file_count": len(declared),
