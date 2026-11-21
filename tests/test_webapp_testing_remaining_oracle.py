@@ -61,6 +61,7 @@ def write_pilot_bundle(root, runner, audit, report):
     (artifacts / "step.png").write_bytes(b"offline-test-image")
     runner = {
         **runner,
+        "run_id": "offline-run-001",
         "case_id": "offline-test",
         "runner_status": "INVOCATION_OK",
         "dsh_exit_code": 0,
@@ -81,7 +82,14 @@ def write_pilot_bundle(root, runner, audit, report):
         {"type": "final", "reason": {"kind": "completed"}},
     ]
     (root / "dsh-events.jsonl").write_text("".join(__import__("json").dumps(item) + "\n" for item in events), encoding="utf-8")
+    audit = [{**item, "run_id": runner["run_id"]} for item in audit]
     (root / "server-audit.jsonl").write_text("".join(__import__("json").dumps(item) + "\n" for item in audit), encoding="utf-8")
+    trace_path = root / "dsh-events.jsonl"
+    (root / "trace-run-context.json").write_text(__import__("json").dumps({
+        "run_id": runner["run_id"],
+        "trace_sha256": hashlib.sha256(trace_path.read_bytes()).hexdigest(),
+        "trace_event_count": len(events),
+    }), encoding="utf-8")
     runner["evidence_files"] = [
         {
             "path": path.relative_to(root).as_posix(),
