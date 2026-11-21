@@ -857,9 +857,9 @@ def adjudicate_remaining_case(case: dict, pilot: Path, role: str) -> dict:
             if closed_dialog_snapshots else None
         )
         cancel_lifecycle_ok = (
-            bool(open_dialog_snapshots) and bool(closed_dialog_snapshots) and post_cancel_target_ok
-            if dom_available else None
-        )
+            (bool(open_dialog_snapshots) and post_cancel_target_ok)
+            if closed_dialog_snapshots else None
+        ) if dom_available else None
         state_ok = (pre_ok and tasks_match_declared(post_tasks, initial_tasks) and post.get("summary") == initial_summary) if state_available else None
         add("Every Builder-declared role/accessibility-name pair exists in rendered DOM", names_ok, {"missing": missing, "observed": controls})
         add("Delete dialog exposes its semantic name and safe action names", (dialog_ok and actions_ok) if dom_available else None, {"dialog": dialog_ok, "actions": actions_ok})
