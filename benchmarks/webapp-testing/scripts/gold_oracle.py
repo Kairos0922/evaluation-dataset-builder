@@ -604,11 +604,11 @@ def report_has_state_cycle_result(
 ) -> bool:
     """Check that the Skill report's explicit verdict matches the observed cycle."""
     normalized_report = re.sub(r"[*_]", "", report_text)
-    match = re.search(
-        r"(?:判定|结论|结果|verdict)[^\n]{0,30}\b(PASS|FAIL|UNKNOWN)\b",
-        normalized_report,
-        re.I,
-    )
+    label_match = re.search(r"(?:判定|结论|结果|verdict)", normalized_report, re.I)
+    match = None
+    if label_match:
+        verdict_section = normalized_report[label_match.start():label_match.start() + 80]
+        match = re.search(r"(PASS|FAIL|UNKNOWN)", verdict_section, re.I)
     if match is None:
         # Backward compatibility for earlier reports that label the result as
         # "BR-07 PASS" without a separate summary verdict line.
