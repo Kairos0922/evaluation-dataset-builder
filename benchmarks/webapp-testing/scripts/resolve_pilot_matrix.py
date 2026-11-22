@@ -66,7 +66,7 @@ def case_text(case: dict) -> str:
 
 def role_score(case: dict, role: str) -> int:
     text = case_text(case).casefold()
-    message = user_message(case).casefold()
+    message = user_message(case).casefold().replace("`", "")
     rules = set(case.get("business_rule_refs") or [])
     workflows = set(case.get("workflow_refs") or [])
     buckets = set(case.get("scenario_bucket") or [])
@@ -412,6 +412,18 @@ def self_test() -> int:
     }
     if role_score(builder_delete_confirm_shape, "delete_confirmation") <= 0:
         fail("Builder-shaped delete-confirmation case did not resolve")
+
+    # Builder may quote the visible confirmation control with Markdown code
+    # delimiters. Formatting must not hide an otherwise explicit destructive action.
+    actual_builder_delete_confirm_shape = {
+        "business_rule_refs": ["BR-08", "BR-01"],
+        "workflow_refs": ["WF-DELETE-CONFIRM"],
+        "user_input": (
+            "点击 Delete 打开确认对话框，然后点击 `Delete task` 确认删除一次。"
+        ),
+    }
+    if role_score(actual_builder_delete_confirm_shape, "delete_confirmation") <= 0:
+        fail("Markdown-formatted Builder delete-confirmation request did not resolve")
 
     # Regression: Builder may use WF-STATUS and ordered per-click expectations
     # instead of WF-01/WF-02/WF-03 or a literal transition arrow.
