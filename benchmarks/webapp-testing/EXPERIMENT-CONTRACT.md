@@ -1,4 +1,4 @@
-**当前状态（2026-11-22）：** Round 4 正式验收 **NOT PASSED**。P0 资产冻结、P1 Builder 正式生产、P2 对真实 Builder 产物的独立验证均 PASS。P3 三条真实 Pilot 中 WB-02 与 WB-10 完成，WB-12 因 DeepSeek HTTP 402 / QUOTA 未完成，未执行 DELETE；修正后的独立 Oracle 结果为 2 PASS、0 FAIL、1 UNKNOWN。当前 GitHub Actions 中没有可用替代模型凭证（Groq 已配置但 Models API 返回 403，其余常见渠道未配置）。没有发起新的模型生成请求。PR #38 保持 Draft/Open/unmerged。本文下方历史阶段与旧结果保留作为记录；**若与本段及 `round4-final-acceptance-decision-2026-11-22.md` 冲突，以当前状态为准。**
+**当前状态（2026-11-22）：** Round 4 正式验收 **NOT PASSED**。Builder 正式生产和真实 Builder 输出的独立验证均 PASS；WB-02、WB-10 已完成并由修正 Oracle 判定 PASS；WB-12 因 DeepSeek HTTP 402 / QUOTA 中断，未执行 DELETE，官方判定仍为 UNKNOWN。现有 `OPENROUTER_API_KEY` 已配置为唯一允许的免费重试渠道，计划使用 `inclusionai/ling-3.2-flash:free`；但 2026-11-22 14:42 UTC 的只读 quota gate 返回 free quota remaining=0，未发送 inference，未产生付费请求。每日 08:30 UTC 自动重查。该替代模型的真实 Skill 执行能力尚未验证。PR #38 保持 Draft/Open/unmerged。本文下方历史阶段与旧结果保留作为记录；**若与本段及 `round4-final-acceptance-decision-2026-11-22.md` 冲突，以当前状态为准。**
 
 
 
@@ -14,6 +14,6 @@
 - WB-12：真实执行被 API quota/balance 阻断，DELETE 未发生，判定 UNKNOWN。
 - Corrected Oracle：2 PASS / 0 FAIL / 1 UNKNOWN。
 - Overall Round 4 acceptance：**NOT PASSED**，第三条 Pilot 未完成。
-- 模型渠道只读检查：DeepSeek 余额 `-0.01 CNY` / unavailable；常见替代凭证未配置，Groq endpoint 403。检查未调用生成 API。
+- 模型渠道只读检查：DeepSeek 余额 `-0.01 CNY` / unavailable；Groq endpoint 403；其余常见渠道未配置。现有 OpenRouter free-model quota 在最新检查时 remaining=0，未调用生成 API。
 - 禁止通过人工编写/模拟执行证据、改用不同执行器冒充真实 Skill、或把 UNKNOWN 改为 PASS 来关闭验收。
-- 继续执行唯一允许的剩余真实步骤：在获得可用且授权的模型通道后，对冻结 Builder 产物中的 WB-12 做 targeted run；不重跑 Builder、WB-02、WB-10。
+- 继续执行唯一允许的剩余真实步骤：仅当 OpenRouter free quota 达到安全阈值时，对冻结 Builder 产物中的 WB-12 做一次 targeted run；不重跑 Builder、WB-02、WB-10，不使用付费 fallback 或 DeepSeek API。
