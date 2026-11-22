@@ -83,5 +83,55 @@ class GoldOracleReportingTests(unittest.TestCase):
             self.assertEqual(report_text, "Raw diagnostic report")
 
 
+    def test_search_queries_support_builder_search_queries_values(self):
+        case = {
+            "user_input": "分别用 `PASSWORD` 和 `password` 搜索。",
+            "execution_requirements": {
+                "test_data": [{"kind": "search_queries", "values": ["PASSWORD", "password"]}],
+            },
+        }
+        self.assertEqual(
+            ORACLE.extract_search_queries(case, ORACLE.INITIAL),
+            ["PASSWORD", "password"],
+        )
+
+    def test_expected_search_titles_support_expected_match_example(self):
+        case = {
+            "execution_requirements": {
+                "test_data": [{"kind": "expected_match_example", "value": "Reset password flow（标题）"}],
+            },
+        }
+        self.assertEqual(
+            ORACLE.expected_search_task_titles(case, ORACLE.INITIAL),
+            ["Reset password flow"],
+        )
+
+    def test_target_task_resolves_visible_title_without_id(self):
+        case = {
+            "execution_requirements": {
+                "test_data": [{"kind": "target_task", "visible_title": "Verify email notification"}],
+            },
+        }
+        target = ORACLE.target_task(case, ORACLE.INITIAL)
+        self.assertEqual(target["id"], "WB-104")
+        self.assertEqual(target["title"], "Verify email notification")
+
+    def test_state_cycle_report_accepts_result_label_and_markdown(self):
+        report = "**结果：PASS** — BR-07 在本次执行中满足。"
+        self.assertTrue(
+            ORACLE.report_has_state_cycle_result(
+                report, "WB-101", "Reset password flow"
+            )
+        )
+
+    def test_quota_block_is_classified_as_external_unknown(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            (root / "dsh-stderr.log").write_text("dsh: QUOTA: Insufficient Balance", encoding="utf-8")
+            runner = {"runner_status": "BLOCKED"}
+            self.assertIn("quota/balance block", ORACLE.provider_quota_blocker(root, runner))
+            (root / "dsh-stderr.log").write_text("ordinary runtime failure", encoding="utf-8")
+            self.assertIsNone(ORACLE.provider_quota_blocker(root, runner))
+
 if __name__ == "__main__":
     unittest.main()
