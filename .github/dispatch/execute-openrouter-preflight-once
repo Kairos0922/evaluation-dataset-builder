@@ -11,3 +11,5 @@ Run a single preflight with the fixed PR gate. Free model only, 16 output tokens
 Retry OpenRouter preflight after repository secret configuration; verify one free-router request only.
 
 Run free-model qualification matrix: five zero-priced text models, instruction-following and JSON-format checks only. No Builder production or Skill pilots.
+
+Repeat two structured-output trials on each model that passed the initial free-model screen. Pull-request event only to avoid duplicate requests.
