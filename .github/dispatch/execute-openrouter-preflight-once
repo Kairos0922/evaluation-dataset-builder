@@ -28,3 +28,6 @@ Run exactly one corrected OpenRouter free-router preflight. Check free daily quo
 
 
 Run exactly one preflight against nvidia/nemotron-3-ultra-550b-a55b:free. The dedicated push-only workflow owns the inference request; the PR workflow must skip its duplicate request. Check the account free-model quota first and send zero inference requests if remaining is zero or cannot be verified. One request maximum. Do not run Builder production, independent validation, qualification trials, or Skill pilots.
+
+
+Run exactly one preflight against baidu/ernie-5.5-flash-preview:free. The dedicated push-only workflow owns the inference request. Check the account free-model quota first and send zero inference requests if remaining is zero or cannot be verified. One request maximum. Do not run Builder production, independent validation, qualification trials, or Skill pilots.
