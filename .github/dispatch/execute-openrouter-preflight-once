@@ -31,3 +31,6 @@ Run exactly one preflight against nvidia/nemotron-3-ultra-550b-a55b:free. The de
 
 
 Run exactly one preflight against baidu/ernie-5.5-flash-preview:free. The dedicated push-only workflow owns the inference request. Check the account free-model quota first and send zero inference requests if remaining is zero or cannot be verified. One request maximum. Do not run Builder production, independent validation, qualification trials, or Skill pilots.
+
+
+Send exactly one direct inference request to baidu/ernie-5.5-flash-preview:free without a quota pre-check. This is a single zero-priced free-model attempt, no retries, no paid fallback, and no Builder production or Skill pilots.
