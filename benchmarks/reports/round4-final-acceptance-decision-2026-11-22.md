@@ -2,14 +2,14 @@
 
 **NOT PASSED.** Builder production and independent validation passed. The initial Oracle report falsely failed two completed pilots and misclassified the quota-blocked third pilot. After correcting the adjudicator and re-running it offline against the same immutable artifacts, the result is **2 PASS, 0 FAIL, 1 UNKNOWN**. WB-12 did not execute to completion because the provider returned HTTP 402 QUOTA. The three-case acceptance gate therefore remains unmet.
 
-This is a terminal decision for this attempt. No retries, regenerated Builder output, or new engineering work are authorized by this report.
+A targeted WB-12-only retry was subsequently initiated at the user's direction. It reused the frozen Builder dataset and did not send any generation request because the GitHub Actions preflight again reported insufficient DeepSeek balance. The acceptance decision remains NOT PASSED.
 
 ## Frozen scope
 
 1. Reuse the Round 4 Builder output and independent-validator PASS.
 2. Execute the three Builder-authored pilots once.
 3. Review immutable pilot evidence and independent Oracle output.
-4. Publish a final PASS/FAIL decision. No retry to chase PASS.
+4. Publish the decision and, if explicitly authorized, retry only an externally blocked case using the same frozen dataset. No dataset regeneration.
 
 PR #38 remains Draft/Open/unmerged.
 
@@ -74,6 +74,14 @@ Exact-head CI run [44985689752](https://github.com/Kairos0922/evaluation-dataset
 
 Across all three pilot attempts: **48 model steps, 68 tool calls, 42,837 input tokens, 41,886 output tokens, 938,752 cache-read tokens, 1,023,475 total tokens**. USD cost is not available and is not estimated. WB-12's quota error occurred before deletion, so no destructive action was taken.
 
+## Targeted WB-12 retry after this decision
+
+- Workflow run [44993465567](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44993465567), job `wb12`, commit `32a4c5d569d1bbced263d4008dc4cf07ca325a6f`.
+- Frozen source artifact download and WB-12 identity checks: PASS.
+- DeepSeek preflight: **FAIL** with `Insufficient Balance`; no generation request sent. DSH installation and execution steps were skipped.
+- Artifact: `round4-wb12-retry-only`, ID 14742299922. It contains the frozen source inputs and no WB-12 execution evidence.
+- This is a provider/account credential or balance issue, not a Skill result. It does not change WB-12 from UNKNOWN or the acceptance decision.
+
 ## Final gate
 
 | Gate | Result |
@@ -89,4 +97,4 @@ Across all three pilot attempts: **48 model steps, 68 tool calls, 42,837 input t
 
 ## Stop condition
 
-Round 4 is closed **NOT PASSED**. Do not regenerate the Builder dataset, rerun paid pilots, add engineering work, merge or close PR #38. PR #38 remains Draft/Open/unmerged. A future round requires an explicit new decision and should prioritize fixing Oracle case-schema alignment and blocked-vs-business-fail classification before any new paid run.
+Round 4 remains **NOT PASSED**. Do not regenerate the Builder dataset or rerun any completed pilots. WB-12 can only be retried after the GitHub Actions DeepSeek credential/account balance is verified as usable; use the same frozen dataset and targeted retry. PR #38 remains Draft/Open/unmerged.
