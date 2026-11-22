@@ -108,3 +108,15 @@ A separate diagnostic workflow made GET-only requests to DeepSeek's balance and 
 - DeepSeek returned `is_available: false`, currency CNY, `total_balance: -0.01`, `granted_balance: 0.00`, `topped_up_balance: -0.01`.
 - This confirms the API credential used by GitHub Actions currently resolves to an account with unavailable/negative balance. It does not reveal how the balance was consumed or prove which request caused it.
 - No generation request was made by this diagnostic. WB-12 remains UNKNOWN; no paid retries are authorized until the balance/key is corrected.
+
+
+## Alternate LLM credential probe (2026-11-22)
+
+To avoid another DeepSeek generation attempt, a temporary read-only GitHub Actions probe checked common provider credentials via GET model-catalog endpoints. No generation calls were made.
+
+- Run [45001273706](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45001273706) completed successfully.
+- OpenAI, Anthropic, Gemini/Google, OpenRouter, Together, Moonshot, Zhipu, and Qwen credentials were not configured in this repository's Actions environment.
+- A Groq credential was present, but the read-only `/openai/v1/models` request returned HTTP 403, so it was not usable from this environment.
+- No alternate LLM credential was verified as available. The temporary diagnostic workflow and trigger marker were removed after recording the result.
+
+**Execution remains blocked:** no available alternate provider was found. Do not claim WB-12 passed or rerun it until an accessible credential/provider is configured.
