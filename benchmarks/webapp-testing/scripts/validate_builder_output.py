@@ -111,11 +111,36 @@ def evaluation_subject_contract_issues(case: dict) -> list[str]:
     issues = []
     for criterion in grading.get("criteria", []):
         fail_condition = str(criterion.get("fail_condition") or "")
-        clauses = [
-            clause.strip()
-            for clause in re.split(r"[;；，、,。]|\s+\bor\b\s+|或", fail_condition, flags=re.I)
-            if clause.strip()
-        ]
+        # Chinese often omits the subject in coordinated object lists:
+        # "Skill 漏报 A、B 或 C" and "Skill 遗漏 A，或报告 B".
+        # Keep those objects/predicates attached to the governing Skill failure,
+        # but split independent clauses so one valid clause cannot mask another.
+        clauses = []
+        parts = re.split(r"([;；，、,。]|\s+\bor\b\s+|或)", fail_condition, flags=re.I)
+        current = ""
+        for index in range(0, len(parts), 2):
+            segment = parts[index].strip()
+            delimiter = parts[index + 1] if index + 1 < len(parts) else ""
+            if not segment:
+                continue
+            if not current:
+                current = segment
+                continue
+            inherited_omission = bool(re.search(
+                r"(?:Skill|Agent|智能体|助手).{0,24}(?:漏报|遗漏)|(?:漏报|遗漏).{0,24}",
+                current, re.I,
+            ))
+            omission_continuation = inherited_omission and (
+                delimiter in {"，", "、"} or
+                (delimiter == "或" and re.match(r"(?:报告|记录|空状态|摘要|状态|标签|数量|标题)", segment))
+            )
+            if omission_continuation:
+                current += delimiter + segment
+            else:
+                clauses.append(current)
+                current = segment
+        if current:
+            clauses.append(current)
         for clause in clauses:
             if raw_sut_outcome.search(clause) and not agent_behavior_failure.search(clause):
                 issues.append(
