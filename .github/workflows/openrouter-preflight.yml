@@ -1,0 +1,70 @@
+name: OpenRouter free-model preflight
+on:
+  push:
+    branches:
+      - experiment/webapp-testing-contract
+    paths:
+      - ".github/dispatch/execute-openrouter-preflight-once"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - ".github/dispatch/execute-openrouter-preflight-once"
+permissions:
+  contents: read
+concurrency:
+  group: openrouter-preflight-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  preflight:
+    if: github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check OpenRouter secret and request free route
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request, urllib.error
+          from pathlib import Path
+          key=os.environ.get("OPENROUTER_API_KEY","").strip()
+          result={"provider":"openrouter","secret_configured":bool(key),"generation_requests":0,"status":"BLOCKED"}
+          if not key:
+              result["reason"]="OPENROUTER_API_KEY secret missing; no request sent."
+          else:
+              req=urllib.request.Request(
+                  "https://openrouter.ai/api/v1/chat/completions",
+                  data=json.dumps({"model":"openrouter/free","messages":[{"role":"user","content":"Reply exactly OPENROUTER_OK"}],"max_tokens":16}).encode(),
+                  headers={"Authorization":"Bearer "+key,"Content-Type":"application/json","HTTP-Referer":"https://github.com/Kairos0922/evaluation-dataset-builder","X-Title":"Evaluation Dataset Builder preflight"},
+                  method="POST")
+              try:
+                  with urllib.request.urlopen(req,timeout=40) as response:
+                      payload=json.loads(response.read().decode())
+                      result["http_status"]=response.status
+                      result["generation_requests"]=1
+                      result["model"]=payload.get("model")
+                      choices=payload.get("choices") or []
+                      text=choices[0].get("message",{}).get("content","") if choices else ""
+                      result["response_marker_present"]="OPENROUTER_OK" in text
+                      result["status"]="PASS" if result["response_marker_present"] else "FAIL"
+                      result["response_excerpt"]=text[:100]
+              except urllib.error.HTTPError as exc:
+                  result["http_status"]=exc.code
+                  result["reason"]="Request rejected; body omitted to avoid credential or provider data exposure."
+              except Exception as exc:
+                  result["reason"]=type(exc).__name__+": "+str(exc)
+          Path("openrouter-preflight.json").write_text(json.dumps(result,indent=2)+"\\n")
+          print(json.dumps(result,indent=2))
+          if result["status"]!="PASS":
+              raise SystemExit(1)
+          PY
+      - name: Archive result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openrouter-free-preflight
+          path: openrouter-preflight.json
+          if-no-files-found: warn
+          retention-days: 7
