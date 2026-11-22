@@ -1,10 +1,5 @@
 name: OpenRouter free-model preflight
 on:
-  push:
-    branches:
-      - experiment/webapp-testing-contract
-    paths:
-      - ".github/dispatch/execute-openrouter-preflight-once"
   pull_request:
     branches:
       - main
@@ -17,7 +12,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   preflight:
-    if: github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository)
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -108,13 +103,44 @@ jobs:
                               item[case]={"error":type(exc).__name__}
                       item["status"]="PASS" if item.get("instruction",{}).get("marker_match") and item.get("structured",{}).get("json_valid") else "FAIL"
                       report["results"].append(item)
-                  report["status"]="PASS" if any(x["status"]=="PASS" for x in report["results"]) else ("FAIL" if report["results"] else "BLOCKED")
+                  qualified=[x for x in report["results"] if x["status"]=="PASS"][:2]
+                  report["stability_trials"]=[]
+                  for model in qualified:
+                      mid=model["model"]
+                      for trial in range(1,3):
+                          trial_result={"model":mid,"trial":trial,"status":"FAIL"}
+                          try:
+                              report["generation_requests"]+=1
+                              _,payload=request("https://openrouter.ai/api/v1/chat/completions",
+                                  {"model":mid,"messages":[{"role":"user","content":
+                                   "Return exactly one JSON object with keys marker, status, count. Values must be OPENROUTER_OK, ok, and 3. No markdown."}],
+                                   "max_tokens":128,"temperature":0},timeout=45)
+                              choices=payload.get("choices") or []
+                              msg=(choices[0].get("message") or {}) if choices else {}
+                              output=msg.get("content")
+                              output=output if isinstance(output,str) else ""
+                              try:
+                                  parsed=json.loads(output)
+                                  passed=(parsed.get("marker")=="OPENROUTER_OK" and parsed.get("status")=="ok" and parsed.get("count")==3)
+                              except Exception:
+                                  passed=False
+                              trial_result.update({"status":"PASS" if passed else "FAIL",
+                                                   "finish_reason":choices[0].get("finish_reason") if choices else None,
+                                                   "excerpt":output[:120]})
+                          except urllib.error.HTTPError as exc:
+                              trial_result.update({"http_status":exc.code,"error":"provider rejected request"})
+                          except Exception as exc:
+                              trial_result["error"]=type(exc).__name__
+                          report["stability_trials"].append(trial_result)
+                  passed_trials=sum(x["status"]=="PASS" for x in report["stability_trials"])
+                  report["stability_pass_rate"]=passed_trials/len(report["stability_trials"]) if report["stability_trials"] else None
+                  report["status"]="PASS" if qualified and passed_trials==len(report["stability_trials"]) else ("DEGRADED" if qualified else ("FAIL" if report["results"] else "BLOCKED"))
               except Exception as exc:
                   report["reason"]=type(exc).__name__+": "+str(exc)
                   report["status"]="FAIL"
           Path("openrouter-preflight.json").write_text(json.dumps(report,indent=2,ensure_ascii=False)+"\n")
           print(json.dumps(report,indent=2,ensure_ascii=False))
-          if report["status"]=="FAIL":
+          if report["status"] in ("FAIL","DEGRADED"):
               raise SystemExit(1)
           if report["status"]=="BLOCKED":
               print("::warning::No eligible free model was tested.")
