@@ -573,7 +573,7 @@ jobs:
     timeout-minutes: 45
     env:
       DSH_HOME: ${{ github.workspace }}/.dsh-home
-      DSH_MODEL: deepseek-flash
+      DSH_MODEL: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
       DSH_TELEMETRY_MODE: DISABLED
       DSH_TELEMETRY_DISABLED: "1"
       DSH_VERSION: "0.2.2-rc.1"
@@ -584,20 +584,31 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Check model credential availability
+      - name: Check OpenRouter credential and free quota before model requests
         env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -euo pipefail
-          test -n "$DEEPSEEK_API_KEY" || {
-            echo "::error::DEEPSEEK_API_KEY is missing; no model request was sent."
-            exit 2
-          }
-
-      - name: Check DeepSeek account balance before any model request
-        env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
-        run: python scripts/deepseek_model_preflight.py --model deepseek-flash
+          python - <<'PY'
+          import json, os, urllib.request, urllib.error
+          key=os.environ.get("OPENROUTER_API_KEY","").strip()
+          if not key:
+              raise SystemExit("OPENROUTER_API_KEY missing; no model request was sent.")
+          request=urllib.request.Request("https://openrouter.ai/api/v1/key",
+              headers={"Authorization":"Bearer "+key,"Accept":"application/json"},method="GET")
+          try:
+              with urllib.request.urlopen(request,timeout=20) as response:
+                  payload=json.loads(response.read().decode())
+          except urllib.error.HTTPError as exc:
+              raise SystemExit(f"OpenRouter key/quota preflight failed with HTTP {exc.code}; no model request was sent.") from None
+          quota=(payload.get("data") or {}).get("free_model_daily_requests")
+          remaining=quota.get("remaining") if isinstance(quota,dict) else None
+          if not isinstance(remaining,int):
+              raise SystemExit("OpenRouter free quota could not be verified; no model request was sent.")
+          print(json.dumps({"free_model_daily_requests":quota,"generation_requests_made":0},indent=2))
+          if remaining < 2:
+              raise SystemExit("Fewer than two free requests remain; refusing to start connectivity + Builder calls.")
+          PY
 
       - name: Install Node.js
         uses: actions/setup-node@v4
@@ -622,6 +633,8 @@ jobs:
           dsh --version
 
       - name: Configure isolated DSH and stage Builder Skill
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -euo pipefail
           BUILDER_WORKSPACE="$RUNNER_TEMP/builder-workspace"
@@ -630,6 +643,19 @@ jobs:
           - id: session-log-deepseek
             config:
               enabled: false
+          - id: llm-pi-ai
+            config:
+              providers:
+                openrouter-custom:
+                  apiKeyEnv: OPENROUTER_API_KEY
+                  api: openai-completions
+                  baseURL: https://openrouter.ai/api/v1
+                  models:
+                    - id: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+          - id: agent-default-model
+            config:
+              provider: openrouter-custom
+              model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
           YAML
           cp -R skills/evaluation-dataset-builder "$BUILDER_WORKSPACE/.dsh/skills/evaluation-dataset-builder"
           test -s "$BUILDER_WORKSPACE/.dsh/skills/evaluation-dataset-builder/SKILL.md"
@@ -734,9 +760,9 @@ jobs:
           )
           PY
 
-      - name: Probe DeepSeek model connectivity before Builder production
+      - name: Probe OpenRouter model connectivity before Builder production
         env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -euo pipefail
           prompt="$RUNNER_TEMP/builder-connectivity-probe.txt"
@@ -826,7 +852,7 @@ jobs:
       - name: Invoke Evaluation Dataset Builder through DSH
         id: builder_dsh
         env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -euo pipefail
           BUILDER_WORKSPACE="$RUNNER_TEMP/builder-workspace"
@@ -954,7 +980,7 @@ jobs:
       - name: Check and redact any accidental credential disclosure
         if: always()
         env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           mkdir -p artifacts
           python - <<'PY'
@@ -962,7 +988,7 @@ jobs:
           import os
           from pathlib import Path
 
-          secret = os.environ.get("DEEPSEEK_API_KEY", "").encode()
+          secret = os.environ.get("OPENROUTER_API_KEY", "").encode()
           targets = [
               Path("artifacts/builder-connectivity-probe-events.jsonl"),
               Path("artifacts/builder-connectivity-probe-stderr.log"),
