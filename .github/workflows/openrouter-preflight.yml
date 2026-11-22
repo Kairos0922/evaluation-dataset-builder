@@ -112,7 +112,7 @@ jobs:
               except Exception as exc:
                   report["reason"]=type(exc).__name__+": "+str(exc)
                   report["status"]="FAIL"
-          Path("openrouter-preflight.json").write_text(json.dumps(report,indent=2,ensure_ascii=False)+"\\n")
+          Path("openrouter-preflight.json").write_text(json.dumps(report,indent=2,ensure_ascii=False)+"\n")
           print(json.dumps(report,indent=2,ensure_ascii=False))
           if report["status"]=="FAIL":
               raise SystemExit(1)
