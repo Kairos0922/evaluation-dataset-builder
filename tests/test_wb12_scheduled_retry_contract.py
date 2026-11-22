@@ -15,6 +15,10 @@ class ScheduledWB12RetryContractTests(unittest.TestCase):
     def test_scheduled_after_daily_quota_monitor(self):
         self.assertIn('cron: "30 8 * * *"', self.text)
         self.assertIn("workflow_dispatch:", self.text)
+        self.assertIn("pull-requests: read", self.text)
+        self.assertIn("/pulls/38", self.text)
+        self.assertIn("PR #38 is not Draft/Open/Unmerged", self.text)
+        self.assertIn("ref: dbbb11a5041f592da2238dd4ea303edd07b40151", self.text)
 
     def test_uses_only_openrouter_free_model_and_existing_secret(self):
         self.assertIn("secrets.OPENROUTER_API_KEY", self.text)
