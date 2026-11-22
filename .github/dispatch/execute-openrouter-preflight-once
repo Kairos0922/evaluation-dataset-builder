@@ -34,3 +34,6 @@ Run exactly one preflight against baidu/ernie-5.5-flash-preview:free. The dedica
 
 
 Send exactly one direct inference request to baidu/ernie-5.5-flash-preview:free without a quota pre-check. This is a single zero-priced free-model attempt, no retries, no paid fallback, and no Builder production or Skill pilots.
+
+
+2026-11-22: Check OpenRouter free daily quota metadata first. If remaining is positive, send exactly one qualification request to inclusionai/ling-3.2-flash:free. If zero or unverifiable, send zero inference requests. Never use paid fallback. No Builder production or Skill pilots.
