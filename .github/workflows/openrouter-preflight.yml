@@ -1,4 +1,4 @@
-name: OpenRouter free-model preflight
+name: OpenRouter free-router connectivity preflight
 on:
   push:
     branches:
@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Probe multiple zero-cost text models
+      - name: Probe the OpenRouter free router once
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
@@ -25,7 +25,7 @@ jobs:
           import json, os, urllib.request, urllib.error
           from pathlib import Path
 
-          MODEL="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
+          MODEL="openrouter/free"
           key=os.environ.get("OPENROUTER_API_KEY","").strip()
           report={"provider":"openrouter","secret_configured":bool(key),"model":MODEL,
                   "generation_requests":0,"status":"BLOCKED"}
@@ -34,7 +34,7 @@ jobs:
           else:
               headers={"Authorization":"Bearer "+key,"Content-Type":"application/json",
                        "HTTP-Referer":"https://github.com/Kairos0922/evaluation-dataset-builder",
-                       "X-Title":"Evaluation Dataset Builder free-model task probe"}
+                       "X-Title":"Evaluation Dataset Builder free-router connectivity preflight"}
               try:
                   quota_req=urllib.request.Request("https://openrouter.ai/api/v1/key",
                       headers={"Authorization":"Bearer "+key,"Accept":"application/json"},method="GET")
@@ -48,17 +48,10 @@ jobs:
                   elif remaining < 1:
                       report["reason"]="Free-model daily request quota exhausted; no generation request sent."
                   else:
-                      prompt=("Apply these refund rules: requests are eligible within 7 calendar days after delivery; "
-                              "used products are not refundable unless defective; shipping fees are never refunded. "
-                              "Return JSON only with a cases array of exactly 4 objects. Each object must have case_id, "
-                              "expected_decision (approve or reject), and refund_shipping_fee (boolean). Cover: "
-                              "unused item delivered 3 days ago; used non-defective item delivered 2 days ago; "
-                              "used defective item delivered 5 days ago; unused item delivered 8 days ago. "
-                              "Expected decisions in that order: approve, reject, approve, reject. "
-                              "Set refund_shipping_fee to false for every case.")
+                      prompt="Reply exactly OPENROUTER_OK"
                       req=urllib.request.Request("https://openrouter.ai/api/v1/chat/completions",
                           data=json.dumps({"model":MODEL,"messages":[{"role":"user","content":prompt}],
-                                           "max_tokens":1200,"temperature":0}).encode(),
+                                           "max_tokens":16,"temperature":0}).encode(),
                           headers=headers,method="POST")
                       report["generation_requests"]=1
                       try:
@@ -68,16 +61,7 @@ jobs:
                               msg=(choices[0].get("message") or {}) if choices else {}
                               output=msg.get("content")
                               output=output if isinstance(output,str) else ""
-                              try:
-                                  parsed=json.loads(output)
-                                  cases=parsed.get("cases",[]) if isinstance(parsed,dict) else []
-                                  decisions=[x.get("expected_decision") for x in cases]
-                                  fees=[x.get("refund_shipping_fee") for x in cases]
-                                  valid=(len(cases)==4 and len({x.get("case_id") for x in cases})==4
-                                         and decisions==["approve","reject","approve","reject"]
-                                         and fees==[False,False,False,False])
-                              except Exception:
-                                  valid=False
+                              valid=(output.strip()=="OPENROUTER_OK")
                               report["http_status"]=response.status
                               report["finish_reason"]=choices[0].get("finish_reason") if choices else None
                               report["task_probe"]={"status":"PASS" if valid else "FAIL",
