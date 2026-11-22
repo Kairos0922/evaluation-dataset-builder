@@ -39,6 +39,7 @@ jobs:
                   data=json.dumps({"model":"openrouter/free","messages":[{"role":"user","content":"Reply exactly OPENROUTER_OK"}],"max_tokens":16}).encode(),
                   headers={"Authorization":"Bearer "+key,"Content-Type":"application/json","HTTP-Referer":"https://github.com/Kairos0922/evaluation-dataset-builder","X-Title":"Evaluation Dataset Builder preflight"},
                   method="POST")
+              result["generation_requests"]=1
               try:
                   with urllib.request.urlopen(req,timeout=40) as response:
                       payload=json.loads(response.read().decode())
@@ -55,10 +56,12 @@ jobs:
                   result["reason"]="Request rejected; body omitted to avoid credential or provider data exposure."
               except Exception as exc:
                   result["reason"]=type(exc).__name__+": "+str(exc)
-          Path("openrouter-preflight.json").write_text(json.dumps(result,indent=2)+"\\n")
+          Path("openrouter-preflight.json").write_text(json.dumps(result,indent=2)+"\n")
           print(json.dumps(result,indent=2))
-          if result["status"]!="PASS":
+          if result["status"]=="FAIL":
               raise SystemExit(1)
+          if result["status"]=="BLOCKED":
+              print("::warning::OpenRouter credential unavailable; no generation request sent.")
           PY
       - name: Archive result
         if: always()
