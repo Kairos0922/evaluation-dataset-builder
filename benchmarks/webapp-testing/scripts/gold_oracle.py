@@ -1004,6 +1004,26 @@ def extract_search_queries(case: dict, tasks: list[dict]) -> list[str]:
                 queries.append(match.group(1))
     return list(dict.fromkeys(query for query in queries if query and not query.startswith("<")))
 
+def expected_search_task_titles(case: dict, tasks: list[dict]) -> list[str]:
+    """Resolve Builder-authored expected title examples without relying on legacy fields."""
+    test_data = ((case.get("execution_requirements") or {}).get("test_data") or [])
+    titles = []
+    for item in test_data:
+        if not isinstance(item, dict):
+            continue
+        kind = str(item.get("kind") or "").casefold()
+        if kind in {"expected_match_example", "expected_title", "expected_task"}:
+            value = item.get("value") or item.get("title") or item.get("visible_title")
+            if isinstance(value, str):
+                titles.extend(task["title"] for task in tasks if task.get("title") and task["title"] in value)
+    message = user_message(case)
+    for task in tasks:
+        title = task.get("title")
+        if title and title in message:
+            titles.append(title)
+    return list(dict.fromkeys(titles))
+
+
 def expected_search_counts(queries: list[str], tasks: list[dict], branch_name: str) -> dict[str, int]:
     """Model the independently specified fixture branch, not target-reported counts."""
     counts = {}
@@ -1543,23 +1563,9 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
                     for query in required_queries
                 )
             ]
-        # Dynamic Builder schemas may store an explicit expected-match example
-        # in test_data instead of a structured reference_outcome.expected map.
-        test_data = ((case.get("execution_requirements") or {}).get("test_data") or [])
-        example_titles = []
-        for item in test_data:
-            if not isinstance(item, dict):
-                continue
-            kind = str(item.get("kind") or "").casefold()
-            if kind in {"expected_match_example", "expected_title", "expected_task"}:
-                value = item.get("value") or item.get("title") or item.get("visible_title")
-                if isinstance(value, str):
-                    example_titles.extend(
-                        task["title"] for task in initial_tasks
-                        if task.get("title") and task["title"] in value
-                    )
+        example_titles = expected_search_task_titles(case, initial_tasks)
         if example_titles:
-            expected_tasks = [{"title": title} for title in dict.fromkeys(example_titles)]
+            expected_tasks = [{"title": title} for title in example_titles]
         declared_expected = ((case.get("reference_outcome") or {}).get("expected") or {})
         declared_titles = list(dict.fromkeys(
             title for values in declared_expected.values() if isinstance(values, list)
