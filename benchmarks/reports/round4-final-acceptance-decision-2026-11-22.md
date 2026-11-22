@@ -1,8 +1,6 @@
 # Round 4 final acceptance decision (2026-11-22)
 
-## Decision
-
-**NOT PASSED.** Builder production and independent validation passed. The three real pilot runs and Oracle completed, but the independent adjudication returned FAIL for all three cases. Review of the immutable artifacts reveals two apparent Oracle contract/schema false-failures and one pilot blocked by model-provider quota. Therefore the Builder-generated suite is **not accepted in this round**. The evidence is sufficient to close this attempt without additional runs.
+**NOT PASSED.** Builder production and independent validation passed. The initial Oracle report falsely failed two completed pilots and misclassified the quota-blocked third pilot. After correcting the adjudicator and re-running it offline against the same immutable artifacts, the result is **2 PASS, 0 FAIL, 1 UNKNOWN**. WB-12 did not execute to completion because the provider returned HTTP 402 QUOTA. The three-case acceptance gate therefore remains unmet.
 
 This is a terminal decision for this attempt. No retries, regenerated Builder output, or new engineering work are authorized by this report.
 
@@ -27,11 +25,11 @@ PR #38 remains Draft/Open/unmerged.
 
 ## Pilot results and evidence review
 
-| Case | Execution | Observed behavior | Oracle result | Independent review |
+| Case | Execution | Observed behavior | Corrected Oracle result | Independent review |
 |---|---|---|---|---|
-| WB-02 search mutation | DSH completed; 65.48s; 15 model steps; 21 tool calls; budget PASS | `PASSWORD` returned 0 and empty state; `password` returned 1, “Reset password flow”. Skill report accurately identifies case-sensitive behavior and BR-02 violation. No mutations. | Contract FAIL; business UNKNOWN | **Skill observation/report is behaviorally correct.** Oracle checks required probes/titles as empty because it did not extract the Builder case's array-form `expected_behavior` / query schema. It therefore fails to adjudicate the case contract. |
-| WB-10 state cycle | DSH completed; 121.218s; 18 model steps; 26 tool calls; budget PASS | Exactly 3 PATCHes on WB-101: Open→In progress→Done→Open. Each summary matched; final state matched baseline; no other mutations. Skill report says PASS. | Contract FAIL; business FAIL | **Observed behavior PASS. Oracle false-fail suspected/strongly indicated:** its sole failed check says target report verdict does not match expected PASS, while archived report explicitly says PASS and audit transitions match. |
-| WB-12 delete confirmation | DSH error; 81.043s; 15 model steps; 21 tool calls; budget PASS | Provider returned HTTP 402 QUOTA (“Insufficient Balance”). No DELETE occurred; task set and summary remained unchanged; no final report. | Contract FAIL; business FAIL | **Execution blocked; business outcome UNKNOWN, not a business FAIL.** Oracle could not resolve target from Builder test_data schema (target title field), and classified absent execution/report evidence as FAIL rather than separating invocation block from behavior. |
+| WB-02 search mutation | DSH completed; 65.48s; 15 model steps; 21 tool calls; budget PASS | PASSWORD returned 0 and empty state; password returned 1, “Reset password flow”. Skill report accurately identifies case-sensitive behavior and BR-02 violation. No mutations. | **PASS**; business EXPECTED_VIOLATION_DETECTED | Corrected Oracle extracts both query values and expected title from Builder schema; all checks pass. Skill correctly reports the application defect. |
+| WB-10 state cycle | DSH completed; 121.218s; 18 model steps; 26 tool calls; budget PASS | Exactly 3 PATCHes on WB-101: Open→In progress→Done→Open. Each summary matched; final state matched baseline; no other mutations. Skill report says PASS. | **PASS**; business PASS | Corrected Oracle recognizes the report’s 结果：PASS label. Audited transitions, summary, final state, and report verdict all agree. |
+| WB-12 delete confirmation | DSH error; 81.043s; 15 model steps; 21 tool calls; budget PASS | Provider returned HTTP 402 QUOTA (“Insufficient Balance”). No DELETE occurred; task set and summary remained unchanged; no final report. | **UNKNOWN**; business UNKNOWN | Corrected Oracle recognizes the external quota blocker and resolves the target by visible title. It does not treat absent execution/report evidence as target-Skill failure.
 
 ### WB-02 key observation
 
@@ -57,15 +55,20 @@ Three PATCH requests only; the four other tasks remained unchanged. Evidence is 
 
 Runner evidence reports DSH final reason `error`, exit 1, error code `QUOTA`, HTTP 402. Server audit contains only reset and read requests; no DELETE. Pre/post task set is identical. The destructive action was **not** performed.
 
-## Oracle reliability findings
+## Oracle correction and offline re-adjudication
 
-The Oracle's aggregate FAIL is not a reliable business-quality conclusion for this pilot set:
+The original Oracle findings were corrected without regenerating the Builder output or making any model calls. The same immutable artifacts were adjudicated by the corrected Oracle in workflow run [44985689752](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44985689752), artifact **14739706689**.
 
-1. **WB-02 schema extraction mismatch:** Builder `expected_behavior` is an array of prose requirements, but Oracle's required-query extraction appears to expect a different shape. Oracle reports no required queries/expected titles despite actual report and trace documenting both queries. The behavior is corroborated; contract adjudication is unresolved.
-2. **WB-10 verdict mismatch:** archived Skill report says BR-07 PASS, and the server audit records the exact expected transitions. Oracle's failed check contradicts the report and observations. Treat as likely adjudicator false-negative pending code-level fix.
-3. **WB-12 execution-state classification:** the target was never executed to completion due to provider quota. This should be execution-blocked / business UNKNOWN. Oracle instead emits FAIL, and target resolution also appears incompatible with the Builder's target-task test_data schema.
+Fixes:
+- Search probes now read Builder test_data kind=search_queries and its values array.
+- Expected search-match titles are extracted from Builder-authored expected_match_example data.
+- Target resolution supports title-only Builder targets.
+- Report verdict parsing accepts 结果：PASS and Markdown formatting.
+- External provider quota/balance blocks are classified as execution BLOCKED and behavior UNKNOWN, not Skill FAIL.
 
-These findings are recorded as evidence-based defects/limitations in the independent adjudicator, not repaired during this acceptance attempt.
+Corrected results: WB-02 PASS (the Skill accurately detected the application defect), WB-10 PASS, WB-12 UNKNOWN (HTTP 402 QUOTA). Aggregate Oracle status is **UNKNOWN / COMPLETED_WITH_UNKNOWN**, with 2 PASS, 0 FAIL, 1 UNKNOWN. The original adjudicator’s three FAILs were false classifications, not evidence that the target Skill failed these cases.
+
+Exact-head CI run [44985689752](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44985689752) passed: offline tests, Gold Oracle self-test, validator checks, pilot selector checks, and pinned upstream asset audit. No paid Builder or target-Skill execution was triggered.
 
 ## Cost and resource use
 
@@ -77,10 +80,12 @@ Across all three pilot attempts: **48 model steps, 68 tool calls, 42,837 input t
 |---|---|
 | Builder production | PASS |
 | Independent validation | PASS |
-| Three pilot attempts captured | PASS (2 completed, 1 blocked) |
-| Pilot business outcomes | WB-02 accurate observation; WB-10 PASS behavior; WB-12 UNKNOWN/block |
-| Independent Oracle | FAIL, but adjudication reliability compromised by identified mismatches |
-| Overall acceptance | **NOT PASSED** |
+| Three pilot attempts captured | PASS (2 completed, 1 externally blocked) |
+| WB-02 Skill reporting | PASS; application deviation detected |
+| WB-10 state cycle | PASS |
+| WB-12 delete confirmation | UNKNOWN; provider QUOTA / HTTP 402 blocked execution before DELETE |
+| Independent Oracle (corrected, offline) | UNKNOWN: 2 PASS, 0 FAIL, 1 UNKNOWN |
+| Overall acceptance | **NOT PASSED** because required three-case execution gate is incomplete |
 
 ## Stop condition
 
