@@ -120,3 +120,25 @@ To avoid another DeepSeek generation attempt, a temporary read-only GitHub Actio
 - No alternate LLM credential was verified as available. The temporary diagnostic workflow and trigger marker were removed after recording the result.
 
 **Execution remains blocked:** no available alternate provider was found. Do not claim WB-12 passed or rerun it until an accessible credential/provider is configured.
+
+
+## Addendum: one-time free-only WB-12 retry automation (2026-11-22)
+
+This addendum supersedes the earlier DeepSeek-only stop condition above. **Do not use or request `DEEPSEEK_API_KEY`.** The only permitted inference credential for this retry is the existing `OPENROUTER_API_KEY`.
+
+- Selected model: `inclusionai/ling-3.2-flash:free`. OpenRouter lists it as free, with tool calling and structured-output support and a 1,048,576-token context window. The model page currently lists one serving provider; availability is not guaranteed.
+- The workflow is `.github/workflows/round4-wb12-free-retry.yml`, deployed on `main` and the task branch. The default-branch schedule is 08:30 UTC daily, after the read-only/free-model recovery check scheduled at 08:10 UTC.
+- Before any DSH execution, it checks the existing one-time attempt marker and reads OpenRouter quota using GET only. It requires at least 37 free requests remaining: the original Round 4 ceiling of 32 model steps plus a five-request reserve. Below that threshold, it sends zero inference requests.
+- It reuses the exact frozen Builder output and independent-validator PASS from run 44980451933. It does not regenerate the dataset. It reuses the already completed WB-02 and WB-10 artifacts and executes only WB-12.
+- The model ID is explicitly `:free`; there is no paid fallback. No separate connectivity probe is sent, preserving quota for the real case. DSH telemetry and Session Log upload remain disabled.
+- Before the first DSH request, the workflow archives a one-time marker artifact. Future scheduled runs detect that marker and stop, so the retry is not repeated automatically after an execution attempt starts.
+- After WB-12 execution, the same workflow runs the independent Gold Oracle against the exact three-case Round 4 matrix and archives the adjudication result.
+- The scheduled workflow has not yet made a model request. Its first eligible run will occur only when the quota gate reports at least 37 remaining and no prior attempt marker exists.
+
+Implementation verification:
+- Task-branch PR validation run [45033763872](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45033763872): PASS; 224 offline tests passed; independent Oracle checks and pinned upstream asset audit passed.
+- Task-branch runner preflight [45033759343](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45033759343): PASS; actionlint and workflow syntax checks passed.
+- Default-branch validation [45033783204](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45033783204): PASS; 125 offline tests passed.
+- PR #38 remains Draft/Open/unmerged.
+
+**Acceptance remains NOT PASSED** until the real WB-12 Skill execution completes and the independent Oracle produces a passing three-case result. No offline self-test is substituted for that execution.
