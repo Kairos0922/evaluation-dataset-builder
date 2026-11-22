@@ -14,6 +14,8 @@ class ScheduledWB12RetryContractTests(unittest.TestCase):
 
     def test_scheduled_after_daily_quota_monitor(self):
         self.assertIn('cron: "30 8 * * *"', self.text)
+        self.assertIn(".github/dispatch/round4-wb12-free-retry-once.txt", self.text)
+        self.assertIn('branches: ["main"]', self.text)
         self.assertIn("workflow_dispatch:", self.text)
         self.assertIn("pull-requests: read", self.text)
         self.assertIn("/pulls/38", self.text)
