@@ -1,0 +1,45 @@
+name: DeepSeek credential balance check (no generation)
+
+on:
+  push:
+    branches: [experiment/webapp-testing-contract]
+    paths:
+      - .github/dispatch/check-deepseek-balance.txt
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  balance-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Read balance and model catalog only
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_BASE_URL: ${{ vars.DEEPSEEK_BASE_URL }}
+        run: |
+          python - <<'PY'
+          import json, os, urllib.request, urllib.error
+          key=os.environ.get("DEEPSEEK_API_KEY","")
+          base=os.environ.get("DEEPSEEK_BASE_URL","https://api.deepseek.com").strip().rstrip("/")
+          if not key:
+              raise SystemExit("FAIL: DEEPSEEK_API_KEY secret is missing/empty")
+          def get(path):
+              req=urllib.request.Request(base+path, headers={"Authorization":"Bearer "+key,"Accept":"application/json"},method="GET")
+              try:
+                  with urllib.request.urlopen(req,timeout=15) as r: return json.loads(r.read())
+              except urllib.error.HTTPError as e:
+                  raise SystemExit(f"FAIL: GET {path} returned HTTP {e.code}")
+          balance=get("/user/balance")
+          print("BALANCE_RESPONSE:",json.dumps(balance,ensure_ascii=False))
+          if balance.get("is_available") is not True:
+              raise SystemExit("FAIL: key/account reports unavailable balance")
+          models=get("/models")
+          ids=[m.get("id") for m in models.get("data",[]) if isinstance(m,dict)]
+          print("MODEL_CATALOG_OK:", "deepseek-flash" in ids, "model_ids_count:",len(ids))
+          if "deepseek-flash" not in ids:
+              raise SystemExit("FAIL: deepseek-flash not listed for this key")
+          print("PASS: key valid, balance available, model listed. NO generation request made.")
+          PY
