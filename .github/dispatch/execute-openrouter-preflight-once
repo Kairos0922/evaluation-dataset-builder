@@ -1,1 +1,3 @@
 One-time preflight: verify whether OPENROUTER_API_KEY is configured and test one zero-cost OpenRouter free-router request. Do not invoke Builder production or target Skill pilots. Do not expose the key or response payload beyond a short response excerpt.
+
+Re-trigger after fixing the preflight report newline escaping; run only the OpenRouter preflight job.
