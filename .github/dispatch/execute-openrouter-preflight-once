@@ -7,3 +7,5 @@ Re-trigger to run preflight in the PR workflow so the result is visible through 
 Trigger a single same-repository PR preflight only; push event must not make a duplicate model request.
 
 Run a single preflight with the fixed PR gate. Free model only, 16 output tokens, no Builder invocation.
+
+Retry OpenRouter preflight after repository secret configuration; verify one free-router request only.
