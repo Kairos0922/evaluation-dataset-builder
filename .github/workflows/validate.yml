@@ -659,6 +659,9 @@ jobs:
 
       - name: Configure isolated DSH and stage Builder Skill
         env:
+          MODEL_PROVIDER: ${{ steps.provider.outputs.provider }}
+          DSH_MODEL: ${{ steps.provider.outputs.model }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -euo pipefail
@@ -668,6 +671,9 @@ jobs:
           - id: session-log-deepseek
             config:
               enabled: false
+          YAML
+          if [ "$MODEL_PROVIDER" = "openrouter-custom" ]; then
+            cat >> "$DSH_HOME/cordis.patch.yml" <<'YAML'
           - id: llm-pi-ai
             config:
               providers:
@@ -677,10 +683,13 @@ jobs:
                   baseURL: https://openrouter.ai/api/v1
                   models:
                     - id: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+          YAML
+          fi
+          cat >> "$DSH_HOME/cordis.patch.yml" <<YAML
           - id: agent-default-model
             config:
-              provider: openrouter-custom
-              model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+              provider: $MODEL_PROVIDER
+              model: $DSH_MODEL
           YAML
           cp -R skills/evaluation-dataset-builder "$BUILDER_WORKSPACE/.dsh/skills/evaluation-dataset-builder"
           test -s "$BUILDER_WORKSPACE/.dsh/skills/evaluation-dataset-builder/SKILL.md"
@@ -698,14 +707,13 @@ jobs:
           section = tail[:next_component.start()] if next_component else tail
           if not re.search(r"\benabled:\s*false\b", section):
               raise SystemExit("Session Log upload is not verified disabled")
-          required = ("openrouter-custom", "OPENROUTER_API_KEY", "https://openrouter.ai/api/v1",
-                      "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free")
-          missing = [item for item in required if item not in text]
-          if missing:
-              raise SystemExit(f"OpenRouter DSH configuration is incomplete: {missing}")
-          if "provider: openrouter-custom" not in text:
-              raise SystemExit("DSH default provider is not set to openrouter-custom")
-          print("PASS: Session Log upload disabled; OpenRouter provider and selected model present in composed DSH config; OTel disabled.")
+          provider = __import__("os").environ["MODEL_PROVIDER"]
+          model = __import__("os").environ["DSH_MODEL"]
+          if provider not in text or model not in text:
+              raise SystemExit(f"Selected DSH provider/model missing from composed config: {provider} / {model}")
+          if provider == "openrouter-custom" and "OPENROUTER_API_KEY" not in text:
+              raise SystemExit("OpenRouter credential reference missing from composed config")
+          print(f"PASS: Session Log disabled; selected provider/model configured: {provider} / {model}; OTel disabled.")
           PY
 
       - name: Download frozen public Builder input
@@ -754,6 +762,8 @@ jobs:
       - name: Record Builder production environment
         env:
           BUILDER_INPUT_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+          MODEL_PROVIDER: ${{ steps.provider.outputs.provider }}
+          DSH_MODEL: ${{ steps.provider.outputs.model }}
           UPSTREAM_COMMIT: "2c5958ecac7cee2b583967a2c4981d0f4a75c579"
         run: |
           set -euo pipefail
@@ -780,8 +790,8 @@ jobs:
               ).stdout.strip(),
               "created_at_utc": datetime.now(timezone.utc).isoformat(),
               "scope": "builder_production_only",
-              "model_provider": "OpenRouter",
-              "model_id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+              "model_provider": os.environ.get("MODEL_PROVIDER"),
+              "model_id": os.environ.get("DSH_MODEL"),
               "workspace_isolated": True,
               "workspace_contents": ["Builder Skill", "public Builder input bundle"],
               "gold_oracle_mounted": False,
@@ -794,8 +804,9 @@ jobs:
           )
           PY
 
-      - name: Probe OpenRouter model connectivity before Builder production
+      - name: Probe selected model connectivity before Builder production
         env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -euo pipefail
@@ -886,6 +897,7 @@ jobs:
       - name: Invoke Evaluation Dataset Builder through DSH
         id: builder_dsh
         env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -euo pipefail
@@ -1014,6 +1026,7 @@ jobs:
       - name: Check and redact any accidental credential disclosure
         if: always()
         env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           mkdir -p artifacts
@@ -1022,7 +1035,7 @@ jobs:
           import os
           from pathlib import Path
 
-          secret = os.environ.get("OPENROUTER_API_KEY", "").encode()
+          secrets = [value.encode() for value in (os.environ.get("OPENROUTER_API_KEY", ""), os.environ.get("DEEPSEEK_API_KEY", "")) if value]
           targets = [
               Path("artifacts/builder-connectivity-probe-events.jsonl"),
               Path("artifacts/builder-connectivity-probe-stderr.log"),
@@ -1031,21 +1044,18 @@ jobs:
               Path("artifacts/webapp-testing-builder-output"),
           ]
           leaked = []
-          if secret:
-              files = []
-              for target in targets:
-                  if target.is_file():
-                      files.append(target)
-                  elif target.is_dir():
-                      files.extend(path for path in target.rglob("*") if path.is_file())
-              for path in files:
-                  try:
-                      data = path.read_bytes()
-                  except OSError:
-                      continue
-                  if secret in data:
-                      path.write_bytes(data.replace(secret, b"[REDACTED_SECRET]"))
-                      leaked.append(path.as_posix())
+          files = []
+          for target in targets:
+              if target.is_file(): files.append(target)
+              elif target.is_dir(): files.extend(path for path in target.rglob("*") if path.is_file())
+          for path in files:
+              try: data = path.read_bytes()
+              except OSError: continue
+              original = data
+              for secret in secrets: data = data.replace(secret, b"[REDACTED_SECRET]")
+              if data != original:
+                  path.write_bytes(data)
+                  leaked.append(path.as_posix())
           Path("artifacts/credential-scan.json").write_text(
               json.dumps({
                   "secret_value_exposed_in_artifact": bool(leaked),
