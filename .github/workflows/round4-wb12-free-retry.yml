@@ -1,6 +1,10 @@
 name: Round 4 WB-12 one-time free-model retry
 
 on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/dispatch/round4-wb12-free-retry-once.txt"
   schedule:
     - cron: "30 8 * * *"
   workflow_dispatch:
