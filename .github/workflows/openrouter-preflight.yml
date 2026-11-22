@@ -5,8 +5,6 @@ on:
       - experiment/webapp-testing-contract
     paths:
       - ".github/dispatch/execute-openrouter-preflight-once"
-  schedule:
-    - cron: "10 8 * * *"
 permissions:
   contents: read
   actions: read
