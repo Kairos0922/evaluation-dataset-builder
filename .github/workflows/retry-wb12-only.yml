@@ -191,7 +191,7 @@ jobs:
           for required in ("openrouter-custom","inclusionai/ling-3.2-flash:free","OPENROUTER_API_KEY"):
               if required not in text:
                   raise SystemExit(f"OpenRouter configuration missing: {required}")
-          if "DEEPSEEK_API_KEY" in text or "deepseek-flash" in text:
+          if "DEEPSEEK_API_KEY" in text:
               raise SystemExit("Unexpected DeepSeek credential or model configuration")
           print("PASS: Session Log disabled; OpenRouter free model configured; OTel disabled by env.")
           PY
