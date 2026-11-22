@@ -1,0 +1,2 @@
+trigger=one-time-free-only-wb12-retry
+reason=quota-gated; openrouter-free-only; no-paid-fallback
