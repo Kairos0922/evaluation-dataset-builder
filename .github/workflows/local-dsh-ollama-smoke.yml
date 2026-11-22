@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: local-dsh-ollama-smoke
+  group: local-dsh-ollama-smoke-v2
   cancel-in-progress: false
 
 jobs:
@@ -23,6 +23,8 @@ jobs:
       DSH_VERSION: "0.2.2-rc.1"
       OLLAMA_MODEL: "qwen3:4b"
       OLLAMA_API_KEY: "ollama-local-placeholder"
+      OLLAMA_KEEP_ALIVE: "30m"
+      OLLAMA_NUM_PARALLEL: "1"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -88,8 +90,10 @@ jobs:
         run: |
           set -euo pipefail
           prompt='Use the Bash tool to execute exactly: printf LOCAL_DSH_TOOL_OK. Do not simulate the result or claim it ran unless you actually call Bash. After the tool returns, respond with the exact marker.'
-          printf '%s' "$prompt" | dsh --profile headless --json --permission-mode workspace-write - > "$EVENTS_PATH" 2> "$RUNNER_TEMP/dsh-stderr.log"
+          set -o pipefail
+          printf '%s' "$prompt" | timeout --signal=TERM --kill-after=30s 12m dsh --profile headless --json --permission-mode workspace-write - 2> "$RUNNER_TEMP/dsh-stderr.log" | tee "$EVENTS_PATH"
           cat "$EVENTS_PATH"
+          echo "DSH event stream captured; validating tool execution."
           python - <<'PY'
           import json, os
           from pathlib import Path
