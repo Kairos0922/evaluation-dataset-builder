@@ -6,6 +6,7 @@ on:
       - ".github/dispatch/execute-builder-production-once"
       - ".github/dispatch/execute-builder-production-repair-once"
       - ".github/dispatch/execute-builder-production-only-once"
+      - ".github/dispatch/execute-openrouter-preflight-once"
   pull_request:
     branches: ["main"]
     types: [opened, synchronize, reopened, labeled, unlabeled]
@@ -293,7 +294,7 @@ jobs:
   # Runtime setup and fixture checks are prerequisites for paid production only.
   # Keep them out of ordinary CI; they still run before every opted-in Builder run.
   runtime-preflight:
-    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract')
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract' && contains(github.event.head_commit.message, 'Builder production only'))
     needs: audit-upstream-assets
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -566,7 +567,7 @@ jobs:
   # Paid Builder production and target-Skill pilot run only after explicit opt-in.
   # Opt in with the PR label "run-builder-production" or workflow_dispatch input.
   builder-production:
-    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract')
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract' && contains(github.event.head_commit.message, 'Builder production only'))
     needs: runtime-preflight
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -1049,7 +1050,7 @@ jobs:
 
   # A separate job must validate this exact Builder artifact before any target-Skill pilot starts.
   independent-validation:
-    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract')
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract' && contains(github.event.head_commit.message, 'Builder production only'))
     needs: [runtime-preflight, builder-production]
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -1163,7 +1164,7 @@ jobs:
           retention-days: 90
 
   resolve-pilot-matrix:
-    if: ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract')) && !(github.event_name == 'workflow_dispatch' && inputs.builder_only) && !(github.event_name == 'push' && contains(github.event.head_commit.message, 'Builder production only')) && needs.independent-validation.outputs.validation_status == 'PASS'
+    if: ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract' && contains(github.event.head_commit.message, 'Builder production only'))) && !(github.event_name == 'workflow_dispatch' && inputs.builder_only) && !(github.event_name == 'push' && contains(github.event.head_commit.message, 'Builder production only')) && needs.independent-validation.outputs.validation_status == 'PASS'
     needs: [builder-production, independent-validation]
     runs-on: ubuntu-latest
     outputs:
@@ -1192,7 +1193,7 @@ jobs:
           cat "$RUNNER_TEMP/pilot-matrix.json"
 
   webapp-testing-pilot:
-    if: ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract')) && !(github.event_name == 'workflow_dispatch' && inputs.builder_only) && !(github.event_name == 'push' && contains(github.event.head_commit.message, 'Builder production only')) && needs.independent-validation.outputs.validation_status == 'PASS'
+    if: ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract' && contains(github.event.head_commit.message, 'Builder production only'))) && !(github.event_name == 'workflow_dispatch' && inputs.builder_only) && !(github.event_name == 'push' && contains(github.event.head_commit.message, 'Builder production only')) && needs.independent-validation.outputs.validation_status == 'PASS'
     needs: [runtime-preflight, builder-production, independent-validation, resolve-pilot-matrix]
     strategy:
       fail-fast: false
@@ -1356,7 +1357,7 @@ jobs:
           retention-days: 30
 
   adjudicate-pilot:
-    if: always() && ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract')) && !(github.event_name == 'workflow_dispatch' && inputs.builder_only) && !(github.event_name == 'push' && contains(github.event.head_commit.message, 'Builder production only')) && needs.builder-production.result == 'success' && needs.independent-validation.outputs.validation_status == 'PASS' && needs.resolve-pilot-matrix.result == 'success'
+    if: always() && ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract' && contains(github.event.head_commit.message, 'Builder production only'))) && !(github.event_name == 'workflow_dispatch' && inputs.builder_only) && !(github.event_name == 'push' && contains(github.event.head_commit.message, 'Builder production only')) && needs.builder-production.result == 'success' && needs.independent-validation.outputs.validation_status == 'PASS' && needs.resolve-pilot-matrix.result == 'success'
     needs: [builder-production, independent-validation, resolve-pilot-matrix, webapp-testing-pilot]
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -1401,3 +1402,56 @@ jobs:
           path: artifacts/independent-adjudication.json
           if-no-files-found: warn
           retention-days: 30
+
+  openrouter-preflight:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract' && contains(github.event.head_commit.message, 'OpenRouter preflight only')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Check OpenRouter secret and free inference endpoint without exposing credentials
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request, urllib.error
+          from pathlib import Path
+          key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+          report = {"provider": "openrouter", "secret_configured": bool(key), "generation_requests": 0, "status": "BLOCKED"}
+          if not key:
+              report["reason"] = "OPENROUTER_API_KEY secret is not configured; no request sent."
+          else:
+              req = urllib.request.Request(
+                  "https://openrouter.ai/api/v1/chat/completions",
+                  data=json.dumps({"model":"openrouter/free","messages":[{"role":"user","content":"Reply exactly OPENROUTER_OK"}],"max_tokens":16}).encode(),
+                  headers={"Authorization":f"Bearer {key}","Content-Type":"application/json","HTTP-Referer":"https://github.com/Kairos0922/evaluation-dataset-builder","X-Title":"Evaluation Dataset Builder preflight"},
+                  method="POST")
+              try:
+                  with urllib.request.urlopen(req, timeout=40) as response:
+                      payload=json.loads(response.read().decode())
+                      report["http_status"]=response.status
+                      report["generation_requests"]=1
+                      report["model_returned"]=payload.get("model")
+                      choices=payload.get("choices") or []
+                      content=(choices[0].get("message",{}).get("content","") if choices else "")
+                      report["response_marker_present"]="OPENROUTER_OK" in content
+                      report["status"]="PASS" if report["response_marker_present"] else "FAIL"
+                      report["response_excerpt"]=content[:120]
+              except urllib.error.HTTPError as exc:
+                  report["http_status"]=exc.code
+                  report["reason"]="OpenRouter rejected the free-model request; response body intentionally omitted."
+              except Exception as exc:
+                  report["reason"]=f"Request failed: {type(exc).__name__}: {exc}"
+          Path("openrouter-preflight.json").write_text(json.dumps(report,indent=2)+"\\n")
+          print(json.dumps(report,indent=2))
+          if report["status"] != "PASS":
+              raise SystemExit(1)
+          PY
+      - name: Archive OpenRouter preflight evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openrouter-preflight
+          path: openrouter-preflight.json
+          if-no-files-found: warn
+          retention-days: 7
