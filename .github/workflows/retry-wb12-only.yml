@@ -1,0 +1,173 @@
+name: Retry Round 4 WB-12 only
+
+on:
+  push:
+    branches: ["experiment/webapp-testing-contract"]
+    paths:
+      - ".github/dispatch/retry-wb12-only.txt"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: round4-wb12-only
+  cancel-in-progress: false
+
+jobs:
+  wb12:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DSH_HOME: ${{ github.workspace }}/.dsh-home
+      DSH_MODEL: deepseek-flash
+      DSH_TELEMETRY_MODE: DISABLED
+      DSH_TELEMETRY_DISABLED: "1"
+      DSH_VERSION: "0.2.2-rc.1"
+      SOURCE_RUN_ID: "44980451933"
+    steps:
+      - name: Checkout task branch
+        uses: actions/checkout@v4
+        with:
+          ref: experiment/webapp-testing-contract
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download frozen Builder artifact
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/source
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" \
+            --name webapp-testing-replay-builder-input --dir artifacts/source
+          test -s artifacts/source/builder-replay-validation.json
+          test -s artifacts/source/webapp-testing-builder-output/SUITE-MANIFEST.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path("artifacts/source/builder-replay-validation.json").read_text())
+          if report.get("status") != "PASS" or report.get("case_count") != 15 or report.get("schema_errors") != 0:
+              raise SystemExit("Frozen Builder validation evidence did not PASS")
+          suite=Path("artifacts/source/webapp-testing-builder-output/wb-core.jsonl")
+          cases=[json.loads(line) for line in suite.read_text().splitlines() if line.strip()]
+          selected=[case for case in cases if case.get("case_id")=="WB-12"]
+          if len(selected)!=1 or "Verify email notification" not in str(selected[0].get("user_input")):
+              raise SystemExit("Frozen WB-12 case identity mismatch")
+          print("PASS: archived Builder validation and exact WB-12 case verified")
+          PY
+
+      - name: Verify clean fixture and archived case
+        run: |
+          set -euo pipefail
+          test -s artifacts/source/webapp-testing-builder-input/fixtures/workboard/server.py
+          test -s artifacts/source/webapp-testing-builder-input/assets/public/business-rules.md
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          case=next(json.loads(line) for line in Path("artifacts/source/webapp-testing-builder-output/wb-core.jsonl").read_text().splitlines() if json.loads(line).get("case_id")=="WB-12")
+          data=case.get("execution_requirements",{}).get("test_data",[])
+          if not any(isinstance(x,dict) and x.get("kind")=="target_task" and x.get("visible_title")=="Verify email notification" for x in data):
+              raise SystemExit("WB-12 target task evidence does not match")
+          print("PASS: selected case is the archived Builder-authored delete-confirmation case")
+          PY
+
+      - name: Account balance and model preflight before any generation
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          set -euo pipefail
+          test -n "$DEEPSEEK_API_KEY"
+          python scripts/deepseek_model_preflight.py --model deepseek-flash
+
+      - name: Install Node and pinned DSH CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.9.0"
+      - name: Cache DSH
+        uses: actions/cache@v4
+        with:
+          path: ~/.dsh-npm-global
+          key: ${{ runner.os }}-dsh-node24-${{ env.DSH_VERSION }}
+      - name: Install DSH
+        run: |
+          set -euo pipefail
+          export NPM_CONFIG_PREFIX="$HOME/.dsh-npm-global"
+          export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+          echo "$NPM_CONFIG_PREFIX/bin" >> "$GITHUB_PATH"
+          if ! dsh --version 2>/dev/null | grep -Fq "$DSH_VERSION"; then
+            npm install --global --no-audit --no-fund "@deepseek-ai/dsh@$DSH_VERSION"
+          fi
+          dsh --version
+
+      - name: Install Playwright Chromium
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.16"
+          cache: pip
+      - run: |
+          python -m pip install --disable-pip-version-check "playwright==1.64.1"
+          python -m playwright install --with-deps --only-shell chromium
+
+      - name: Checkout pinned upstream Skill
+        uses: actions/checkout@v4
+        with:
+          repository: anthropics/skills
+          ref: 2c5958ecac7cee2b583967a2c4981d0f4a75c579
+          path: .audit/upstream-skills
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Disable telemetry and verify DSH config
+        run: |
+          set -euo pipefail
+          mkdir -p "$DSH_HOME" artifacts
+          cat > "$DSH_HOME/cordis.patch.yml" <<'YAML'
+          - id: session-log-deepseek
+            config:
+              enabled: false
+          YAML
+          dsh --profile headless --dump-config > artifacts/dsh-config.txt
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          text=Path("artifacts/dsh-config.txt").read_text()
+          marker="id: session-log-deepseek"
+          if marker not in text: raise SystemExit("Session Log config missing")
+          tail=text.split(marker,1)[1]
+          next_item=re.search(r"\n\s*- id:",tail)
+          section=tail[:next_item.start()] if next_item else tail
+          if not re.search(r"\benabled:\s*false\b",section): raise SystemExit("Session Log upload not disabled")
+          print("PASS: Session Log disabled; OpenTelemetry disabled by env")
+          PY
+
+      - name: Execute only WB-12
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/run_webapp_testing.py \
+            --dataset artifacts/source/webapp-testing-builder-output/wb-core.jsonl \
+            --dataset-id wb-core --case-id WB-12 \
+            --fixture-profile clean --fixture-mutations "" \
+            --fixture-source artifacts/source/webapp-testing-builder-input/fixtures/workboard \
+            --public-assets artifacts/source/webapp-testing-builder-input/assets/public \
+            --skill-source .audit/upstream-skills/skills/webapp-testing \
+            --work-root "$RUNNER_TEMP/wbt-workspaces" \
+            --output-dir "$RUNNER_TEMP/wbt-output/wb-core" \
+            --skill-commit 2c5958ecac7cee2b583967a2c4981d0f4a75c579 \
+            --dsh-timeout 600 --max-model-steps 40 \
+            --max-input-tokens 60000 --max-output-tokens 55000 \
+            --max-cache-read-tokens 1600000 --max-total-tokens 1750000
+
+      - name: Archive WB-12 evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: round4-wb12-retry-only
+          path: |
+            artifacts/
+            ${{ runner.temp }}/wbt-output/wb-core/
+          if-no-files-found: warn
+          retention-days: 90
