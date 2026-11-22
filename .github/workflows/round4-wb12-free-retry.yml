@@ -8,6 +8,7 @@ on:
 permissions:
   contents: read
   actions: read
+  pull-requests: read
 
 concurrency:
   group: round4-wb12-free-only
@@ -56,31 +57,35 @@ jobs:
               "should_run":False
           }
           try:
-              marker=get_json(
-                  f"https://api.github.com/repos/{repo}/actions/artifacts?name=round4-wb12-attempt-started&per_page=10",
-                  gh_headers
-              )
-              active=[item for item in marker.get("artifacts",[]) if item.get("expired") is False]
-              if active:
-                  report["reason"]="A previous WB-12 model attempt has already started; one-time retry is consumed."
-                  report["prior_attempt_artifact_id"]=active[0].get("id")
+              pr=get_json(f"https://api.github.com/repos/{repo}/pulls/38",gh_headers)
+              if pr.get("state")!="open" or pr.get("merged") is True or pr.get("draft") is not True:
+                  report["reason"]="PR #38 is not Draft/Open/Unmerged; retry is disabled."
               else:
-                  key=os.environ.get("OPENROUTER_API_KEY","").strip()
-                  if not key:
-                      report["reason"]="OPENROUTER_API_KEY is missing; no inference sent."
+                  marker=get_json(
+                      f"https://api.github.com/repos/{repo}/actions/artifacts?name=round4-wb12-attempt-started&per_page=10",
+                      gh_headers
+                  )
+                  active=[item for item in marker.get("artifacts",[]) if item.get("expired") is False]
+                  if active:
+                      report["reason"]="A previous WB-12 model attempt has already started; one-time retry is consumed."
+                      report["prior_attempt_artifact_id"]=active[0].get("id")
                   else:
-                      quota_payload=get_json(
-                          "https://openrouter.ai/api/v1/key",
-                          {"Authorization":"Bearer "+key,"Accept":"application/json"}
-                      )
-                      quota=(quota_payload.get("data") or {}).get("free_model_daily_requests")
-                      remaining=quota.get("remaining") if isinstance(quota,dict) else None
-                      report["free_model_daily_requests"]=quota
-                      if isinstance(remaining,int) and remaining >= 37:
-                          report["should_run"]=True
-                          report["reason"]="Quota is sufficient for the original 32-step ceiling plus a five-request reserve."
+                      key=os.environ.get("OPENROUTER_API_KEY","").strip()
+                      if not key:
+                          report["reason"]="OPENROUTER_API_KEY is missing; no inference sent."
                       else:
-                          report["reason"]="Free quota is below the safe threshold; no inference sent."
+                          quota_payload=get_json(
+                              "https://openrouter.ai/api/v1/key",
+                              {"Authorization":"Bearer "+key,"Accept":"application/json"}
+                          )
+                          quota=(quota_payload.get("data") or {}).get("free_model_daily_requests")
+                          remaining=quota.get("remaining") if isinstance(quota,dict) else None
+                          report["free_model_daily_requests"]=quota
+                          if isinstance(remaining,int) and remaining >= 37:
+                              report["should_run"]=True
+                              report["reason"]="Quota is sufficient for the original 32-step ceiling plus a five-request reserve."
+                          else:
+                              report["reason"]="Free quota is below the safe threshold; no inference sent."
           except Exception as exc:
               report["reason"]="Fail-closed preflight error: "+type(exc).__name__
           Path("quota-gate-report.json").write_text(json.dumps(report,indent=2)+"\n",encoding="utf-8")
@@ -115,7 +120,7 @@ jobs:
       - name: Checkout task branch
         uses: actions/checkout@v4
         with:
-          ref: experiment/webapp-testing-contract
+          ref: dbbb11a5041f592da2238dd4ea303edd07b40151
           fetch-depth: 1
           persist-credentials: false
 
