@@ -580,7 +580,6 @@ jobs:
       DSH_TELEMETRY_MODE: DISABLED
       DSH_TELEMETRY_DISABLED: "1"
       DSH_VERSION: "0.2.2-rc.1"
-      MODEL_PROVIDER: ${{ needs.builder-production.outputs.model_provider }}
     steps:
       - name: Checkout benchmark repository
         uses: actions/checkout@v4
@@ -1278,6 +1277,7 @@ jobs:
       DSH_TELEMETRY_MODE: DISABLED
       DSH_TELEMETRY_DISABLED: "1"
       DSH_VERSION: "0.2.2-rc.1"
+      MODEL_PROVIDER: ${{ needs.builder-production.outputs.model_provider }}
     steps:
       - name: Checkout benchmark repository
         uses: actions/checkout@v4
