@@ -1,4 +1,4 @@
-name: Retry Round 4 WB-12 only
+name: Retry Round 4 WB-12 only with OpenRouter free model
 
 on:
   push:
@@ -21,7 +21,8 @@ jobs:
     timeout-minutes: 30
     env:
       DSH_HOME: ${{ github.workspace }}/.dsh-home
-      DSH_MODEL: deepseek-flash
+      DSH_MODEL: inclusionai/ling-3.2-flash:free
+      MODEL_PROVIDER: openrouter-custom
       DSH_TELEMETRY_MODE: DISABLED
       DSH_TELEMETRY_DISABLED: "1"
       DSH_VERSION: "0.2.2-rc.1"
@@ -73,13 +74,45 @@ jobs:
           print("PASS: selected case is the archived Builder-authored delete-confirmation case")
           PY
 
-      - name: Account balance and model preflight before any generation
+      - name: Check OpenRouter free quota before any model request
+        id: quota
         env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -euo pipefail
-          test -n "$DEEPSEEK_API_KEY"
-          python scripts/deepseek_model_preflight.py --model deepseek-flash
+          python - <<'PY'
+          import json, os, urllib.request
+          from pathlib import Path
+
+          key=os.environ.get("OPENROUTER_API_KEY","").strip()
+          if not key:
+              raise SystemExit("OPENROUTER_API_KEY is missing; no inference request sent.")
+          request=urllib.request.Request(
+              "https://openrouter.ai/api/v1/key",
+              headers={"Authorization":"Bearer "+key,"Accept":"application/json"})
+          with urllib.request.urlopen(request,timeout=20) as response:
+              payload=json.loads(response.read().decode())
+          data=payload.get("data") or {}
+          quota=data.get("free_model_daily_requests")
+          remaining=quota.get("remaining") if isinstance(quota,dict) else None
+          report={
+              "provider":"OpenRouter",
+              "model":"inclusionai/ling-3.2-flash:free",
+              "status":"READY" if isinstance(remaining,int) and remaining >= 45 else "WAITING_FOR_QUOTA",
+              "free_model_daily_requests":quota,
+              "minimum_remaining_required":45,
+              "maximum_dsh_model_steps":40,
+              "generation_requests_sent":0,
+              "paid_requests_sent":0,
+              "deepseek_key_used":False
+          }
+          Path("artifacts").mkdir(exist_ok=True)
+          Path("artifacts/openrouter-wb12-preflight.json").write_text(
+              json.dumps(report,indent=2)+"\n",encoding="utf-8")
+          print(json.dumps(report,indent=2))
+          if report["status"] != "READY":
+              raise SystemExit("Free quota is below the 45-request safety reserve; no model request sent.")
+          PY
 
       - name: Install Node and pinned DSH CLI
         uses: actions/setup-node@v4
@@ -119,7 +152,9 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Disable telemetry and verify DSH config
+      - name: Configure OpenRouter provider and verify DSH config
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -euo pipefail
           mkdir -p "$DSH_HOME" artifacts
@@ -127,6 +162,19 @@ jobs:
           - id: session-log-deepseek
             config:
               enabled: false
+          - id: llm-pi-ai
+            config:
+              providers:
+                openrouter-custom:
+                  apiKeyEnv: OPENROUTER_API_KEY
+                  api: openai-completions
+                  baseURL: https://openrouter.ai/api/v1
+                  models:
+                    - id: inclusionai/ling-3.2-flash:free
+          - id: agent-default-model
+            config:
+              provider: openrouter-custom
+              model: inclusionai/ling-3.2-flash:free
           YAML
           dsh --profile headless --dump-config > artifacts/dsh-config.txt
           python - <<'PY'
@@ -138,13 +186,19 @@ jobs:
           tail=text.split(marker,1)[1]
           next_item=re.search(r"\n\s*- id:",tail)
           section=tail[:next_item.start()] if next_item else tail
-          if not re.search(r"\benabled:\s*false\b",section): raise SystemExit("Session Log upload not disabled")
-          print("PASS: Session Log disabled; OpenTelemetry disabled by env")
+          if not re.search(r"\benabled:\s*false\b",section):
+              raise SystemExit("Session Log upload not disabled")
+          for required in ("openrouter-custom","inclusionai/ling-3.2-flash:free","OPENROUTER_API_KEY"):
+              if required not in text:
+                  raise SystemExit(f"OpenRouter configuration missing: {required}")
+          if "DEEPSEEK_API_KEY" in text or "deepseek-flash" in text:
+              raise SystemExit("Unexpected DeepSeek credential or model configuration")
+          print("PASS: Session Log disabled; OpenRouter free model configured; OTel disabled by env.")
           PY
 
-      - name: Execute only WB-12
+      - name: Execute only WB-12 with the verified free model
         env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -euo pipefail
           python benchmarks/webapp-testing/scripts/run_webapp_testing.py \
