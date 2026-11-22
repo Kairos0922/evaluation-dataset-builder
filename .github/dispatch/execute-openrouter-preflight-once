@@ -25,3 +25,6 @@ Run exactly one OpenRouter free-router connectivity preflight now. Do not run Bu
 Run exactly one OpenRouter free-router preflight after fixing PR-head SHA detection. Check quota first; if exhausted, send zero generation requests. Do not run qualification, Builder production, or Skill pilots.
 
 Run exactly one corrected OpenRouter free-router preflight. Check free daily quota first; if quota is zero or cannot be verified, make zero inference calls. Do not run Builder production, qualification matrix, independent validation, or Skill pilots.
+
+
+Run exactly one preflight against nvidia/nemotron-3-ultra-550b-a55b:free. The dedicated push-only workflow owns the inference request; the PR workflow must skip its duplicate request. Check the account free-model quota first and send zero inference requests if remaining is zero or cannot be verified. One request maximum. Do not run Builder production, independent validation, qualification trials, or Skill pilots.
