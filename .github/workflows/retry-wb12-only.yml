@@ -98,10 +98,10 @@ jobs:
           report={
               "provider":"OpenRouter",
               "model":"inclusionai/ling-3.2-flash:free",
-              "status":"READY" if isinstance(remaining,int) and remaining >= 45 else "WAITING_FOR_QUOTA",
+              "status":"READY" if isinstance(remaining,int) and remaining >= 37 else "WAITING_FOR_QUOTA",
               "free_model_daily_requests":quota,
-              "minimum_remaining_required":45,
-              "maximum_dsh_model_steps":40,
+              "minimum_remaining_required":37,
+              "maximum_dsh_model_steps":32,
               "generation_requests_sent":0,
               "paid_requests_sent":0,
               "deepseek_key_used":False
@@ -211,7 +211,7 @@ jobs:
             --work-root "$RUNNER_TEMP/wbt-workspaces" \
             --output-dir "$RUNNER_TEMP/wbt-output/wb-core" \
             --skill-commit 2c5958ecac7cee2b583967a2c4981d0f4a75c579 \
-            --dsh-timeout 600 --max-model-steps 40 \
+            --dsh-timeout 600 --max-model-steps 32 \
             --max-input-tokens 60000 --max-output-tokens 55000 \
             --max-cache-read-tokens 1600000 --max-total-tokens 1750000
 
