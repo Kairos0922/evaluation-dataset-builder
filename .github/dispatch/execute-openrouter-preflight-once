@@ -15,3 +15,5 @@ Run free-model qualification matrix: five zero-priced text models, instruction-f
 Repeat two structured-output trials on each model that passed the initial free-model screen. Pull-request event only to avoid duplicate requests.
 
 Run stability trials against passing free models with the push-only trigger; no duplicate pull_request run.
+
+Run one realistic refund-rule dataset-generation probe against the repeatedly stable zero-cost model. No production Builder or target Skill pilot.
