@@ -142,3 +142,16 @@ Implementation verification:
 - PR #38 remains Draft/Open/unmerged.
 
 **Acceptance remains NOT PASSED** until the real WB-12 Skill execution completes and the independent Oracle produces a passing three-case result. No offline self-test is substituted for that execution.
+
+
+## Evidence review of the original WB-12 partial execution (2026-11-22)
+
+Artifact **14737298412** was downloaded and inspected, including `runner-result.json`, `dsh-events.jsonl`, `server-audit.jsonl`, the aborted preflight log, and the model-authored Playwright script. This review adds partial behavioral evidence but does not change the official Oracle verdict.
+
+- DSH loaded the pinned `webapp-testing` Skill, read the public assets, performed read-only browser reconnaissance, and authored a Playwright test. Trace: 15 model steps, 21 tool calls (10 bash, 2 edit, 5 read, 3 write, 1 Skill call), one user turn.
+- The first script execution aborted before the destructive action due to a model-authored assertion defect: it converted the `All` summary count to an integer but left `Open`, `In progress`, and `Done` as strings, then compared the mixed-type dictionary against integer values. The baseline UI and task list were otherwise correct.
+- The evidence records **0 confirm clicks and 0 DELETE requests**. The task set remained unchanged. The runner's fixture initialization reset occurred before DSH started; no Skill-issued reset or mutation was observed.
+- After identifying the assertion defect, the model stated an intention to edit the script and rerun it. The Builder-generated user instruction explicitly says “不得重试”; the Skill's proposed recovery therefore conflicts with the case constraint. The model did not actually execute a second script run: its next inference was rejected with HTTP 402 QUOTA / Insufficient Balance.
+- No final Skill report was produced. Required evidence shows a screenshot and JSON evidence, but `markdown_report=false`.
+
+**Interpretation:** The external quota failure remains the primary execution blocker, so WB-12 is still UNKNOWN, not FAIL. However, this partial trace reveals a concrete reliability issue and a rule-following risk before the provider block. It does not support a claim that the model/Skill would complete the case if quota were available. The free-model retry remains unproven and must be judged only from its actual execution and independent Oracle evidence.
