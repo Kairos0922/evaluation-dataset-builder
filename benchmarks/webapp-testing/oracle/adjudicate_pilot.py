@@ -198,7 +198,7 @@ def adjudicate_one(suite: Path, pilot: Path, entry: dict) -> dict:
         expected_remaining_titles = set(remaining_spec.get("values") or [])
         expected_summary_text = str(summary_spec.get("value") or "")
         import re
-        summary_values = re.findall(r"(All|Open|In progress|Done)\\s*=\\s*(\\d+)", expected_summary_text)
+        summary_values = re.findall(r"(All|Open|In progress|Done)\s*=\s*(\d+)", expected_summary_text)
         summary_keys = {"All": "all", "Open": "open", "In progress": "in_progress", "Done": "done"}
         expected_summary = {summary_keys[k]: int(v) for k, v in summary_values}
         mutations = runner.get("fixture_mutations") or []
@@ -285,6 +285,61 @@ def self_test() -> int:
         entry = {"dataset_id": "D-1", "case_id": "C-SEARCH", "pilot_role": "search_mutation"}
         report = adjudicate_one(suite, pilot, entry)
         assert report["adjudication_status"] == "PASS", report
+
+        # Regression test: delete-confirmation must derive the target from
+        # Builder test_data, not a historical hard-coded task ID.
+        delete_case = {
+            "case_id": "C-DELETE", "dataset_id": "D-1", "quality_status": "candidate",
+            "execution_requirements": {"status": "NOT_RUN", "test_data": [
+                {"kind": "target_task", "visible_title": "Verify email notification"},
+                {"kind": "expected_remaining_tasks", "values": [
+                    "Reset password flow", "Update onboarding guide", "Fix export timeout", "Review accessibility"]},
+                {"kind": "expected_summary", "value": "All=4, Open=1, In progress=2, Done=1"}]},
+        }
+        (suite / "datasets" / "D-1.jsonl").write_text(
+            json.dumps(case) + "\\n" + json.dumps(delete_case) + "\\n", encoding="utf-8")
+        manifest = load_json(suite / "SUITE-MANIFEST.json")
+        manifest["datasets"][0]["case_count"] = 2
+        (suite / "SUITE-MANIFEST.json").write_text(json.dumps(manifest), encoding="utf-8")
+        delete_folder = pilot / "C-DELETE"
+        skill_delete = delete_folder / "skill-artifacts"
+        skill_delete.mkdir(parents=True)
+        before_items = [
+            {"id": "WB-101", "title": "Reset password flow", "status": "open"},
+            {"id": "WB-102", "title": "Update onboarding guide", "status": "in_progress"},
+            {"id": "WB-103", "title": "Fix export timeout", "status": "done"},
+            {"id": "WB-104", "title": "Verify email notification", "status": "open"},
+            {"id": "WB-105", "title": "Review accessibility", "status": "in_progress"},
+        ]
+        after_items = [x for x in before_items if x["id"] != "WB-104"]
+        runner_delete = {
+            "case_id": "C-DELETE", "runner_status": "INVOCATION_OK",
+            "fixture_profile": "clean", "fixture_mutations": [],
+            "server_port_closed": True,
+            "trace": {"webapp_testing_skill_calls": 1, "completed_skill_calls": 1},
+            "pre_state": {"items": before_items, "summary": {"all": 5, "open": 2, "in_progress": 2, "done": 1}},
+            "post_state": {"items": after_items, "summary": {"all": 4, "open": 1, "in_progress": 2, "done": 1}},
+        }
+        (delete_folder / "runner-result.json").write_text(json.dumps(runner_delete), encoding="utf-8")
+        delete_audit = [{"method": "DELETE", "path": "/api/tasks/WB-104", "status": 200,
+                         "action": "deleted", "item": before_items[3]}]
+        (delete_folder / "server-audit.jsonl").write_text(json.dumps(delete_audit[0]) + "\\n", encoding="utf-8")
+        (skill_delete / "result.json").write_text(json.dumps({
+            "case_id": "C-DELETE", "overall": "CONFORMS",
+            "assertions": [{"verdict": "PASS"}],
+            "summary": "Verify email notification deleted once; Delete task confirmed",
+        }), encoding="utf-8")
+        (skill_delete / "test.py").write_text("print('test')\\n", encoding="utf-8")
+        (skill_delete / "report.md").write_text("Verify email notification deleted; Delete task confirmed\\n", encoding="utf-8")
+        for i in range(3):
+            (skill_delete / f"delete-{i}.png").write_bytes(b"png")
+        delete_entry = {"dataset_id": "D-1", "case_id": "C-DELETE", "pilot_role": "delete_confirmation"}
+        delete_report = adjudicate_one(suite, pilot, delete_entry)
+        assert delete_report["adjudication_status"] == "PASS", delete_report
+        (delete_folder / "server-audit.jsonl").write_text(
+            "".join(json.dumps(x) + "\\n" for x in delete_audit * 2), encoding="utf-8")
+        duplicate_delete_report = adjudicate_one(suite, pilot, delete_entry)
+        assert duplicate_delete_report["adjudication_status"] == "FAIL", duplicate_delete_report
     print("PASS: independent Gold Oracle self-test")
     return 0
 
