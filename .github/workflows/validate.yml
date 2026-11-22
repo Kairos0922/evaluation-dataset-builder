@@ -576,7 +576,7 @@ jobs:
       model_id: ${{ steps.provider.outputs.model }}
     env:
       DSH_HOME: ${{ github.workspace }}/.dsh-home
-      DSH_MODEL: openrouter/free
+      DSH_MODEL: nvidia/nemotron-3-ultra-550b-a55b:free
       DSH_TELEMETRY_MODE: DISABLED
       DSH_TELEMETRY_DISABLED: "1"
       DSH_VERSION: "0.2.2-rc.1"
@@ -587,7 +587,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Select OpenRouter free-model router with verified quota
+      - name: Select Nemotron 3 Ultra free model with verified quota
         id: provider
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -608,7 +608,7 @@ jobs:
           if not isinstance(remaining,int) or remaining < 2:
               print(json.dumps({"status":"BLOCKED","provider":"openrouter","free_model_daily_requests":quota,"generation_requests_made":0},indent=2))
               raise SystemExit("OpenRouter free-model quota is unavailable or below two requests; no inference request sent.")
-          selected={"provider":"openrouter-custom","model":"openrouter/free"}
+          selected={"provider":"openrouter-custom","model":"nvidia/nemotron-3-ultra-550b-a55b:free"}
           print(json.dumps({"status":"READY","provider":selected["provider"],"model":selected["model"],"free_model_daily_requests":quota,"generation_requests_made":0},indent=2))
           with open(os.environ["GITHUB_OUTPUT"],"a") as out:
               out.write("provider="+selected["provider"]+"\n")
@@ -665,7 +665,7 @@ jobs:
                   api: openai-completions
                   baseURL: https://openrouter.ai/api/v1
                   models:
-                    - id: openrouter/free
+                    - id: nvidia/nemotron-3-ultra-550b-a55b:free
           YAML
           fi
           cat >> "$DSH_HOME/cordis.patch.yml" <<YAML
@@ -1363,7 +1363,7 @@ jobs:
                   api: openai-completions
                   baseURL: https://openrouter.ai/api/v1
                   models:
-                    - id: openrouter/free
+                    - id: nvidia/nemotron-3-ultra-550b-a55b:free
           YAML
           fi
           cat >> "$DSH_HOME/cordis.patch.yml" <<YAML
@@ -1541,7 +1541,7 @@ jobs:
                   else:
                       req = urllib.request.Request(
                           "https://openrouter.ai/api/v1/chat/completions",
-                          data=json.dumps({"model":"openrouter/free","messages":[{"role":"user","content":"Reply exactly OPENROUTER_OK"}],"max_tokens":16}).encode(),
+                          data=json.dumps({"model":"nvidia/nemotron-3-ultra-550b-a55b:free","messages":[{"role":"user","content":"Reply exactly OPENROUTER_OK"}],"max_tokens":16}).encode(),
                           headers={"Authorization":f"Bearer {key}","Content-Type":"application/json","HTTP-Referer":"https://github.com/Kairos0922/evaluation-dataset-builder","X-Title":"Evaluation Dataset Builder free-router preflight"},
                           method="POST")
                       report["generation_requests"] = 1
