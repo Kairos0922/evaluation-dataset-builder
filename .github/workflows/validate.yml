@@ -1442,7 +1442,7 @@ jobs:
                   report["reason"]="OpenRouter rejected the free-model request; response body intentionally omitted."
               except Exception as exc:
                   report["reason"]=f"Request failed: {type(exc).__name__}: {exc}"
-          Path("openrouter-preflight.json").write_text(json.dumps(report,indent=2)+"\\n")
+          Path("openrouter-preflight.json").write_text(json.dumps(report,indent=2)+"\n")
           print(json.dumps(report,indent=2))
           if report["status"] != "PASS":
               raise SystemExit(1)
