@@ -136,9 +136,9 @@ This addendum supersedes the earlier DeepSeek-only stop condition above. **Do no
 - The scheduled workflow has not yet made a model request. Its first eligible run will occur only when the quota gate reports at least 37 remaining and no prior attempt marker exists.
 
 Implementation verification:
-- Task-branch PR validation run [45033763872](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45033763872): PASS; 224 offline tests passed; independent Oracle checks and pinned upstream asset audit passed.
-- Task-branch runner preflight [45033759343](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45033759343): PASS; actionlint and workflow syntax checks passed.
-- Default-branch validation [45033783204](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45033783204): PASS; 125 offline tests passed.
+- Task-branch PR validation run [45033961757](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45033961757): PASS; 219 offline tests passed; Round 4 offline re-adjudication, independent Oracle checks, and pinned upstream asset audit passed.
+- Task-branch runner preflight [45033955677](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45033955677): PASS; actionlint and workflow syntax checks passed.
+- Default-branch validation after removing the redundant synthetic qualification workflow [45033948594](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45033948594): PASS; 125 offline tests passed.
 - PR #38 remains Draft/Open/unmerged.
 
 **Acceptance remains NOT PASSED** until the real WB-12 Skill execution completes and the independent Oracle produces a passing three-case result. No offline self-test is substituted for that execution.
