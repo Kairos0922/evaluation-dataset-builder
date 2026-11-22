@@ -297,7 +297,7 @@ def self_test() -> int:
                 {"kind": "expected_summary", "value": "All=4, Open=1, In progress=2, Done=1"}]},
         }
         (suite / "datasets" / "D-1.jsonl").write_text(
-            json.dumps(case) + "\\n" + json.dumps(delete_case) + "\\n", encoding="utf-8")
+            json.dumps(case) + "\n" + json.dumps(delete_case) + "\n", encoding="utf-8")
         manifest = load_json(suite / "SUITE-MANIFEST.json")
         manifest["datasets"][0]["case_count"] = 2
         (suite / "SUITE-MANIFEST.json").write_text(json.dumps(manifest), encoding="utf-8")
@@ -323,21 +323,21 @@ def self_test() -> int:
         (delete_folder / "runner-result.json").write_text(json.dumps(runner_delete), encoding="utf-8")
         delete_audit = [{"method": "DELETE", "path": "/api/tasks/WB-104", "status": 200,
                          "action": "deleted", "item": before_items[3]}]
-        (delete_folder / "server-audit.jsonl").write_text(json.dumps(delete_audit[0]) + "\\n", encoding="utf-8")
+        (delete_folder / "server-audit.jsonl").write_text(json.dumps(delete_audit[0]) + "\n", encoding="utf-8")
         (skill_delete / "result.json").write_text(json.dumps({
             "case_id": "C-DELETE", "overall": "CONFORMS",
             "assertions": [{"verdict": "PASS"}],
             "summary": "Verify email notification deleted once; Delete task confirmed",
         }), encoding="utf-8")
-        (skill_delete / "test.py").write_text("print('test')\\n", encoding="utf-8")
-        (skill_delete / "report.md").write_text("Verify email notification deleted; Delete task confirmed\\n", encoding="utf-8")
+        (skill_delete / "test.py").write_text("print('test')\n", encoding="utf-8")
+        (skill_delete / "report.md").write_text("Verify email notification deleted; Delete task confirmed\n", encoding="utf-8")
         for i in range(3):
             (skill_delete / f"delete-{i}.png").write_bytes(b"png")
         delete_entry = {"dataset_id": "D-1", "case_id": "C-DELETE", "pilot_role": "delete_confirmation"}
         delete_report = adjudicate_one(suite, pilot, delete_entry)
         assert delete_report["adjudication_status"] == "PASS", delete_report
         (delete_folder / "server-audit.jsonl").write_text(
-            "".join(json.dumps(x) + "\\n" for x in delete_audit * 2), encoding="utf-8")
+            "".join(json.dumps(x) + "\n" for x in delete_audit * 2), encoding="utf-8")
         duplicate_delete_report = adjudicate_one(suite, pilot, delete_entry)
         assert duplicate_delete_report["adjudication_status"] == "FAIL", duplicate_delete_report
     print("PASS: independent Gold Oracle self-test")
