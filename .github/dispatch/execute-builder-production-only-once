@@ -1,1 +1,9 @@
 Round 4: produce Builder output with updated DSH resource-budget contract. Builder-only gate: run formal production and independent validation; do not launch paid Skill pilots. Frozen inputs and outputs must be archived. Triggered 2026-11-22.
+
+
+2026-11-22 execution update:
+- Use OpenRouter via DSH provider `openrouter-custom`.
+- Model: `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free`.
+- Credential: repository secret `OPENROUTER_API_KEY`.
+- Run Builder production and independent validation only. Do not start WB-02, WB-10, or WB-12 pilots in this run.
+- DSH must pass the minimal connectivity probe before Builder invocation. Check remaining free-model quota before any generation call.
