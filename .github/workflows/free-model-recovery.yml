@@ -71,21 +71,22 @@ jobs:
                       report.update({"status":"WAITING_FOR_QUOTA",
                                      "reason":"Shared free-model daily quota is exhausted; zero generation requests sent."})
                   else:
-                      skill=Path("skills/evaluation-dataset-builder/SKILL.md").read_text()
-                      schema_file=Path("skills/evaluation-dataset-builder/references/dataset-schema.json")
-                      schema=schema_file.read_text() if schema_file.exists() else "Schema file missing."
+                      # Only synthetic test content is sent to third-party free endpoints.
+                      # No repository Skill, schema, business documents, traces, or personal data are transmitted.
                       prompt=(
-                        "Qualify your ability to follow this Evaluation Dataset Builder Skill. "
-                        "This is a synthetic test, not a real business case. Business rule: a catalog "
-                        "search endpoint returns active products only; archived products must never "
-                        "appear. Generate exactly one complete evaluation case as a JSON object. "
-                        "Required top-level fields: case_id, scenario, user_input, expected_behavior, "
-                        "grading_contract, source_refs, assumptions, information_gaps. The grading_contract "
-                        "must identify evaluated_subject, criterion, pass_condition, fail_condition, "
-                        "evidence_required, and unknown_handling. Use no invented external sources. "
-                        "Mark the rule as synthetic/illustrative. If a field is not supported, explain "
-                        "that in information_gaps instead of fabricating. Return JSON only.\n\n"
-                        "SKILL INSTRUCTIONS:\n"+skill+"\n\nCASE SCHEMA:\n"+schema
+                        "This is a synthetic model-capability test. Do not claim to follow any external "
+                        "Skill or private instructions. Invented test rule: a catalog search endpoint "
+                        "returns active products only; archived products must never appear. Generate "
+                        "exactly one complete evaluation case as a JSON object. Required top-level fields: "
+                        "case_id, scenario, user_input, expected_behavior, grading_contract, source_refs, "
+                        "assumptions, information_gaps. grading_contract must include evaluated_subject, "
+                        "criterion, pass_condition, fail_condition, evidence_required, unknown_handling. "
+                        "The evaluated_subject is the catalog API, not the test author or an agent. "
+                        "Use source_refs as an empty array because this rule is synthetic. Clearly mark "
+                        "the rule as SYNTHETIC and ILLUSTRATIVE_ONLY in assumptions. State that PASS requires "
+                        "all active fixture products and no archived products; FAIL if any archived product "
+                        "appears or an active product is missing; UNKNOWN if the fixture or API response "
+                        "is unavailable. Return valid JSON only, with no Markdown fences."
                       )
                       candidates=[
                         "inclusionai/ling-3.2-flash:free",
