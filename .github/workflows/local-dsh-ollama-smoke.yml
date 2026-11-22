@@ -1,0 +1,117 @@
+name: Local DSH Ollama compatibility smoke
+
+on:
+  push:
+    branches: ["experiment/webapp-testing-contract"]
+    paths:
+      - ".github/workflows/local-dsh-ollama-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: local-dsh-ollama-smoke
+  cancel-in-progress: false
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      DSH_HOME: ${{ github.workspace }}/.dsh-home
+      DSH_VERSION: "0.2.2-rc.1"
+      OLLAMA_MODEL: "qwen3:4b"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: experiment/webapp-testing-contract
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24.9.0"
+
+      - name: Install DSH CLI
+        run: |
+          set -euo pipefail
+          export NPM_CONFIG_PREFIX="$HOME/.dsh-npm-global"
+          export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+          echo "$NPM_CONFIG_PREFIX/bin" >> "$GITHUB_PATH"
+          npm install --global --no-audit --no-fund "@deepseek-ai/dsh@$DSH_VERSION"
+          dsh --version
+
+      - name: Install and start Ollama
+        run: |
+          set -euo pipefail
+          curl -fsSL https://ollama.com/install.sh | sh
+          nohup ollama serve > "$RUNNER_TEMP/ollama.log" 2>&1 &
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
+          ollama pull "$OLLAMA_MODEL"
+          ollama list
+
+      - name: Configure DSH local OpenAI-compatible provider
+        run: |
+          set -euo pipefail
+          mkdir -p "$DSH_HOME"
+          cat > "$DSH_HOME/cordis.patch.yml" <<'YAML'
+          - id: llm-pi-ai
+            config:
+              providers:
+                ollama-local:
+                  api: openai-completions
+                  baseURL: http://127.0.0.1:11434/v1
+                  models:
+                    - id: qwen3:4b
+                      contextWindow: 32768
+                      maxTokens: 4096
+          - id: agent-default-model
+            config:
+              provider: ollama-local
+              model: qwen3:4b
+          YAML
+          dsh --profile headless --dump-config > "$RUNNER_TEMP/dsh-config.txt"
+          grep -F "ollama-local" "$RUNNER_TEMP/dsh-config.txt"
+          grep -F "qwen3:4b" "$RUNNER_TEMP/dsh-config.txt"
+          grep -F "127.0.0.1:11434/v1" "$RUNNER_TEMP/dsh-config.txt"
+
+      - name: Run non-destructive tool-call smoke test
+        env:
+          EVENTS_PATH: ${{ runner.temp }}/dsh-events.jsonl
+        run: |
+          set -euo pipefail
+          prompt='Use the Bash tool to execute exactly: printf LOCAL_DSH_TOOL_OK. Do not simulate the result or claim it ran unless you actually call Bash. After the tool returns, respond with the exact marker.'
+          printf '%s' "$prompt" | dsh --profile headless --json --permission-mode workspace-write - > "$EVENTS_PATH" 2> "$RUNNER_TEMP/dsh-stderr.log"
+          cat "$EVENTS_PATH"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          events=[json.loads(line) for line in Path(os.environ["EVENTS_PATH"]).read_text().splitlines() if line.strip()]
+          calls=[e for e in events if e.get("type")=="tool_call"]
+          results=[e for e in events if e.get("type")=="tool_result"]
+          text="\n".join(str(e) for e in events)
+          if not calls:
+              raise SystemExit("FAIL: DSH emitted no tool_call events")
+          if not results:
+              raise SystemExit("FAIL: DSH emitted no tool_result events")
+          if "LOCAL_DSH_TOOL_OK" not in text:
+              raise SystemExit("FAIL: tool result or final output lacks expected marker")
+          print(f"PASS: {len(calls)} tool call(s), {len(results)} tool result(s), marker verified")
+          PY
+
+      - name: Archive smoke evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: local-dsh-ollama-smoke
+          path: |
+            ${{ runner.temp }}/ollama.log
+            ${{ runner.temp }}/dsh-events.jsonl
+            ${{ runner.temp }}/dsh-stderr.log
+            ${{ runner.temp }}/dsh-config.txt
+          if-no-files-found: warn
+          retention-days: 14
