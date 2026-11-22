@@ -1502,15 +1502,8 @@ jobs:
         id: gate
         run: |
           set -euo pipefail
-          head_sha="${{ github.event.pull_request.head.sha }}"
-          git fetch --no-tags --depth=1 origin "$head_sha"
-          message="$(git log -1 --format=%B "$head_sha")"
-          if [[ "$message" == *"OpenRouter preflight only"* && -f ".github/dispatch/execute-openrouter-preflight-once" ]]; then
-            echo "run=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "run=false" >> "$GITHUB_OUTPUT"
-            echo "Not the designated OpenRouter preflight commit; skipping model request."
-          fi
+          echo "run=false" >> "$GITHUB_OUTPUT"
+          echo "Inference preflight is push-only in openrouter-preflight.yml; skip here to prevent duplicate model requests."
       - name: Check OpenRouter secret and free inference endpoint without exposing credentials
         if: steps.gate.outputs.run == 'true'
         env:
