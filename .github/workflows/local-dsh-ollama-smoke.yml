@@ -48,6 +48,7 @@ jobs:
           nohup ollama serve > "$RUNNER_TEMP/ollama.log" 2>&1 &
           for i in $(seq 1 60); do
             if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null; then break; fi
+            echo "Waiting for Ollama service ($i/60)"
             sleep 2
           done
           curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
