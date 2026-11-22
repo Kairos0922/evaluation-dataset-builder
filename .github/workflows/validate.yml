@@ -1502,7 +1502,9 @@ jobs:
         id: gate
         run: |
           set -euo pipefail
-          message="$(git log -1 --format=%B)"
+          head_sha="${{ github.event.pull_request.head.sha }}"
+          git fetch --no-tags --depth=1 origin "$head_sha"
+          message="$(git log -1 --format=%B "$head_sha")"
           if [[ "$message" == *"OpenRouter preflight only"* && -f ".github/dispatch/execute-openrouter-preflight-once" ]]; then
             echo "run=true" >> "$GITHUB_OUTPUT"
           else
