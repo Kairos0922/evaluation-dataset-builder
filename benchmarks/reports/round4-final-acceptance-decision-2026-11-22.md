@@ -98,3 +98,13 @@ Across all three pilot attempts: **48 model steps, 68 tool calls, 42,837 input t
 ## Stop condition
 
 Round 4 remains **NOT PASSED**. Do not regenerate the Builder dataset or rerun any completed pilots. WB-12 can only be retried after the GitHub Actions DeepSeek credential/account balance is verified as usable; use the same frozen dataset and targeted retry. PR #38 remains Draft/Open/unmerged.
+
+
+## Safe credential diagnostic (2026-11-22)
+
+A separate diagnostic workflow made GET-only requests to DeepSeek's balance and model catalog endpoints; it did not make any generation requests.
+
+- Workflow run [45001128665](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45001128665): failed the balance gate.
+- DeepSeek returned `is_available: false`, currency CNY, `total_balance: -0.01`, `granted_balance: 0.00`, `topped_up_balance: -0.01`.
+- This confirms the API credential used by GitHub Actions currently resolves to an account with unavailable/negative balance. It does not reveal how the balance was consumed or prove which request caused it.
+- No generation request was made by this diagnostic. WB-12 remains UNKNOWN; no paid retries are authorized until the balance/key is corrected.
