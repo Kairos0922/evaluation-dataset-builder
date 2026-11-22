@@ -66,6 +66,7 @@ jobs:
                 ollama-local:
                   api: openai-completions
                   baseURL: http://127.0.0.1:11434/v1
+                  apiKey: ollama
                   models:
                     - id: qwen3:4b
                       contextWindow: 32768
