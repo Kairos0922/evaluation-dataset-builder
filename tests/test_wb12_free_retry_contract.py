@@ -29,7 +29,7 @@ class WB12FreeRetryContractTests(unittest.TestCase):
         execute = self.text.index("Execute only WB-12 with the verified free model")
         self.assertLess(quota, install)
         self.assertLess(install, execute)
-        self.assertIn("remaining >= 45", self.text)
+        self.assertIn("remaining >= 37", self.text)
         self.assertIn('"generation_requests_sent":0', self.text)
         self.assertIn('"paid_requests_sent":0', self.text)
 
