@@ -23,3 +23,5 @@ Run bounded-backoff task probe on the single model that passed prior repeatabili
 Run exactly one OpenRouter free-router connectivity preflight now. Do not run Builder production, qualification matrix, or Skill pilots.
 
 Run exactly one OpenRouter free-router preflight after fixing PR-head SHA detection. Check quota first; if exhausted, send zero generation requests. Do not run qualification, Builder production, or Skill pilots.
+
+Run exactly one corrected OpenRouter free-router preflight. Check free daily quota first; if quota is zero or cannot be verified, make zero inference calls. Do not run Builder production, qualification matrix, independent validation, or Skill pilots.
