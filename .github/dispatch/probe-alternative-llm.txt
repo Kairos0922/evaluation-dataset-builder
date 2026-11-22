@@ -1,1 +1,0 @@
-Read-only probe of configured alternate model credentials. No generation requests.
