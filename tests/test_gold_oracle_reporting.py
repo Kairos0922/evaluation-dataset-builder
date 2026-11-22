@@ -117,7 +117,7 @@ class GoldOracleReportingTests(unittest.TestCase):
         self.assertEqual(target["title"], "Verify email notification")
 
     def test_state_cycle_report_accepts_result_label_and_markdown(self):
-        report = "**结果：PASS** — BR-07 在本次执行中满足。"
+        report = "**结果：PASS** — BR-07: WB-101 Reset password flow Open → In progress → Done → Open."
         self.assertTrue(
             ORACLE.report_has_state_cycle_result(
                 report, "WB-101", "Reset password flow"
