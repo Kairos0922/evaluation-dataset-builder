@@ -673,7 +673,14 @@ jobs:
           section = tail[:next_component.start()] if next_component else tail
           if not re.search(r"\benabled:\s*false\b", section):
               raise SystemExit("Session Log upload is not verified disabled")
-          print("Session Log upload disabled; OTel disabled by environment flags.")
+          required = ("openrouter-custom", "OPENROUTER_API_KEY", "https://openrouter.ai/api/v1",
+                      "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free")
+          missing = [item for item in required if item not in text]
+          if missing:
+              raise SystemExit(f"OpenRouter DSH configuration is incomplete: {missing}")
+          if "provider: openrouter-custom" not in text:
+              raise SystemExit("DSH default provider is not set to openrouter-custom")
+          print("PASS: Session Log upload disabled; OpenRouter provider and selected model present in composed DSH config; OTel disabled.")
           PY
 
       - name: Download frozen public Builder input
@@ -748,6 +755,8 @@ jobs:
               ).stdout.strip(),
               "created_at_utc": datetime.now(timezone.utc).isoformat(),
               "scope": "builder_production_only",
+              "model_provider": "OpenRouter",
+              "model_id": "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
               "workspace_isolated": True,
               "workspace_contents": ["Builder Skill", "public Builder input bundle"],
               "gold_oracle_mounted": False,
@@ -795,7 +804,7 @@ jobs:
                     if stderr_path.is_file() else "")
           combined = raw + "\n" + stderr
           quota_pattern = re.compile(
-              r"(?i)(HTTP\s*402|\b402\b|QUOTA|INSUFFICIENT\s+BALANCE|INSUFFICIENT_BALANCE)"
+              r"(?i)(HTTP\s*402|\b402\b|HTTP\s*429|\b429\b|RATE.?LIMIT|QUOTA|INSUFFICIENT\s+BALANCE|INSUFFICIENT_BALANCE)"
           )
           result = {
               "status": "BLOCKED",
@@ -809,7 +818,7 @@ jobs:
           }
           if result["quota_error_detected"]:
               result["status"] = "EXTERNAL_MODEL_QUOTA_BLOCKED"
-              result["message"] = "DeepSeek API quota/balance error; stop model calls and inspect the configured account balance."
+              result["message"] = "OpenRouter quota/rate-limit error; stop model calls and inspect the configured key quota."
           else:
               events = []
               for line_no, line in enumerate(raw.splitlines(), 1):
