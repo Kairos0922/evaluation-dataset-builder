@@ -111,7 +111,7 @@ jobs:
               json.dumps(report,indent=2)+"\n",encoding="utf-8")
           print(json.dumps(report,indent=2))
           if report["status"] != "READY":
-              raise SystemExit("Free quota is below the 45-request safety reserve; no model request sent.")
+              raise SystemExit("Free quota is below the 37-request safety reserve; no model request sent.")
           PY
 
       - name: Install Node and pinned DSH CLI
