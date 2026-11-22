@@ -118,27 +118,31 @@ def evaluation_subject_contract_issues(case: dict) -> list[str]:
         clauses = []
         parts = re.split(r"([;；，、,。]|\s+\bor\b\s+|或)", fail_condition, flags=re.I)
         current = ""
+        previous_delimiter = ""
         for index in range(0, len(parts), 2):
             segment = parts[index].strip()
-            delimiter = parts[index + 1] if index + 1 < len(parts) else ""
+            next_delimiter = parts[index + 1] if index + 1 < len(parts) else ""
             if not segment:
+                previous_delimiter = next_delimiter
                 continue
             if not current:
                 current = segment
+                previous_delimiter = next_delimiter
                 continue
             inherited_omission = bool(re.search(
                 r"(?:Skill|Agent|智能体|助手).{0,24}(?:漏报|遗漏)|(?:漏报|遗漏).{0,24}",
                 current, re.I,
             ))
             omission_continuation = inherited_omission and (
-                delimiter in {"，", "、"} or
-                (delimiter == "或" and re.match(r"(?:报告|记录|空状态|摘要|状态|标签|数量|标题)", segment))
+                previous_delimiter in {"，", "、"} or
+                (previous_delimiter == "或" and re.match(r"(?:报告|记录|空状态|摘要|状态|标签|数量|标题)", segment))
             )
             if omission_continuation:
-                current += delimiter + segment
+                current += previous_delimiter + segment
             else:
                 clauses.append(current)
                 current = segment
+            previous_delimiter = next_delimiter
         if current:
             clauses.append(current)
         for clause in clauses:
