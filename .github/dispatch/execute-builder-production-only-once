@@ -9,3 +9,6 @@ Round 4: produce Builder output with updated DSH resource-budget contract. Build
 - DSH must pass the minimal connectivity probe before Builder invocation. Check remaining free-model quota before any generation call.
 
 Provider-selection implementation check: prefer DeepSeek deepseek-flash only when read-only balance and model-catalog checks pass; otherwise use OpenRouter Nemotron Nano only when at least two free requests remain. This commit only validates workflow syntax; it does not authorize model generation.
+
+
+2026-11-22 provider selection retry: run Builder production and independent validation only. Provider is selected automatically from read-only DeepSeek balance/model checks, then OpenRouter free quota as fallback. Do not start Skill pilots in this run.
