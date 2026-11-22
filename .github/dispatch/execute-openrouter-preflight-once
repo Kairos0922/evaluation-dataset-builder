@@ -19,3 +19,5 @@ Run stability trials against passing free models with the push-only trigger; no 
 Run one realistic refund-rule dataset-generation probe against the repeatedly stable zero-cost model. No production Builder or target Skill pilot.
 
 Run bounded-backoff task probe on the single model that passed prior repeatability checks.
+
+Run exactly one OpenRouter free-router connectivity preflight now. Do not run Builder production, qualification matrix, or Skill pilots.
