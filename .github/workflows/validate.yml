@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       run_builder_production:
-        description: "确认 DeepSeek API 余额可用后，执行真实 Builder 生产及三条试运行"
+        description: "确认 OpenRouter 免费额度可用后，执行真实 Builder 生产及三条试运行"
         required: true
         type: boolean
         default: false
@@ -587,7 +587,7 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Select OpenRouter free model with verified quota
+      - name: Select OpenRouter free-model router with verified quota
         id: provider
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -608,7 +608,7 @@ jobs:
           if not isinstance(remaining,int) or remaining < 2:
               print(json.dumps({"status":"BLOCKED","provider":"openrouter","free_model_daily_requests":quota,"generation_requests_made":0},indent=2))
               raise SystemExit("OpenRouter free-model quota is unavailable or below two requests; no inference request sent.")
-          selected={"provider":"openrouter-custom","model":"nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"}
+          selected={"provider":"openrouter-custom","model":"openrouter/free"}
           print(json.dumps({"status":"READY","provider":selected["provider"],"model":selected["model"],"free_model_daily_requests":quota,"generation_requests_made":0},indent=2))
           with open(os.environ["GITHUB_OUTPUT"],"a") as out:
               out.write("provider="+selected["provider"]+"\n")
@@ -665,7 +665,7 @@ jobs:
                   api: openai-completions
                   baseURL: https://openrouter.ai/api/v1
                   models:
-                    - id: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+                    - id: openrouter/free
           YAML
           fi
           cat >> "$DSH_HOME/cordis.patch.yml" <<YAML
@@ -1363,7 +1363,7 @@ jobs:
                   api: openai-completions
                   baseURL: https://openrouter.ai/api/v1
                   models:
-                    - id: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+                    - id: openrouter/free
           YAML
           fi
           cat >> "$DSH_HOME/cordis.patch.yml" <<YAML
