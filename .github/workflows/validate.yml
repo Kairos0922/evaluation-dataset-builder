@@ -1364,7 +1364,6 @@ jobs:
           CONFIG_PATH: ${{ runner.temp }}/dsh-config.txt
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
-          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -euo pipefail
           mkdir -p "$DSH_HOME"
