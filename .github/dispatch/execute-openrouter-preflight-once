@@ -3,3 +3,5 @@ One-time preflight: verify whether OPENROUTER_API_KEY is configured and test one
 Re-trigger after fixing the preflight report newline escaping; run only the OpenRouter preflight job.
 
 Re-trigger to run preflight in the PR workflow so the result is visible through the GitHub integration.
+
+Trigger a single same-repository PR preflight only; push event must not make a duplicate model request.
