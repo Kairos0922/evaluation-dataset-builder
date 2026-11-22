@@ -605,7 +605,7 @@ def report_has_state_cycle_result(
     """Check that the Skill report's explicit verdict matches the observed cycle."""
     normalized_report = re.sub(r"[*_]", "", report_text)
     match = re.search(
-        r"(?:判定|结论|结果|verdict)\s*[：:]\s*(PASS|FAIL|UNKNOWN)",
+        r"(?:判定|结论|结果|verdict)[^\\n]{0,30}\\b(PASS|FAIL|UNKNOWN)\\b",
         normalized_report,
         re.I,
     )
