@@ -1404,11 +1404,28 @@ jobs:
           retention-days: 30
 
   openrouter-preflight:
-    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.head.commit.message, 'OpenRouter preflight only')
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Skip unless this is the explicit preflight marker commit
+        id: gate
+        run: |
+          set -euo pipefail
+          message="$(git log -1 --format=%B)"
+          if [[ "$message" == *"OpenRouter preflight only"* && -f ".github/dispatch/execute-openrouter-preflight-once" ]]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+            echo "Not the designated OpenRouter preflight commit; skipping model request."
+          fi
       - name: Check OpenRouter secret and free inference endpoint without exposing credentials
+        if: steps.gate.outputs.run == 'true'
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
