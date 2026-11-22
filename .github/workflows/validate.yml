@@ -571,9 +571,12 @@ jobs:
     needs: runtime-preflight
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    outputs:
+      model_provider: ${{ steps.provider.outputs.provider }}
+      model_id: ${{ steps.provider.outputs.model }}
     env:
       DSH_HOME: ${{ github.workspace }}/.dsh-home
-      DSH_MODEL: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+      DSH_MODEL: deepseek-flash
       DSH_TELEMETRY_MODE: DISABLED
       DSH_TELEMETRY_DISABLED: "1"
       DSH_VERSION: "0.2.2-rc.1"
@@ -584,30 +587,52 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Check OpenRouter credential and free quota before model requests
+      - name: Select an available no-paid-inference provider
+        id: provider
         env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -euo pipefail
           python - <<'PY'
-          import json, os, urllib.request, urllib.error
-          key=os.environ.get("OPENROUTER_API_KEY","").strip()
-          if not key:
-              raise SystemExit("OPENROUTER_API_KEY missing; no model request was sent.")
-          request=urllib.request.Request("https://openrouter.ai/api/v1/key",
-              headers={"Authorization":"Bearer "+key,"Accept":"application/json"},method="GET")
-          try:
-              with urllib.request.urlopen(request,timeout=20) as response:
-                  payload=json.loads(response.read().decode())
-          except urllib.error.HTTPError as exc:
-              raise SystemExit(f"OpenRouter key/quota preflight failed with HTTP {exc.code}; no model request was sent.") from None
-          quota=(payload.get("data") or {}).get("free_model_daily_requests")
-          remaining=quota.get("remaining") if isinstance(quota,dict) else None
-          if not isinstance(remaining,int):
-              raise SystemExit("OpenRouter free quota could not be verified; no model request was sent.")
-          print(json.dumps({"free_model_daily_requests":quota,"generation_requests_made":0},indent=2))
-          if remaining < 2:
-              raise SystemExit("Fewer than two free requests remain; refusing to start connectivity + Builder calls.")
+          import json, os, urllib.request
+          from pathlib import Path
+          selected=None
+          failures=[]
+          deepseek=os.environ.get("DEEPSEEK_API_KEY","").strip()
+          if deepseek:
+              try:
+                  from scripts.deepseek_model_preflight import fetch_account_balance, fetch_model_metadata
+                  balance=fetch_account_balance(deepseek)
+                  model=fetch_model_metadata(deepseek,model_id="deepseek-flash")
+                  selected={"provider":"deepseek-official","model":"deepseek-flash","basis":"DeepSeek balance and model catalog verified"}
+                  selected["balance_check"]=balance.get("is_available")
+                  selected["model_context_window"]=model.get("context_window")
+              except Exception as exc:
+                  failures.append("DeepSeek unavailable: "+type(exc).__name__)
+          if selected is None:
+              key=os.environ.get("OPENROUTER_API_KEY","").strip()
+              if key:
+                  try:
+                      req=urllib.request.Request("https://openrouter.ai/api/v1/key",headers={"Authorization":"Bearer "+key,"Accept":"application/json"})
+                      with urllib.request.urlopen(req,timeout=20) as response: payload=json.loads(response.read().decode())
+                      quota=(payload.get("data") or {}).get("free_model_daily_requests")
+                      remaining=quota.get("remaining") if isinstance(quota,dict) else None
+                      if isinstance(remaining,int) and remaining>=2:
+                          selected={"provider":"openrouter-custom","model":"nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free","basis":"OpenRouter free quota verified","free_model_daily_requests":quota}
+                      else: failures.append("OpenRouter free quota unavailable or below two requests")
+                  except Exception as exc: failures.append("OpenRouter unavailable: "+type(exc).__name__)
+              else: failures.append("OPENROUTER_API_KEY missing")
+          if selected is None:
+              print(json.dumps({"status":"BLOCKED","generation_requests_made":0,"checks":failures},indent=2))
+              raise SystemExit("No provider has verified no-cost capacity; no generation request was sent.")
+          print(json.dumps({"status":"READY","generation_requests_made":0,**selected},indent=2))
+          with open(os.environ["GITHUB_OUTPUT"],"a") as out:
+              out.write("provider="+selected["provider"]+"\n")
+              out.write("model="+selected["model"]+"\n")
+          with open(os.environ["GITHUB_ENV"],"a") as out:
+              out.write("MODEL_PROVIDER="+selected["provider"]+"\n")
+              out.write("DSH_MODEL="+selected["model"]+"\n")
           PY
 
       - name: Install Node.js
