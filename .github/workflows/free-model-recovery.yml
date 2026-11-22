@@ -1,0 +1,176 @@
+name: Free model recovery and qualification
+on:
+  schedule:
+    - cron: "10 8 * * *"
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: free-model-recovery
+  cancel-in-progress: false
+jobs:
+  qualify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Check out the current PR benchmark assets
+        uses: actions/checkout@v4
+        with:
+          repository: Kairos0922/evaluation-dataset-builder
+          ref: experiment/webapp-testing-contract
+      - name: Run free-only model qualification when quota is available
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request, urllib.error
+          from pathlib import Path
+
+          repo=os.environ["GITHUB_REPOSITORY"]
+          run_id=os.environ["GITHUB_RUN_ID"]
+          key=os.environ.get("OPENROUTER_API_KEY","").strip()
+          report={"provider":"OpenRouter","qualification":"NOT_RUN",
+                  "generation_requests":0,"paid_requests":0,"status":"BLOCKED"}
+
+          def get_json(url,headers):
+              req=urllib.request.Request(url,headers=headers)
+              with urllib.request.urlopen(req,timeout=30) as res:
+                  return json.loads(res.read().decode())
+
+          gh_headers={"Authorization":"Bearer "+os.environ["GH_TOKEN"],
+                      "Accept":"application/vnd.github+json",
+                      "X-GitHub-Api-Version":"2022-11-28"}
+          prior=get_json(
+              f"https://api.github.com/repos/{repo}/actions/workflows/free-model-recovery.yml/runs?branch=main&per_page=20",
+              gh_headers).get("workflow_runs",[])
+          prior_success=[r for r in prior if str(r.get("id"))!=run_id
+                         and r.get("conclusion")=="success"]
+          if prior_success:
+              report.update({"status":"ALREADY_RESOLVED","qualification":"SKIPPED",
+                             "prior_success_run_id":prior_success[0]["id"]})
+              Path("free-model-qualification.json").write_text(json.dumps(report,indent=2)+"\n")
+              print(json.dumps(report,indent=2))
+              raise SystemExit(0)
+
+          if not key:
+              report["reason"]="OPENROUTER_API_KEY is unavailable; no model calls sent."
+          else:
+              try:
+                  key_data=get_json("https://openrouter.ai/api/v1/key",
+                                    {"Authorization":"Bearer "+key}).get("data",{})
+                  daily=key_data.get("free_model_daily_requests") or {}
+                  remaining=daily.get("remaining")
+                  report["free_model_daily_requests"]={"used":daily.get("used"),
+                      "limit":daily.get("limit"),"remaining":remaining}
+                  if not isinstance(remaining,(int,float)) or remaining<=0:
+                      report.update({"status":"WAITING_FOR_QUOTA",
+                                     "reason":"Shared free-model daily quota is exhausted; zero generation requests sent."})
+                  else:
+                      skill=Path("skills/evaluation-dataset-builder/SKILL.md").read_text()
+                      schema_file=Path("skills/evaluation-dataset-builder/references/dataset-schema.json")
+                      schema=schema_file.read_text() if schema_file.exists() else "Schema file missing."
+                      prompt=(
+                        "Qualify your ability to follow this Evaluation Dataset Builder Skill. "
+                        "This is a synthetic test, not a real business case. Business rule: a catalog "
+                        "search endpoint returns active products only; archived products must never "
+                        "appear. Generate exactly one complete evaluation case as a JSON object. "
+                        "Required top-level fields: case_id, scenario, user_input, expected_behavior, "
+                        "grading_contract, source_refs, assumptions, information_gaps. The grading_contract "
+                        "must identify evaluated_subject, criterion, pass_condition, fail_condition, "
+                        "evidence_required, and unknown_handling. Use no invented external sources. "
+                        "Mark the rule as synthetic/illustrative. If a field is not supported, explain "
+                        "that in information_gaps instead of fabricating. Return JSON only.\n\n"
+                        "SKILL INSTRUCTIONS:\n"+skill+"\n\nCASE SCHEMA:\n"+schema
+                      )
+                      candidates=[
+                        "inclusionai/ling-3.2-flash:free",
+                        "google/gemma-4-26b-a4b:free",
+                        "nvidia/nemotron-3.5-super-vl:free"
+                      ]
+                      tested=[]
+                      qualified=None
+                      for model in candidates[:min(3,int(remaining))]:
+                          entry={"model":model,"http_status":None,"result":"NOT_RUN"}
+                          body={"model":model,"messages":[{"role":"user","content":prompt}],
+                                "max_tokens":2200,"temperature":0}
+                          req=urllib.request.Request(
+                            "https://openrouter.ai/api/v1/chat/completions",
+                            data=json.dumps(body).encode(),
+                            headers={"Authorization":"Bearer "+key,
+                                     "Content-Type":"application/json",
+                                     "HTTP-Referer":"https://github.com/"+repo,
+                                     "X-Title":"Evaluation Dataset Builder free-model qualification"},
+                            method="POST")
+                          report["generation_requests"]+=1
+                          try:
+                              with urllib.request.urlopen(req,timeout=180) as res:
+                                  payload=json.loads(res.read().decode())
+                                  choices=payload.get("choices") or []
+                                  raw=((choices[0].get("message") or {}).get("content") or "") if choices else ""
+                                  entry["http_status"]=res.status
+                                  entry["returned_model"]=payload.get("model")
+                                  try:
+                                      obj=json.loads(raw)
+                                      required=["case_id","scenario","user_input","expected_behavior",
+                                                "grading_contract","source_refs","assumptions","information_gaps"]
+                                      missing=[k for k in required if k not in obj]
+                                      contract=obj.get("grading_contract")
+                                      contract_fields=["evaluated_subject","criterion","pass_condition",
+                                                       "fail_condition","evidence_required","unknown_handling"]
+                                      if not isinstance(contract,dict):
+                                          missing.append("grading_contract object")
+                                      else:
+                                          missing += ["grading_contract."+k for k in contract_fields if k not in contract]
+                                      if not isinstance(obj.get("source_refs"),list):
+                                          missing.append("source_refs must be an array")
+                                      entry["missing_fields"]=missing
+                                      entry["result"]="PASS" if not missing else "FAIL"
+                                      entry["response_excerpt"]=raw[:5000]
+                                      if not missing:
+                                          qualified={"model":model,"response":obj}
+                                          tested.append(entry)
+                                          break
+                                  except Exception:
+                                      entry["result"]="INVALID_JSON"
+                                      entry["response_excerpt"]=raw[:3000]
+                          except urllib.error.HTTPError as exc:
+                              try: error=json.loads(exc.read().decode()).get("error",{})
+                              except Exception: error={}
+                              entry.update({"http_status":exc.code,
+                                            "error":str(error.get("message","HTTP error"))[:300]})
+                              entry["result"]="RATE_LIMITED" if exc.code==429 else "PROVIDER_ERROR"
+                          tested.append(entry)
+                      report["models_tested"]=tested
+                      if qualified:
+                          report.update({"status":"PASS","qualification":"PASS",
+                                         "qualified_model":qualified["model"],
+                                         "qualified_case":qualified["response"]})
+                      elif any(x["result"] in ("FAIL","INVALID_JSON") for x in tested):
+                          report.update({"status":"NO_MODEL_QUALIFIED","qualification":"FAIL",
+                                         "reason":"All available candidates failed the structured task; no paid fallback used."})
+                      else:
+                          report.update({"status":"PROVIDER_UNAVAILABLE","qualification":"NOT_RUN",
+                                         "reason":"No candidate completed a usable response; a later scheduled check may retry."})
+              except Exception as exc:
+                  report.update({"status":"CHECK_ERROR","qualification":"NOT_RUN",
+                                 "reason":type(exc).__name__+": "+str(exc)[:400]})
+
+          Path("free-model-qualification.json").write_text(json.dumps(report,indent=2,ensure_ascii=False)+"\n")
+          print(json.dumps(report,indent=2,ensure_ascii=False))
+          # No quota is a retryable failure. A genuine quality result is terminal.
+          if report["status"] not in ("PASS","NO_MODEL_QUALIFIED","ALREADY_RESOLVED"):
+              raise SystemExit(1)
+          PY
+      - name: Archive qualification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: free-model-qualification
+          path: free-model-qualification.json
+          if-no-files-found: warn
+          retention-days: 30
