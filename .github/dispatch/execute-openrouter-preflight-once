@@ -5,3 +5,5 @@ Re-trigger after fixing the preflight report newline escaping; run only the Open
 Re-trigger to run preflight in the PR workflow so the result is visible through the GitHub integration.
 
 Trigger a single same-repository PR preflight only; push event must not make a duplicate model request.
+
+Run a single preflight with the fixed PR gate. Free model only, 16 output tokens, no Builder invocation.
