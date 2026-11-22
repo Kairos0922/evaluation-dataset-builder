@@ -36,7 +36,7 @@ class WB12FreeRetryContractTests(unittest.TestCase):
     def test_retry_is_bound_to_the_original_builder_case_only(self):
         self.assertIn('SOURCE_RUN_ID: "44980451933"', self.text)
         self.assertIn('--case-id WB-12', self.text)
-        self.assertIn('--max-model-steps 40', self.text)
+        self.assertIn('--max-model-steps 32', self.text)
         self.assertNotIn("run-builder-production", self.text)
         self.assertNotIn("execute-builder-production", self.text)
 
