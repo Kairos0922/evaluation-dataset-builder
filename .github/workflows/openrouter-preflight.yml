@@ -134,7 +134,9 @@ jobs:
                           report["stability_trials"].append(trial_result)
                   passed_trials=sum(x["status"]=="PASS" for x in report["stability_trials"])
                   report["stability_pass_rate"]=passed_trials/len(report["stability_trials"]) if report["stability_trials"] else None
-                  report["status"]="PASS" if qualified and passed_trials==len(report["stability_trials"]) else ("DEGRADED" if qualified else ("FAIL" if report["results"] else "BLOCKED"))
+                  report["stable_models"]=[mid for mid in [x["model"] for x in qualified]
+                      if all(t["status"]=="PASS" for t in report["stability_trials"] if t["model"]==mid)]
+                  report["status"]="PASS" if report["stable_models"] else ("DEGRADED" if qualified else ("FAIL" if report["results"] else "BLOCKED"))
               except Exception as exc:
                   report["reason"]=type(exc).__name__+": "+str(exc)
                   report["status"]="FAIL"
