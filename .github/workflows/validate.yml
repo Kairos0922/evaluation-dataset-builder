@@ -611,11 +611,11 @@ jobs:
           selected={"provider":"openrouter-custom","model":"nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"}
           print(json.dumps({"status":"READY","provider":selected["provider"],"model":selected["model"],"free_model_daily_requests":quota,"generation_requests_made":0},indent=2))
           with open(os.environ["GITHUB_OUTPUT"],"a") as out:
-              out.write("provider="+selected["provider"]+"\\n")
-              out.write("model="+selected["model"]+"\\n")
+              out.write("provider="+selected["provider"]+"\n")
+              out.write("model="+selected["model"]+"\n")
           with open(os.environ["GITHUB_ENV"],"a") as out:
-              out.write("MODEL_PROVIDER="+selected["provider"]+"\\n")
-              out.write("DSH_MODEL="+selected["model"]+"\\n")
+              out.write("MODEL_PROVIDER="+selected["provider"]+"\n")
+              out.write("DSH_MODEL="+selected["model"]+"\n")
           PY
 
       - name: Install Node.js
@@ -789,7 +789,7 @@ jobs:
 
       - name: Probe selected model connectivity before Builder production
         env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -euo pipefail
@@ -880,7 +880,7 @@ jobs:
       - name: Invoke Evaluation Dataset Builder through DSH
         id: builder_dsh
         env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -euo pipefail
@@ -1009,7 +1009,7 @@ jobs:
       - name: Check and redact any accidental credential disclosure
         if: always()
         env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           mkdir -p artifacts
@@ -1018,7 +1018,7 @@ jobs:
           import os
           from pathlib import Path
 
-          secrets = [value.encode() for value in (os.environ.get("OPENROUTER_API_KEY", ""), os.environ.get("DEEPSEEK_API_KEY", "")) if value]
+          secrets = [value.encode() for value in (os.environ.get("OPENROUTER_API_KEY", "")) if value]
           targets = [
               Path("artifacts/builder-connectivity-probe-events.jsonl"),
               Path("artifacts/builder-connectivity-probe-stderr.log"),
@@ -1285,13 +1285,11 @@ jobs:
 
       - name: Check selected provider credential availability
         env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -euo pipefail
-          if [ "$MODEL_PROVIDER" = "deepseek-official" ]; then
-            test -n "$DEEPSEEK_API_KEY" || { echo "::error::DEEPSEEK_API_KEY missing"; exit 2; }
-          elif [ "$MODEL_PROVIDER" = "openrouter-custom" ]; then
+          if [ "$MODEL_PROVIDER" = "openrouter-custom" ]; then
             test -n "$OPENROUTER_API_KEY" || { echo "::error::OPENROUTER_API_KEY missing"; exit 2; }
           else
             echo "::error::Unknown selected provider: $MODEL_PROVIDER"; exit 2
@@ -1345,7 +1343,7 @@ jobs:
       - name: Configure isolated DSH with selected provider and verify Session Log is disabled
         env:
           CONFIG_PATH: ${{ runner.temp }}/dsh-config.txt
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -euo pipefail
@@ -1406,7 +1404,7 @@ jobs:
 
       - name: Execute Builder-generated pilot case
         env:
-          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           DATASET_PATH: ${{ matrix.dataset_path }}
           DATASET_ID: ${{ matrix.dataset_id }}
