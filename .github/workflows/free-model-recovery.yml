@@ -1,5 +1,10 @@
 name: Free model recovery and qualification
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/free-model-recovery.yml"
   schedule:
     - cron: "10 8 * * *"
   workflow_dispatch:
