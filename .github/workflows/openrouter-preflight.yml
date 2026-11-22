@@ -22,74 +22,88 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
-          import json, os, time, urllib.request, urllib.error
+          import json, os, urllib.request, urllib.error
           from pathlib import Path
 
           MODEL="nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"
           key=os.environ.get("OPENROUTER_API_KEY","").strip()
           report={"provider":"openrouter","secret_configured":bool(key),"model":MODEL,
-                  "generation_requests":0,"attempts":[],"status":"BLOCKED"}
+                  "generation_requests":0,"status":"BLOCKED"}
           if not key:
               report["reason"]="OPENROUTER_API_KEY missing; no request sent."
           else:
-              prompt=("Apply these refund rules: requests are eligible within 7 calendar days after delivery; "
-                      "used products are not refundable unless defective; shipping fees are never refunded. "
-                      "Return JSON only with a cases array of exactly 4 objects. Each object must have case_id, "
-                      "expected_decision (approve or reject), and refund_shipping_fee (boolean). Cover: "
-                      "unused item delivered 3 days ago; used non-defective item delivered 2 days ago; "
-                      "used defective item delivered 5 days ago; unused item delivered 8 days ago. "
-                      "Expected decisions in that order: approve, reject, approve, reject. "
-                      "Set refund_shipping_fee to false for every case.")
-              delays=[0,30,60]
-              for attempt,delay in enumerate(delays,1):
-                  if delay: time.sleep(delay)
-                  req=urllib.request.Request(
-                      "https://openrouter.ai/api/v1/chat/completions",
-                      data=json.dumps({"model":MODEL,"messages":[{"role":"user","content":prompt}],
-                                       "max_tokens":1200,"temperature":0}).encode(),
-                      headers={"Authorization":"Bearer "+key,"Content-Type":"application/json",
-                               "HTTP-Referer":"https://github.com/Kairos0922/evaluation-dataset-builder",
-                               "X-Title":"Evaluation Dataset Builder free-model task probe"},
-                      method="POST")
-                  report["generation_requests"]+=1
-                  try:
-                      with urllib.request.urlopen(req,timeout=60) as response:
-                          payload=json.loads(response.read().decode())
-                          choices=payload.get("choices") or []
-                          msg=(choices[0].get("message") or {}) if choices else {}
-                          output=msg.get("content")
-                          output=output if isinstance(output,str) else ""
-                          try:
-                              parsed=json.loads(output)
-                              cases=parsed.get("cases",[]) if isinstance(parsed,dict) else []
-                              decisions=[x.get("expected_decision") for x in cases]
-                              fees=[x.get("refund_shipping_fee") for x in cases]
-                              valid=(len(cases)==4 and len({x.get("case_id") for x in cases})==4
-                                     and decisions==["approve","reject","approve","reject"]
-                                     and fees==[False,False,False,False])
-                          except Exception:
-                              valid=False
-                          report["http_status"]=response.status
-                          report["finish_reason"]=choices[0].get("finish_reason") if choices else None
-                          report["task_probe"]={"status":"PASS" if valid else "FAIL",
-                                                "schema_and_rule_checks_passed":valid,
-                                                "excerpt":output[:400]}
-                          report["attempts"].append({"attempt":attempt,"status":"PASS" if valid else "INVALID_OUTPUT"})
-                          report["status"]="PASS" if valid else "FAIL"
-                          break
-                  except urllib.error.HTTPError as exc:
-                      report["attempts"].append({"attempt":attempt,"http_status":exc.code})
-                      if exc.code not in (408,429,500,502,503,504) or attempt==len(delays):
-                          report["status"]="FAIL"
-                          report["reason"]="Provider rejected the request after bounded retries."
-                          break
-                  except Exception as exc:
-                      report["attempts"].append({"attempt":attempt,"error":type(exc).__name__})
-                      if attempt==len(delays):
-                          report["status"]="FAIL"
-                          report["reason"]=type(exc).__name__
-              if not report["attempts"]:
-                  report["status"]="BLOCKED"
+              headers={"Authorization":"Bearer "+key,"Content-Type":"application/json",
+                       "HTTP-Referer":"https://github.com/Kairos0922/evaluation-dataset-builder",
+                       "X-Title":"Evaluation Dataset Builder free-model task probe"}
+              try:
+                  quota_req=urllib.request.Request("https://openrouter.ai/api/v1/key",
+                      headers={"Authorization":"Bearer "+key,"Accept":"application/json"},method="GET")
+                  with urllib.request.urlopen(quota_req,timeout=20) as response:
+                      quota_payload=json.loads(response.read().decode())
+                  quota=(quota_payload.get("data") or {}).get("free_model_daily_requests")
+                  report["free_model_daily_requests"]=quota
+                  remaining=quota.get("remaining") if isinstance(quota,dict) else None
+                  if not isinstance(remaining,int):
+                      report["reason"]="Could not verify remaining free-model daily quota; no generation request sent."
+                  elif remaining < 1:
+                      report["reason"]="Free-model daily request quota exhausted; no generation request sent."
+                  else:
+                      prompt=("Apply these refund rules: requests are eligible within 7 calendar days after delivery; "
+                              "used products are not refundable unless defective; shipping fees are never refunded. "
+                              "Return JSON only with a cases array of exactly 4 objects. Each object must have case_id, "
+                              "expected_decision (approve or reject), and refund_shipping_fee (boolean). Cover: "
+                              "unused item delivered 3 days ago; used non-defective item delivered 2 days ago; "
+                              "used defective item delivered 5 days ago; unused item delivered 8 days ago. "
+                              "Expected decisions in that order: approve, reject, approve, reject. "
+                              "Set refund_shipping_fee to false for every case.")
+                      req=urllib.request.Request("https://openrouter.ai/api/v1/chat/completions",
+                          data=json.dumps({"model":MODEL,"messages":[{"role":"user","content":prompt}],
+                                           "max_tokens":1200,"temperature":0}).encode(),
+                          headers=headers,method="POST")
+                      report["generation_requests"]=1
+                      try:
+                          with urllib.request.urlopen(req,timeout=60) as response:
+                              payload=json.loads(response.read().decode())
+                              choices=payload.get("choices") or []
+                              msg=(choices[0].get("message") or {}) if choices else {}
+                              output=msg.get("content")
+                              output=output if isinstance(output,str) else ""
+                              try:
+                                  parsed=json.loads(output)
+                                  cases=parsed.get("cases",[]) if isinstance(parsed,dict) else []
+                                  decisions=[x.get("expected_decision") for x in cases]
+                                  fees=[x.get("refund_shipping_fee") for x in cases]
+                                  valid=(len(cases)==4 and len({x.get("case_id") for x in cases})==4
+                                         and decisions==["approve","reject","approve","reject"]
+                                         and fees==[False,False,False,False])
+                              except Exception:
+                                  valid=False
+                              report["http_status"]=response.status
+                              report["finish_reason"]=choices[0].get("finish_reason") if choices else None
+                              report["task_probe"]={"status":"PASS" if valid else "FAIL",
+                                                    "schema_and_rule_checks_passed":valid,
+                                                    "excerpt":output[:400]}
+                              report["status"]="PASS" if valid else "FAIL"
+                      except urllib.error.HTTPError as exc:
+                          error_payload={}
+                          try: error_payload=json.loads(exc.read().decode())
+                          except Exception: pass
+                          error=error_payload.get("error") or {}
+                          metadata=error.get("metadata") or {}
+                          report["http_status"]=exc.code
+                          report["rate_limit_headers"]={name:exc.headers.get(name) for name in
+                              ("Retry-After","X-RateLimit-Limit","X-RateLimit-Remaining","X-RateLimit-Reset")
+                              if exc.headers.get(name) is not None}
+                          report["provider_error"]={"message":str(error.get("message",""))[:160],
+                              "error_type":metadata.get("error_type"),
+                              "provider_code":metadata.get("provider_code")}
+                          report["status"]="RATE_LIMITED" if exc.code==429 else "FAIL"
+                          report["reason"]="No automatic retry: failed free requests can consume the daily quota."
+              except urllib.error.HTTPError as exc:
+                  report["reason"]="Could not read OpenRouter key quota; no generation request sent."
+                  report["quota_http_status"]=exc.code
+              except Exception as exc:
+                  report["reason"]=type(exc).__name__+": "+str(exc)
           Path("openrouter-preflight.json").write_text(json.dumps(report,indent=2,ensure_ascii=False)+"\n")
           print(json.dumps(report,indent=2,ensure_ascii=False))
           if report["status"]!="PASS":
