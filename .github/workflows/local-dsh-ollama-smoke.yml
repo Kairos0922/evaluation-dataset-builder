@@ -89,9 +89,9 @@ jobs:
           EVENTS_PATH: ${{ runner.temp }}/dsh-events.jsonl
         run: |
           set -euo pipefail
-          prompt='Use the Bash tool to execute exactly: printf LOCAL_DSH_TOOL_OK. Do not simulate the result or claim it ran unless you actually call Bash. After the tool returns, respond with the exact marker.'
+          prompt='Call the Bash tool exactly once with command: printf LOCAL_DSH_TOOL_OK. Do not explain or use other tools. After the actual tool result, output only LOCAL_DSH_TOOL_OK.'
           set -o pipefail
-          printf '%s' "$prompt" | timeout --signal=TERM --kill-after=30s 12m dsh --profile headless --json --permission-mode workspace-write - 2> "$RUNNER_TEMP/dsh-stderr.log" | tee "$EVENTS_PATH"
+          printf '%s' "$prompt" | timeout --signal=TERM --kill-after=15s 6m dsh --profile headless --json --permission-mode workspace-write - 2> "$RUNNER_TEMP/dsh-stderr.log" | tee "$EVENTS_PATH"
           cat "$EVENTS_PATH"
           echo "DSH event stream captured; validating tool execution."
           python - <<'PY'
