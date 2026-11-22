@@ -576,7 +576,7 @@ jobs:
       model_id: ${{ steps.provider.outputs.model }}
     env:
       DSH_HOME: ${{ github.workspace }}/.dsh-home
-      DSH_MODEL: deepseek-flash
+      DSH_MODEL: openrouter/free
       DSH_TELEMETRY_MODE: DISABLED
       DSH_TELEMETRY_DISABLED: "1"
       DSH_VERSION: "0.2.2-rc.1"
