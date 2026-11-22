@@ -1525,25 +1525,38 @@ jobs:
           if not key:
               report["reason"] = "OPENROUTER_API_KEY secret is not configured; no request sent."
           else:
-              req = urllib.request.Request(
-                  "https://openrouter.ai/api/v1/chat/completions",
-                  data=json.dumps({"model":"openrouter/free","messages":[{"role":"user","content":"Reply exactly OPENROUTER_OK"}],"max_tokens":16}).encode(),
-                  headers={"Authorization":f"Bearer {key}","Content-Type":"application/json","HTTP-Referer":"https://github.com/Kairos0922/evaluation-dataset-builder","X-Title":"Evaluation Dataset Builder preflight"},
-                  method="POST")
               try:
-                  with urllib.request.urlopen(req, timeout=40) as response:
-                      payload=json.loads(response.read().decode())
-                      report["http_status"]=response.status
-                      report["generation_requests"]=1
-                      report["model_returned"]=payload.get("model")
-                      choices=payload.get("choices") or []
-                      content=(choices[0].get("message",{}).get("content","") if choices else "")
-                      report["response_marker_present"]="OPENROUTER_OK" in content
-                      report["status"]="PASS" if report["response_marker_present"] else "FAIL"
-                      report["response_excerpt"]=content[:120]
+                  quota_req = urllib.request.Request(
+                      "https://openrouter.ai/api/v1/key",
+                      headers={"Authorization": f"Bearer {key}", "Accept": "application/json"})
+                  with urllib.request.urlopen(quota_req, timeout=20) as response:
+                      quota_payload = json.loads(response.read().decode())
+                  quota = (quota_payload.get("data") or {}).get("free_model_daily_requests")
+                  report["free_model_daily_requests"] = quota
+                  remaining = quota.get("remaining") if isinstance(quota, dict) else None
+                  if not isinstance(remaining, int):
+                      report["reason"] = "Could not verify free-model daily quota; no generation request sent."
+                  elif remaining < 1:
+                      report["reason"] = "Free-model daily quota exhausted; no generation request sent."
+                  else:
+                      req = urllib.request.Request(
+                          "https://openrouter.ai/api/v1/chat/completions",
+                          data=json.dumps({"model":"openrouter/free","messages":[{"role":"user","content":"Reply exactly OPENROUTER_OK"}],"max_tokens":16}).encode(),
+                          headers={"Authorization":f"Bearer {key}","Content-Type":"application/json","HTTP-Referer":"https://github.com/Kairos0922/evaluation-dataset-builder","X-Title":"Evaluation Dataset Builder free-router preflight"},
+                          method="POST")
+                      report["generation_requests"] = 1
+                      with urllib.request.urlopen(req, timeout=40) as response:
+                          payload=json.loads(response.read().decode())
+                          report["http_status"]=response.status
+                          report["model_returned"]=payload.get("model")
+                          choices=payload.get("choices") or []
+                          content=(choices[0].get("message",{}).get("content","") if choices else "")
+                          report["response_marker_present"]="OPENROUTER_OK" in content
+                          report["status"]="PASS" if report["response_marker_present"] else "FAIL"
+                          report["response_excerpt"]=content[:120]
               except urllib.error.HTTPError as exc:
                   report["http_status"]=exc.code
-                  report["reason"]="OpenRouter rejected the free-model request; response body intentionally omitted."
+                  report["reason"]="OpenRouter quota check or free-router request failed; response body intentionally omitted."
               except Exception as exc:
                   report["reason"]=f"Request failed: {type(exc).__name__}: {exc}"
           Path("openrouter-preflight.json").write_text(json.dumps(report,indent=2)+"\n")
