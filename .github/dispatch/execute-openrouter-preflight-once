@@ -21,3 +21,5 @@ Run one realistic refund-rule dataset-generation probe against the repeatedly st
 Run bounded-backoff task probe on the single model that passed prior repeatability checks.
 
 Run exactly one OpenRouter free-router connectivity preflight now. Do not run Builder production, qualification matrix, or Skill pilots.
+
+Run exactly one OpenRouter free-router preflight after fixing PR-head SHA detection. Check quota first; if exhausted, send zero generation requests. Do not run qualification, Builder production, or Skill pilots.
