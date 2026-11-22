@@ -580,6 +580,7 @@ jobs:
       DSH_TELEMETRY_MODE: DISABLED
       DSH_TELEMETRY_DISABLED: "1"
       DSH_VERSION: "0.2.2-rc.1"
+      MODEL_PROVIDER: ${{ needs.builder-production.outputs.model_provider }}
     steps:
       - name: Checkout benchmark repository
         uses: actions/checkout@v4
@@ -1273,7 +1274,7 @@ jobs:
     timeout-minutes: 30
     env:
       DSH_HOME: ${{ github.workspace }}/.dsh-home
-      DSH_MODEL: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+      DSH_MODEL: ${{ needs.builder-production.outputs.model_id }}
       DSH_TELEMETRY_MODE: DISABLED
       DSH_TELEMETRY_DISABLED: "1"
       DSH_VERSION: "0.2.2-rc.1"
@@ -1299,15 +1300,19 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Check OpenRouter model credential availability
+      - name: Check selected provider credential availability
         env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -euo pipefail
-          test -n "$OPENROUTER_API_KEY" || {
-            echo "::error::OPENROUTER_API_KEY is missing; no model request was sent."
-            exit 2
-          }
+          if [ "$MODEL_PROVIDER" = "deepseek-official" ]; then
+            test -n "$DEEPSEEK_API_KEY" || { echo "::error::DEEPSEEK_API_KEY missing"; exit 2; }
+          elif [ "$MODEL_PROVIDER" = "openrouter-custom" ]; then
+            test -n "$OPENROUTER_API_KEY" || { echo "::error::OPENROUTER_API_KEY missing"; exit 2; }
+          else
+            echo "::error::Unknown selected provider: $MODEL_PROVIDER"; exit 2
+          fi
 
       - name: Install Node.js
         uses: actions/setup-node@v4
@@ -1354,9 +1359,11 @@ jobs:
           python -m pip install --disable-pip-version-check "playwright==1.64.1"
           python -m playwright install --with-deps --only-shell chromium
 
-      - name: Configure isolated DSH with OpenRouter and verify Session Log is disabled
+      - name: Configure isolated DSH with selected provider and verify Session Log is disabled
         env:
           CONFIG_PATH: ${{ runner.temp }}/dsh-config.txt
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
           set -euo pipefail
@@ -1365,6 +1372,9 @@ jobs:
           - id: session-log-deepseek
             config:
               enabled: false
+          YAML
+          if [ "$MODEL_PROVIDER" = "openrouter-custom" ]; then
+            cat >> "$DSH_HOME/cordis.patch.yml" <<'YAML'
           - id: llm-pi-ai
             config:
               providers:
@@ -1374,10 +1384,13 @@ jobs:
                   baseURL: https://openrouter.ai/api/v1
                   models:
                     - id: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+          YAML
+          fi
+          cat >> "$DSH_HOME/cordis.patch.yml" <<YAML
           - id: agent-default-model
             config:
-              provider: openrouter-custom
-              model: nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free
+              provider: $MODEL_PROVIDER
+              model: $DSH_MODEL
           YAML
           dsh --profile headless --dump-config > "$RUNNER_TEMP/dsh-config.txt"
           python - <<'PY'
@@ -1393,10 +1406,14 @@ jobs:
           section = tail[:next_item.start()] if next_item else tail
           if not re.search(r"\benabled:\s*false\b", section):
               raise SystemExit("Session Log upload is not disabled")
-          for marker in ("openrouter-custom", "OPENROUTER_API_KEY", "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free"):
-              if marker not in text:
-                  raise SystemExit(f"OpenRouter DSH configuration missing: {marker}")
-          print("PASS: Session Log disabled and OpenRouter model configured; OTel disabled by environment flags.")
+          import os
+          provider = os.environ["MODEL_PROVIDER"]
+          model = os.environ["DSH_MODEL"]
+          if provider not in text or model not in text:
+              raise SystemExit(f"Selected provider/model missing from DSH config: {provider} / {model}")
+          if provider == "openrouter-custom" and "OPENROUTER_API_KEY" not in text:
+              raise SystemExit("OpenRouter credential reference missing")
+          print(f"PASS: Session Log disabled; selected provider/model configured: {provider} / {model}; OTel disabled.")
           PY
 
       - name: Compile and self-test execution runner
@@ -1407,6 +1424,7 @@ jobs:
 
       - name: Execute Builder-generated pilot case
         env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
           DATASET_PATH: ${{ matrix.dataset_path }}
           DATASET_ID: ${{ matrix.dataset_id }}
