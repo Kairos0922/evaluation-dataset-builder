@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Send exactly one real free-model inference request
+      - name: Check free quota, then send at most one free-model request
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
@@ -27,54 +27,88 @@ jobs:
 
           model = "inclusionai/ling-3.2-flash:free"
           key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+          report = {"provider": "openrouter", "secret_configured": bool(key),
+                    "model": model, "quota_check": "NOT_CHECKED",
+                    "generation_requests": 0, "status": "BLOCKED"}
           if not model.endswith(":free"):
               raise SystemExit("Refusing non-free model ID")
-          report = {"provider": "openrouter", "secret_configured": bool(key),
-                    "model": model, "generation_requests": 0, "status": "BLOCKED"}
-          if key:
-              body = {"model": model,
-                      "messages": [{"role": "user", "content": "Reply exactly OPENROUTER_OK"}],
-                      "max_tokens": 16, "temperature": 0}
-              req = urllib.request.Request(
-                  "https://openrouter.ai/api/v1/chat/completions",
-                  data=json.dumps(body).encode(),
-                  headers={"Authorization": "Bearer " + key,
-                           "Content-Type": "application/json",
-                           "HTTP-Referer": "https://github.com/Kairos0922/evaluation-dataset-builder",
-                           "X-Title": "Evaluation Dataset Builder one-shot inference test"},
-                  method="POST")
-              report["generation_requests"] = 1
-              try:
-                  with urllib.request.urlopen(req, timeout=90) as response:
-                      payload = json.loads(response.read().decode())
-                      choices = payload.get("choices") or []
-                      message = (choices[0].get("message") or {}) if choices else {}
-                      output = message.get("content")
-                      output = output if isinstance(output, str) else ""
-                      passed = output.strip() == "OPENROUTER_OK"
-                      report.update({"http_status": response.status,
-                                     "provider": payload.get("provider", "openrouter"),
-                                     "returned_model": payload.get("model"),
-                                     "finish_reason": choices[0].get("finish_reason") if choices else None,
-                                     "response_excerpt": output[:300],
-                                     "status": "PASS" if passed else "FAIL"})
-              except urllib.error.HTTPError as exc:
-                  try:
-                      payload = json.loads(exc.read().decode())
-                  except Exception:
-                      payload = {}
-                  error = payload.get("error") or {}
-                  metadata = error.get("metadata") or {}
-                  report.update({"http_status": exc.code,
-                                 "error_message": str(error.get("message", ""))[:300],
-                                 "error_type": metadata.get("error_type"),
-                                 "provider_code": metadata.get("provider_code"),
-                                 "status": "RATE_LIMITED" if exc.code == 429 else "FAIL"})
-              except Exception as exc:
-                  report.update({"status": "FAIL",
-                                 "error": type(exc).__name__ + ": " + str(exc)[:300]})
+          if not key:
+              report["reason"] = "OPENROUTER_API_KEY is missing."
           else:
-              report["reason"] = "OPENROUTER_API_KEY is missing; no inference request sent."
+              quota_req = urllib.request.Request(
+                  "https://openrouter.ai/api/v1/key",
+                  headers={"Authorization": "Bearer " + key}, method="GET")
+              try:
+                  with urllib.request.urlopen(quota_req, timeout=30) as response:
+                      quota_payload = json.loads(response.read().decode())
+                  def find_remaining(obj):
+                      if isinstance(obj, dict):
+                          value = obj.get("free_model_daily_requests")
+                          if isinstance(value, dict) and isinstance(value.get("remaining"), (int, float)):
+                              return value["remaining"], value
+                          for child in obj.values():
+                              found = find_remaining(child)
+                              if found is not None:
+                                  return found
+                      elif isinstance(obj, list):
+                          for child in obj:
+                              found = find_remaining(child)
+                              if found is not None:
+                                  return found
+                      return None
+                  quota = find_remaining(quota_payload)
+                  if quota is None:
+                      report["quota_check"] = "UNVERIFIABLE"
+                      report["reason"] = "Quota metadata missing; safely skipped inference."
+                  else:
+                      remaining, details = quota
+                      report["quota_check"] = "VERIFIED"
+                      report["free_model_daily_requests"] = {
+                          "remaining": remaining, "used": details.get("used"),
+                          "limit": details.get("limit")}
+                      if remaining <= 0:
+                          report["status"] = "RATE_LIMITED"
+                          report["reason"] = "No free-model daily requests remain; zero inference calls sent."
+                      else:
+                          body = {"model": model,
+                                  "messages": [{"role": "user", "content": "Reply exactly OPENROUTER_OK"}],
+                                  "max_tokens": 16, "temperature": 0}
+                          req = urllib.request.Request(
+                              "https://openrouter.ai/api/v1/chat/completions",
+                              data=json.dumps(body).encode(),
+                              headers={"Authorization": "Bearer " + key,
+                                       "Content-Type": "application/json",
+                                       "HTTP-Referer": "https://github.com/Kairos0922/evaluation-dataset-builder",
+                                       "X-Title": "Evaluation Dataset Builder free-model qualification"},
+                              method="POST")
+                          report["generation_requests"] = 1
+                          try:
+                              with urllib.request.urlopen(req, timeout=90) as response:
+                                  payload = json.loads(response.read().decode())
+                                  choices = payload.get("choices") or []
+                                  message = (choices[0].get("message") or {}) if choices else {}
+                                  output = message.get("content")
+                                  output = output if isinstance(output, str) else ""
+                                  report.update({"http_status": response.status,
+                                                 "returned_model": payload.get("model"),
+                                                 "finish_reason": choices[0].get("finish_reason") if choices else None,
+                                                 "response_excerpt": output[:300],
+                                                 "status": "PASS" if output.strip() == "OPENROUTER_OK" else "FAIL"})
+                          except urllib.error.HTTPError as exc:
+                              try:
+                                  payload = json.loads(exc.read().decode())
+                              except Exception:
+                                  payload = {}
+                              error = payload.get("error") or {}
+                              report.update({"http_status": exc.code,
+                                             "error_message": str(error.get("message", ""))[:300],
+                                             "status": "RATE_LIMITED" if exc.code == 429 else "FAIL"})
+              except urllib.error.HTTPError as exc:
+                  report["quota_check"] = "UNVERIFIABLE"
+                  report["reason"] = "Quota endpoint returned HTTP " + str(exc.code) + "; zero inference calls sent."
+              except Exception as exc:
+                  report["quota_check"] = "UNVERIFIABLE"
+                  report["reason"] = type(exc).__name__ + ": " + str(exc)[:200] + "; zero inference calls sent."
           Path("openrouter-inference-test.json").write_text(
               json.dumps(report, indent=2, ensure_ascii=False) + "\\n")
           print(json.dumps(report, indent=2, ensure_ascii=False))
