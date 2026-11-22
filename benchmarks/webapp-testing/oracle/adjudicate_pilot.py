@@ -182,26 +182,45 @@ def adjudicate_one(suite: Path, pilot: Path, entry: dict) -> dict:
               "CONFORMS and all assertions PASS", {"overall": result.get("overall"), "verdicts": verdicts})
 
     elif role == "delete_confirmation":
-        deleted = [e for e in audit if e.get("method") == "DELETE" and e.get("action") == "deleted"]
-        before = {x.get("id") for x in pre.get("items", [])}
-        after = {x.get("id") for x in post.get("items", [])}
-        expected_ids = before - {"WB-102"}
-        expected_summary = {"all": 4, "open": 2, "in_progress": 1, "done": 1}
+        delete_requests = [e for e in audit if e.get("method") == "DELETE"]
+        deleted = [e for e in delete_requests if e.get("action") == "deleted" and e.get("status") == 200]
+        before_items = pre.get("items") or []
+        after_items = post.get("items") or []
+        before = {x.get("id") for x in before_items}
+        after = {x.get("id") for x in after_items}
+        test_data = (case.get("execution_requirements") or {}).get("test_data") or []
+        target_spec = next((x for x in test_data if x.get("kind") == "target_task"), {})
+        remaining_spec = next((x for x in test_data if x.get("kind") == "expected_remaining_tasks"), {})
+        summary_spec = next((x for x in test_data if x.get("kind") == "expected_summary"), {})
+        target_title = target_spec.get("visible_title")
+        target_items = [x for x in before_items if x.get("title") == target_title]
+        target_id = target_items[0].get("id") if len(target_items) == 1 else None
+        expected_remaining_titles = set(remaining_spec.get("values") or [])
+        expected_summary_text = str(summary_spec.get("value") or "")
+        import re
+        summary_values = re.findall(r"(All|Open|In progress|Done)\\s*=\\s*(\\d+)", expected_summary_text)
+        summary_keys = {"All": "all", "Open": "open", "In progress": "in_progress", "Done": "done"}
+        expected_summary = {summary_keys[k]: int(v) for k, v in summary_values}
         mutations = runner.get("fixture_mutations") or []
         check(checks, "clean_fixture", runner.get("fixture_profile") == "clean" and not mutations,
               {"profile": "clean", "mutations": []},
               {"profile": runner.get("fixture_profile"), "mutations": mutations})
-        check(checks, "cancel_then_confirm", len(deleted) == 1
-              and deleted[0].get("item", {}).get("id") == "WB-102",
-              "one DELETE of WB-102 after cancel preserved it", deleted)
-        check(checks, "only_target_removed", "WB-102" in before and after == expected_ids
-              and len(after) == 4, sorted(expected_ids), sorted(after))
-        check(checks, "summary_after_delete", post.get("summary") == expected_summary,
+        check(checks, "one_delete_request", len(delete_requests) == 1 and len(deleted) == 1,
+              "exactly one DELETE request, successful", delete_requests)
+        check(checks, "delete_target", target_id is not None and deleted[0].get("item", {}).get("id") == target_id
+              and delete_requests[0].get("path", "").endswith("/" + str(target_id)),
+              {"target_title": target_title, "target_id": target_id},
+              {"request": delete_requests, "deleted": deleted})
+        remaining_titles = {x.get("title") for x in after_items}
+        check(checks, "only_target_removed", target_id in before and after == before - {target_id}
+              and remaining_titles == expected_remaining_titles and len(after_items) == len(expected_remaining_titles),
+              sorted(expected_remaining_titles), sorted(remaining_titles))
+        check(checks, "summary_after_delete", bool(expected_summary) and post.get("summary") == expected_summary,
               expected_summary, post.get("summary"))
         check(checks, "target_skill_conclusion", result.get("overall") == "CONFORMS"
               and verdicts and all(v == "PASS" for v in verdicts),
               "CONFORMS and all assertions PASS", {"overall": result.get("overall"), "verdicts": verdicts})
-        required = ["wb-102", "cancel", "delete task"]
+        required = [str(target_title or "").casefold(), "delete task"]
         check(checks, "dialog_result_reported", all(x in result_text for x in required),
               required, [x for x in required if x in result_text])
 
