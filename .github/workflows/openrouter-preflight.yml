@@ -19,9 +19,9 @@ jobs:
   preflight:
     if: github.event_name == 'push' || (github.event.pull_request.head.repo.full_name == github.repository)
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
-      - name: Check OpenRouter secret and request free route
+      - name: Probe multiple zero-cost text models
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
@@ -29,39 +29,95 @@ jobs:
           python - <<'PY'
           import json, os, urllib.request, urllib.error
           from pathlib import Path
+
           key=os.environ.get("OPENROUTER_API_KEY","").strip()
-          result={"provider":"openrouter","secret_configured":bool(key),"generation_requests":0,"status":"BLOCKED"}
+          report={"provider":"openrouter","secret_configured":bool(key),"models_discovered":0,
+                  "models_tested":0,"generation_requests":0,"status":"BLOCKED","results":[]}
           if not key:
-              result["reason"]="OPENROUTER_API_KEY secret missing; no request sent."
+              report["reason"]="OPENROUTER_API_KEY missing; no request sent."
           else:
-              req=urllib.request.Request(
-                  "https://openrouter.ai/api/v1/chat/completions",
-                  data=json.dumps({"model":"openrouter/free","messages":[{"role":"user","content":"Reply exactly OPENROUTER_OK"}],"max_tokens":16}).encode(),
-                  headers={"Authorization":"Bearer "+key,"Content-Type":"application/json","HTTP-Referer":"https://github.com/Kairos0922/evaluation-dataset-builder","X-Title":"Evaluation Dataset Builder preflight"},
-                  method="POST")
-              result["generation_requests"]=1
+              headers={"Authorization":"Bearer "+key,"Content-Type":"application/json",
+                       "HTTP-Referer":"https://github.com/Kairos0922/evaluation-dataset-builder",
+                       "X-Title":"Evaluation Dataset Builder free-model qualification"}
+              def request(url, body=None, timeout=35):
+                  data=None if body is None else json.dumps(body).encode()
+                  req=urllib.request.Request(url,data=data,headers=headers,method="GET" if body is None else "POST")
+                  with urllib.request.urlopen(req,timeout=timeout) as response:
+                      return response.status,json.loads(response.read().decode())
               try:
-                  with urllib.request.urlopen(req,timeout=40) as response:
-                      payload=json.loads(response.read().decode())
-                      result["http_status"]=response.status
-                      result["generation_requests"]=1
-                      result["model"]=payload.get("model")
-                      choices=payload.get("choices") or []
-                      text=choices[0].get("message",{}).get("content","") if choices else ""
-                      result["response_marker_present"]="OPENROUTER_OK" in text
-                      result["status"]="PASS" if result["response_marker_present"] else "FAIL"
-                      result["response_excerpt"]=text[:100]
-              except urllib.error.HTTPError as exc:
-                  result["http_status"]=exc.code
-                  result["reason"]="Request rejected; body omitted to avoid credential or provider data exposure."
+                  _,catalog=request("https://openrouter.ai/api/v1/models")
+                  models=catalog.get("data",[])
+                  candidates=[]
+                  for model in models:
+                      mid=model.get("id","")
+                      arch=model.get("architecture") or {}
+                      inputs=arch.get("input_modalities") or []
+                      outputs=arch.get("output_modalities") or []
+                      pricing=model.get("pricing") or {}
+                      if mid.endswith(":free") and "text" in inputs and "text" in outputs:
+                          try:
+                              if float(pricing.get("prompt","0"))==0 and float(pricing.get("completion","0"))==0:
+                                  candidates.append(model)
+                          except (TypeError,ValueError):
+                              pass
+                  report["models_discovered"]=len(candidates)
+                  priorities=("qwen","deepseek","mistral","llama","gemma","nemotron")
+                  def rank(m):
+                      mid=m.get("id","").lower()
+                      for i,name in enumerate(priorities):
+                          if name in mid: return (i,mid)
+                      return (len(priorities),mid)
+                  candidates=sorted(candidates,key=rank)[:5]
+                  if not candidates:
+                      report["reason"]="No catalogued :free text-in/text-out models with zero prompt and completion pricing."
+                  for model in candidates:
+                      mid=model["id"]
+                      item={"model":mid,"status":"FAIL"}
+                      for case,prompt,expected in [
+                          ("instruction","Reply with exactly: OPENROUTER_OK","OPENROUTER_OK"),
+                          ("structured","Return one JSON object only with keys \"status\" and \"count\"; set status to \"ok\" and count to 3.","JSON")
+                      ]:
+                          try:
+                              report["generation_requests"]+=1
+                              report["models_tested"]+=1 if case=="instruction" else 0
+                              _,payload=request("https://openrouter.ai/api/v1/chat/completions",
+                                  {"model":mid,"messages":[{"role":"user","content":prompt}],
+                                   "max_tokens":96,"temperature":0},timeout=45)
+                              choices=payload.get("choices") or []
+                              msg=(choices[0].get("message") or {}) if choices else {}
+                              output=msg.get("content")
+                              if isinstance(output,list):
+                                  output="".join(x.get("text","") for x in output if isinstance(x,dict))
+                              output=output if isinstance(output,str) else ""
+                              item[case]={"content_present":bool(output.strip()),
+                                          "finish_reason":choices[0].get("finish_reason") if choices else None,
+                                          "message_keys":sorted(msg.keys()),
+                                          "reasoning_present":bool(msg.get("reasoning"))}
+                              if expected=="OPENROUTER_OK":
+                                  item[case]["marker_match"]=expected in output
+                              else:
+                                  try:
+                                      parsed=json.loads(output)
+                                      item[case]["json_valid"]=isinstance(parsed,dict) and parsed.get("status")=="ok" and parsed.get("count")==3
+                                  except Exception:
+                                      item[case]["json_valid"]=False
+                              item[case]["excerpt"]=output[:120]
+                          except urllib.error.HTTPError as exc:
+                              item[case]={"http_status":exc.code,"error":"provider rejected request"}
+                          except Exception as exc:
+                              item[case]={"error":type(exc).__name__}
+                      item["status"]="PASS" if item.get("instruction",{}).get("marker_match") and item.get("structured",{}).get("json_valid") else "FAIL"
+                      report["results"].append(item)
+                  report["status"]="PASS" if any(x["status"]=="PASS" for x in report["results"]) else ("FAIL" if report["results"] else "BLOCKED")
               except Exception as exc:
-                  result["reason"]=type(exc).__name__+": "+str(exc)
-          Path("openrouter-preflight.json").write_text(json.dumps(result,indent=2)+"\n")
-          print(json.dumps(result,indent=2))
-          if result["status"]=="FAIL":
+                  report["reason"]=type(exc).__name__+": "+str(exc)
+                  report["status"]="FAIL"
+          Path("openrouter-preflight.json").write_text(json.dumps(report,indent=2,ensure_ascii=False)+"\\n")
+          print(json.dumps(report,indent=2,ensure_ascii=False))
+          if report["status"]=="FAIL":
               raise SystemExit(1)
-          if result["status"]=="BLOCKED":
-              print("::warning::OpenRouter credential unavailable; no generation request sent.")
+          if report["status"]=="BLOCKED":
+              print("::warning::No eligible free model was tested.")
           PY
       - name: Archive result
         if: always()
