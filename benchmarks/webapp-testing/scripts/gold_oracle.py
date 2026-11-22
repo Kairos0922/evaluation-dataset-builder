@@ -287,16 +287,17 @@ def target_task(case: dict, tasks: list[dict]) -> dict | None:
                 name = str(item.get("name") or item.get("kind") or "").casefold()
                 if value is None and name in {"target_task", "target", "target-task"}:
                     value = item.get("data_id") or item.get("id")
+                visible_title = item.get("visible_title") or item.get("target_title")
                 if value is not None:
                     if isinstance(value, dict):
                         explicit_targets.append(value)
-                    elif item.get("visible_title") or item.get("target_title"):
-                        explicit_targets.append({
-                            "id": value,
-                            "title": item.get("visible_title") or item.get("target_title"),
-                        })
+                    elif visible_title:
+                        explicit_targets.append({"id": value, "title": visible_title})
                     else:
                         explicit_targets.append(value)
+                elif visible_title:
+                    # Builder may identify the target only by its rendered title.
+                    explicit_targets.append({"title": visible_title})
             elif isinstance(item, str) and any(
                 marker in item.casefold() for marker in ("目标", "target", "删除任务")
             ):
@@ -602,9 +603,10 @@ def report_has_state_cycle_result(
     expected_verdict: str = "PASS",
 ) -> bool:
     """Check that the Skill report's explicit verdict matches the observed cycle."""
+    normalized_report = re.sub(r"[*_]", "", report_text)
     match = re.search(
-        r"(?:判定|结论|verdict)\s*[：:]\s*(PASS|FAIL|UNKNOWN)",
-        report_text,
+        r"(?:判定|结论|结果|verdict)\s*[：:]\s*(PASS|FAIL|UNKNOWN)",
+        normalized_report,
         re.I,
     )
     if match is None:
@@ -976,11 +978,14 @@ def extract_search_queries(case: dict, tasks: list[dict]) -> list[str]:
         test_data = ((case.get("execution_requirements") or {}).get("test_data") or [])
         for item in test_data:
             if isinstance(item, dict):
+                kind = str(item.get("kind") or item.get("name") or "").casefold()
                 value = item.get("query") or item.get("queries")
+                if kind in {"search_queries", "query_list", "required_queries"}:
+                    value = item.get("values") or item.get("value") or value
                 if isinstance(value, str):
                     queries = retain_probe_tokens(value)
                 elif isinstance(value, list):
-                    queries = [str(part) for part in value if isinstance(part, str)]
+                    queries = [str(part) for part in value if isinstance(part, str) and part.strip()]
                 if queries:
                     break
             elif isinstance(item, str):
@@ -1403,6 +1408,20 @@ def adjudicate_remaining_case(case: dict, pilot: Path, role: str) -> dict:
     }
 
 
+def provider_quota_blocker(pilot: Path, runner: dict) -> str | None:
+    """Recognize an external provider quota blocker from immutable execution evidence."""
+    trace_path = pilot / "dsh-events.jsonl"
+    stderr_path = pilot / "dsh-stderr.log"
+    trace_text = trace_path.read_text(encoding="utf-8", errors="replace") if trace_path.is_file() else ""
+    stderr_text = stderr_path.read_text(encoding="utf-8", errors="replace") if stderr_path.is_file() else ""
+    evidence = (trace_text + "\\n" + stderr_text + "\\n" + str(runner.get("runner_error") or "")).casefold()
+    if runner.get("runner_status") == "BLOCKED" and (
+        "quota" in evidence or "insufficient balance" in evidence or "status\\\":402" in evidence or "http 402" in evidence
+    ):
+        return "External model-provider quota/balance block (QUOTA / HTTP 402); target behavior was not executed to completion."
+    return None
+
+
 def adjudicate(case: dict, pilot: Path, role: str) -> dict:
     checks: list[dict] = []
     runner, audit, runtime = base_checks(case, pilot, checks)
@@ -1414,6 +1433,26 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
             "oracle_verdict": "UNKNOWN", "business_behavior_verdict": "UNKNOWN",
             "checks": checks, "target_report_excerpt": [],
             "limitations": ["Runner result evidence is missing."],
+        }
+    quota_block = provider_quota_blocker(pilot, runner)
+    if quota_block:
+        # External provider failure is not evidence of target-Skill behavior.
+        checks = [
+            {**item, "status": "UNKNOWN"} if item.get("status") == "FAIL" else item
+            for item in checks
+        ]
+        checks.append({
+            "check": "External provider quota blocker",
+            "status": "UNKNOWN",
+            "evidence": quota_block,
+        })
+        return {
+            "case_id": case_id, "dataset_id": case.get("dataset_id"), "pilot_role": role,
+            "execution_valid": False, "execution_status": "BLOCKED",
+            "contract_verdict": "UNKNOWN", "oracle_verdict": "UNKNOWN",
+            "business_behavior_verdict": "UNKNOWN", "checks": checks,
+            "target_report_excerpt": [],
+            "limitations": [quota_block, "No target behavior verdict is assigned because the invocation was blocked externally."],
         }
     if role in REMAINING_ROLES and role != "delete_cancel":
         return adjudicate_remaining_case(case, pilot, role)
@@ -1504,6 +1543,23 @@ def adjudicate(case: dict, pilot: Path, role: str) -> dict:
                     for query in required_queries
                 )
             ]
+        # Dynamic Builder schemas may store an explicit expected-match example
+        # in test_data instead of a structured reference_outcome.expected map.
+        test_data = ((case.get("execution_requirements") or {}).get("test_data") or [])
+        example_titles = []
+        for item in test_data:
+            if not isinstance(item, dict):
+                continue
+            kind = str(item.get("kind") or "").casefold()
+            if kind in {"expected_match_example", "expected_title", "expected_task"}:
+                value = item.get("value") or item.get("title") or item.get("visible_title")
+                if isinstance(value, str):
+                    example_titles.extend(
+                        task["title"] for task in initial_tasks
+                        if task.get("title") and task["title"] in value
+                    )
+        if example_titles:
+            expected_tasks = [{"title": title} for title in dict.fromkeys(example_titles)]
         declared_expected = ((case.get("reference_outcome") or {}).get("expected") or {})
         declared_titles = list(dict.fromkeys(
             title for values in declared_expected.values() if isinstance(values, list)
