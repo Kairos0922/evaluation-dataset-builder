@@ -22,6 +22,7 @@ jobs:
       DSH_HOME: ${{ github.workspace }}/.dsh-home
       DSH_VERSION: "0.2.2-rc.1"
       OLLAMA_MODEL: "qwen3:4b"
+      OLLAMA_API_KEY: "ollama-local-placeholder"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -66,7 +67,7 @@ jobs:
                 ollama-local:
                   api: openai-completions
                   baseURL: http://127.0.0.1:11434/v1
-                  apiKey: ollama
+                  apiKeyEnv: OLLAMA_API_KEY
                   models:
                     - id: qwen3:4b
                       contextWindow: 32768
