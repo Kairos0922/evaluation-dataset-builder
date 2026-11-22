@@ -1,4 +1,4 @@
-name: OpenRouter ERNIE 5.5 Flash Preview direct inference test
+name: OpenRouter Ling 3.2 Flash free-model inference test
 on:
   push:
     branches:
@@ -25,8 +25,10 @@ jobs:
           import json, os, urllib.request, urllib.error
           from pathlib import Path
 
-          model = "baidu/ernie-5.5-flash-preview:free"
+          model = "inclusionai/ling-3.2-flash:free"
           key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+          if not model.endswith(":free"):
+              raise SystemExit("Refusing non-free model ID")
           report = {"provider": "openrouter", "secret_configured": bool(key),
                     "model": model, "generation_requests": 0, "status": "BLOCKED"}
           if key:
