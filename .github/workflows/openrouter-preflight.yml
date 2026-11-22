@@ -1,4 +1,4 @@
-name: OpenRouter free-router connectivity preflight
+name: OpenRouter Nemotron 3 Ultra free-model preflight
 on:
   push:
     branches:
@@ -16,7 +16,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Probe the OpenRouter free router once
+      - name: Probe NVIDIA Nemotron 3 Ultra free endpoint once
         env:
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
         run: |
@@ -25,7 +25,7 @@ jobs:
           import json, os, urllib.request, urllib.error
           from pathlib import Path
 
-          MODEL="openrouter/free"
+          MODEL="nvidia/nemotron-3-ultra-550b-a55b:free"
           key=os.environ.get("OPENROUTER_API_KEY","").strip()
           report={"provider":"openrouter","secret_configured":bool(key),"model":MODEL,
                   "generation_requests":0,"status":"BLOCKED"}
@@ -34,7 +34,7 @@ jobs:
           else:
               headers={"Authorization":"Bearer "+key,"Content-Type":"application/json",
                        "HTTP-Referer":"https://github.com/Kairos0922/evaluation-dataset-builder",
-                       "X-Title":"Evaluation Dataset Builder free-router connectivity preflight"}
+                       "X-Title":"Evaluation Dataset Builder Nemotron 3 Ultra free-model preflight"}
               try:
                   quota_req=urllib.request.Request("https://openrouter.ai/api/v1/key",
                       headers={"Authorization":"Bearer "+key,"Accept":"application/json"},method="GET")
