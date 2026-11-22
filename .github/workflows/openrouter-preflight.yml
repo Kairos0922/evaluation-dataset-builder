@@ -136,7 +136,46 @@ jobs:
                   report["stability_pass_rate"]=passed_trials/len(report["stability_trials"]) if report["stability_trials"] else None
                   report["stable_models"]=[mid for mid in [x["model"] for x in qualified]
                       if all(t["status"]=="PASS" for t in report["stability_trials"] if t["model"]==mid)]
-                  report["status"]="PASS" if report["stable_models"] else ("DEGRADED" if qualified else ("FAIL" if report["results"] else "BLOCKED"))
+                  report["task_probe"]={"status":"NOT_RUN"}
+                  if report["stable_models"]:
+                      mid=report["stable_models"][0]
+                      prompt=("Apply these refund rules: requests are eligible within 7 calendar days after delivery; "
+                              "used products are not refundable unless defective; shipping fees are never refunded. "
+                              "Return JSON only with a cases array of exactly 4 objects. Each object must have case_id, "
+                              "expected_decision (approve or reject), and refund_shipping_fee (boolean). Cover: "
+                              "unused item delivered 3 days ago; used non-defective item delivered 2 days ago; "
+                              "used defective item delivered 5 days ago; unused item delivered 8 days ago. "
+                              "Expected decisions in that order: approve, reject, approve, reject. "
+                              "Set refund_shipping_fee to false for every case.")
+                      try:
+                          report["generation_requests"]+=1
+                          _,payload=request("https://openrouter.ai/api/v1/chat/completions",
+                              {"model":mid,"messages":[{"role":"user","content":prompt}],
+                               "max_tokens":900,"temperature":0},timeout=60)
+                          choices=payload.get("choices") or []
+                          msg=(choices[0].get("message") or {}) if choices else {}
+                          output=msg.get("content")
+                          output=output if isinstance(output,str) else ""
+                          try:
+                              parsed=json.loads(output)
+                              cases=parsed.get("cases",[]) if isinstance(parsed,dict) else []
+                              decisions=[x.get("expected_decision") for x in cases]
+                              fees=[x.get("refund_shipping_fee") for x in cases]
+                              valid=(len(cases)==4 and len({x.get("case_id") for x in cases})==4
+                                     and decisions==["approve","reject","approve","reject"]
+                                     and fees==[False,False,False,False])
+                          except Exception:
+                              valid=False
+                          report["task_probe"]={"status":"PASS" if valid else "FAIL",
+                                                "model":mid,
+                                                "finish_reason":choices[0].get("finish_reason") if choices else None,
+                                                "schema_and_rule_checks_passed":valid,
+                                                "excerpt":output[:240]}
+                      except urllib.error.HTTPError as exc:
+                          report["task_probe"]={"status":"FAIL","model":mid,"http_status":exc.code}
+                      except Exception as exc:
+                          report["task_probe"]={"status":"FAIL","model":mid,"error":type(exc).__name__}
+                  report["status"]="PASS" if report["stable_models"] and report["task_probe"]["status"]=="PASS" else ("DEGRADED" if qualified else ("FAIL" if report["results"] else "BLOCKED"))
               except Exception as exc:
                   report["reason"]=type(exc).__name__+": "+str(exc)
                   report["status"]="FAIL"
