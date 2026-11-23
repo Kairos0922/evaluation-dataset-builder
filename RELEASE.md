@@ -1,6 +1,6 @@
 # 0.0.1 发布候选说明
 
-**状态：** 发布候选，尚未正式发布。当前候选已完成 Round 4 Builder 正式生产、独立验证、三条真实试运行和 Gold Oracle 3/3 PASS；行为评测已对候选 SHA `c3ef8e5c9cfd156cec29ed7d63a803f32bb536ad` 完成并通过。后续仅因本次发布证据文档提交改变了候选 head SHA，需要在最终 head 上完成精确 SHA 行为评测绑定。发布仍需明确批准。
+**状态：** 发布候选，尚未正式发布。Round 4 Builder 正式生产、独立验证、三条真实试运行和 Gold Oracle 3/3 PASS 已完成并复核。候选 SHA `99d07f20d81a144fd52ab47eb6f7934c44ab5601` 的精确 SHA 双轮行为评测 run `45281006259` 已完成并 PASS；该 SHA 上 CI run `45281016111` 也 PASS。发布仍需明确批准，尚未合并、打标签或发布。
 
 ## 范围
 
@@ -39,7 +39,7 @@
 - [x] Builder 正式生成的评测套件通过独立验证。
 - [x] 三条真实 Skill 试运行完成并有可复核证据。
 - [x] 独立 Gold Oracle 对三条试运行全部 PASS。
-- [x] 两次行为评测均达到预设阈值（对最终 candidate head 的精确 SHA 复验/绑定待完成）。
+- [x] 最终候选 SHA 的两次行为评测均达到预设阈值，自动门禁 PASS。
 - [x] 匹配基线完整，稳定性检查通过。
 - [x] Builder 证据 Skill tree 与发布候选 Skill tree 完全一致。
 - [ ] 发布 PR head 与最终 merge commit 的 Git tree 完全一致（合并后核验）。
@@ -52,7 +52,15 @@
 - Release PR #42：Draft/Open，目标 `main`；Builder 证据 PR #38：Draft/Open，保留实验记录，不合并。
 - Round 4 formal Builder：15 cases；独立验证 PASS，0 schema errors，61 source refs verified；三条真实 pilot 和独立 Gold Oracle 3/3 PASS。证据复用审计见 `docs/release-evidence/round4-evidence-reuse-audit.md`。
 - 评测数据集质量状态仍为 `needs_info`，原因是 BR-09 request-failure/error-recovery evidence gap。此限制已记录；不影响已完成三条 pilot 的结果，但不应对数据集完整性作过度承诺。
-- 精确候选行为评测（SHA `c3ef8e5c9cfd156cec29ed7d63a803f32bb536ad`）：两次完整运行行为通过率 98.25% / 100%；Trigger precision/recall 100%/100%（40 cases）；基线完整；稳定性 spread 1.75 pp；所有自动门禁 PASS。Run 1 的 SE07 semantic-dedup criterion 失败，Run 2 通过，透明记录于 `docs/release-evidence/behavioral-evaluation-candidate-2026-11-24.md`。
+- 最终候选 SHA `99d07f20d81a144fd52ab47eb6f7934c44ab5601` 的精确双轮评测 run [45281006259](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45281006259)：行为通过率 100% / 100%（12 cases/run）；Trigger precision/recall 100% / 100%；baseline 完整，平均 uplift +2.63 pp（两轮 uplift 0 / +5.26 pp）；重复运行稳定性 spread 0 pp；所有自动门禁 PASS，UNKNOWN=0。197 次 API 请求，token 总计 375,001，估算费用 $0.21665。
 - 行为评测范围仅加载 `SKILL.md`，未加载 `references/*`；不是宿主兼容性认证。本版本不宣称跨模型独立 Judge。
-- 评测工作流 run `45224190260` 已成功完成，artifact `14842388182`；候选 head 因新增证据文档变更为 `977123bb6f6e311b4165941873952d5b67b041d6`，需在最终候选 head 上重新完成精确 SHA 评测。
+- 精确候选行为报告 artifact `14869342620`，SHA256 `64c27164c4b053c16600dfe7c4fdb964cc4e6590c071a6a46cee46da8752bcec`；包含完整报告与检查点。
 - 当前没有 `v0.0.1` 标签或正式 GitHub Release。发布工作流仅在显式批准并核验所有门禁后执行。
+
+
+## Exact-head verification update (2026-11-24)
+- Final evaluated head SHA: `99d07f20d81a144fd52ab47eb6f7934c44ab5601`.
+- CI run `45281016111` and behavioral run `45281006259` both completed successfully on this exact SHA.
+- Two repeats × 12 cases; behavior 100% / 100%; Trigger precision and recall 100%; baseline complete; mean uplift +2.63 percentage points; stability spread 0; no UNKNOWN; automated gates PASS.
+- Report artifact `14869342620`; artifact ZIP digest `sha256:64c27164c4b053c16600dfe7c4fdb964cc4e6590c071a6a46cee46da8752bcec`; estimated API cost $0.21665.
+- Documentation has been refreshed after that evaluated SHA. This documentation-only commit creates a new candidate head and must receive exact-head CI and behavioral gate before release verification can be considered current. Do not merge or tag without explicit approval.
