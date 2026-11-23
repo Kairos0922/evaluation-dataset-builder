@@ -111,42 +111,33 @@ def evaluation_subject_contract_issues(case: dict) -> list[str]:
     issues = []
     for criterion in grading.get("criteria", []):
         fail_condition = str(criterion.get("fail_condition") or "")
-        # Chinese often omits the subject in coordinated object lists:
-        # "Skill 漏报 A、B 或 C" and "Skill 遗漏 A，或报告 B".
-        # Keep those objects/predicates attached to the governing Skill failure,
-        # but split independent clauses so one valid clause cannot mask another.
-        clauses = []
-        parts = re.split(r"([;；，、,。]|\s+\bor\b\s+|或)", fail_condition, flags=re.I)
-        current = ""
-        previous_delimiter = ""
-        for index in range(0, len(parts), 2):
-            segment = parts[index].strip()
-            next_delimiter = parts[index + 1] if index + 1 < len(parts) else ""
-            if not segment:
-                previous_delimiter = next_delimiter
-                continue
-            if not current:
-                current = segment
-                previous_delimiter = next_delimiter
-                continue
-            inherited_omission = bool(re.search(
-                r"(?:Skill|Agent|智能体|助手).{0,24}(?:漏报|遗漏)|(?:漏报|遗漏).{0,24}",
-                current, re.I,
-            ))
-            omission_continuation = inherited_omission and (
-                previous_delimiter in {"，", "、"} or
-                (previous_delimiter == "或" and re.match(r"(?:报告|记录|空状态|摘要|状态|标签|数量|标题)", segment))
-            )
-            if omission_continuation:
-                current += previous_delimiter + segment
-            else:
-                clauses.append(current)
-                current = segment
-            previous_delimiter = next_delimiter
-        if current:
-            clauses.append(current)
+        # Keep Chinese coordinated clauses together when the criterion explicitly
+        # attributes failure to Skill reporting/observation (e.g. "Skill 漏报 A、
+        # B 或 C"). Split hard sentence boundaries and English comma clauses.
+        # For criteria without explicit attribution, split all coordinated clauses
+        # so a separate raw application outcome cannot be masked by nearby wording.
+        explicit_agent_failure = re.compile(
+            r"(?:Skill|Agent|智能体|助手).{0,40}(?:漏报|遗漏|未发现|未识别|未报告|"
+            r"未核验|未验证|未观察|未检查|未采集|未执行|未对照|未比对|错误报告|误报|误判|"
+            r"只报告|仅报告|把.{0,24}(?:偏差|缺陷|异常|错误).{0,24}(?:写成|判为|归因于|认为)|"
+            r"仍(?:报告|报|称|判定|判断|认为|写成|描述|归类|标记))",
+            re.I,
+        )
+        has_explicit_agent_failure = bool(explicit_agent_failure.search(fail_condition))
+        if has_explicit_agent_failure:
+            parts = re.split(r"([;；。]|,\s*|\s+\bor\b\s+)", fail_condition, flags=re.I)
+        else:
+            parts = re.split(r"([;；，、,。]|\s+\bor\b\s+|或)", fail_condition, flags=re.I)
+        clauses = [part.strip() for part in parts[::2] if part.strip()]
         for clause in clauses:
-            if raw_sut_outcome.search(clause) and not agent_behavior_failure.search(clause):
+            explicitly_agent_attributed = bool(explicit_agent_failure.search(clause))
+            report_accuracy_clause = bool(re.search(
+                r"(?:报告|report).{0,24}(?:与|和|DOM|实际).{0,24}(?:不一致|不匹配|不同|不符)",
+                clause, re.I,
+            ))
+            if raw_sut_outcome.search(clause) and not (
+                explicitly_agent_attributed or report_accuracy_clause
+            ):
                 issues.append(
                     f"Case {case_id} criterion {criterion.get('criterion_id')} "
                     f"contains a raw application outcome in fail_condition clause: {clause!r}. "

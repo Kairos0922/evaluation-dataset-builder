@@ -586,6 +586,44 @@ def test_validator_still_rejects_unattributed_application_outcome_clauses():
         assert validator.evaluation_subject_contract_issues(case), clause
 
 
+def test_validator_accepts_round4_builder_fail_conditions_with_explicit_skill_attribution():
+    cases = [
+        ("WB-03-C3", "Skill 漏报描述字段未匹配、空状态缺失或摘要变化，或把应用偏差直接写成Skill失败。"),
+        ("WB-04-C2", "Skill 遗漏某个筛选值的结果，或报告数量/标题/摘要与 DOM/截图不一致。"),
+        ("WB-14-C2", "Skill 遗漏任务、报告状态/标签与 DOM 不一致，或把期望标签写成已观察值。"),
+    ]
+    for case_id, fail_condition in cases:
+        case = {
+            "case_id": case_id,
+            "grading": {
+                "evaluation_subject": "webapp-testing Skill 的测试与缺陷识别表现",
+                "criteria": [{
+                    "criterion_id": case_id,
+                    "pass_condition": "Skill 根据实际证据准确报告偏差。",
+                    "fail_condition": fail_condition,
+                }],
+            },
+        }
+        assert validator.evaluation_subject_contract_issues(case) == [], fail_condition
+
+
+def test_validator_still_flags_raw_sut_clause_after_agent_clause_boundary():
+    case = {
+        "case_id": "CASE-ROUND4-INDEPENDENT-RAW",
+        "grading": {
+            "evaluation_subject": "webapp-testing Skill",
+            "criteria": [{
+                "criterion_id": "C-1",
+                "pass_condition": "Skill accurately reports observations.",
+                "fail_condition": "Skill 漏报一个字段；页面状态与预期不一致。",
+            }],
+        },
+    }
+    issues = validator.evaluation_subject_contract_issues(case)
+    assert len(issues) == 1
+    assert "页面状态与预期不一致" in issues[0]
+
+
 def test_validator_preserves_chinese_omission_scope_over_enumerated_outcomes():
     cases = [
         ("CASE-WB03", "Skill 漏报描述字段未匹配、空状态缺失或摘要变化"),
