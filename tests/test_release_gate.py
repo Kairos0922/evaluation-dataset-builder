@@ -507,6 +507,8 @@ class ReleaseGateUnitTests(unittest.TestCase):
                     "run_url": "https://github.com/owner/repo/actions/runs/1",
                 },
                 "independent_validation": {"run_id": 2},
+                "validator_revalidation": {"run_id": 4, "artifact_id": 5, "head_sha": "validator-sha"},
+
                 "final_pilots": {"run_id": 3},
                 "builder_diagnostic_review": {
                     "expected_issue_ids": ["WB-03-C3", "WB-04-C2", "WB-14-C2"],
@@ -539,6 +541,12 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 "formal_evaluation_cases_included": False, "gold_oracle_included": False,
             },
             "independent_validation": {
+                "status": "PASS", "dataset_count": 1, "case_count": 15,
+                "schema_errors": 0, "source_evidence_refs_verified": 61,
+                "formal_evaluation_cases_created_by_validator": False,
+                "datasets": {"wb-core": {"manifest_quality_status": "needs_info", "execution_status": "NOT_RUN"}},
+            },
+            "validator_revalidation": {
                 "status": "PASS", "dataset_count": 1, "case_count": 15,
                 "schema_errors": 0, "source_evidence_refs_verified": 61,
                 "formal_evaluation_cases_created_by_validator": False,
@@ -601,6 +609,9 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertEqual(result["pilot_case_ids"], ["WB-02", "WB-10", "WB-12"])
         self.assertEqual(result["builder_diagnostic_status"], "HISTORICAL_FAIL_REVALIDATED_AFTER_LINT_FIX")
         self.assertEqual(result["validator_revalidation_status"], "PASS")
+        self.assertEqual(result["validator_revalidation_run_id"], 4)
+
+        self.assertEqual(result["validator_revalidation_status"], "PASS")
         self.assertEqual(result["validator_revalidation_run_id"], 45291624154)
         self.assertEqual(result["manifest_quality_status"], "needs_info")
         self.assertEqual(result["execution_status"], "NOT_RUN")
@@ -612,6 +623,10 @@ class ReleaseGateUnitTests(unittest.TestCase):
             CREATE_RELEASE_TAG.validate_builder_evidence_payloads(evidence)
         evidence = self._valid_cross_workflow_builder_evidence()
         evidence["validator_revalidation"]["status"] = "FAIL"
+        with self.assertRaisesRegex(ValueError, "post-lint archived-output revalidation"):
+            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(evidence)
+        evidence = self._valid_cross_workflow_builder_evidence()
+        evidence["validator_revalidation"]["schema_errors"] = 1
         with self.assertRaisesRegex(ValueError, "post-lint archived-output revalidation"):
             CREATE_RELEASE_TAG.validate_builder_evidence_payloads(evidence)
         evidence = self._valid_cross_workflow_builder_evidence()
@@ -644,6 +659,9 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertEqual(index["final_pilots"]["oracle_status"], "PASS")
         self.assertEqual(index["builder_diagnostic_review"]["disposition"],
                          "HISTORICAL_FALSE_POSITIVE_FLAGS_REVALIDATED_AFTER_LINT_FIX")
+        self.assertEqual(index["validator_revalidation"]["run_id"], 45291624154)
+        self.assertEqual(index["validator_revalidation"]["validator_status"], "PASS")
+
         self.assertEqual(index["validator_revalidation"]["run_id"], 45291624154)
         self.assertEqual(index["validator_revalidation"]["validator_status"], "PASS")
 
