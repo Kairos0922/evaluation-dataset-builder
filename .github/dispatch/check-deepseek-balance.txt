@@ -1,1 +1,1 @@
-Trigger corrected GET-only diagnostic. Fallback fixed; no model generation.
+Read-only credential check after user reconfigured DEEPSEEK_API_KEY. GET /user/balance and /models only. No generation request.
