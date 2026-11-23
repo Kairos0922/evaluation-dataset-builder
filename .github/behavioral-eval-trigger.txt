@@ -1,4 +1,4 @@
 release_pr_number=42
-resume_run_id=45289412565
-resume_candidate_sha=36573b643d872c5e0e3d550c231d3986302ec6fb
-resume_attempt=7
+resume_run_id=
+resume_candidate_sha=
+resume_attempt=9
