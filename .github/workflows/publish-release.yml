@@ -94,11 +94,9 @@ jobs:
           [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ ]]
           [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$BUILDER_PR_NUMBER" =~ ^[1-9][0-9]*$ ]]
-          {
-            echo "release_pr_number=$PR_NUMBER"
-            echo "candidate_sha=$CANDIDATE_SHA"
-            echo "builder_evidence_pr_number=$BUILDER_PR_NUMBER"
-          } >> "$GITHUB_OUTPUT"
+          echo "release_pr_number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+          echo "candidate_sha=$CANDIDATE_SHA" >> "$GITHUB_OUTPUT"
+          echo "builder_evidence_pr_number=$BUILDER_PR_NUMBER" >> "$GITHUB_OUTPUT"
       - name: Checkout exact reviewed candidate
         uses: actions/checkout@v4
         with:
