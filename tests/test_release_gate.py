@@ -763,6 +763,32 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertFalse(result[0]["evidence_validated"])
         self.assertFalse(result[0]["evidence_repair_used"])
 
+    def test_evidence_repair_preserves_markdown_formatting_in_exact_quotes(self):
+        initial = {"checks": [{
+            "index": 0, "score": 1,
+            "rationale": "The output identifies accountable roles.",
+            "evidence": [],
+        }]}
+        exact_quote = "责任角色**：业务规则负责人（提供规则来源）+ 测试用例作者（改写断言）"
+        repair = {"supported": True, "evidence": [exact_quote]}
+        candidate = "- **责任角色**：业务规则负责人（提供规则来源）+ 测试用例作者（改写断言）"
+        with mock.patch.dict(RUN_EVAL.os.environ, {"DEEPSEEK_EVIDENCE_REPAIR": "1"}):
+            with mock.patch.object(
+                RUN_EVAL, "api_call",
+                side_effect=[json.dumps(initial), json.dumps(repair)],
+            ) as api:
+                result = RUN_EVAL.judge_case(
+                    "test-key", "deepseek-flash", ["provides accountable roles"],
+                    candidate,
+                )
+        self.assertEqual(api.call_count, 2)
+        self.assertEqual(result[0]["status"], "PASS")
+        self.assertTrue(result[0]["evidence_validated"])
+        self.assertTrue(result[0]["evidence_repair_used"])
+        self.assertEqual(result[0]["evidence"], [exact_quote])
+        self.assertIn("Preserve every character of the source", api.call_args_list[1].args[2])
+        self.assertIn("PRIOR JUDGE RATIONALE", api.call_args_list[1].args[3])
+
     def test_evidence_repair_retries_once_after_unverifiable_quote(self):
         initial = {"checks": [{
             "index": 0, "score": 1,

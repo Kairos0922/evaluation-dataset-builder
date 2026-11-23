@@ -683,14 +683,21 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
                 "or assume the earlier decision is correct. Return supported=true "
                 "only if the candidate directly demonstrates the criterion. If "
                 "supported, provide 1-3 exact verbatim substrings, each 6-120 "
-                "characters, copied from the candidate. Choose short quotes and "
-                "avoid long table rows or full JSON objects. If no exact quote proves "
-                "it, return supported=false and evidence=[]. Never paraphrase. "
+                "characters, copied character-for-character from the candidate. "
+                "Preserve every character of the source, including Markdown "
+                "formatting delimiters such as **, __, backticks, table pipes, "
+                "list markers, quote marks, and punctuation. Never strip, add, "
+                "normalize, or move formatting characters. For compound criteria, "
+                "select up to three short quotes that collectively demonstrate "
+                "the required elements. Prefer short complete clauses over labels. "
+                "If no exact quote proves the criterion, return supported=false "
+                "and evidence=[]. Never paraphrase. "
                 'Return JSON only: {"supported":true,"evidence":["exact quote"]}.'
             )
             repair_user = (
                 "CRITERION:\n" + criterion +
-                "\n\nCANDIDATE OUTPUT (source of quotes):\n" + candidate
+                "\n\nPRIOR JUDGE RATIONALE (context only; not evidence):\n" + rationale +
+                "\n\nCANDIDATE OUTPUT (source of exact quotes):\n" + candidate
             )
             # A second bounded extraction attempt is allowed only if the first
             # response fails local quote validation. It uses a distinct prompt
