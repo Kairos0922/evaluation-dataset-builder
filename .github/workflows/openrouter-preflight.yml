@@ -1,10 +1,12 @@
 name: OpenRouter Ling 3.2 Flash free-model qualification
 on:
-  push:
-    branches:
-      - experiment/webapp-testing-contract
-    paths:
-      - ".github/dispatch/execute-openrouter-preflight-once"
+  workflow_dispatch:
+    inputs:
+      confirm_one_inference:
+        description: "Explicitly authorize one free-model inference request after quota verification"
+        required: true
+        type: boolean
+        default: false
 permissions:
   contents: read
   actions: read
@@ -13,6 +15,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   qualify-free-model:
+    if: inputs.confirm_one_inference == true
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
