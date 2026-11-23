@@ -450,162 +450,167 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertTrue(path.is_file())
         compile(path.read_text(encoding="utf-8"), str(path), "exec")
 
-    def test_builder_evidence_requires_real_production_validation_and_three_trials(self):
-        summary = {"status": "PASS", "dataset_count": 3, "case_count": 24}
-        trace = {"status": "PASS", "dsh_exit_code": 0, "builder_skill_tool_calls": 1,
-                 "generated_files": ["SUITE-MANIFEST.json"]}
-        probe = {
-            "status": "PASS", "scope": "minimal_model_connectivity_probe",
-            "tool_calls": 0, "response_marker_present": True,
-            "quota_error_detected": False, "builder_invocation_started": False,
+    def _valid_cross_workflow_builder_evidence(self):
+        dataset_files = {
+            "wb-core.jsonl": b'{"case_id":"WB-02"}\n',
+            "source-map.json": b'{"sources":[]}\n',
+            "wb-core.manifest.json": b'{"dataset_id":"wb-core"}\n',
+            "SUITE-MANIFEST.json": b'{"suite_id":"suite"}\n',
         }
-        metadata = {
-            "candidate_sha": "builder-sha", "workspace_isolated": True,
-            "gold_oracle_mounted": False, "independent_validator_mounted": False,
-            "webapp_testing_skill_loaded": False,
+        dataset_hashes = {
+            name: hashlib.sha256(payload).hexdigest()
+            for name, payload in dataset_files.items()
         }
-        credential_scan = {"secret_value_exposed_in_artifact": False}
-        cases = [
-            {"case_id": "CASE-SEARCH", "pilot_role": "search_mutation", "adjudication_status": "PASS"},
-            {"case_id": "CASE-STATE", "pilot_role": "state_cycle", "adjudication_status": "PASS"},
-            {"case_id": "CASE-DELETE", "pilot_role": "delete_confirmation", "adjudication_status": "PASS"},
+        expected_issues = [
+            "Case WB-03 criterion WB-03-C3 contains a raw application outcome.",
+            "Case WB-04 criterion WB-04-C2 contains a raw application outcome.",
+            "Case WB-14 criterion WB-14-C2 contains a raw application outcome.",
         ]
-        adjudication = {
-            "status": "PASS", "scope": "independent_three_case_pilot_adjudication",
-            "case_count": 3, "passed_cases": 3, "failed_cases": 0,
-            "formal_cases_created_or_modified": False,
-            "oracle_exposed_to_builder_or_target_skill": False, "cases": cases,
+        roles = {
+            "WB-02": "search_mutation",
+            "WB-10": "state_cycle",
+            "WB-12": "delete_confirmation",
         }
-        names = [
-            "webapp-testing-pilot-CASE-SEARCH",
-            "webapp-testing-pilot-CASE-STATE",
-            "webapp-testing-pilot-CASE-DELETE",
-        ]
-        result = CREATE_RELEASE_TAG.validate_builder_evidence_payloads(
-            summary, trace, probe, metadata, credential_scan,
-            adjudication, names, "builder-sha",
-        )
-        self.assertEqual(result["status"], "PASS")
-        self.assertEqual(result["pilot_count"], 3)
-        self.assertEqual(result["connectivity_probe_status"], "PASS")
-        with self.assertRaisesRegex(ValueError, "connectivity probe"):
-            blocked_probe = dict(probe, status="EXTERNAL_MODEL_QUOTA_BLOCKED")
-            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(
-                summary, trace, blocked_probe, metadata, credential_scan,
-                adjudication, names, "builder-sha",
-            )
-        with self.assertRaisesRegex(ValueError, "candidate SHA"):
-            wrong_metadata = dict(metadata, candidate_sha="stale-sha")
-            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(
-                summary, trace, probe, wrong_metadata, credential_scan,
-                adjudication, names, "builder-sha",
-            )
-        with self.assertRaisesRegex(ValueError, "credential disclosure"):
-            leaked = {"secret_value_exposed_in_artifact": True}
-            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(
-                summary, trace, probe, metadata, leaked,
-                adjudication, names, "builder-sha",
-            )
-        with self.assertRaisesRegex(ValueError, "three real Skill trials"):
-            failed = dict(adjudication, passed_cases=2, failed_cases=1, status="FAIL")
-            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(
-                summary, trace, probe, metadata, credential_scan,
-                failed, names, "builder-sha",
-            )
-        with self.assertRaisesRegex(ValueError, "artifacts"):
-            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(
-                summary, trace, probe, metadata, credential_scan,
-                adjudication, names[:2], "builder-sha",
-            )
-
-    def test_builder_evidence_selects_latest_successful_production_run_on_exact_sha(self):
-        repo = "owner/repo"
-        builder_pr = {
-            "state": "open", "draft": True,
-            "base": {"ref": "main"},
-            "head": {"sha": "builder-sha", "ref": "experiment/builder"},
-        }
-        latest_validation_only = {
-            "id": 2, "run_number": 20, "name": "验证 Skill",
-            "head_sha": "builder-sha", "head_branch": "experiment/builder",
-            "event": "pull_request", "status": "completed", "conclusion": "success",
-        }
-        earlier_builder_run = {
-            "id": 1, "run_number": 19, "name": "验证 Skill",
-            "head_sha": "builder-sha", "head_branch": "experiment/builder",
-            "event": "pull_request", "status": "completed", "conclusion": "success",
-            "html_url": "https://github.com/owner/repo/actions/runs/1",
-        }
-        required = [
-            "validate", "audit-upstream-assets", "runtime-preflight",
-            "builder-production", "resolve-pilot-matrix", "adjudicate-pilot",
-        ]
-        jobs_latest = [{"name": name, "conclusion": ("skipped" if name == "builder-production" else "success")}
-                       for name in required]
-        jobs_earlier = [{"name": name, "conclusion": "success"} for name in required]
-        jobs_earlier.extend(
-            {"name": f"webapp-testing-pilot (CASE-{suffix})", "conclusion": "success"}
-            for suffix in ("SEARCH", "STATE", "DELETE")
-        )
-        artifacts = [
-            {"id": 10, "name": "webapp-testing-builder-result", "expired": False},
-            {"id": 11, "name": "webapp-testing-independent-adjudication", "expired": False},
-            {"id": 12, "name": "webapp-testing-pilot-CASE-SEARCH", "expired": False},
-            {"id": 13, "name": "webapp-testing-pilot-CASE-STATE", "expired": False},
-            {"id": 14, "name": "webapp-testing-pilot-CASE-DELETE", "expired": False},
-        ]
-        payloads = {
-            "builder-validation-summary.json": {"status": "PASS", "dataset_count": 3, "case_count": 24},
-            "builder-dsh-trace-verification.json": {
-                "status": "PASS", "dsh_exit_code": 0, "builder_skill_tool_calls": 1,
-                "generated_files": ["SUITE-MANIFEST.json"],
+        runners, contexts, events, oracle_cases = {}, {}, {}, []
+        delete_audit = b'{"attempt":1,"method":"DELETE","path":"/api/tasks/WB-104","allowed":true,"status":200}\n'
+        for case_id, role in roles.items():
+            event_bytes = f'{{"event":"event-{case_id}"}}\n'.encode()
+            run_id = "run-" + case_id
+            events[case_id] = event_bytes
+            contexts[case_id] = {
+                "run_id": run_id,
+                "trace_sha256": hashlib.sha256(event_bytes).hexdigest(),
+                "trace_event_count": 1,
+            }
+            runners[case_id] = {
+                "case_id": case_id, "dataset_id": "wb-core", "run_id": run_id,
+                "runner_status": "INVOCATION_OK", "dsh_exit_code": 0,
+                "case_budget_status": "PASS", "builder_case_sha256": dataset_hashes["wb-core.jsonl"],
+                "trace": {
+                    "webapp_testing_skill_calls": 1, "completed_skill_calls": 1,
+                    "final_reason": "completed", "event_count": 1,
+                },
+            }
+            oracle_cases.append({
+                "case_id": case_id, "dataset_id": "wb-core", "pilot_role": role,
+                "execution_valid": True, "contract_verdict": "PASS", "oracle_verdict": "PASS",
+                "business_behavior_verdict": (
+                    "EXPECTED_VIOLATION_DETECTED" if case_id == "WB-02" else "PASS"
+                ),
+                "checks": [{"check": "independent evidence check", "status": "PASS"}],
+            })
+        return {
+            "index": {
+                "builder": {"candidate_sha": "builder-sha"},
+                "builder_diagnostic_review": {
+                    "expected_issue_ids": ["WB-03-C3", "WB-04-C2", "WB-14-C2"],
+                    "disposition": "REVIEWED_FALSE_POSITIVE_SCOPE_FLAGS",
+                },
+                "dataset_file_sha256": dataset_hashes,
+                "quality_status": "needs_info",
+                "execution_status": "NOT_RUN",
             },
-            "builder-connectivity-probe.json": {
-                "status": "PASS", "scope": "minimal_model_connectivity_probe",
-                "tool_calls": 0, "response_marker_present": True,
-                "quota_error_detected": False, "builder_invocation_started": False,
-            },
-            "builder-run-metadata.json": {
+            "builder_metadata": {
                 "candidate_sha": "builder-sha", "workspace_isolated": True,
                 "gold_oracle_mounted": False, "independent_validator_mounted": False,
                 "webapp_testing_skill_loaded": False,
             },
-            "credential-scan.json": {"secret_value_exposed_in_artifact": False},
-            "independent-adjudication.json": {
-                "status": "PASS", "scope": "independent_three_case_pilot_adjudication",
-                "case_count": 3, "passed_cases": 3, "failed_cases": 0,
-                "formal_cases_created_or_modified": False,
-                "oracle_exposed_to_builder_or_target_skill": False,
-                "cases": [
-                    {"case_id": "CASE-SEARCH", "pilot_role": "search_mutation", "adjudication_status": "PASS"},
-                    {"case_id": "CASE-STATE", "pilot_role": "state_cycle", "adjudication_status": "PASS"},
-                    {"case_id": "CASE-DELETE", "pilot_role": "delete_confirmation", "adjudication_status": "PASS"},
-                ],
+            "builder_trace": {
+                "status": "PASS", "dsh_exit_code": 0, "builder_skill_tool_calls": 1,
+                "generated_files": ["wb-core.jsonl"],
             },
+            "connectivity_probe": {
+                "status": "PASS", "scope": "minimal_model_connectivity_probe",
+                "tool_calls": 0, "response_marker_present": True,
+                "quota_error_detected": False, "builder_invocation_started": False,
+            },
+            "credential_scan": {"secret_value_exposed_in_artifact": False},
+            "builder_diagnostic_summary": {
+                "status": "FAIL", "issue_count": 3, "issues": expected_issues,
+            },
+            "input_verification": {
+                "status": "PASS", "file_count": 18, "per_file_sha256_verified": 18,
+                "formal_evaluation_cases_included": False, "gold_oracle_included": False,
+            },
+            "independent_validation": {
+                "status": "PASS", "dataset_count": 1, "case_count": 15,
+                "schema_errors": 0, "source_evidence_refs_verified": 61,
+                "formal_evaluation_cases_created_by_validator": False,
+                "datasets": {"wb-core": {"manifest_quality_status": "needs_info", "execution_status": "NOT_RUN"}},
+            },
+            "replay_validation": {
+                "status": "PASS", "dataset_count": 1, "case_count": 15,
+                "schema_errors": 0, "source_evidence_refs_verified": 61,
+                "formal_evaluation_cases_created_by_validator": False,
+                "datasets": {"wb-core": {"manifest_quality_status": "needs_info", "execution_status": "NOT_RUN"}},
+            },
+            "adjudication": {
+                "status": "PASS", "completion_status": "COMPLETED",
+                "scope": "independent_three_case_pilot_adjudication",
+                "case_count": 3, "passed_cases": 3, "failed_cases": 0,
+                "verdict_counts": {"PASS": 3}, "formal_cases_created_or_modified": False,
+                "oracle_exposed_to_builder_or_target_skill": False,
+                "cases": oracle_cases,
+            },
+            "pilot_matrix": {"include": [
+                {"case_id": case_id, "pilot_role": role} for case_id, role in roles.items()
+            ]},
+            "builder_files": dataset_files,
+            "final_builder_files": dataset_files,
+            "pilot_results": runners,
+            "pilot_contexts": contexts,
+            "pilot_events": events,
+            "delete_guard_audit": delete_audit,
+            "reused_pilot_archives_match": True,
+            "builder_job_conclusion": "failure",
         }
 
-        def api(path, token):
-            if path.endswith("/pulls/38"):
-                return builder_pr
-            if path.endswith("/actions/runs?per_page=100"):
-                return {"workflow_runs": [latest_validation_only, earlier_builder_run]}
-            if path.endswith("/actions/runs/2/jobs?per_page=100"):
-                return {"jobs": jobs_latest}
-            if path.endswith("/actions/runs/1/jobs?per_page=100"):
-                return {"jobs": jobs_earlier}
-            if path.endswith("/actions/runs/1/artifacts"):
-                return {"artifacts": artifacts}
-            raise AssertionError(f"Unexpected API request: {path}")
+    def test_builder_evidence_accepts_real_cross_run_validation_and_pilot_artifacts(self):
+        evidence = self._valid_cross_workflow_builder_evidence()
+        result = CREATE_RELEASE_TAG.validate_builder_evidence_payloads(evidence)
+        self.assertEqual(result["status"], "PASS")
+        self.assertEqual(result["case_count"], 15)
+        self.assertEqual(result["source_evidence_refs_verified"], 61)
+        self.assertEqual(result["pilot_case_ids"], ["WB-02", "WB-10", "WB-12"])
+        self.assertEqual(result["builder_diagnostic_status"], "FAIL_REVIEWED_FALSE_POSITIVE_SCOPE_FLAGS")
+        self.assertEqual(result["manifest_quality_status"], "needs_info")
+        self.assertEqual(result["execution_status"], "NOT_RUN")
 
-        with mock.patch.object(CREATE_RELEASE_TAG, "api_request", side_effect=api), \
-             mock.patch.object(CREATE_RELEASE_TAG, "skill_package_tree_signature", return_value={"SKILL.md": "same-tree"}), \
-             mock.patch.object(CREATE_RELEASE_TAG, "artifact_json",
-                               side_effect=lambda _repo, _token, _artifact, filename: payloads[filename]):
-            result = CREATE_RELEASE_TAG.verify_builder_evidence(repo, "token", 38, "release-sha")
-        self.assertEqual(result["workflow_run_id"], 1)
-        self.assertEqual(result["candidate_sha"], "builder-sha")
-        self.assertEqual(result["connectivity_probe_status"], "PASS")
+    def test_builder_evidence_rejects_unvalidated_data_or_hidden_unknowns(self):
+        evidence = self._valid_cross_workflow_builder_evidence()
+        evidence["independent_validation"]["schema_errors"] = 1
+        with self.assertRaisesRegex(ValueError, "official independent validator"):
+            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(evidence)
+        evidence = self._valid_cross_workflow_builder_evidence()
+        evidence["adjudication"]["passed_cases"] = 2
+        evidence["adjudication"]["failed_cases"] = 1
+        evidence["adjudication"]["status"] = "FAIL"
+        with self.assertRaisesRegex(ValueError, "Gold Oracle"):
+            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(evidence)
+        evidence = self._valid_cross_workflow_builder_evidence()
+        evidence["pilot_results"]["WB-12"]["builder_case_sha256"] = "wrong-hash"
+        with self.assertRaisesRegex(ValueError, "original Builder case"):
+            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(evidence)
+        evidence = self._valid_cross_workflow_builder_evidence()
+        evidence["reused_pilot_archives_match"] = False
+        with self.assertRaisesRegex(ValueError, "WB-02 / WB-10"):
+            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(evidence)
+        evidence = self._valid_cross_workflow_builder_evidence()
+        evidence["builder_diagnostic_summary"]["issues"].append("Unexpected additional defect")
+        evidence["builder_diagnostic_summary"]["issue_count"] = 4
+        with self.assertRaisesRegex(ValueError, "reviewed Round 4 findings"):
+            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(evidence)
 
+    def test_builder_evidence_index_is_explicit_about_cross_run_sha_and_artifact_bindings(self):
+        index_path = ROOT / "docs" / "release-evidence" / "round4-evidence-index.json"
+        self.assertTrue(index_path.is_file())
+        index = json.loads(index_path.read_text(encoding="utf-8"))
+        self.assertEqual(index["builder"]["run_id"], 44959366258)
+        self.assertEqual(index["independent_validation"]["run_id"], 44968128127)
+        self.assertEqual(index["final_pilots"]["run_id"], 45189512695)
+        self.assertEqual(index["final_pilots"]["oracle_status"], "PASS")
+        self.assertEqual(index["builder_diagnostic_review"]["disposition"],
+                         "REVIEWED_FALSE_POSITIVE_SCOPE_FLAGS")
 
     def test_release_document_is_marked_published_only_with_evidence(self):
         current = (
