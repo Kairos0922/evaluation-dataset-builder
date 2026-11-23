@@ -1495,7 +1495,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 self.assertEqual(RUN_EVAL.API_REQUEST_COUNT, 8)
                 self.assertAlmostEqual(RUN_EVAL.ESTIMATED_COST_RESERVED_USD, 0.40)
                 self.assertEqual(store["estimated_tokens_reserved_by_model"], {"deepseek-flash": 100})
-                self.assertEqual(store["estimated_tokens_reserved_by_model_by_day"], legacy["estimated_tokens_reserved_by_model_by_day"})
+                self.assertEqual(store["estimated_tokens_reserved_by_model_by_day"], legacy["estimated_tokens_reserved_by_model_by_day"])
                 with mock.patch.object(RUN_EVAL.urllib.request, "urlopen", side_effect=AssertionError("cached exact payload must not send")):
                     response = RUN_EVAL.api_call("unused-key", "deepseek-flash", "system", "user")
                 self.assertEqual(response, "already-paid")
