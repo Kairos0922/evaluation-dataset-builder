@@ -1460,6 +1460,53 @@ class ReleaseGateUnitTests(unittest.TestCase):
                             )
                         urlopen.assert_not_called()
 
+    def test_checkpoint_response_cache_only_migration_reuses_exact_completed_responses(self):
+        saved = {
+            "checkpoint_path": RUN_EVAL.CHECKPOINT_PATH,
+            "checkpoint_store": RUN_EVAL.CHECKPOINT_STORE,
+            "api_requests": RUN_EVAL.API_REQUEST_COUNT,
+            "reserved_cost": RUN_EVAL.ESTIMATED_COST_RESERVED_USD,
+            "run_index": RUN_EVAL.CURRENT_RUN_INDEX,
+        }
+        try:
+            with tempfile.TemporaryDirectory() as temp:
+                path = Path(temp) / "checkpoint.json"
+                payload = RUN_EVAL.build_payload("deepseek-flash", "system", "user")
+                RUN_EVAL.CURRENT_RUN_INDEX = 1
+                exact_key = RUN_EVAL.checkpoint_key({"endpoint": RUN_EVAL.API_URL, "payload": payload})
+                legacy = {
+                    "schema_version": 6,
+                    "signature": "old-suite-signature",
+                    "responses": {exact_key: {"content": "already-paid", "usage": {"total_tokens": 10}}},
+                    "pending_requests": {"possibly-sent": {"payload": "pending"}},
+                    "uncertain_requests": {"ambiguous": {"payload": "uncertain"}},
+                    "estimated_tokens_reserved_by_model": {"deepseek-flash": 100},
+                    "estimated_tokens_reserved_by_model_by_day": {"2026-11-24": {"deepseek-flash": 100}},
+                    "api_requests": 8,
+                    "estimated_cost_reserved_usd": 0.40,
+                }
+                path.write_text(json.dumps(legacy), encoding="utf-8")
+                RUN_EVAL.configure_checkpoint(path, "new-suite-signature", response_cache_only=True)
+                store = RUN_EVAL.CHECKPOINT_STORE
+                self.assertEqual(store["signature"], "new-suite-signature")
+                self.assertEqual(store["responses"], legacy["responses"])
+                self.assertEqual(store["pending_requests"], {})
+                self.assertEqual(set(store["uncertain_requests"]), {"possibly-sent", "ambiguous"})
+                self.assertEqual(RUN_EVAL.API_REQUEST_COUNT, 8)
+                self.assertAlmostEqual(RUN_EVAL.ESTIMATED_COST_RESERVED_USD, 0.40)
+                self.assertEqual(store["estimated_tokens_reserved_by_model"], {"deepseek-flash": 100})
+                self.assertEqual(store["estimated_tokens_reserved_by_model_by_day"], legacy["estimated_tokens_reserved_by_model_by_day"})
+                with mock.patch.object(RUN_EVAL.urllib.request, "urlopen", side_effect=AssertionError("cached exact payload must not send")):
+                    response = RUN_EVAL.api_call("unused-key", "deepseek-flash", "system", "user")
+                self.assertEqual(response, "already-paid")
+        finally:
+            RUN_EVAL.CHECKPOINT_PATH = saved["checkpoint_path"]
+            RUN_EVAL.CHECKPOINT_STORE = saved["checkpoint_store"]
+            RUN_EVAL.API_REQUEST_COUNT = saved["api_requests"]
+            RUN_EVAL.ESTIMATED_COST_RESERVED_USD = saved["reserved_cost"]
+            RUN_EVAL.CURRENT_RUN_INDEX = saved["run_index"]
+
+
     def test_checkpoint_migrates_only_explicit_compatible_candidate_sha(self):
         saved = {
             "checkpoint_path": RUN_EVAL.CHECKPOINT_PATH,

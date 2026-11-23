@@ -21,6 +21,11 @@ on:
         required: false
         default: ""
         type: string
+      resume_response_cache_only:
+        description: 仅复用请求 payload 完全一致的已完成响应；新评测输入会重新请求
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -132,10 +137,15 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RESUME_RUN_ID: ${{ inputs.resume_run_id || '' }}
+          INPUT_RESPONSE_CACHE_ONLY: ${{ inputs.resume_response_cache_only || '' }}
         run: |
           set -euo pipefail
           if [ -z "$RESUME_RUN_ID" ] && [ -f .github/behavioral-eval-trigger.txt ]; then
             RESUME_RUN_ID="$(sed -n 's/^resume_run_id=//p' .github/behavioral-eval-trigger.txt | head -n 1)"
+          fi
+          RESUME_RESPONSE_CACHE_ONLY="$INPUT_RESPONSE_CACHE_ONLY"
+          if [ -z "$RESUME_RESPONSE_CACHE_ONLY" ] && [ -f .github/behavioral-eval-trigger.txt ]; then
+            RESUME_RESPONSE_CACHE_ONLY="$(sed -n 's/^resume_response_cache_only=//p' .github/behavioral-eval-trigger.txt | head -n 1)"
           fi
           RESUME_CANDIDATE_SHA=""
           if [ -n "$RESUME_RUN_ID" ] && [ -f .github/behavioral-eval-trigger.txt ]; then
@@ -155,7 +165,20 @@ jobs:
           gh run download "$RESUME_RUN_ID" \
             --name "candidate-evaluation-report-$RESUME_RUN_ID" --dir artifacts
           test -s artifacts/eval-checkpoint.json
-          echo "检查点已下载；Skill SHA、测试集、模型与配置匹配后才允许恢复。"
+          if [ "$RESUME_RESPONSE_CACHE_ONLY" = "true" ]; then
+            test -s artifacts/eval-report.json
+            python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path("artifacts/eval-report.json").read_text(encoding="utf-8"))
+          expected_sha = os.environ["RESUME_CANDIDATE_SHA"]
+          if report.get("git_sha") != expected_sha or report.get("status") != "PASS":
+              raise SystemExit("Response-cache-only migration requires a successful report bound to the prior SHA.")
+          print("PASS: previous checkpoint report SHA and status verified")
+          PY
+          fi
+          echo "RESUME_RESPONSE_CACHE_ONLY=$RESUME_RESPONSE_CACHE_ONLY" >> "$GITHUB_ENV"
+          echo "检查点已下载；按精确 payload key 复用已完成响应。"
       - name: 执行重复行为、对照基线和触发评测
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
@@ -166,6 +189,7 @@ jobs:
           DEEPSEEK_MAX_TOKENS: ${{ vars.DEEPSEEK_MAX_TOKENS || '16384' }}
           EVAL_GIT_SHA: ${{ inputs.candidate_sha || github.sha }}
           RESUME_CANDIDATE_SHA: ${{ env.RESUME_CANDIDATE_SHA }}
+          RESUME_RESPONSE_CACHE_ONLY: ${{ env.RESUME_RESPONSE_CACHE_ONLY }}
         run: |
           set -euo pipefail
           if [ -z "$DEEPSEEK_API_KEY" ]; then
