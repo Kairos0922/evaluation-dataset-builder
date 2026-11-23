@@ -116,6 +116,24 @@ jobs:
           gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name webapp-testing-replay-builder-input --dir artifacts/source
           gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name webapp-testing-pilot-WB-02 --dir artifacts/pilots/WB-02
           gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name webapp-testing-pilot-WB-10 --dir artifacts/pilots/WB-10
+          # GitHub artifact download preserves the runner's case-id subdirectory; normalize it.
+          for case_id in WB-02 WB-10; do
+            root="artifacts/pilots/$case_id"
+            if [ ! -s "$root/runner-result.json" ]; then
+              mapfile -t results < <(find "$root" -mindepth 2 -type f -name runner-result.json)
+              if [ "${#results[@]}" -ne 1 ]; then
+                echo "::error::Expected exactly one runner-result.json for $case_id; found ${#results[@]}"
+                exit 2
+              fi
+              evidence_dir="$(dirname "${results[0]}")"
+              tmp="$(mktemp -d)"
+              cp -a "$evidence_dir/." "$tmp/"
+              rm -rf "$root"
+              mkdir -p "$root"
+              cp -a "$tmp/." "$root/"
+              rm -rf "$tmp"
+            fi
+          done
           python - <<'PY'
           import json
           from pathlib import Path
