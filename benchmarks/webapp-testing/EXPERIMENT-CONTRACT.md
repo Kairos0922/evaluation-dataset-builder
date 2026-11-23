@@ -1,7 +1,4 @@
-**当前状态（2026-11-22）：** Round 4 正式验收 **NOT PASSED**。Builder 正式生产和真实 Builder 输出的独立验证均 PASS；WB-02、WB-10 已完成并由修正 Oracle 判定 PASS；WB-12 因 DeepSeek HTTP 402 / QUOTA 中断，未执行 DELETE，官方判定仍为 UNKNOWN。现有 `OPENROUTER_API_KEY` 已配置为唯一允许的免费重试渠道，计划使用 `inclusionai/ling-3.2-flash:free`；但 2026-11-22 14:42 UTC 的只读 quota gate 返回 free quota remaining=0，未发送 inference，未产生付费请求。每日 08:30 UTC 自动重查。该替代模型的真实 Skill 执行能力尚未验证。PR #38 保持 Draft/Open/unmerged。本文下方历史阶段与旧结果保留作为记录；**若与本段及 `round4-final-acceptance-decision-2026-11-22.md` 冲突，以当前状态为准。**
-
-
-
+**当前验收状态（2026-11-23，权威）：** Round 4 正式验收 **PASS**。Builder 正式生产、真实 Builder 输出的独立验证、WB-02/WB-10/WB-12 三条真实 Skill 试运行及独立 Gold Oracle 均 PASS；Oracle 结果 3/3 PASS、0 FAIL、0 UNKNOWN。WB-12 使用 DeepSeek 仅执行真实评测，未用于代码或脚本编写/修复；执行 89.426 秒、15 model steps、19 tool calls、30/30 assertions PASS，且只对 Builder 指定的 WB-104 执行一次确认和 DELETE（HTTP 200），没有重试或其他变更。冻结 Builder 产物与前两条 Pilot 证据复用，未重新生成数据集。最终证据见 `benchmarks/reports/round4-final-acceptance-decision-2026-11-22.md`。PR #38 仍保持 Draft/Open/unmerged。下方早期状态均为历史记录，不能覆盖本段最终验收结果。
 
 ## 当前状态修正（2026-11-22，权威）
 
