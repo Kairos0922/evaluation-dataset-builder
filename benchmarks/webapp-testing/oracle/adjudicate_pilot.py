@@ -362,7 +362,7 @@ def self_test() -> int:
         delete_report = adjudicate_one(suite, pilot, delete_entry)
         assert delete_report["adjudication_status"] == "PASS", delete_report
         (delete_folder / "server-audit.jsonl").write_text(
-            "".join(json.dumps(x) + "\n" for x in delete_audit * 2), encoding="utf-8")
+            "".join(json.dumps(x) + "\n" for x in delete_audit + [delete_audit[1]]), encoding="utf-8")
         duplicate_delete_report = adjudicate_one(suite, pilot, delete_entry)
         assert duplicate_delete_report["adjudication_status"] == "FAIL", duplicate_delete_report
     print("PASS: independent Gold Oracle self-test")
