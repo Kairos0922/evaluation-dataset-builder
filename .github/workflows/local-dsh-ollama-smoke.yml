@@ -21,11 +21,11 @@ jobs:
     env:
       DSH_HOME: ${{ github.workspace }}/.dsh-home
       DSH_VERSION: "0.2.2-rc.1"
-      OLLAMA_MODEL: "qwen3:4b"
+      OLLAMA_MODEL: "qwen2.5:1.5b"
       OLLAMA_API_KEY: "ollama-local-placeholder"
       OLLAMA_KEEP_ALIVE: "30m"
       OLLAMA_NUM_PARALLEL: "1"
-      OLLAMA_CONTEXT_LENGTH: "16384"
+      OLLAMA_CONTEXT_LENGTH: "8192"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -72,19 +72,19 @@ jobs:
                   baseURL: http://127.0.0.1:11434/v1
                   apiKeyEnv: OLLAMA_API_KEY
                   models:
-                    - id: qwen3:4b
-                      contextWindow: 16384
+                    - id: qwen2.5:1.5b
+                      contextWindow: 8192
                       maxTokens: 256
           - id: session-title-llm
             disabled: true
           - id: agent-default-model
             config:
               provider: ollama-local
-              model: qwen3:4b
+              model: qwen2.5:1.5b
           YAML
           dsh --profile headless --dump-config > "$RUNNER_TEMP/dsh-config.txt"
           grep -F "ollama-local" "$RUNNER_TEMP/dsh-config.txt"
-          grep -F "qwen3:4b" "$RUNNER_TEMP/dsh-config.txt"
+          grep -F "qwen2.5:1.5b" "$RUNNER_TEMP/dsh-config.txt"
           grep -F "127.0.0.1:11434/v1" "$RUNNER_TEMP/dsh-config.txt"
 
       - name: Run bounded DSH file-tool smoke test
@@ -100,7 +100,7 @@ jobs:
           marker_path = Path(os.environ["MARKER_PATH"])
           prompt = (
               "Call the write tool once to create smoke-marker.txt in this workspace. "
-              "Its content must be exactly LOCAL_DSH_TOOL_OK. Do not explain. Then stop. /no_think"
+              "Create the file smoke-marker.txt using the write tool now. The exact content is LOCAL_DSH_TOOL_OK. No commentary. Do not call any other tool."
           )
           stderr_path = Path(os.environ["RUNNER_TEMP"]) / "dsh-stderr.log"
           stderr_file = stderr_path.open("w", encoding="utf-8")
