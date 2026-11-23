@@ -94,6 +94,8 @@ jobs:
           python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py --self-test
           python -m py_compile benchmarks/webapp-testing/scripts/gold_oracle.py
           python benchmarks/webapp-testing/scripts/gold_oracle.py --self-test
+          python -m py_compile benchmarks/webapp-testing/oracle/adjudicate_pilot.py
+          python benchmarks/webapp-testing/oracle/adjudicate_pilot.py --self-test
 
       - name: Verify pilot command contract
         run: |
