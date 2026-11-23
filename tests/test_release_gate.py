@@ -552,20 +552,6 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 "formal_evaluation_cases_created_by_validator": False,
                 "datasets": {"wb-core": {"manifest_quality_status": "needs_info", "execution_status": "NOT_RUN"}},
             },
-    validator_revalidation_index = index["validator_revalidation"]
-    validator_revalidation_run = _require_run(
-        repo, token, validator_revalidation_index["run_id"],
-        path=".github/workflows/validate-existing-builder-artifact.yml",
-        branch=builder_branch,
-        head_sha=validator_revalidation_index["head_sha"],
-        conclusion="success",
-    )
-    validator_revalidation_jobs_response = api_request(
-        f"/repos/{repo}/actions/runs/{validator_revalidation_run['id']}/jobs?per_page=100", token
-    )
-    validator_revalidation_jobs = validator_revalidation_jobs_response.get("jobs") or []
-    require(_job_by_name(validator_revalidation_jobs, "validate-archived-artifact").get("conclusion") == "success",
-            "Post-lint archived Builder output revalidation job did not pass.")
             "replay_preparation_validation": {
                 "status": "PASS", "dataset_count": 1, "case_count": 15,
                 "schema_errors": 0, "source_evidence_refs_verified": 61,
