@@ -188,8 +188,6 @@ jobs:
           DEEPSEEK_MAX_ESTIMATED_COST_USD: "10.00"
           DEEPSEEK_MAX_TOKENS: ${{ vars.DEEPSEEK_MAX_TOKENS || '16384' }}
           EVAL_GIT_SHA: ${{ inputs.candidate_sha || github.sha }}
-          RESUME_CANDIDATE_SHA: ${{ env.RESUME_CANDIDATE_SHA }}
-          RESUME_RESPONSE_CACHE_ONLY: ${{ env.RESUME_RESPONSE_CACHE_ONLY }}
         run: |
           set -euo pipefail
           if [ -z "$DEEPSEEK_API_KEY" ]; then
