@@ -334,7 +334,7 @@ def self_test() -> int:
         (delete_folder / "delete-guard-audit.jsonl").write_text(json.dumps({
             "attempt": 1, "method": "DELETE", "path": "/api/tasks/WB-104",
             "allowed": True, "status": 200
-        }) + "\\n", encoding="utf-8")
+        }) + "\n", encoding="utf-8")
         runner_delete["delete_guard_enabled"] = True
         (delete_folder / "runner-result.json").write_text(json.dumps(runner_delete), encoding="utf-8")
         (delete_folder / "server-audit.jsonl").write_text(json.dumps(delete_audit[0]) + "\n", encoding="utf-8")
