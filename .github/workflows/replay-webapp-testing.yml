@@ -331,9 +331,8 @@ jobs:
           retention-days: 30
 
   oracle-adjudication:
-    if: inputs.confirm_real_pilot_runs == true
+    if: always() && inputs.confirm_real_pilot_runs == true && needs.prepare.result == 'success'
     needs: [prepare, webapp-testing-pilot]
-    if: always() && needs.prepare.result == 'success'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
