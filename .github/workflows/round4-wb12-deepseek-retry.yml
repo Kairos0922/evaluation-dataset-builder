@@ -1,0 +1,304 @@
+name: Round 4 WB-12 DeepSeek one-time retry
+
+on:
+  push:
+    branches: ["experiment/webapp-testing-contract"]
+    paths:
+      - ".github/dispatch/round4-wb12-deepseek-retry-once.txt"
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: round4-wb12-deepseek-one-time
+  cancel-in-progress: false
+
+jobs:
+  quota-gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    outputs:
+      should_run: ${{ steps.gate.outputs.should_run }}
+    steps:
+      - name: Check PR state, one-time marker, and DeepSeek balance (GET only)
+        id: gate
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_BASE_URL: ${{ vars.DEEPSEEK_BASE_URL }}
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+          from pathlib import Path
+
+          repo=os.environ["GITHUB_REPOSITORY"]
+          key=os.environ.get("DEEPSEEK_API_KEY","").strip()
+          base=(os.environ.get("DEEPSEEK_BASE_URL") or "https://api.deepseek.com").rstrip("/")
+          gh_headers={"Authorization":"Bearer "+os.environ["GH_TOKEN"],"Accept":"application/vnd.github+json"}
+          def get_json(url, headers):
+              req=urllib.request.Request(url,headers=headers,method="GET")
+              with urllib.request.urlopen(req,timeout=20) as response:
+                  return json.loads(response.read().decode())
+          report={"provider":"DeepSeek","model":"deepseek-flash","source_builder_run_id":44980451933,
+                  "case_id":"WB-12","max_model_steps":32,"generation_requests_sent":0,"should_run":False}
+          try:
+              pr=get_json(f"https://api.github.com/repos/{repo}/pulls/38",gh_headers)
+              if pr.get("state")!="open" or pr.get("merged") is True or pr.get("draft") is not True:
+                  report["reason"]="PR #38 is not Draft/Open/Unmerged; fail closed."
+              elif not key:
+                  report["reason"]="DEEPSEEK_API_KEY is missing; no inference sent."
+              else:
+                  markers=get_json(f"https://api.github.com/repos/{repo}/actions/artifacts?name=round4-wb12-attempt-started&per_page=10",gh_headers)
+                  active=[x for x in markers.get("artifacts",[]) if x.get("expired") is False]
+                  if active:
+                      report["reason"]="A prior one-time WB-12 attempt marker exists; execution is blocked."
+                      report["prior_attempt_artifact_id"]=active[0].get("id")
+                  else:
+                      balance=get_json(base+"/user/balance",{"Authorization":"Bearer "+key,"Accept":"application/json"})
+                      report["balance_available"]=balance.get("is_available") is True
+                      report["balance_currency"]=((balance.get("balance_infos") or [{}])[0]).get("currency")
+                      report["balance_total"]=((balance.get("balance_infos") or [{}])[0]).get("total_balance")
+                      models=get_json(base+"/models",{"Authorization":"Bearer "+key,"Accept":"application/json"})
+                      model_ids={x.get("id") for x in models.get("data",[]) if isinstance(x,dict)}
+                      report["model_listed"]="deepseek-flash" in model_ids
+                      if report["balance_available"] and report["model_listed"]:
+                          report["should_run"]=True
+                          report["reason"]="DeepSeek balance available and deepseek-flash listed; proceed with the one real WB-12 evaluation only."
+                      else:
+                          report["reason"]="DeepSeek balance unavailable or required model not listed; no generation sent."
+          except Exception as exc:
+              report["reason"]="Fail-closed preflight error: "+type(exc).__name__
+          Path("quota-gate-report.json").write_text(json.dumps(report,indent=2)+"\n",encoding="utf-8")
+          with open(os.environ["GITHUB_OUTPUT"],"a",encoding="utf-8") as out:
+              out.write("should_run="+("true" if report["should_run"] else "false")+"\n")
+          print(json.dumps(report,indent=2))
+          PY
+
+      - name: Archive DeepSeek quota gate report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: round4-wb12-deepseek-quota-gate
+          path: quota-gate-report.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  execute-and-adjudicate:
+    needs: quota-gate
+    if: needs.quota-gate.outputs.should_run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      DSH_HOME: ${{ github.workspace }}/.dsh-home
+      DSH_MODEL: deepseek-flash
+      MODEL_PROVIDER: deepseek-custom
+      DSH_TELEMETRY_MODE: DISABLED
+      DSH_TELEMETRY_DISABLED: "1"
+      DSH_VERSION: "0.2.2-rc.1"
+      SOURCE_RUN_ID: "44980451933"
+    steps:
+      - name: Checkout task branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download immutable Round 4 Builder and prior pilot artifacts
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/source artifacts/pilots/WB-02 artifacts/pilots/WB-10
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name webapp-testing-replay-builder-input --dir artifacts/source
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name webapp-testing-pilot-WB-02 --dir artifacts/pilots/WB-02
+          gh run download "$SOURCE_RUN_ID" --repo "$GITHUB_REPOSITORY" --name webapp-testing-pilot-WB-10 --dir artifacts/pilots/WB-10
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path("artifacts/source")
+          validation=json.loads((root/"builder-replay-validation.json").read_text(encoding="utf-8"))
+          if validation.get("status")!="PASS" or validation.get("case_count")!=15 or validation.get("schema_errors")!=0:
+              raise SystemExit("Frozen Builder output is not independently validated PASS")
+          cases=[json.loads(line) for line in (root/"webapp-testing-builder-output/wb-core.jsonl").read_text(encoding="utf-8").splitlines() if line.strip()]
+          selected=[x for x in cases if x.get("case_id")=="WB-12"]
+          if len(selected)!=1 or "Verify email notification" not in json.dumps(selected[0],ensure_ascii=False):
+              raise SystemExit("Frozen WB-12 identity mismatch")
+          matrix=json.loads((root/"pilot-matrix.json").read_text(encoding="utf-8"))
+          if {x.get("case_id") for x in matrix.get("include",[])}!={"WB-02","WB-10","WB-12"}:
+              raise SystemExit("Frozen Round 4 pilot matrix mismatch")
+          for case_id in ("WB-02","WB-10"):
+              if not (Path("artifacts/pilots")/case_id/"runner-result.json").is_file():
+                  raise SystemExit(f"Prior passing evidence missing: {case_id}")
+          print("PASS: exact immutable Builder artifact, independent-validator PASS, three-case matrix, and WB-02/WB-10 evidence.")
+          PY
+          test -s artifacts/source/webapp-testing-builder-input/fixtures/workboard/server.py
+          test -s artifacts/source/webapp-testing-builder-input/assets/public/business-rules.md
+
+      - name: Install Node.js and pinned DSH CLI
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.9.0"
+      - name: Cache DSH installation
+        uses: actions/cache@v4
+        with:
+          path: ~/.dsh-npm-global
+          key: ${{ runner.os }}-dsh-node24-${{ env.DSH_VERSION }}
+      - name: Install DSH CLI
+        run: |
+          set -euo pipefail
+          export NPM_CONFIG_PREFIX="$HOME/.dsh-npm-global"
+          export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+          echo "$NPM_CONFIG_PREFIX/bin" >> "$GITHUB_PATH"
+          if ! dsh --version 2>/dev/null | grep -Fq "$DSH_VERSION"; then
+            npm install --global --no-audit --no-fund "@deepseek-ai/dsh@$DSH_VERSION"
+          fi
+          dsh --version
+
+      - name: Install pinned Playwright and Chromium
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.16"
+          cache: pip
+      - run: |
+          python -m pip install --disable-pip-version-check "playwright==1.64.1"
+          python -m playwright install --with-deps --only-shell chromium
+
+      - name: Checkout pinned upstream webapp-testing Skill
+        uses: actions/checkout@v4
+        with:
+          repository: anthropics/skills
+          ref: 2c5958ecac7cee2b583967a2c4981d0f4a75c579
+          path: .audit/upstream-skills
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Configure DeepSeek model and verify DSH config
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_BASE_URL: ${{ vars.DEEPSEEK_BASE_URL }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$DSH_HOME" artifacts
+          BASE_URL="${DEEPSEEK_BASE_URL:-https://api.deepseek.com}"
+          cat > "$DSH_HOME/cordis.patch.yml" <<YAML
+          - id: session-log-deepseek
+            config:
+              enabled: false
+          - id: llm-pi-ai
+            config:
+              providers:
+                deepseek-custom:
+                  apiKeyEnv: DEEPSEEK_API_KEY
+                  api: openai-completions
+                  baseURL: $BASE_URL
+                  models:
+                    - id: deepseek-flash
+          - id: agent-default-model
+            config:
+              provider: deepseek-custom
+              model: deepseek-flash
+          YAML
+          dsh --profile headless --dump-config > artifacts/dsh-config.txt
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          text=Path("artifacts/dsh-config.txt").read_text(encoding="utf-8")
+          marker="id: session-log-deepseek"
+          if marker not in text:
+              raise SystemExit("Session Log config missing")
+          tail=text.split(marker,1)[1]
+          next_item=re.search(r"\n\s*- id:",tail)
+          section=tail[:next_item.start()] if next_item else tail
+          if not re.search(r"\benabled:\s*false\b",section):
+              raise SystemExit("Session Log upload is not disabled")
+          for value in ("deepseek-custom","deepseek-flash","DEEPSEEK_API_KEY"):
+              if value not in text:
+                  raise SystemExit("DeepSeek DSH config missing required setting: "+value)
+          print("PASS: DeepSeek model configured; Session Log and OTel disabled.")
+          PY
+
+      - name: Mark the one-time model attempt before DSH starts
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/attempt
+          python - <<'PY'
+          import json
+          from datetime import datetime,timezone
+          from pathlib import Path
+          data={"status":"ATTEMPT_STARTED","provider":"DeepSeek","model":"deepseek-flash",
+                "source_builder_run_id":44980451933,"case_id":"WB-12","maximum_model_steps":32,
+                "paid_fallback":False,"deepseek_key_used_for_evaluation_only":True,
+                "started_at_utc":datetime.now(timezone.utc).isoformat()}
+          Path("artifacts/attempt/attempt-started.json").write_text(json.dumps(data,indent=2)+"\n",encoding="utf-8")
+          print(json.dumps(data,indent=2))
+          PY
+
+      - name: Persist one-time attempt marker
+        uses: actions/upload-artifact@v4
+        with:
+          name: round4-wb12-attempt-started
+          path: artifacts/attempt/attempt-started.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Execute only original Builder-authored WB-12 evaluation case
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/run_webapp_testing.py \
+            --dataset artifacts/source/webapp-testing-builder-output/wb-core.jsonl \
+            --dataset-id wb-core --case-id WB-12 \
+            --fixture-profile clean --fixture-mutations "" \
+            --fixture-source artifacts/source/webapp-testing-builder-input/fixtures/workboard \
+            --public-assets artifacts/source/webapp-testing-builder-input/assets/public \
+            --skill-source .audit/upstream-skills/skills/webapp-testing \
+            --work-root "$RUNNER_TEMP/wbt-workspaces" \
+            --output-dir "$RUNNER_TEMP/wbt-output" \
+            --skill-commit 2c5958ecac7cee2b583967a2c4981d0f4a75c579 \
+            --dsh-timeout 600 --max-model-steps 32 \
+            --max-input-tokens 60000 --max-output-tokens 55000 \
+            --max-cache-read-tokens 1600000 --max-total-tokens 1750000
+
+      - name: Prepare WB-12 evidence and run independent Oracle
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/pilots/WB-12
+          if [ -d "$RUNNER_TEMP/wbt-output/WB-12" ]; then
+            cp -a "$RUNNER_TEMP/wbt-output/WB-12/." artifacts/pilots/WB-12/
+          fi
+          if [ ! -s artifacts/pilots/WB-12/runner-result.json ]; then
+            echo "WB-12 evidence missing; preserving attempt artifacts without claiming a verdict."
+            exit 0
+          fi
+          python benchmarks/webapp-testing/scripts/gold_oracle.py \
+            --builder-output artifacts/source/webapp-testing-builder-output \
+            --pilots-root artifacts/pilots \
+            --pilot-matrix artifacts/source/pilot-matrix.json \
+            --output artifacts/oracle-adjudication.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report=json.loads(Path("artifacts/oracle-adjudication.json").read_text(encoding="utf-8"))
+          expected={"WB-02","WB-10","WB-12"}
+          observed={x.get("case_id") for x in report.get("cases",[])}
+          if observed!=expected:
+              raise SystemExit("Independent Oracle did not adjudicate exact three-case Round 4 set")
+          print(json.dumps({"status":report.get("status"),"verdict_counts":report.get("verdict_counts")},indent=2))
+          PY
+
+      - name: Archive exact WB-12 evidence and Oracle adjudication
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: round4-wb12-deepseek-output
+          path: |
+            artifacts/
+            ${{ runner.temp }}/wbt-output/WB-12/
+          if-no-files-found: warn
+          retention-days: 90
