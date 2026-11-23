@@ -64,11 +64,15 @@ jobs:
               yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG,
               construct_mapping,
           )
+          workflow_paths = sorted(Path(".github/workflows").glob("*.yml"))
+          assert workflow_paths, "no GitHub Actions workflow files found"
+          for path in workflow_paths:
+              workflow = yaml.load(path.read_text(encoding="utf-8"), Loader=UniqueKeyLoader)
+              assert isinstance(workflow, dict), f"{path}: workflow root must be a mapping"
           path = Path(".github/workflows/validate.yml")
           workflow = yaml.load(path.read_text(encoding="utf-8"), Loader=UniqueKeyLoader)
-          assert isinstance(workflow, dict), "workflow root must be a mapping"
           jobs = workflow.get("jobs")
-          assert isinstance(jobs, dict), "workflow must define jobs"
+          assert isinstance(jobs, dict), "validate.yml must define jobs"
           assert "resolve-pilot-matrix" in jobs, "dynamic matrix resolver job missing"
           resolver = jobs["resolve-pilot-matrix"]
           assert "matrix" in resolver.get("outputs", {}), "resolver must export matrix output"
@@ -80,7 +84,7 @@ jobs:
           matrix_expression = str(pilot.get("strategy", {}).get("matrix", ""))
           assert "fromJSON" in matrix_expression, "pilot matrix must use Builder-derived JSON"
           assert "needs.resolve-pilot-matrix.outputs.matrix" in matrix_expression
-          print(f"PASS: YAML parsed; {len(jobs)} jobs; dynamic Builder-derived matrix; no duplicate keys")
+          print(f"PASS: YAML parsed; {len(workflow_paths)} workflows; duplicate keys rejected; Builder-derived matrix contract intact")
           PY
 
       - name: Compile and self-test runner
