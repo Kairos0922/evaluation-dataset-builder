@@ -596,9 +596,6 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertEqual(result["builder_diagnostic_status"], "HISTORICAL_FAIL_REVALIDATED_AFTER_LINT_FIX")
         self.assertEqual(result["validator_revalidation_status"], "PASS")
         self.assertEqual(result["validator_revalidation_run_id"], 4)
-
-        self.assertEqual(result["validator_revalidation_status"], "PASS")
-        self.assertEqual(result["validator_revalidation_run_id"], 45291624154)
         self.assertEqual(result["manifest_quality_status"], "needs_info")
         self.assertEqual(result["execution_status"], "NOT_RUN")
 
