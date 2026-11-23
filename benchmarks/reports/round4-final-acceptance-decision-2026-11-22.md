@@ -155,3 +155,30 @@ Artifact **14737298412** was downloaded and inspected, including `runner-result.
 - No final Skill report was produced. Required evidence shows screenshots and JSON evidence, but `markdown_report=false`.
 
 **Interpretation:** WB-12 remains UNKNOWN, not FAIL, because external quota interruption prevented the Skill from completing and Oracle lacks a complete run. This partial trace nevertheless demonstrates an observed test-script correctness defect and a rule-following risk: the model started preparing recovery after the case had explicitly prohibited retries. It does not support a claim that the model/Skill would complete the case if quota were available. The free-model retry remains unproven and must be judged only from actual execution and independent Oracle evidence.
+
+## Final WB-12 execution and Round 4 acceptance (2026-11-23)
+
+This section supersedes the prior **NOT PASSED** decision and the earlier free-only retry restriction. The user explicitly reconfigured `DEEPSEEK_API_KEY` and directed that DeepSeek be used only for evaluation execution, never for code or script repair.
+
+- Read-only credential preflight: workflow run [45188903250](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45188903250) PASS. DeepSeek reported `is_available=true`, balance CNY 19.98, and `deepseek-flash` present in the model catalog. This preflight made zero generation requests.
+- Real WB-12 execution: workflow run [45189512695](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45189512695) PASS; artifact **14824967038** (`round4-wb12-deepseek-output`).
+- Frozen source: Builder artifact and independent-validator PASS from run `44980451933`; prior WB-02 and WB-10 evidence reused unchanged. No dataset regeneration and no rerun of completed pilots.
+- DeepSeek was invoked only by the real WB-12 evaluation. DSH completed in 89.426 seconds: 15 model steps, 19 tool calls, one turn, final reason `completed`; usage telemetry was complete and all configured budgets passed.
+- WB-12 target was the Builder-authored `WB-104 / Verify email notification`. The runner's delete guard recorded exactly one allowed request: `DELETE /api/tasks/WB-104`, HTTP 200. No second DELETE, unrelated mutation, or retry occurred.
+- The Skill report recorded 30/30 assertions PASS, exactly one confirmation click, one DELETE request, no error, and the expected post-state: 4 tasks; Open=1, In progress=2, Done=1.
+- Independent Gold Oracle adjudication in the same run returned **PASS: 3/3**, 0 FAIL, 0 UNKNOWN. WB-02 PASS, WB-10 PASS, WB-12 PASS. It verified all 20 WB-12 evidence files against the Runner SHA-256 manifest, execution count, mutation budget, run identity, final state, report, and screenshots.
+
+### Final acceptance gate
+
+| Gate | Final result |
+|---|---|
+| Builder formal production | PASS, original frozen Builder artifact reused |
+| Independent Builder-output validation | PASS |
+| DSH tool-call compatibility smoke | PASS, run [45186835825](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45186835825) |
+| WB-02 real Skill trial | PASS, original evidence reused |
+| WB-10 real Skill trial | PASS, original evidence reused |
+| WB-12 real Skill trial using DeepSeek | PASS |
+| Independent Gold Oracle | PASS, 3/3 |
+| Overall Round 4 acceptance | **PASS** |
+
+No model was used to write or repair code/scripts. The DeepSeek model was used only for the actual WB-12 evaluation. PR #38 remains Draft/Open/unmerged.
