@@ -182,3 +182,10 @@ This section supersedes the prior **NOT PASSED** decision and the earlier free-o
 | Overall Round 4 acceptance | **PASS** |
 
 No model was used to write or repair code/scripts. The DeepSeek model was used only for the actual WB-12 evaluation. PR #38 remains Draft/Open/unmerged.
+
+
+## PR delivery cleanup (2026-11-23)
+
+The Round 4 final WB-12 execution and Gold Oracle adjudication supersede the earlier OpenRouter free-only retry plan. The dormant scheduled retry workflow was removed because it was no longer needed and would otherwise leave an obsolete scheduled/manual execution path in the PR. Its workflow-specific contract test was removed with it. The historical retry design and earlier quota-blocked evidence above are retained as experiment history; they are not current execution instructions.
+
+The PR validation workflow no longer repeats the earlier offline re-adjudication that intentionally expected WB-12=UNKNOWN from the pre-final, quota-blocked evidence. That historical result remains documented above, while current Round 4 acceptance is established by the final WB-12 run and independent Gold Oracle PASS 3/3 recorded in the final acceptance section. This cleanup does not regenerate the dataset, rerun any Skill, or make model calls.
