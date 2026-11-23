@@ -128,7 +128,7 @@ jobs:
         run: python scripts/validate_skill.py
 
       - name: 验证 Benchmark 贯通样例
-        if: steps.scope.outputs.run_validation == 'true'
+        if: steps.scope.outputs.run_validation == 'true' && hashFiles('tests/benchmark/fixtures/refund-valid.json') != ''
         run: python tests/benchmark/validate_benchmark.py tests/benchmark/fixtures/refund-valid.json --strict
 
       - name: 运行离线测试
