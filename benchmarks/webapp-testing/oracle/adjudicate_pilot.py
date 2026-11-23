@@ -205,6 +205,14 @@ def adjudicate_one(suite: Path, pilot: Path, entry: dict) -> dict:
         check(checks, "clean_fixture", runner.get("fixture_profile") == "clean" and not mutations,
               {"profile": "clean", "mutations": []},
               {"profile": runner.get("fixture_profile"), "mutations": mutations})
+        guard_events = load_jsonl(folder / "delete-guard-audit.jsonl") if (folder / "delete-guard-audit.jsonl").is_file() else []
+        check(checks, "delete_guard_enabled", runner.get("delete_guard_enabled") is True,
+              True, runner.get("delete_guard_enabled"))
+        check(checks, "delete_guard_single_allowed_attempt",
+              len(guard_events) == 1 and guard_events[0].get("attempt") == 1
+              and guard_events[0].get("path") == "/api/tasks/WB-104"
+              and guard_events[0].get("allowed") is True and guard_events[0].get("status") == 200,
+              "one allowed successful DELETE to WB-104, no other attempts", guard_events)
         check(checks, "one_delete_request", len(delete_requests) == 1 and len(deleted) == 1,
               "exactly one DELETE request, successful", delete_requests)
         check(checks, "delete_target", target_id is not None and deleted[0].get("item", {}).get("id") == target_id
@@ -323,6 +331,12 @@ def self_test() -> int:
         (delete_folder / "runner-result.json").write_text(json.dumps(runner_delete), encoding="utf-8")
         delete_audit = [{"method": "DELETE", "path": "/api/tasks/WB-104", "status": 200,
                          "action": "deleted", "item": before_items[3]}]
+        (delete_folder / "delete-guard-audit.jsonl").write_text(json.dumps({
+            "attempt": 1, "method": "DELETE", "path": "/api/tasks/WB-104",
+            "allowed": True, "status": 200
+        }) + "\\n", encoding="utf-8")
+        runner_delete["delete_guard_enabled"] = True
+        (delete_folder / "runner-result.json").write_text(json.dumps(runner_delete), encoding="utf-8")
         (delete_folder / "server-audit.jsonl").write_text(json.dumps(delete_audit[0]) + "\n", encoding="utf-8")
         (skill_delete / "result.json").write_text(json.dumps({
             "case_id": "C-DELETE", "overall": "CONFORMS",
