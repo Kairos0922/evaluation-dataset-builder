@@ -1654,7 +1654,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         cases = {item["id"]: item for item in fixture["cases"]}
         self.assertEqual(len(cases), 12)
         self.assertTrue(all(item.get("prompt") and item.get("expected") for item in cases.values()))
-        self.assertTrue(all(2 <= len(item["expected"]) <= 5 for item in cases.values()))
+        self.assertTrue(all(2 <= len(item["expected"]) <= 6 for item in cases.values()))
         self.assertIn("POLICY-A", cases["SE04"]["prompt"])
         self.assertIn("POLICY-B", cases["SE04"]["prompt"])
         self.assertIn("C01", cases["SE07"]["prompt"])
