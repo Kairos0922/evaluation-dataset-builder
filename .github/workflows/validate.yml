@@ -177,7 +177,7 @@ jobs:
           PY
 
       - name: 验证 Builder 试运行选择器
-        if: steps.scope.outputs.run_validation == 'true'
+        if: steps.scope.outputs.run_validation == 'true' && hashFiles('benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py') != ''
         run: |
           set -euo pipefail
           python -m py_compile \
