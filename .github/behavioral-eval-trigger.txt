@@ -1,4 +1,4 @@
 release_pr_number=42
 resume_run_id=
 resume_candidate_sha=
-resume_attempt=1
+resume_attempt=2
