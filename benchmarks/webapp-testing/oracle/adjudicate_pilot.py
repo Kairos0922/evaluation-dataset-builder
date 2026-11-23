@@ -183,6 +183,9 @@ def adjudicate_one(suite: Path, pilot: Path, entry: dict) -> dict:
 
     elif role == "delete_confirmation":
         delete_requests = [e for e in audit if e.get("method") == "DELETE"]
+        reset_requests = [e for e in audit if e.get("method") == "POST" and e.get("path") == "/api/reset"]
+        other_mutations = [e for e in audit if e.get("method") in {"POST", "PATCH", "DELETE"}
+                           and not (e.get("method") == "POST" and e.get("path") == "/api/reset")]
         deleted = [e for e in delete_requests if e.get("action") == "deleted" and e.get("status") == 200]
         before_items = pre.get("items") or []
         after_items = post.get("items") or []
@@ -213,6 +216,10 @@ def adjudicate_one(suite: Path, pilot: Path, entry: dict) -> dict:
               and guard_events[0].get("path") == "/api/tasks/WB-104"
               and guard_events[0].get("allowed") is True and guard_events[0].get("status") == 200,
               "one allowed successful DELETE to WB-104, no other attempts", guard_events)
+        check(checks, "runner_only_reset", len(reset_requests) == 1 and reset_requests[0].get("status") == 200,
+              "exactly one successful pre-run reset by Runner", reset_requests)
+        check(checks, "no_other_mutations", len(other_mutations) == 1 and other_mutations[0] in delete_requests,
+              "only the single intended DELETE mutation", other_mutations)
         check(checks, "one_delete_request", len(delete_requests) == 1 and len(deleted) == 1,
               "exactly one DELETE request, successful", delete_requests)
         check(checks, "delete_target", target_id is not None and deleted[0].get("item", {}).get("id") == target_id
@@ -329,15 +336,19 @@ def self_test() -> int:
             "post_state": {"items": after_items, "summary": {"all": 4, "open": 1, "in_progress": 2, "done": 1}},
         }
         (delete_folder / "runner-result.json").write_text(json.dumps(runner_delete), encoding="utf-8")
-        delete_audit = [{"method": "DELETE", "path": "/api/tasks/WB-104", "status": 200,
-                         "action": "deleted", "item": before_items[3]}]
+        delete_audit = [
+            {"method": "POST", "path": "/api/reset", "status": 200, "action": "reset"},
+            {"method": "DELETE", "path": "/api/tasks/WB-104", "status": 200,
+             "action": "deleted", "item": before_items[3]},
+        ]
         (delete_folder / "delete-guard-audit.jsonl").write_text(json.dumps({
             "attempt": 1, "method": "DELETE", "path": "/api/tasks/WB-104",
             "allowed": True, "status": 200
-        }) + "\n", encoding="utf-8")
+        }) + "\\n", encoding="utf-8")
         runner_delete["delete_guard_enabled"] = True
         (delete_folder / "runner-result.json").write_text(json.dumps(runner_delete), encoding="utf-8")
-        (delete_folder / "server-audit.jsonl").write_text(json.dumps(delete_audit[0]) + "\n", encoding="utf-8")
+        (delete_folder / "server-audit.jsonl").write_text(
+            "".join(json.dumps(x) + "\\n" for x in delete_audit), encoding="utf-8")
         (skill_delete / "result.json").write_text(json.dumps({
             "case_id": "C-DELETE", "overall": "CONFORMS",
             "assertions": [{"verdict": "PASS"}],
