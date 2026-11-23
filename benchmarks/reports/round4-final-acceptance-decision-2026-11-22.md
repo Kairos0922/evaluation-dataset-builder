@@ -1,8 +1,16 @@
-# Round 4 final acceptance decision (2026-11-22)
+# Round 4 final acceptance decision (updated 2026-11-23)
 
-**NOT PASSED.** Builder production and independent validation passed. The initial Oracle report falsely failed two completed pilots and misclassified the quota-blocked third pilot. After correcting the adjudicator and re-running it offline against the same immutable artifacts, the result is **2 PASS, 0 FAIL, 1 UNKNOWN**. WB-12 did not execute to completion because the provider returned HTTP 402 QUOTA. The three-case acceptance gate therefore remains unmet.
+**FINAL STATUS: PASS.** The frozen Builder output passed formal production and independent validation. Three real Skill trials (WB-02, WB-10, WB-12) passed independent Gold Oracle adjudication: **3 PASS, 0 FAIL, 0 UNKNOWN**. WB-12 was executed using DeepSeek only for the evaluation itself, with no code or script authoring or repair. The final execution and Oracle evidence is recorded below. The dataset was not regenerated, and WB-02/WB-10 evidence was reused unchanged.
 
-A targeted WB-12-only retry was subsequently initiated at the user's direction. It reused the frozen Builder dataset and did not send any generation request because the GitHub Actions preflight again reported insufficient DeepSeek balance. The acceptance decision remains NOT PASSED.
+PR #38 remains Draft/Open/unmerged.
+
+## Historical interim decision (superseded)
+
+The following is the original 2026-11-22 interim status, before WB-12 completed. It is retained as experiment history, not the current acceptance result.
+
+**NOT PASSED.** Builder production and independent validation passed. The initial Oracle report falsely failed two completed pilots and misclassified the quota-blocked third pilot. After correcting the adjudicator and re-running it offline against the same immutable artifacts, the result was **2 PASS, 0 FAIL, 1 UNKNOWN**. WB-12 did not execute to completion because the provider returned HTTP 402 QUOTA. The three-case acceptance gate therefore remained unmet.
+
+A targeted WB-12-only retry was subsequently initiated at the user's direction. It reused the frozen Builder dataset and did not send any generation request because the GitHub Actions preflight again reported insufficient DeepSeek balance. At that historical point, the acceptance decision remained NOT PASSED.
 
 ## Frozen scope
 
