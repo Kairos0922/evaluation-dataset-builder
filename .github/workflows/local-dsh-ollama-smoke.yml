@@ -74,7 +74,9 @@ jobs:
                   models:
                     - id: qwen3:4b
                       contextWindow: 16384
-                      maxTokens: 1024
+                      maxTokens: 256
+          - id: session-title-llm
+            disabled: true
           - id: agent-default-model
             config:
               provider: ollama-local
@@ -98,7 +100,7 @@ jobs:
           marker_path = Path(os.environ["MARKER_PATH"])
           prompt = (
               "Call the write tool once to create smoke-marker.txt in this workspace. "
-              "Its content must be exactly LOCAL_DSH_TOOL_OK. Then stop."
+              "Its content must be exactly LOCAL_DSH_TOOL_OK. Do not explain. Then stop. /no_think"
           )
           stderr_path = Path(os.environ["RUNNER_TEMP"]) / "dsh-stderr.log"
           stderr_file = stderr_path.open("w", encoding="utf-8")
