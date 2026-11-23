@@ -1,12 +1,29 @@
 name: 验证 Skill
 on:
   push:
-    branches: ["main", "release/0.0.1-finalize"]
+    branches: ["main", "release/0.0.1-finalize", "experiment/webapp-testing-contract"]
+    paths:
+      - ".github/dispatch/execute-builder-production-once"
+      - ".github/dispatch/execute-builder-production-repair-once"
+      - ".github/dispatch/execute-builder-production-only-once"
   pull_request:
     branches: ["main"]
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   workflow_dispatch:
+    inputs:
+      run_builder_production:
+        description: "确认 OpenRouter 免费额度可用后，执行真实 Builder 生产及三条试运行"
+        required: true
+        type: boolean
+        default: false
+      builder_only:
+        description: "仅执行 Builder 生产与独立验证，不启动付费 Pilot"
+        required: false
+        type: boolean
+        default: false
 
 permissions:
+  actions: read
   contents: read
 
 # PR 更新时只保留最新一次；main 每个 push 使用独立 group，不会互相取消或替换 pending run。
@@ -99,6 +116,13 @@ jobs:
         if: steps.scope.outputs.run_validation == 'true'
         run: python -m pip install --disable-pip-version-check -r .github/requirements-ci.txt
 
+      - name: Validate all GitHub Actions workflows with actionlint
+        if: steps.scope.outputs.run_validation == 'true'
+        run: |
+          set -euo pipefail
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          "$HOME/go/bin/actionlint" -color
+
       - name: 验证正式包
         if: steps.scope.outputs.run_validation == 'true'
         run: python scripts/validate_skill.py
@@ -110,3 +134,1377 @@ jobs:
       - name: 运行离线测试
         if: steps.scope.outputs.run_validation == 'true'
         run: python -m unittest discover -s tests -p "test_*.py" -v
+
+      - name: 验证独立 Gold Oracle 与 Builder 输出验证器
+        if: steps.scope.outputs.run_validation == 'true'
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            benchmarks/webapp-testing/oracle/adjudicate_pilot.py \
+            benchmarks/webapp-testing/scripts/gold_oracle.py \
+            benchmarks/webapp-testing/scripts/validate_builder_output.py
+          python benchmarks/webapp-testing/oracle/adjudicate_pilot.py --self-test
+          python benchmarks/webapp-testing/scripts/gold_oracle.py --self-test
+          PYTHONPATH=benchmarks/webapp-testing/scripts python - <<'PY'
+          import validate_builder_output as validator
+
+          corpus = validator.load_source_corpus()
+          validator.verify_source_evidence(
+              "SOURCE-SMOKE-01",
+              {
+                  "title": "Workboard Lite 业务规则",
+                  "locator": "BR-02",
+                  "quoted_evidence": "搜索必须不区分大小写",
+              },
+              corpus,
+          )
+          try:
+              validator.verify_source_evidence(
+                  "SOURCE-SMOKE-NEGATIVE",
+                  {
+                      "title": "Workboard Lite 业务规则",
+                      "locator": "BR-02",
+                      "quoted_evidence": "这是一段不存在的虚构来源引文",
+                  },
+                  corpus,
+              )
+          except SystemExit as error:
+              if "cannot be found" not in str(error):
+                  raise
+          else:
+              raise SystemExit("Validator accepted fabricated source evidence")
+          print("PASS: exact source quotation accepted; fabricated quotation rejected")
+          PY
+
+      - name: 验证 Builder 试运行选择器
+        if: steps.scope.outputs.run_validation == 'true'
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py \
+            benchmarks/webapp-testing/scripts/plan_remaining_pilots.py
+          python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py --self-test
+          python benchmarks/webapp-testing/scripts/gold_oracle.py --self-test
+          python -m unittest discover -s tests -p "test_webapp_testing_remaining_plan.py" -v
+
+  audit-upstream-assets:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Checkout pinned upstream repository
+        uses: actions/checkout@v4
+        with:
+          repository: anthropics/skills
+          ref: 2c5958ecac7cee2b583967a2c4981d0f4a75c579
+          path: .audit/upstream-skills
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Regenerate complete asset manifest
+        run: |
+          set -euo pipefail
+          python -m py_compile benchmarks/webapp-testing/scripts/audit_upstream_assets.py
+          python benchmarks/webapp-testing/scripts/audit_upstream_assets.py \
+            --repo-dir .audit/upstream-skills \
+            --output "$RUNNER_TEMP/upstream-asset-manifest.json"
+
+      - name: Compare generated manifest with reviewed manifest
+        run: |
+          set -euo pipefail
+          diff -u \
+            benchmarks/webapp-testing/upstream-asset-manifest.json \
+            "$RUNNER_TEMP/upstream-asset-manifest.json"
+
+      - name: Archive audit manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-upstream-asset-audit
+          path: ${{ runner.temp }}/upstream-asset-manifest.json
+          if-no-files-found: error
+          retention-days: 30
+
+  # Runtime setup and fixture checks are prerequisites for paid production only.
+  # Keep them out of ordinary CI; they still run before every opted-in Builder run.
+  runtime-preflight:
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract' && contains(github.event.head_commit.message, 'Builder production only'))
+    needs: audit-upstream-assets
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      DSH_HOME: ${{ github.workspace }}/.dsh-home
+      DSH_TELEMETRY_MODE: DISABLED
+      DSH_TELEMETRY_DISABLED: "1"
+      DSH_VERSION: "0.2.2-rc.1"
+      PREFLIGHT_ARTIFACT_DIR: artifacts/runtime-preflight
+      PREFLIGHT_BASE_URL: http://127.0.0.1:4173
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Checkout pinned upstream repository
+        uses: actions/checkout@v4
+        with:
+          repository: anthropics/skills
+          ref: 2c5958ecac7cee2b583967a2c4981d0f4a75c579
+          path: .audit/upstream-skills
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.9.0"
+
+      - name: Cache pinned DSH installation
+        uses: actions/cache@v4
+        with:
+          path: ~/.dsh-npm-global
+          key: ${{ runner.os }}-dsh-node24-${{ env.DSH_VERSION }}
+
+      - name: Install pinned DSH CLI (cache-aware)
+        run: |
+          set -euo pipefail
+          export NPM_CONFIG_PREFIX="$HOME/.dsh-npm-global"
+          export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+          echo "$NPM_CONFIG_PREFIX/bin" >> "$GITHUB_PATH"
+          if ! dsh --version 2>/dev/null | grep -Fq "$DSH_VERSION"; then
+            npm install --global --no-audit --no-fund "@deepseek-ai/dsh@$DSH_VERSION"
+          fi
+          dsh --version | tee artifacts-dsh-install.txt
+
+      - name: Configure isolated DSH and verify uploads are disabled
+        run: |
+          set -euo pipefail
+          mkdir -p "$DSH_HOME" .dsh/skills artifacts
+          cat > "$DSH_HOME/cordis.patch.yml" <<'YAML'
+          - id: session-log-deepseek
+            config:
+              enabled: false
+          YAML
+
+          cp -R .audit/upstream-skills/skills/webapp-testing .dsh/skills/webapp-testing
+          diff -qr .audit/upstream-skills/skills/webapp-testing .dsh/skills/webapp-testing
+          test -s .dsh/skills/webapp-testing/SKILL.md
+          dsh --profile headless --dump-config > artifacts/dsh-config.txt
+
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          config = Path("artifacts/dsh-config.txt").read_text(encoding="utf-8")
+          marker = "id: session-log-deepseek"
+          if marker not in config:
+              raise SystemExit("session-log-deepseek missing from composed DSH config")
+          section = config.split(marker, 1)[1]
+          next_component = re.search(r"\n\s*- id:", section)
+          if next_component:
+              section = section[:next_component.start()]
+          if not re.search(r"\benabled:\s*false\b", section):
+              raise SystemExit("Session Log upload was not verified disabled")
+          print("Verified: Session Log upload disabled")
+          print("Verified: OpenTelemetry disabled by DSH environment flags")
+          print("Verified: pinned webapp-testing files staged at .dsh/skills/webapp-testing")
+          PY
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache Playwright Python packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-playwright-1.64.1
+
+      - name: Install pinned Playwright
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "playwright==1.64.1"
+          python -c "import playwright; from importlib.metadata import version; print('Playwright', version('playwright'))"
+
+      - name: Cache Playwright Chromium binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-1.64.1-chromium-shell
+
+      - name: Install headless Chromium
+        run: python -m playwright install --only-shell chromium
+
+      - name: Run upstream server helper help
+        run: |
+          set -euo pipefail
+          python .audit/upstream-skills/skills/webapp-testing/scripts/with_server.py --help \
+            > artifacts/with-server-help.txt 2>&1
+          test -s artifacts/with-server-help.txt
+          cat artifacts/with-server-help.txt
+
+      - name: Run local browser interaction through upstream helper
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/runtime-preflight
+          # exec replaces the shell with the single server process so helper termination reaches the actual listener.
+          python .audit/upstream-skills/skills/webapp-testing/scripts/with_server.py \
+            --server "exec python -m http.server 4173 --bind 127.0.0.1 --directory benchmarks/webapp-testing/fixtures/runtime-preflight" \
+            --port 4173 \
+            --timeout 30 \
+            -- python benchmarks/webapp-testing/scripts/check_runtime.py
+
+      - name: Compile Workboard fixture and validation script
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            benchmarks/webapp-testing/fixtures/workboard/server.py \
+            benchmarks/webapp-testing/scripts/validate_workboard_fixture.py \
+            benchmarks/webapp-testing/scripts/prepare_builder_input.py \
+            benchmarks/webapp-testing/scripts/verify_builder_input.py \
+            benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py
+          python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py --self-test
+
+      - name: Validate clean Workboard profile
+        run: |
+          set -euo pipefail
+          python .audit/upstream-skills/skills/webapp-testing/scripts/with_server.py \
+            --server "exec env APP_PROFILE=clean APP_HOST=127.0.0.1 APP_PORT=4173 APP_AUDIT_LOG=$RUNNER_TEMP/workboard-clean.jsonl python benchmarks/webapp-testing/fixtures/workboard/server.py" \
+            --port 4173 \
+            --timeout 30 \
+            -- python benchmarks/webapp-testing/scripts/validate_workboard_fixture.py --profile clean
+
+      - name: Verify clean Workboard server cleanup
+        if: always()
+        run: |
+          python - <<'PY'
+          import socket
+          import sys
+          import time
+
+          for attempt in range(8):
+              with socket.socket() as sock:
+                  sock.settimeout(0.25)
+                  try:
+                      sock.connect(("127.0.0.1", 4173))
+                  except OSError:
+                      if attempt == 7:
+                          print("PASS: clean Workboard server port is closed")
+                          raise SystemExit(0)
+                      time.sleep(0.25)
+                  else:
+                      print("FAIL: clean Workboard server is still listening")
+                      raise SystemExit(1)
+          raise SystemExit("Could not verify clean server cleanup")
+          PY
+
+      - name: Validate mutant Workboard profile
+        run: |
+          set -euo pipefail
+          python .audit/upstream-skills/skills/webapp-testing/scripts/with_server.py \
+            --server "exec env APP_PROFILE=mutant APP_HOST=127.0.0.1 APP_PORT=4173 APP_AUDIT_LOG=$RUNNER_TEMP/workboard-mutant.jsonl python benchmarks/webapp-testing/fixtures/workboard/server.py" \
+            --port 4173 \
+            --timeout 30 \
+            -- python benchmarks/webapp-testing/scripts/validate_workboard_fixture.py --profile mutant
+
+      - name: Verify mutant Workboard server cleanup
+        if: always()
+        run: |
+          python - <<'PY'
+          import socket
+          import sys
+          import time
+
+          for attempt in range(8):
+              with socket.socket() as sock:
+                  sock.settimeout(0.25)
+                  try:
+                      sock.connect(("127.0.0.1", 4173))
+                  except OSError:
+                      if attempt == 7:
+                          print("PASS: mutant Workboard server port is closed")
+                          raise SystemExit(0)
+                      time.sleep(0.25)
+                  else:
+                      print("FAIL: mutant Workboard server is still listening")
+                      raise SystemExit(1)
+          raise SystemExit("Could not verify mutant server cleanup")
+          PY
+
+      - name: Prepare the public Builder input bundle
+        env:
+          BUILDER_INPUT_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/prepare_builder_input.py \
+            --repo-dir . \
+            --upstream-repo-dir .audit/upstream-skills \
+            --output artifacts/webapp-testing-builder-input \
+            --repo-revision "$BUILDER_INPUT_REVISION"
+
+      - name: Verify public Builder input bundle
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/verify_builder_input.py
+
+      - name: Archive the public Builder input bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-builder-input
+          path: artifacts/webapp-testing-builder-input/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Verify the helper released its server port
+        if: always()
+        run: |
+          python - <<'PY'
+          import socket
+          import sys
+          import time
+
+          port = 4173
+          for attempt in range(12):
+              with socket.socket() as sock:
+                  sock.settimeout(0.25)
+                  try:
+                      sock.connect(("127.0.0.1", port))
+                  except OSError:
+                      if attempt == 11:
+                          print(f"PASS: TCP port {port} remained closed")
+                          raise SystemExit(0)
+                      time.sleep(0.25)
+                  else:
+                      print(f"FAIL: TCP port {port} is still accepting connections")
+                      raise SystemExit(1)
+          print(f"FAIL: could not verify port {port} cleanup")
+          raise SystemExit(1)
+          PY
+
+      - name: Upload runtime preflight evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-runtime-preflight
+          path: |
+            artifacts/runtime-preflight/
+            artifacts/dsh-config.txt
+            artifacts/with-server-help.txt
+            artifacts-dsh-install.txt
+            ${{ runner.temp }}/workboard-clean.jsonl
+            ${{ runner.temp }}/workboard-mutant.jsonl
+          if-no-files-found: warn
+          retention-days: 14
+
+  # Paid Builder production and target-Skill pilot run only after explicit opt-in.
+  # Opt in with the PR label "run-builder-production" or workflow_dispatch input.
+  builder-production:
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract' && contains(github.event.head_commit.message, 'Builder production only'))
+    needs: runtime-preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    outputs:
+      model_provider: ${{ steps.provider.outputs.provider }}
+      model_id: ${{ steps.provider.outputs.model }}
+    env:
+      DSH_HOME: ${{ github.workspace }}/.dsh-home
+      DSH_MODEL: nvidia/nemotron-3-ultra-550b-a55b:free
+      DSH_TELEMETRY_MODE: DISABLED
+      DSH_TELEMETRY_DISABLED: "1"
+      DSH_VERSION: "0.2.2-rc.1"
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Select Nemotron 3 Ultra free model with verified quota
+        id: provider
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request
+          key=os.environ.get("OPENROUTER_API_KEY","").strip()
+          if not key:
+              raise SystemExit("OPENROUTER_API_KEY is missing; no inference request sent.")
+          req=urllib.request.Request(
+              "https://openrouter.ai/api/v1/key",
+              headers={"Authorization":"Bearer "+key,"Accept":"application/json"})
+          with urllib.request.urlopen(req,timeout=20) as response:
+              payload=json.loads(response.read().decode())
+          quota=(payload.get("data") or {}).get("free_model_daily_requests")
+          remaining=quota.get("remaining") if isinstance(quota,dict) else None
+          if not isinstance(remaining,int) or remaining < 2:
+              print(json.dumps({"status":"BLOCKED","provider":"openrouter","free_model_daily_requests":quota,"generation_requests_made":0},indent=2))
+              raise SystemExit("OpenRouter free-model quota is unavailable or below two requests; no inference request sent.")
+          selected={"provider":"openrouter-custom","model":"nvidia/nemotron-3-ultra-550b-a55b:free"}
+          print(json.dumps({"status":"READY","provider":selected["provider"],"model":selected["model"],"free_model_daily_requests":quota,"generation_requests_made":0},indent=2))
+          with open(os.environ["GITHUB_OUTPUT"],"a") as out:
+              out.write("provider="+selected["provider"]+"\n")
+              out.write("model="+selected["model"]+"\n")
+          with open(os.environ["GITHUB_ENV"],"a") as out:
+              out.write("MODEL_PROVIDER="+selected["provider"]+"\n")
+              out.write("DSH_MODEL="+selected["model"]+"\n")
+          PY
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.9.0"
+
+      - name: Cache pinned DSH installation
+        uses: actions/cache@v4
+        with:
+          path: ~/.dsh-npm-global
+          key: ${{ runner.os }}-dsh-node24-${{ env.DSH_VERSION }}
+
+      - name: Install pinned DSH CLI (cache-aware)
+        run: |
+          set -euo pipefail
+          export NPM_CONFIG_PREFIX="$HOME/.dsh-npm-global"
+          export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+          echo "$NPM_CONFIG_PREFIX/bin" >> "$GITHUB_PATH"
+          if ! dsh --version 2>/dev/null | grep -Fq "$DSH_VERSION"; then
+            npm install --global --no-audit --no-fund "@deepseek-ai/dsh@$DSH_VERSION"
+          fi
+          dsh --version
+
+      - name: Configure isolated DSH and stage Builder Skill
+        env:
+          MODEL_PROVIDER: ${{ steps.provider.outputs.provider }}
+          DSH_MODEL: ${{ steps.provider.outputs.model }}
+
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          set -euo pipefail
+          BUILDER_WORKSPACE="$RUNNER_TEMP/builder-workspace"
+          mkdir -p "$DSH_HOME" artifacts "$BUILDER_WORKSPACE/.dsh/skills" "$BUILDER_WORKSPACE/artifacts"
+          cat > "$DSH_HOME/cordis.patch.yml" <<'YAML'
+          - id: session-log-deepseek
+            config:
+              enabled: false
+          YAML
+          if [ "$MODEL_PROVIDER" = "openrouter-custom" ]; then
+            cat >> "$DSH_HOME/cordis.patch.yml" <<'YAML'
+          - id: llm-pi-ai
+            config:
+              providers:
+                openrouter-custom:
+                  apiKeyEnv: OPENROUTER_API_KEY
+                  api: openai-completions
+                  baseURL: https://openrouter.ai/api/v1
+                  models:
+                    - id: nvidia/nemotron-3-ultra-550b-a55b:free
+          YAML
+          fi
+          cat >> "$DSH_HOME/cordis.patch.yml" <<YAML
+          - id: agent-default-model
+            config:
+              provider: $MODEL_PROVIDER
+              model: $DSH_MODEL
+          YAML
+          cp -R skills/evaluation-dataset-builder "$BUILDER_WORKSPACE/.dsh/skills/evaluation-dataset-builder"
+          test -s "$BUILDER_WORKSPACE/.dsh/skills/evaluation-dataset-builder/SKILL.md"
+          dsh --profile headless --dump-config > artifacts/dsh-config.txt
+          python - <<'PY'
+          from pathlib import Path
+          import re
+
+          text = Path("artifacts/dsh-config.txt").read_text(encoding="utf-8")
+          marker = "id: session-log-deepseek"
+          if marker not in text:
+              raise SystemExit("Session Log config not found; refusing model request")
+          tail = text.split(marker, 1)[1]
+          next_component = re.search(r"\n\s*- id:", tail)
+          section = tail[:next_component.start()] if next_component else tail
+          if not re.search(r"\benabled:\s*false\b", section):
+              raise SystemExit("Session Log upload is not verified disabled")
+          provider = __import__("os").environ["MODEL_PROVIDER"]
+          model = __import__("os").environ["DSH_MODEL"]
+          if provider not in text or model not in text:
+              raise SystemExit(f"Selected DSH provider/model missing from composed config: {provider} / {model}")
+          if provider == "openrouter-custom" and "OPENROUTER_API_KEY" not in text:
+              raise SystemExit("OpenRouter credential reference missing from composed config")
+          print(f"PASS: Session Log disabled; selected provider/model configured: {provider} / {model}; OTel disabled.")
+          PY
+
+      - name: Download frozen public Builder input
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-builder-input
+          path: artifacts/webapp-testing-builder-input
+
+      - name: Assemble isolated Builder workspace
+        run: |
+          set -euo pipefail
+          workspace="$RUNNER_TEMP/builder-workspace"
+          test -d "$workspace/.dsh/skills/evaluation-dataset-builder"
+          mkdir -p "$workspace/artifacts"
+          cp -R artifacts/webapp-testing-builder-input "$workspace/artifacts/"
+          test -s "$workspace/artifacts/webapp-testing-builder-input/BUILDER-TASK.md"
+          python - <<'PY'
+          from pathlib import Path
+          import os
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "builder-workspace"
+          files = [p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file()]
+          allowed = (".dsh/skills/evaluation-dataset-builder/", "artifacts/webapp-testing-builder-input/")
+          unexpected = [p for p in files if not p.startswith(allowed)]
+          if unexpected:
+              raise SystemExit(f"Unexpected Builder workspace files: {unexpected}")
+          if any("validate_builder_output.py" in p or "gold-oracle" in p.lower() or "oracle" in p.lower() for p in files):
+              raise SystemExit("Independent validator or oracle is exposed to Builder workspace")
+          print(f"PASS: isolated Builder workspace assembled with {len(files)} files")
+          PY
+
+      - name: Install independent validation dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check jsonschema
+          python -m py_compile \
+            benchmarks/webapp-testing/scripts/verify_builder_input.py \
+            benchmarks/webapp-testing/scripts/verify_builder_dsh_trace.py \
+            benchmarks/webapp-testing/scripts/validate_builder_output.py
+          python benchmarks/webapp-testing/scripts/verify_builder_input.py
+          mkdir -p artifacts/webapp-testing-builder-output
+          find "$RUNNER_TEMP/builder-workspace/.dsh/skills/evaluation-dataset-builder" -type f -print0 \
+            | sort -z | xargs -0 sha256sum \
+            > artifacts/builder-skill-sha256.txt
+
+      - name: Record Builder production environment
+        env:
+          BUILDER_INPUT_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
+          MODEL_PROVIDER: ${{ steps.provider.outputs.provider }}
+          DSH_MODEL: ${{ steps.provider.outputs.model }}
+          UPSTREAM_COMMIT: "2c5958ecac7cee2b583967a2c4981d0f4a75c579"
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          import os
+          import platform
+          import subprocess
+          from datetime import datetime, timezone
+          from pathlib import Path
+
+          dsh_version = subprocess.run(
+              ["dsh", "--version"], check=True, text=True,
+              stdout=subprocess.PIPE, stderr=subprocess.STDOUT
+          ).stdout.strip()
+          record = {
+              "candidate_sha": os.environ["BUILDER_INPUT_REVISION"],
+              "upstream_skill_commit": os.environ["UPSTREAM_COMMIT"],
+              "dsh_version": dsh_version,
+              "python_version": platform.python_version(),
+              "node_version": subprocess.run(
+                  ["node", "--version"], check=True, text=True,
+                  stdout=subprocess.PIPE
+              ).stdout.strip(),
+              "created_at_utc": datetime.now(timezone.utc).isoformat(),
+              "scope": "builder_production_only",
+              "model_provider": os.environ.get("MODEL_PROVIDER"),
+              "model_id": os.environ.get("DSH_MODEL"),
+              "workspace_isolated": True,
+              "workspace_contents": ["Builder Skill", "public Builder input bundle"],
+              "gold_oracle_mounted": False,
+              "independent_validator_mounted": False,
+              "webapp_testing_skill_loaded": False,
+          }
+          Path("artifacts/builder-run-metadata.json").write_text(
+              json.dumps(record, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8"
+          )
+          PY
+
+      - name: Probe selected model connectivity before Builder production
+        env:
+
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          set -euo pipefail
+          prompt="$RUNNER_TEMP/builder-connectivity-probe.txt"
+          cat > "$prompt" <<'PROMPT'
+          Reply with exactly CONNECTION_OK.
+          Do not use tools, skills, file access, or network access.
+          This is a minimal model connectivity probe only.
+          PROMPT
+          set +e
+          timeout 90s dsh --profile headless --json --permission-mode workspace-write - \
+            < "$prompt" \
+            > artifacts/builder-connectivity-probe-events.jsonl \
+            2> artifacts/builder-connectivity-probe-stderr.log
+          probe_exit=$?
+          set -e
+          printf '%s\n' "$probe_exit" > artifacts/builder-connectivity-probe-exit-code.txt
+          python - <<'PY'
+          import json
+          import re
+          from pathlib import Path
+
+          root = Path("artifacts")
+          events_path = root / "builder-connectivity-probe-events.jsonl"
+          stderr_path = root / "builder-connectivity-probe-stderr.log"
+          exit_path = root / "builder-connectivity-probe-exit-code.txt"
+          exit_code = int(exit_path.read_text(encoding="utf-8").strip())
+          raw = (events_path.read_text(encoding="utf-8", errors="replace")
+                 if events_path.is_file() else "")
+          stderr = (stderr_path.read_text(encoding="utf-8", errors="replace")
+                    if stderr_path.is_file() else "")
+          combined = raw + "\n" + stderr
+          quota_pattern = re.compile(
+              r"(?i)(HTTP\s*402|\b402\b|HTTP\s*429|\b429\b|RATE.?LIMIT|QUOTA|INSUFFICIENT\s+BALANCE|INSUFFICIENT_BALANCE)"
+          )
+          result = {
+              "status": "BLOCKED",
+              "scope": "minimal_model_connectivity_probe",
+              "dsh_exit_code": exit_code,
+              "tool_calls": 0,
+              "final_reason": None,
+              "response_marker_present": False,
+              "quota_error_detected": bool(quota_pattern.search(combined)),
+              "builder_invocation_started": False,
+          }
+          if result["quota_error_detected"]:
+              result["status"] = "EXTERNAL_MODEL_QUOTA_BLOCKED"
+              result["message"] = "OpenRouter quota/rate-limit error; stop model calls and inspect the configured key quota."
+          else:
+              events = []
+              for line_no, line in enumerate(raw.splitlines(), 1):
+                  if not line.strip():
+                      continue
+                  try:
+                      event = json.loads(line)
+                  except json.JSONDecodeError as exc:
+                      raise SystemExit(f"Invalid probe NDJSON at line {line_no}: {exc}")
+                  if not isinstance(event, dict):
+                      raise SystemExit(f"Probe event at line {line_no} is not an object")
+                  events.append(event)
+              finals = [event for event in events if event.get("type") == "final"]
+              tool_calls = [event for event in events if event.get("type") == "tool_call"]
+              result["tool_calls"] = len(tool_calls)
+              if finals:
+                  reason = finals[-1].get("reason", {})
+                  result["final_reason"] = reason.get("kind") if isinstance(reason, dict) else reason
+                  result["response_marker_present"] = "CONNECTION_OK" in str(finals[-1].get("text", ""))
+              if (
+                  exit_code == 0
+                  and result["final_reason"] == "completed"
+                  and result["response_marker_present"]
+                  and not tool_calls
+              ):
+                  result["status"] = "PASS"
+                  result["message"] = "Minimal model connectivity probe completed; no tools or Builder Skill were invoked."
+              else:
+                  result["status"] = "PROBE_FAILED"
+                  result["message"] = "Connectivity probe did not meet the completion contract; Builder production was not started."
+          (root / "builder-connectivity-probe.json").write_text(
+              json.dumps(result, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(result, ensure_ascii=False, indent=2))
+          if result["status"] != "PASS":
+              raise SystemExit(78 if result["status"] == "EXTERNAL_MODEL_QUOTA_BLOCKED" else 1)
+          PY
+
+      - name: Invoke Evaluation Dataset Builder through DSH
+        id: builder_dsh
+        env:
+
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          set -euo pipefail
+          BUILDER_WORKSPACE="$RUNNER_TEMP/builder-workspace"
+          rm -rf "$BUILDER_WORKSPACE/artifacts/webapp-testing-builder-output" artifacts/webapp-testing-builder-output
+          mkdir -p "$BUILDER_WORKSPACE/artifacts/webapp-testing-builder-output"
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          root = Path(os.environ["RUNNER_TEMP"]) / "builder-workspace"
+          allowed = (".dsh/skills/evaluation-dataset-builder/", "artifacts/webapp-testing-builder-input/")
+          files = sorted(p.relative_to(root).as_posix() for p in root.rglob("*") if p.is_file())
+          unexpected = [p for p in files if not p.startswith(allowed)]
+          if unexpected:
+              raise SystemExit(f"Builder workspace contains unexpected files: {unexpected}")
+          if not any(p.startswith(allowed[0]) for p in files):
+              raise SystemExit("Builder Skill is missing from isolated workspace")
+          if not any(p.startswith(allowed[1]) for p in files):
+              raise SystemExit("Public Builder input is missing from isolated workspace")
+          evidence = {
+              "workspace_isolated": True,
+              "file_count": len(files),
+              "allowed_roots": list(allowed),
+              "forbidden_components_present": False,
+              "files": files,
+          }
+          Path("artifacts/builder-workspace-boundary.json").write_text(
+              json.dumps(evidence, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+          )
+          PY
+          set +e
+          (
+            cd "$BUILDER_WORKSPACE"
+            dsh --profile headless --json --permission-mode workspace-write - \
+              < artifacts/webapp-testing-builder-input/BUILDER-TASK.md \
+              > "$GITHUB_WORKSPACE/artifacts/builder-dsh-events.jsonl" \
+              2> "$GITHUB_WORKSPACE/artifacts/builder-dsh-stderr.log"
+          )
+          dsh_exit=$?
+          set -e
+          printf '%s\n' "$dsh_exit" > artifacts/builder-dsh-exit-code.txt
+          # Preserve partial Builder output even when the model call fails. This
+          # keeps generated evidence available for diagnosis without treating it
+          # as a successful production run or allowing downstream validation.
+          mkdir -p artifacts/webapp-testing-builder-output
+          cp -a "$BUILDER_WORKSPACE/artifacts/webapp-testing-builder-output/." artifacts/webapp-testing-builder-output/
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          output = Path("artifacts/webapp-testing-builder-output")
+          files = sorted(p.relative_to(output).as_posix() for p in output.rglob("*") if p.is_file())
+          Path("artifacts/builder-output-capture.json").write_text(
+              json.dumps({
+                  "capture_status": "complete" if files else "empty",
+                  "builder_exit_code": int(Path("artifacts/builder-dsh-exit-code.txt").read_text().strip()),
+                  "file_count": len(files),
+                  "files": files,
+                  "independent_validation_allowed": False,
+              }, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          PY
+          if [ "$dsh_exit" -ne 0 ]; then
+            echo "::error::DSH Builder invocation failed with exit code $dsh_exit; partial output was preserved for diagnosis"
+            exit "$dsh_exit"
+          fi
+          test -d artifacts/webapp-testing-builder-output
+
+      - name: Capture partial Builder output after DSH invocation
+        if: always()
+        env:
+          DSH_STEP_OUTCOME: ${{ steps.builder_dsh.outcome }}
+        run: |
+          mkdir -p artifacts
+          python - <<'PY'
+          import json
+          import os
+          import shutil
+          from pathlib import Path
+
+          workspace = Path(os.environ["RUNNER_TEMP"]) / "builder-workspace"
+          source = workspace / "artifacts" / "webapp-testing-builder-output"
+          target = Path("artifacts/webapp-testing-builder-output")
+          found = source.is_dir()
+          copied = False
+          if found:
+              if target.is_dir():
+                  shutil.rmtree(target)
+              elif target.exists():
+                  target.unlink()
+              target.parent.mkdir(parents=True, exist_ok=True)
+              shutil.copytree(source, target)
+              copied = True
+          files = (
+              sorted(path.relative_to(target).as_posix() for path in target.rglob("*") if path.is_file())
+              if target.is_dir()
+              else []
+          )
+          outcome = os.environ.get("DSH_STEP_OUTCOME", "unknown")
+          payload = {
+              "dsh_step_outcome": outcome,
+              "partial_output_directory_found": found,
+              "copied_to_artifacts": copied,
+              "file_count": len(files),
+              "files": files,
+              "partial_output_disposition": (
+                  "AWAITING_TRACE_VERIFICATION" if outcome == "success" else "DIAGNOSTIC_ONLY"
+              ),
+              "independent_validation_allowed": False,
+          }
+          Path("artifacts/builder-output-capture.json").write_text(
+              json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          print(json.dumps(payload, ensure_ascii=False, indent=2))
+          PY
+
+      - name: Classify Builder invocation and external quota failures
+        if: always()
+        run: |
+          python scripts/classify_builder_run.py --artifacts-dir artifacts
+
+      - name: Check and redact any accidental credential disclosure
+        if: always()
+        env:
+
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          mkdir -p artifacts
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          secrets = [value.encode() for value in (os.environ.get("OPENROUTER_API_KEY", "")) if value]
+          targets = [
+              Path("artifacts/builder-connectivity-probe-events.jsonl"),
+              Path("artifacts/builder-connectivity-probe-stderr.log"),
+              Path("artifacts/builder-dsh-events.jsonl"),
+              Path("artifacts/builder-dsh-stderr.log"),
+              Path("artifacts/webapp-testing-builder-output"),
+          ]
+          leaked = []
+          files = []
+          for target in targets:
+              if target.is_file(): files.append(target)
+              elif target.is_dir(): files.extend(path for path in target.rglob("*") if path.is_file())
+          for path in files:
+              try: data = path.read_bytes()
+              except OSError: continue
+              original = data
+              for secret in secrets: data = data.replace(secret, b"[REDACTED_SECRET]")
+              if data != original:
+                  path.write_bytes(data)
+                  leaked.append(path.as_posix())
+          Path("artifacts/credential-scan.json").write_text(
+              json.dumps({
+                  "secret_value_exposed_in_artifact": bool(leaked),
+                  "redacted_files": leaked,
+                  "scope": "DSH evidence and generated output",
+              }, ensure_ascii=False, indent=2) + "\n",
+              encoding="utf-8",
+          )
+          if leaked:
+              raise SystemExit(
+                  "Credential disclosure detected. Matching values were redacted "
+                  f"from artifacts: {leaked}"
+              )
+          print("PASS: no API credential value found in generated evidence.")
+          PY
+
+      - name: Verify actual Builder invocation in DSH trace
+        if: success()
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/verify_builder_dsh_trace.py \
+            --events artifacts/builder-dsh-events.jsonl \
+            --exit-code "$(cat artifacts/builder-dsh-exit-code.txt)" \
+            --output-dir artifacts/webapp-testing-builder-output \
+            | tee artifacts/builder-dsh-trace-verification.json
+
+      - name: Validate Builder-generated datasets and manifests
+        if: success()
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/validate_builder_output.py \
+            | tee artifacts/builder-validation-summary.json
+          find artifacts/webapp-testing-builder-output -type f -print0 \
+            | sort -z | xargs -0 sha256sum \
+            > artifacts/builder-output-sha256.txt
+
+      - name: Archive Builder production evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-builder-result
+          path: |
+            artifacts/webapp-testing-builder-output/
+            artifacts/builder-connectivity-probe-events.jsonl
+            artifacts/builder-connectivity-probe-stderr.log
+            artifacts/builder-connectivity-probe-exit-code.txt
+            artifacts/builder-connectivity-probe.json
+            artifacts/builder-dsh-events.jsonl
+            artifacts/builder-dsh-stderr.log
+            artifacts/builder-dsh-exit-code.txt
+            artifacts/builder-dsh-trace-verification.json
+            artifacts/builder-validation-summary.json
+            artifacts/builder-skill-sha256.txt
+            artifacts/builder-output-sha256.txt
+            artifacts/builder-run-metadata.json
+            artifacts/builder-output-capture.json
+            artifacts/builder-run-failure-classification.json
+            artifacts/builder-workspace-boundary.json
+            artifacts/credential-scan.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  # A separate job must validate this exact Builder artifact before any target-Skill pilot starts.
+  independent-validation:
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract' && contains(github.event.head_commit.message, 'Builder production only'))
+    needs: [runtime-preflight, builder-production]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      validation_status: ${{ steps.validate.outputs.status }}
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Checkout pinned upstream source corpus
+        uses: actions/checkout@v4
+        with:
+          repository: anthropics/skills
+          ref: 2c5958ecac7cee2b583967a2c4981d0f4a75c579
+          path: .audit/upstream-skills
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download this run's Builder output and frozen input
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-builder-result
+          path: artifacts/builder-result
+
+      - name: Download the exact frozen Builder input
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-builder-input
+          path: artifacts/webapp-testing-builder-input
+
+      - name: Set up independent validation runtime
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install independent validation dependency
+        run: python -m pip install --disable-pip-version-check jsonschema
+
+      - name: Validate the actual Builder output in an isolated job
+        id: validate
+        env:
+          BUILDER_OUTPUT_DIR: artifacts/builder-result/webapp-testing-builder-output
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            benchmarks/webapp-testing/scripts/verify_builder_input.py \
+            benchmarks/webapp-testing/scripts/verify_builder_dsh_trace.py \
+            benchmarks/webapp-testing/scripts/validate_builder_output.py
+          python benchmarks/webapp-testing/scripts/verify_builder_input.py \
+            | tee artifacts/independent-builder-input-verification.json
+          test -s artifacts/builder-result/builder-dsh-exit-code.txt
+          test "$(cat artifacts/builder-result/builder-dsh-exit-code.txt)" = "0"
+          python benchmarks/webapp-testing/scripts/verify_builder_dsh_trace.py \
+            --events artifacts/builder-result/builder-dsh-events.jsonl \
+            --exit-code "$(cat artifacts/builder-result/builder-dsh-exit-code.txt)" \
+            --output-dir "$BUILDER_OUTPUT_DIR" \
+            | tee artifacts/independent-builder-trace-verification.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          root = Path("artifacts/builder-result")
+          probe = json.loads((root / "builder-connectivity-probe.json").read_text(encoding="utf-8"))
+          scan = json.loads((root / "credential-scan.json").read_text(encoding="utf-8"))
+          capture = json.loads((root / "builder-output-capture.json").read_text(encoding="utf-8"))
+          trace = json.loads(Path("artifacts/independent-builder-trace-verification.json").read_text(encoding="utf-8"))
+          if probe.get("status") != "PASS" or probe.get("builder_invocation_started") is not False or probe.get("quota_error_detected") is not False:
+              raise SystemExit("The minimal DeepSeek probe did not PASS before Builder production")
+          if scan.get("secret_value_exposed_in_artifact") is not False:
+              raise SystemExit("Builder artifact credential scan is missing or not clean")
+          if capture.get("dsh_step_outcome") != "success" or capture.get("partial_output_disposition") != "AWAITING_TRACE_VERIFICATION" or capture.get("independent_validation_allowed") is not False:
+              raise SystemExit("Builder output capture does not prove a normally completed invocation awaiting independent validation")
+          if capture.get("file_count", 0) < 1 or capture.get("copied_to_artifacts") is not True:
+              raise SystemExit("Builder output capture is empty or was not archived")
+          if trace.get("status") != "PASS" or trace.get("dsh_exit_code") != 0 or trace.get("final_reason") != "completed":
+              raise SystemExit("Independent DSH trace verification did not PASS")
+          if not trace.get("builder_skill_tool_calls") or not trace.get("generated_files"):
+              raise SystemExit("Builder Skill invocation or generated output is not proven by the DSH trace")
+          if not Path("artifacts/builder-result/webapp-testing-builder-output/SUITE-MANIFEST.json").is_file():
+              raise SystemExit("Builder output is missing SUITE-MANIFEST.json")
+          print("PASS: normal Builder completion, preflight, trace, capture, and credential safety verified.")
+          PY
+          python benchmarks/webapp-testing/scripts/validate_builder_output.py \
+            | tee artifacts/independent-builder-output-validation.json
+          python - <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          report = json.loads(Path("artifacts/independent-builder-output-validation.json").read_text(encoding="utf-8"))
+          if report.get("status") != "PASS":
+              raise SystemExit("Independent Builder output validator did not PASS")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as stream:
+              stream.write("status=PASS\n")
+          print("PASS: independent validator accepted this exact Builder artifact.")
+          PY
+
+      - name: Archive independent Builder validation evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-independent-builder-validation
+          path: |
+            artifacts/independent-builder-input-verification.json
+            artifacts/independent-builder-trace-verification.json
+            artifacts/independent-builder-output-validation.json
+          if-no-files-found: warn
+          retention-days: 90
+
+  resolve-pilot-matrix:
+    if: ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract' && contains(github.event.head_commit.message, 'Builder production only'))) && !(github.event_name == 'workflow_dispatch' && inputs.builder_only) && !(github.event_name == 'push' && contains(github.event.head_commit.message, 'Builder production only')) && needs.independent-validation.outputs.validation_status == 'PASS'
+    needs: [builder-production, independent-validation]
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.resolve.outputs.matrix }}
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download Builder-produced suite
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-builder-result
+          path: artifacts/builder-result
+
+      - name: Resolve three Builder-generated candidate pilot cases
+        id: resolve
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/resolve_pilot_matrix.py \
+            --output-root artifacts/builder-result/webapp-testing-builder-output \
+            --github-output \
+            --write-output "$RUNNER_TEMP/pilot-matrix.json"
+          cat "$RUNNER_TEMP/pilot-matrix.json"
+
+  webapp-testing-pilot:
+    if: ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract' && contains(github.event.head_commit.message, 'Builder production only'))) && !(github.event_name == 'workflow_dispatch' && inputs.builder_only) && !(github.event_name == 'push' && contains(github.event.head_commit.message, 'Builder production only')) && needs.independent-validation.outputs.validation_status == 'PASS'
+    needs: [runtime-preflight, builder-production, independent-validation, resolve-pilot-matrix]
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.resolve-pilot-matrix.outputs.matrix) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DSH_HOME: ${{ github.workspace }}/.dsh-home
+      DSH_MODEL: ${{ needs.builder-production.outputs.model_id }}
+      DSH_TELEMETRY_MODE: DISABLED
+      DSH_TELEMETRY_DISABLED: "1"
+      DSH_VERSION: "0.2.2-rc.1"
+      MODEL_PROVIDER: ${{ needs.builder-production.outputs.model_provider }}
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download Builder-produced dataset artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-builder-result
+          path: artifacts/builder-result
+
+      - name: Checkout pinned webapp-testing Skill
+        uses: actions/checkout@v4
+        with:
+          repository: anthropics/skills
+          ref: 2c5958ecac7cee2b583967a2c4981d0f4a75c579
+          path: .audit/upstream-skills
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Check selected provider credential availability
+        env:
+
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ "$MODEL_PROVIDER" = "openrouter-custom" ]; then
+            test -n "$OPENROUTER_API_KEY" || { echo "::error::OPENROUTER_API_KEY missing"; exit 2; }
+          else
+            echo "::error::Unknown selected provider: $MODEL_PROVIDER"; exit 2
+          fi
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.9.0"
+
+      - name: Cache pinned DSH installation
+        uses: actions/cache@v4
+        with:
+          path: ~/.dsh-npm-global
+          key: ${{ runner.os }}-dsh-node24-${{ env.DSH_VERSION }}
+
+      - name: Install pinned DSH CLI (cache-aware)
+        run: |
+          set -euo pipefail
+          export NPM_CONFIG_PREFIX="$HOME/.dsh-npm-global"
+          export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+          echo "$NPM_CONFIG_PREFIX/bin" >> "$GITHUB_PATH"
+          if ! dsh --version 2>/dev/null | grep -Fq "$DSH_VERSION"; then
+            npm install --global --no-audit --no-fund "@deepseek-ai/dsh@$DSH_VERSION"
+          fi
+          dsh --version
+
+      - name: Set up Python and Playwright
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12.16"
+
+      - name: Cache Playwright Python packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-playwright-1.64.1
+
+      - name: Cache Playwright Chromium binaries
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-1.64.1-chromium-shell
+
+      - name: Install pinned Playwright and Chromium
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "playwright==1.64.1"
+          python -m playwright install --with-deps --only-shell chromium
+
+      - name: Configure isolated DSH with selected provider and verify Session Log is disabled
+        env:
+          CONFIG_PATH: ${{ runner.temp }}/dsh-config.txt
+
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$DSH_HOME"
+          cat > "$DSH_HOME/cordis.patch.yml" <<'YAML'
+          - id: session-log-deepseek
+            config:
+              enabled: false
+          YAML
+          if [ "$MODEL_PROVIDER" = "openrouter-custom" ]; then
+            cat >> "$DSH_HOME/cordis.patch.yml" <<'YAML'
+          - id: llm-pi-ai
+            config:
+              providers:
+                openrouter-custom:
+                  apiKeyEnv: OPENROUTER_API_KEY
+                  api: openai-completions
+                  baseURL: https://openrouter.ai/api/v1
+                  models:
+                    - id: nvidia/nemotron-3-ultra-550b-a55b:free
+          YAML
+          fi
+          cat >> "$DSH_HOME/cordis.patch.yml" <<YAML
+          - id: agent-default-model
+            config:
+              provider: $MODEL_PROVIDER
+              model: $DSH_MODEL
+          YAML
+          dsh --profile headless --dump-config > "$RUNNER_TEMP/dsh-config.txt"
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          import os
+          text = Path(os.environ["CONFIG_PATH"]).read_text(encoding="utf-8")
+          marker = "id: session-log-deepseek"
+          if marker not in text:
+              raise SystemExit("Session Log config missing; refusing model request")
+          tail = text.split(marker, 1)[1]
+          next_item = re.search(r"\n\s*- id:", tail)
+          section = tail[:next_item.start()] if next_item else tail
+          if not re.search(r"\benabled:\s*false\b", section):
+              raise SystemExit("Session Log upload is not disabled")
+          import os
+          provider = os.environ["MODEL_PROVIDER"]
+          model = os.environ["DSH_MODEL"]
+          if provider not in text or model not in text:
+              raise SystemExit(f"Selected provider/model missing from DSH config: {provider} / {model}")
+          if provider == "openrouter-custom" and "OPENROUTER_API_KEY" not in text:
+              raise SystemExit("OpenRouter credential reference missing")
+          print(f"PASS: Session Log disabled; selected provider/model configured: {provider} / {model}; OTel disabled.")
+          PY
+
+      - name: Compile and self-test execution runner
+        run: |
+          set -euo pipefail
+          python -m py_compile benchmarks/webapp-testing/scripts/run_webapp_testing.py
+          python benchmarks/webapp-testing/scripts/run_webapp_testing.py --self-test
+
+      - name: Execute Builder-generated pilot case
+        env:
+
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          DATASET_PATH: ${{ matrix.dataset_path }}
+          DATASET_ID: ${{ matrix.dataset_id }}
+          CASE_ID: ${{ matrix.case_id }}
+          FIXTURE_PROFILE: ${{ matrix.fixture_profile }}
+          FIXTURE_MUTATIONS: ${{ join(matrix.fixture_mutations, ',') }}
+        run: |
+          set -euo pipefail
+          python benchmarks/webapp-testing/scripts/run_webapp_testing.py \
+            --dataset "artifacts/builder-result/webapp-testing-builder-output/$DATASET_PATH" \
+            --dataset-id "$DATASET_ID" \
+            --case-id "$CASE_ID" \
+            --fixture-profile "$FIXTURE_PROFILE" \
+            --fixture-mutations "$FIXTURE_MUTATIONS" \
+            --fixture-source benchmarks/webapp-testing/fixtures/workboard \
+            --public-assets benchmarks/webapp-testing/assets/public \
+            --skill-source .audit/upstream-skills/skills/webapp-testing \
+            --work-root "$RUNNER_TEMP/wbt-workspaces" \
+            --output-dir "$RUNNER_TEMP/wbt-output/$DATASET_ID" \
+            --skill-commit "2c5958ecac7cee2b583967a2c4981d0f4a75c579" \
+            --dsh-timeout 600 \
+            --max-model-steps 40 \
+            --max-input-tokens 60000 \
+            --max-output-tokens 55000 \
+            --max-cache-read-tokens 1600000 \
+            --max-total-tokens 1750000
+
+      - name: Archive webapp-testing pilot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-pilot-${{ matrix.case_id }}
+          path: ${{ runner.temp }}/wbt-output/${{ matrix.dataset_id }}/
+          if-no-files-found: warn
+          retention-days: 30
+
+  adjudicate-pilot:
+    if: always() && ((github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'run-builder-production')) || (github.event_name == 'workflow_dispatch' && inputs.run_builder_production) || (github.event_name == 'push' && github.ref == 'refs/heads/experiment/webapp-testing-contract' && contains(github.event.head_commit.message, 'Builder production only'))) && !(github.event_name == 'workflow_dispatch' && inputs.builder_only) && !(github.event_name == 'push' && contains(github.event.head_commit.message, 'Builder production only')) && needs.builder-production.result == 'success' && needs.independent-validation.outputs.validation_status == 'PASS' && needs.resolve-pilot-matrix.result == 'success'
+    needs: [builder-production, independent-validation, resolve-pilot-matrix, webapp-testing-pilot]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout benchmark repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download Builder-produced suite
+        uses: actions/download-artifact@v4
+        with:
+          name: webapp-testing-builder-result
+          path: artifacts/builder-result
+
+      - name: Download three target-Skill evidence packages
+        uses: actions/download-artifact@v4
+        with:
+          pattern: webapp-testing-pilot-*
+          path: artifacts/pilot-results
+          merge-multiple: true
+
+      - name: Run independent Gold Oracle
+        env:
+          PILOT_MATRIX: ${{ needs.resolve-pilot-matrix.outputs.matrix }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$PILOT_MATRIX" > "$RUNNER_TEMP/pilot-matrix.json"
+          python -m py_compile benchmarks/webapp-testing/scripts/gold_oracle.py
+          python benchmarks/webapp-testing/scripts/gold_oracle.py \
+            --builder-output artifacts/builder-result/webapp-testing-builder-output \
+            --pilots-root artifacts/pilot-results \
+            --pilot-matrix "$RUNNER_TEMP/pilot-matrix.json" \
+            --output artifacts/independent-adjudication.json
+
+      - name: Archive independent adjudication
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: webapp-testing-independent-adjudication
+          path: artifacts/independent-adjudication.json
+          if-no-files-found: warn
+          retention-days: 30
+
+  openrouter-preflight:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+      - name: Skip unless this is the explicit preflight marker commit
+        id: gate
+        run: |
+          set -euo pipefail
+          echo "run=false" >> "$GITHUB_OUTPUT"
+          echo "Inference preflight is push-only in openrouter-preflight.yml; skip here to prevent duplicate model requests."
+      - name: Check OpenRouter secret and free inference endpoint without exposing credentials
+        if: steps.gate.outputs.run == 'true'
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os, urllib.request, urllib.error
+          from pathlib import Path
+          key = os.environ.get("OPENROUTER_API_KEY", "").strip()
+          report = {"provider": "openrouter", "secret_configured": bool(key), "generation_requests": 0, "status": "BLOCKED"}
+          if not key:
+              report["reason"] = "OPENROUTER_API_KEY secret is not configured; no request sent."
+          else:
+              try:
+                  quota_req = urllib.request.Request(
+                      "https://openrouter.ai/api/v1/key",
+                      headers={"Authorization": f"Bearer {key}", "Accept": "application/json"})
+                  with urllib.request.urlopen(quota_req, timeout=20) as response:
+                      quota_payload = json.loads(response.read().decode())
+                  quota = (quota_payload.get("data") or {}).get("free_model_daily_requests")
+                  report["free_model_daily_requests"] = quota
+                  remaining = quota.get("remaining") if isinstance(quota, dict) else None
+                  if not isinstance(remaining, int):
+                      report["reason"] = "Could not verify free-model daily quota; no generation request sent."
+                  elif remaining < 1:
+                      report["reason"] = "Free-model daily quota exhausted; no generation request sent."
+                  else:
+                      req = urllib.request.Request(
+                          "https://openrouter.ai/api/v1/chat/completions",
+                          data=json.dumps({"model":"nvidia/nemotron-3-ultra-550b-a55b:free","messages":[{"role":"user","content":"Reply exactly OPENROUTER_OK"}],"max_tokens":16}).encode(),
+                          headers={"Authorization":f"Bearer {key}","Content-Type":"application/json","HTTP-Referer":"https://github.com/Kairos0922/evaluation-dataset-builder","X-Title":"Evaluation Dataset Builder free-router preflight"},
+                          method="POST")
+                      report["generation_requests"] = 1
+                      with urllib.request.urlopen(req, timeout=40) as response:
+                          payload=json.loads(response.read().decode())
+                          report["http_status"]=response.status
+                          report["model_returned"]=payload.get("model")
+                          choices=payload.get("choices") or []
+                          content=(choices[0].get("message",{}).get("content","") if choices else "")
+                          report["response_marker_present"]="OPENROUTER_OK" in content
+                          report["status"]="PASS" if report["response_marker_present"] else "FAIL"
+                          report["response_excerpt"]=content[:120]
+              except urllib.error.HTTPError as exc:
+                  report["http_status"]=exc.code
+                  report["reason"]="OpenRouter quota check or free-router request failed; response body intentionally omitted."
+              except Exception as exc:
+                  report["reason"]=f"Request failed: {type(exc).__name__}: {exc}"
+          Path("openrouter-preflight.json").write_text(json.dumps(report,indent=2)+"\n")
+          print(json.dumps(report,indent=2))
+          if report["status"] != "PASS":
+              raise SystemExit(1)
+          PY
+      - name: Archive OpenRouter preflight evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: openrouter-preflight
+          path: openrouter-preflight.json
+          if-no-files-found: warn
+          retention-days: 7
