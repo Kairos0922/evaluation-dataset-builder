@@ -399,7 +399,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn('select(.event == "pull_request" or .event == "push")', workflow)
         self.assertIn('(.conclusion == "success" or .conclusion == "skipped")', workflow)
         validate_workflow = (ROOT / ".github" / "workflows" / "validate.yml").read_text(encoding="utf-8")
-        self.assertIn('branches: ["main", "release/0.0.1-finalize"]', validate_workflow)
+        self.assertIn('branches: ["main", "release/0.0.1-finalize", "experiment/webapp-testing-contract", "release/0.0.1-candidate"]', validate_workflow)
         self.assertIn("resume_candidate_sha", workflow)
         self.assertIn("RESUME_CANDIDATE_SHA", workflow)
         self.assertIn("actions/runs?head_sha=$CANDIDATE_SHA", workflow)
@@ -1786,6 +1786,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "user_input": "帮我查账单",
             "expected_behavior": "要求用户补充账期，不返回猜测金额",
             "grading": {
+                "evaluation_subject": "账单查询 Agent",
                 "method": "rule_based",
                 "criteria": [{
                     "criterion_id": "G-001",
