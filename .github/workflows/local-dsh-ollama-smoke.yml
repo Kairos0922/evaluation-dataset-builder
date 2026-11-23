@@ -97,7 +97,7 @@ jobs:
           import json, os, select, signal, subprocess, sys, time
           from pathlib import Path
           events_path = Path(os.environ["EVENTS_PATH"])
-          marker_path = Path(os.environ["MARKER_PATH"])
+          marker_path = Path(os.environ["GITHUB_WORKSPACE"]) / "smoke-marker.txt"
           prompt = (
               "Call the write tool once to create smoke-marker.txt in this workspace. "
               "Create the file smoke-marker.txt using the write tool now. The exact content is LOCAL_DSH_TOOL_OK. No commentary. Do not call any other tool."
@@ -134,7 +134,7 @@ jobs:
                       if len(calls) != 1 or event.get("tool") != "write":
                           raise SystemExit("FAIL: unexpected tool or multiple tool calls")
                       inp = event.get("input") or {}
-                      if inp.get("file_path") != "smoke-marker.txt" or inp.get("content") != "LOCAL_DSH_TOOL_OK":
+                      if Path(inp.get("file_path", "")).resolve() != marker_path.resolve() or inp.get("content") != "LOCAL_DSH_TOOL_OK":
                           raise SystemExit("FAIL: model issued an unexpected write request")
                   elif event.get("type") == "tool_result":
                       results.append(event)
@@ -152,7 +152,6 @@ jobs:
               os.killpg(proc.pid, signal.SIGKILL)
               proc.wait(timeout=5)
           stderr_file.close()
-          marker_path = Path(os.environ["GITHUB_WORKSPACE"]) / "smoke-marker.txt"
           if len(calls) != 1 or len(results) != 1:
               raise SystemExit(f"FAIL: expected exactly one tool call and result, got {len(calls)} and {len(results)}")
           if results[0].get("status") != "completed":
