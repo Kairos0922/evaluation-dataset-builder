@@ -644,6 +644,16 @@ module.main()
         health = wait_health(target_url)
         _, reset_result = http_json(target_url + "/api/reset", "POST", {})
         _, pre_state = http_json(target_url + "/api/tasks")
+        if delete_guard_enabled:
+            initial_items = pre_state.get("items") or []
+            target_matches = [item for item in initial_items if item.get("title") == target_spec.get("visible_title")]
+            expected_ids = {"WB-101", "WB-102", "WB-103", "WB-104", "WB-105"}
+            if len(target_matches) != 1 or target_matches[0].get("id") != "WB-104":
+                raise RuntimeError("WB-12 safety precondition failed: target title must uniquely resolve to WB-104")
+            if {item.get("id") for item in initial_items} != expected_ids or len(initial_items) != 5:
+                raise RuntimeError("WB-12 safety precondition failed: fixture must contain the exact five expected task IDs")
+            if pre_state.get("summary") != {"all": 5, "open": 2, "in_progress": 2, "done": 1}:
+                raise RuntimeError("WB-12 safety precondition failed: initial summary is unexpected")
         dsh_env = os.environ.copy()
         dsh_env.update({
             "DSH_TELEMETRY_MODE": "DISABLED",
