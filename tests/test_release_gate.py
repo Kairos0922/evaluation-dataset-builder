@@ -538,6 +538,12 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 "formal_evaluation_cases_created_by_validator": False,
                 "datasets": {"wb-core": {"manifest_quality_status": "needs_info", "execution_status": "NOT_RUN"}},
             },
+            "replay_preparation_validation": {
+                "status": "PASS", "dataset_count": 1, "case_count": 15,
+                "schema_errors": 0, "source_evidence_refs_verified": 61,
+                "formal_evaluation_cases_created_by_validator": False,
+                "datasets": {"wb-core": {"manifest_quality_status": "needs_info", "execution_status": "NOT_RUN"}},
+            },
             "replay_validation": {
                 "status": "PASS", "dataset_count": 1, "case_count": 15,
                 "schema_errors": 0, "source_evidence_refs_verified": 61,
@@ -556,6 +562,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 {"case_id": case_id, "pilot_role": role} for case_id, role in roles.items()
             ]},
             "builder_files": dataset_files,
+            "replay_builder_files": dataset_files,
             "final_builder_files": dataset_files,
             "pilot_results": runners,
             "pilot_contexts": contexts,

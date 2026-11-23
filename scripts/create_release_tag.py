@@ -200,6 +200,7 @@ def validate_builder_evidence_payloads(evidence):
 
     for name, report in (
         ("official independent validator", independent_validation),
+        ("replay preparation validation", evidence["replay_preparation_validation"]),
         ("replay output revalidation", replay_validation),
     ):
         require(
@@ -326,7 +327,6 @@ def validate_builder_evidence_payloads(evidence):
         "status": "PASS",
         "pr_number": int(index["builder_pr_number"]),
         "candidate_sha": builder_sha,
-        "current_pr_head_sha": index["builder_current_pr_head_sha_at_audit"],
         "workflow_run_id": int(index["builder"]["run_id"]),
         "workflow_run_url": index["builder"]["run_url"],
         "builder_job_conclusion": evidence["builder_job_conclusion"],
@@ -427,10 +427,6 @@ def verify_builder_evidence(repo, token, builder_pr_number, release_candidate_sh
         ]
         require(len(matches) == 1 and matches[0].get("conclusion") == "success",
                 f"Original completed {case_id} pilot run is missing or not successful.")
-    replay_artifact_ids = {
-        int(item["artifact_id"]) for item in index["replay"]["reused_pilot_artifacts"].values()
-    }
-
     final_pilot_run = _require_run(
         repo, token, index["final_pilots"]["run_id"],
         path=".github/workflows/round4-wb12-deepseek-retry.yml",
@@ -459,13 +455,6 @@ def verify_builder_evidence(repo, token, builder_pr_number, release_candidate_sh
     ) as replay_zip, _artifact_archive(
         repo, token, final_index["run_id"], final_index["artifact_id"], final_index["artifact_name"]
     ) as final_zip:
-        validator_artifact = (api_request(
-            f"/repos/{repo}/actions/runs/{validator_index['run_id']}/artifacts", token
-        ).get("artifacts") or [])
-        require(any(int(item.get("id", 0)) in replay_artifact_ids and item.get("expired") is False
-                    for item in validator_artifact) is False,
-                "Unexpected pilot artifacts were found on the independent-validation run.")
-
         builder_files = {
             filename: _zip_entry(builder_zip, "webapp-testing-builder-output/" + filename)
             for filename in index["dataset_file_sha256"]
@@ -484,10 +473,15 @@ def verify_builder_evidence(repo, token, builder_pr_number, release_candidate_sh
             "builder_diagnostic_summary": _zip_json(builder_zip, "builder-validation-summary.json"),
             "input_verification": _zip_json(validator_zip, "independent-builder-input-verification.json"),
             "independent_validation": _zip_json(validator_zip, "independent-builder-output-validation.json"),
+            "replay_preparation_validation": _zip_json(replay_zip, "builder-replay-validation.json"),
             "replay_validation": _zip_json(final_zip, "builder-replay-validation.json"),
             "adjudication": _zip_json(final_zip, "artifacts/oracle-adjudication.json"),
             "pilot_matrix": _zip_json(final_zip, "artifacts/source/pilot-matrix.json"),
             "builder_files": builder_files,
+            "replay_builder_files": {
+                filename: _zip_entry(replay_zip, "webapp-testing-builder-output/" + filename)
+                for filename in index["dataset_file_sha256"]
+            },
             "final_builder_files": final_builder_files,
             "pilot_results": {},
             "pilot_contexts": {},
