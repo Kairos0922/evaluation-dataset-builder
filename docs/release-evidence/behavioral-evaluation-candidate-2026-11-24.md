@@ -58,7 +58,7 @@ The prior exact-head evaluation was blocked because baseline SE03 and SE08 recei
 
 ## Final-head binding and release disposition
 
-The following documentation and evidence-index refresh changes the PR head SHA but not Skill text or evaluation inputs. The behavior workflow is configured to use the explicit compatible checkpoint from this completed run. The final-head run must still complete and its Artifact must report the exact final PR head SHA.
+The final release-evidence refresh also synchronized `references/grader-guidelines.md` byte-for-byte with the Builder-run package. This changes one installable reference file, but the behavior evaluator's declared scope loads `SKILL.md` only and does not load `references/*`; the evaluated input therefore remains unchanged. The behavior workflow uses an explicit compatible checkpoint, and the final-head run must still report the exact PR head SHA.
 
 The release verifier enforces both report.git_sha == PR #42 head SHA and report.workflow_run_id == Actions run ID, validates the complete report, and rejects stale artifacts. A historical report or a successful run on an earlier SHA is not sufficient.
 

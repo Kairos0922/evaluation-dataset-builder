@@ -89,7 +89,7 @@ The Builder-run package commit, PR #38 current head and PR #42 release candidate
 - Exact code-candidate behavior evaluation run [45287365898](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45287365898), Artifact 14872207908: two runs, 57/57 Skill checks PASS each, 40/40 Trigger classifications correct, baseline complete, 0 UNKNOWN, stability spread 0 pp, automated gates PASS.
 - The matched baseline contains one genuine Run-2 FAIL in SE07 (6 original cases versus 4 after deduplication, without explaining the reduction); it remains FAIL and the mean uplift is +0.88 percentage points.
 - The report records 390,834 total tokens and estimated actual cost USD 0.222123; 176 responses were resumed from the preceding checkpoint.
-- The documentation/evidence-index refresh changes the PR head but not Skill text or evaluation inputs. An exact-head evaluation is required after that commit; the workflow is configured for explicit compatible checkpoint reuse. Only the resulting report Artifact whose git_sha matches the final PR head is current release evidence.
+- The final PR-head update also synchronized `references/grader-guidelines.md` byte-for-byte with the Builder-run package. This changes an installable reference file, but the behavior evaluator loads `SKILL.md` only and does not load `references/*`; the evaluated input therefore remains unchanged. The exact-head run still executes against the new SHA using explicit compatible checkpoint reuse. Only the resulting report Artifact whose `git_sha` matches the final PR head is current release evidence.
 
 ### Final gate boundary
 
