@@ -91,7 +91,7 @@ jobs:
         run: |
           set -euo pipefail
           python - <<'PY'
-          import json, os, signal, subprocess, sys, time
+          import json, os, select, signal, subprocess, sys, time
           from pathlib import Path
           events_path = Path(os.environ["EVENTS_PATH"])
           marker_path = Path(os.environ["MARKER_PATH"])
@@ -101,9 +101,11 @@ jobs:
               "Do not use any other tool. After the write tool returns, give a "
               "one-line confirmation and stop. Do not speculate or perform extra steps."
           )
+          stderr_path = Path(os.environ["RUNNER_TEMP"]) / "dsh-stderr.log"
+          stderr_file = stderr_path.open("w", encoding="utf-8")
           proc = subprocess.Popen(
               ["dsh", "--profile", "headless", "--json", "--permission-mode", "workspace-write", "-"],
-              stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+              stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=stderr_file,
               text=True, bufsize=1, start_new_session=True,
           )
           proc.stdin.write(prompt)
@@ -112,11 +114,14 @@ jobs:
           started = time.monotonic()
           with events_path.open("w", encoding="utf-8") as out:
               while time.monotonic() - started < 150:
-                  line = proc.stdout.readline()
-                  if not line:
+                  ready, _, _ = select.select([proc.stdout], [], [], 1)
+                  if not ready:
                       if proc.poll() is not None:
                           break
                       continue
+                  line = proc.stdout.readline()
+                  if not line:
+                      break
                   out.write(line)
                   out.flush()
                   try:
@@ -145,8 +150,7 @@ jobs:
           except subprocess.TimeoutExpired:
               os.killpg(proc.pid, signal.SIGKILL)
               proc.wait(timeout=5)
-          stderr = proc.stderr.read()
-          Path(os.environ["RUNNER_TEMP"] + "/dsh-stderr.log").write_text(stderr, encoding="utf-8")
+          stderr_file.close()
           marker_path = Path(os.environ["GITHUB_WORKSPACE"]) / "smoke-marker.txt"
           if len(calls) != 1 or len(results) != 1:
               raise SystemExit(f"FAIL: expected exactly one tool call and result, got {len(calls)} and {len(results)}")
