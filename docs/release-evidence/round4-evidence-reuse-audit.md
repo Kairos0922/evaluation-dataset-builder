@@ -94,3 +94,12 @@ The Builder-run package commit, PR #38 current head and PR #42 release candidate
 ### Final gate boundary
 
 No Builder regeneration, independent-validator rerun, WB-02/WB-10 rerun, WB-12 rerun beyond its completed targeted attempt, or Oracle rerun is justified by documentation-only SHA changes. PR #42 and PR #38 remain Draft/Open. No merge, Tag, Release or publication has occurred. Explicit user approval remains required before the post-review merge and publish steps.
+
+
+## Post-audit validator correction and archived-output revalidation (2026-11-24)
+
+- Root cause: the independent semantic lint split Chinese coordinated clauses and lost their explicit Skill-failure attribution, producing false positives for WB-03-C3, WB-04-C2 and WB-14-C2. A related WB-15 clause exceeded the lint's short text window for the explicit `把…当作` attribution.
+- Validator fix: PR #38 head `7f34ddb1a7b7594a819f05584c7373b7b3cb5242`. It now preserves Skill-attributed coordinated clauses while continuing to reject raw SUT outcome clauses separated by hard clause boundaries. Regression tests cover all four exact production clauses and the independent raw-outcome rejection.
+- PR #38 CI: success at exact head `7f34ddb1a7b7594a819f05584c7373b7b3cb5242`.
+- The frozen Builder artifact `14729741906` was revalidated without Builder/Skill/model calls in [run 45291624154](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45291624154), artifact `14874193103`: frozen inputs 18/18 hashes PASS, actual Builder trace PASS (exit 0, 530 events, one Builder call), official independent output validation PASS (15 cases, 0 schema errors, 61 source references), pilot matrix resolution PASS.
+- This corrects the validator false-positive defect; it does **not** rewrite the historical Builder-production Job conclusion (failure), regenerate formal cases, or change the dataset's `needs_info` / `NOT_RUN` state. The evidence index records the additional exact-run validation.

@@ -83,3 +83,8 @@
 - [ ] 仅在明确批准后创建绑定最终 merge commit 的 v0.0.1 Tag 并发布 GitHub Release。
 
 行为评测通过、Builder 证据通过或文档齐备都不构成发布授权。发布流程不会在本候选 PR 中自动合并、打 Tag 或创建 Release。
+
+
+## Validator correction evidence (2026-11-24)
+
+The archived Builder output was revalidated after fixing the independent validator's false-positive semantic lint. PR #38 exact head `7f34ddb1a7b7594a819f05584c7373b7b3cb5242` CI passed. Validation run [45291624154](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45291624154), artifact `14874193103`, passed on the original immutable Builder output: 15 cases, 0 schema errors, 61 source references verified. No Builder call, Skill trial, or model call was repeated. The original Builder-production Job failure remains historical and disclosed; it is not reclassified.

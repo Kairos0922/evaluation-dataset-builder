@@ -510,7 +510,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 "final_pilots": {"run_id": 3},
                 "builder_diagnostic_review": {
                     "expected_issue_ids": ["WB-03-C3", "WB-04-C2", "WB-14-C2"],
-                    "disposition": "REVIEWED_FALSE_POSITIVE_SCOPE_FLAGS",
+                    "disposition": "HISTORICAL_FALSE_POSITIVE_FLAGS_REVALIDATED_AFTER_LINT_FIX",
                 },
                 "dataset_file_sha256": dataset_hashes,
                 "quality_status": "needs_info",
@@ -544,6 +544,20 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 "formal_evaluation_cases_created_by_validator": False,
                 "datasets": {"wb-core": {"manifest_quality_status": "needs_info", "execution_status": "NOT_RUN"}},
             },
+    validator_revalidation_index = index["validator_revalidation"]
+    validator_revalidation_run = _require_run(
+        repo, token, validator_revalidation_index["run_id"],
+        path=".github/workflows/validate-existing-builder-artifact.yml",
+        branch=builder_branch,
+        head_sha=validator_revalidation_index["head_sha"],
+        conclusion="success",
+    )
+    validator_revalidation_jobs_response = api_request(
+        f"/repos/{repo}/actions/runs/{validator_revalidation_run['id']}/jobs?per_page=100", token
+    )
+    validator_revalidation_jobs = validator_revalidation_jobs_response.get("jobs") or []
+    require(_job_by_name(validator_revalidation_jobs, "validate-archived-artifact").get("conclusion") == "success",
+            "Post-lint archived Builder output revalidation job did not pass.")
             "replay_preparation_validation": {
                 "status": "PASS", "dataset_count": 1, "case_count": 15,
                 "schema_errors": 0, "source_evidence_refs_verified": 61,
@@ -585,7 +599,9 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertEqual(result["case_count"], 15)
         self.assertEqual(result["source_evidence_refs_verified"], 61)
         self.assertEqual(result["pilot_case_ids"], ["WB-02", "WB-10", "WB-12"])
-        self.assertEqual(result["builder_diagnostic_status"], "FAIL_REVIEWED_FALSE_POSITIVE_SCOPE_FLAGS")
+        self.assertEqual(result["builder_diagnostic_status"], "HISTORICAL_FAIL_REVALIDATED_AFTER_LINT_FIX")
+        self.assertEqual(result["validator_revalidation_status"], "PASS")
+        self.assertEqual(result["validator_revalidation_run_id"], 45291624154)
         self.assertEqual(result["manifest_quality_status"], "needs_info")
         self.assertEqual(result["execution_status"], "NOT_RUN")
 
@@ -593,6 +609,10 @@ class ReleaseGateUnitTests(unittest.TestCase):
         evidence = self._valid_cross_workflow_builder_evidence()
         evidence["independent_validation"]["schema_errors"] = 1
         with self.assertRaisesRegex(ValueError, "official independent validator"):
+            CREATE_RELEASE_TAG.validate_builder_evidence_payloads(evidence)
+        evidence = self._valid_cross_workflow_builder_evidence()
+        evidence["validator_revalidation"]["status"] = "FAIL"
+        with self.assertRaisesRegex(ValueError, "post-lint archived-output revalidation"):
             CREATE_RELEASE_TAG.validate_builder_evidence_payloads(evidence)
         evidence = self._valid_cross_workflow_builder_evidence()
         evidence["adjudication"]["passed_cases"] = 2
@@ -623,7 +643,9 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertEqual(index["final_pilots"]["run_id"], 45189512695)
         self.assertEqual(index["final_pilots"]["oracle_status"], "PASS")
         self.assertEqual(index["builder_diagnostic_review"]["disposition"],
-                         "REVIEWED_FALSE_POSITIVE_SCOPE_FLAGS")
+                         "HISTORICAL_FALSE_POSITIVE_FLAGS_REVALIDATED_AFTER_LINT_FIX")
+        self.assertEqual(index["validator_revalidation"]["run_id"], 45291624154)
+        self.assertEqual(index["validator_revalidation"]["validator_status"], "PASS")
 
     def test_release_document_is_marked_published_only_with_evidence(self):
         current = (

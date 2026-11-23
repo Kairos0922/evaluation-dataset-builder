@@ -63,3 +63,8 @@ The final release-evidence refresh also synchronized `references/grader-guidelin
 The release verifier enforces both report.git_sha == PR #42 head SHA and report.workflow_run_id == Actions run ID, validates the complete report, and rejects stale artifacts. A historical report or a successful run on an earlier SHA is not sufficient.
 
 **Evaluated code candidate behavior gate: PASS. Overall release: NOT APPROVED.** The final documentation-head exact-SHA result is the attached Actions artifact for the final PR head. No merge, Tag or GitHub Release is created by this report.
+
+
+## Benchmark rubric refinement (2026-11-24)
+
+SE07's compound criterion for deduplication counts was split into two atomic checks: (1) deduplicated count and retained cases, and (2) original six cases plus the C02/C05 variant explanation. The baseline output explicitly enumerates six cases, deduplicates to four, and explains C02/C05 are not independently counted; the previous Judge FAIL was therefore a rubric/evidence extraction false-negative. This is a benchmark-only change; it requires a new exact-head behavior evaluation. Previous reports remain historical.

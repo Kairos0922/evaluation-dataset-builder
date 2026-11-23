@@ -147,6 +147,7 @@ def validate_builder_evidence_payloads(evidence):
     diagnostic = evidence["builder_diagnostic_summary"]
     input_verification = evidence["input_verification"]
     independent_validation = evidence["independent_validation"]
+    validator_revalidation = evidence["validator_revalidation"]
     replay_validation = evidence["replay_validation"]
     adjudication = evidence["adjudication"]
 
@@ -186,7 +187,7 @@ def validate_builder_evidence_payloads(evidence):
         and int(diagnostic.get("issue_count", 0)) == len(expected_issue_ids)
         and observed_issue_ids == expected_issue_ids
         and index["builder_diagnostic_review"].get("disposition")
-            == "REVIEWED_FALSE_POSITIVE_SCOPE_FLAGS",
+            == "HISTORICAL_FALSE_POSITIVE_FLAGS_REVALIDATED_AFTER_LINT_FIX",
         "Builder heuristic diagnostic findings differ from the explicitly reviewed Round 4 findings.",
     )
     require(
@@ -200,6 +201,7 @@ def validate_builder_evidence_payloads(evidence):
 
     for name, report in (
         ("official independent validator", independent_validation),
+        ("post-lint archived-output revalidation", validator_revalidation),
         ("replay preparation validation", evidence["replay_preparation_validation"]),
         ("replay output revalidation", replay_validation),
     ):
@@ -331,7 +333,10 @@ def validate_builder_evidence_payloads(evidence):
         "workflow_run_url": index["builder"]["run_url"],
         "builder_job_conclusion": evidence["builder_job_conclusion"],
         "builder_trace_status": "PASS",
-        "builder_diagnostic_status": "FAIL_REVIEWED_FALSE_POSITIVE_SCOPE_FLAGS",
+        "builder_diagnostic_status": "HISTORICAL_FAIL_REVALIDATED_AFTER_LINT_FIX",
+        "validator_revalidation_status": "PASS",
+        "validator_revalidation_run_id": int(index["validator_revalidation"]["run_id"]),
+        "validator_revalidation_artifact_id": int(index["validator_revalidation"]["artifact_id"]),
         "builder_diagnostic_issue_ids": sorted(expected_issue_ids),
         "independent_validation_run_id": int(index["independent_validation"]["run_id"]),
         "independent_validation_status": "PASS",
@@ -407,6 +412,20 @@ def verify_builder_evidence(repo, token, builder_pr_number, release_candidate_sh
     validator_jobs = validator_jobs_response.get("jobs") or []
     require(_job_by_name(validator_jobs, "validate-archived-artifact").get("conclusion") == "success",
             "Official independent validation workflow job did not pass.")
+    validator_revalidation_index = index["validator_revalidation"]
+    validator_revalidation_run = _require_run(
+        repo, token, validator_revalidation_index["run_id"],
+        path=".github/workflows/validate-existing-builder-artifact.yml",
+        branch=builder_branch,
+        head_sha=validator_revalidation_index["head_sha"],
+        conclusion="success",
+    )
+    validator_revalidation_jobs_response = api_request(
+        f"/repos/{repo}/actions/runs/{validator_revalidation_run['id']}/jobs?per_page=100", token
+    )
+    validator_revalidation_jobs = validator_revalidation_jobs_response.get("jobs") or []
+    require(_job_by_name(validator_revalidation_jobs, "validate-archived-artifact").get("conclusion") == "success",
+            "Post-lint archived Builder output revalidation job did not pass.")
 
     replay_run = _require_run(
         repo, token, index["replay"]["run_id"],
@@ -451,6 +470,8 @@ def verify_builder_evidence(repo, token, builder_pr_number, release_candidate_sh
     ) as builder_zip, _artifact_archive(
         repo, token, validator_index["run_id"], validator_index["artifact_id"], validator_index["artifact_name"]
     ) as validator_zip, _artifact_archive(
+        repo, token, validator_revalidation_index["run_id"], validator_revalidation_index["artifact_id"], validator_revalidation_index["artifact_name"]
+    ) as validator_revalidation_zip, _artifact_archive(
         repo, token, replay_index["run_id"], replay_index["artifact_id"], replay_index["artifact_name"]
     ) as replay_zip, _artifact_archive(
         repo, token, final_index["run_id"], final_index["artifact_id"], final_index["artifact_name"]
@@ -473,6 +494,7 @@ def verify_builder_evidence(repo, token, builder_pr_number, release_candidate_sh
             "builder_diagnostic_summary": _zip_json(builder_zip, "builder-validation-summary.json"),
             "input_verification": _zip_json(validator_zip, "independent-builder-input-verification.json"),
             "independent_validation": _zip_json(validator_zip, "independent-builder-output-validation.json"),
+            "validator_revalidation": _zip_json(validator_revalidation_zip, "independent-builder-output-validation.json"),
             "replay_preparation_validation": _zip_json(replay_zip, "builder-replay-validation.json"),
             "replay_validation": _zip_json(final_zip, "builder-replay-validation.json"),
             "adjudication": _zip_json(final_zip, "artifacts/oracle-adjudication.json"),
@@ -527,10 +549,12 @@ def verify_builder_evidence(repo, token, builder_pr_number, release_candidate_sh
         "builder_candidate_sha": builder_sha,
         "builder_workflow_run_url": builder_run.get("html_url"),
         "validator_workflow_run_url": validator_run.get("html_url"),
+        "validator_revalidation_workflow_run_url": validator_revalidation_run.get("html_url"),
         "replay_workflow_run_url": replay_run.get("html_url"),
         "final_pilot_workflow_run_url": final_pilot_run.get("html_url"),
         "builder_artifact_id": int(builder_index["artifact_id"]),
         "independent_validation_artifact_id": int(validator_index["artifact_id"]),
+        "validator_revalidation_artifact_id": int(validator_revalidation_index["artifact_id"]),
         "final_pilot_oracle_artifact_id": int(final_index["artifact_id"]),
         "skill_tree_matches_release_candidate": True,
     })

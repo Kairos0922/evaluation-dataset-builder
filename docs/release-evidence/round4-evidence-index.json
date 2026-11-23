@@ -60,11 +60,25 @@
       "WB-04-C2",
       "WB-14-C2"
     ],
-    "disposition": "REVIEWED_FALSE_POSITIVE_SCOPE_FLAGS",
-    "explanation": "Manual semantic review in round4-evidence-reuse-audit.md found these heuristic flags score the testing Skill's detection/reporting of application deviations, not the raw application outcome. The independent validator and final replay output validator both PASS. This original diagnostic FAIL is retained as a disclosed caveat, not relabelled PASS."
+    "disposition": "HISTORICAL_FALSE_POSITIVE_FLAGS_REVALIDATED_AFTER_LINT_FIX",
+    "explanation": "The original Builder-production job remains FAILURE because the archived output was checked by a flawed static lint that falsely flagged WB-03-C3, WB-04-C2 and WB-14-C2. The linter was fixed on PR #38 head 7f34ddb1a7b7594a819f05584c7373b7b3cb5242; the exact immutable Builder artifact was revalidated in run 45291624154 and the official validator PASSed (15 cases, 0 schema errors, 61 source references). The original output and historical job result were not modified or reclassified; the new validation is separate evidence."
   },
-  "builder_current_pr_head_sha_at_audit": "7a501b8041466f35e718ae190895e89bdcc8d874",
+  "builder_current_pr_head_sha_at_audit": "7f34ddb1a7b7594a819f05584c7373b7b3cb5242",
   "quality_status": "needs_info",
   "execution_status": "NOT_RUN",
-  "unresolved_quality_gap": "BR-09 request-failure/error-recovery evidence gap"
+  "unresolved_quality_gap": "BR-09 request-failure/error-recovery evidence gap",
+  "validator_revalidation": {
+    "run_id": 45291624154,
+    "run_url": "https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45291624154",
+    "head_sha": "7f34ddb1a7b7594a819f05584c7373b7b3cb5242",
+    "artifact_id": 14874193103,
+    "artifact_name": "archived-builder-independent-validation",
+    "validator_status": "PASS",
+    "dataset_count": 1,
+    "case_count": 15,
+    "schema_errors": 0,
+    "source_evidence_refs_verified": 61,
+    "no_formal_cases_created_or_modified": true,
+    "no_model_calls": true
+  }
 }
