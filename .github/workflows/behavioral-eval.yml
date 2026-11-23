@@ -43,7 +43,7 @@ jobs:
       - name: 验证候选提交与开放 PR 的 head SHA 一致
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_PR_NUMBER: ${{ inputs.release_pr_number || '39' }}
+          RELEASE_PR_NUMBER: ${{ inputs.release_pr_number || '41' }}
           CANDIDATE_SHA: ${{ inputs.candidate_sha || github.sha }}
         run: |
           set -euo pipefail
