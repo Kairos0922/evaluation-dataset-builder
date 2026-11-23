@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: local-dsh-ollama-smoke-v2
+  group: local-dsh-ollama-smoke-v3
   cancel-in-progress: false
 
 jobs:
