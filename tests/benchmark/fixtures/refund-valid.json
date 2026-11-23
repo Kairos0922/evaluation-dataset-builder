@@ -147,6 +147,7 @@
         }
       ],
       "grading": {
+        "evaluation_subject": "billing_agent",
         "method": "trace_check",
         "criteria": [
           {
