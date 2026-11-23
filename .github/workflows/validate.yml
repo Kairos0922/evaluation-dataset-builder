@@ -1,7 +1,7 @@
 name: 验证 Skill
 on:
   push:
-    branches: ["main", "release/0.0.1-finalize", "experiment/webapp-testing-contract"]
+    branches: ["main", "release/0.0.1-finalize", "experiment/webapp-testing-contract", "release/0.0.1-candidate"]
     paths:
       - ".github/dispatch/execute-builder-production-once"
       - ".github/dispatch/execute-builder-production-repair-once"
