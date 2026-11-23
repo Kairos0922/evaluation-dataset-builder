@@ -1,10 +1,6 @@
 name: Replay Builder evaluation with independent Oracle
 
 on:
-  push:
-    branches: ["experiment/webapp-testing-contract"]
-    paths:
-      - ".github/replay-webapp-testing-trigger.txt"
   workflow_dispatch:
     inputs:
       builder_run_id:
@@ -12,6 +8,11 @@ on:
         required: true
         type: string
         default: ""
+      confirm_real_pilot_runs:
+        description: "Explicitly authorize three real Skill pilot runs using this archived Builder output"
+        required: true
+        type: boolean
+        default: false
 
 permissions:
   actions: read
@@ -23,6 +24,7 @@ concurrency:
 
 jobs:
   prepare:
+    if: inputs.confirm_real_pilot_runs == true
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
@@ -193,6 +195,7 @@ jobs:
           retention-days: 30
 
   webapp-testing-pilot:
+    if: inputs.confirm_real_pilot_runs == true
     needs: prepare
     strategy:
       fail-fast: false
@@ -328,6 +331,7 @@ jobs:
           retention-days: 30
 
   oracle-adjudication:
+    if: inputs.confirm_real_pilot_runs == true
     needs: [prepare, webapp-testing-pilot]
     if: always() && needs.prepare.result == 'success'
     runs-on: ubuntu-latest
