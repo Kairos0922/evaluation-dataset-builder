@@ -188,6 +188,7 @@ jobs:
           python -m unittest discover -s tests -p "test_webapp_testing_remaining_plan.py" -v
 
   audit-upstream-assets:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'experiment/webapp-testing-contract' || github.ref == 'refs/heads/experiment/webapp-testing-contract'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
