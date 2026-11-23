@@ -6,7 +6,6 @@ on:
       - ".github/dispatch/execute-builder-production-once"
       - ".github/dispatch/execute-builder-production-repair-once"
       - ".github/dispatch/execute-builder-production-only-once"
-      - ".github/dispatch/execute-openrouter-preflight-once"
   pull_request:
     branches: ["main"]
     types: [opened, synchronize, reopened, labeled, unlabeled]
