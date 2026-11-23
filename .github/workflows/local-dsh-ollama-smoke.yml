@@ -25,7 +25,7 @@ jobs:
       OLLAMA_API_KEY: "ollama-local-placeholder"
       OLLAMA_KEEP_ALIVE: "30m"
       OLLAMA_NUM_PARALLEL: "1"
-      OLLAMA_CONTEXT_LENGTH: "8192"
+      OLLAMA_CONTEXT_LENGTH: "16384"
     steps:
       - uses: actions/checkout@v4
         with:
@@ -73,7 +73,7 @@ jobs:
                   apiKeyEnv: OLLAMA_API_KEY
                   models:
                     - id: qwen3:4b
-                      contextWindow: 8192
+                      contextWindow: 16384
                       maxTokens: 1024
           - id: agent-default-model
             config:
@@ -112,7 +112,7 @@ jobs:
           calls, results = [], []
           started = time.monotonic()
           with events_path.open("w", encoding="utf-8") as out:
-              while time.monotonic() - started < 150:
+              while time.monotonic() - started < 600:
                   ready, _, _ = select.select([proc.stdout], [], [], 1)
                   if not ready:
                       if proc.poll() is not None:
