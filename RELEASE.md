@@ -1,6 +1,6 @@
 # 0.0.1 发布候选说明
 
-**状态：** 发布候选，尚未正式发布。当前候选包已同步到 Builder 证据分支；精确 SHA 行为评测和 Builder 证据绑定仍需完成。
+**状态：** 发布候选，尚未正式发布。当前候选已完成 Round 4 Builder 正式生产、独立验证、三条真实试运行和 Gold Oracle 3/3 PASS；行为评测已对候选 SHA `c3ef8e5c9cfd156cec29ed7d63a803f32bb536ad` 完成并通过。后续仅因本次发布证据文档提交改变了候选 head SHA，需要在最终 head 上完成精确 SHA 行为评测绑定。发布仍需明确批准。
 
 ## 范围
 
@@ -33,23 +33,26 @@
 
 ## 发布门禁
 
-- [ ] Skill 目录符合 Agent Skills 元数据、命名和结构要求。
-- [ ] 入口文件的按需资源引用完整，目录中无无关文件。
-- [ ] Schema、质量标准、引用路径、Actionlint 和离线测试通过。
-- [ ] Builder 正式生成的评测套件通过独立验证。
-- [ ] 三条真实 Skill 试运行完成并有可复核证据。
-- [ ] 独立 Gold Oracle 对三条试运行全部 PASS。
-- [ ] 精确候选 SHA 的两次行为评测全部达到阈值。
-- [ ] 匹配基线完整，稳定性检查通过。
-- [ ] Builder 证据 Skill tree 与发布候选 Skill tree 完全一致。
-- [ ] 发布 PR head 与最终 merge commit 的 Git tree 完全一致。
-- [ ] 发布标签绑定已验证的 merge commit。
+- [x] Skill 目录符合 Agent Skills 元数据、命名和结构要求。
+- [x] 入口文件的按需资源引用完整，目录中无无关文件。
+- [x] Schema、质量标准、引用路径、Actionlint 和离线测试通过。
+- [x] Builder 正式生成的评测套件通过独立验证。
+- [x] 三条真实 Skill 试运行完成并有可复核证据。
+- [x] 独立 Gold Oracle 对三条试运行全部 PASS。
+- [x] 两次行为评测均达到预设阈值（对最终 candidate head 的精确 SHA 复验/绑定待完成）。
+- [x] 匹配基线完整，稳定性检查通过。
+- [x] Builder 证据 Skill tree 与发布候选 Skill tree 完全一致。
+- [ ] 发布 PR head 与最终 merge commit 的 Git tree 完全一致（合并后核验）。
+- [ ] 发布标签绑定已验证的 merge commit（发布时核验）。
 
-只有全部门禁通过并经明确发布批准后，才创建 `v0.0.1` 标签并发布 GitHub Release。结构验证或历史候选评测通过不等于当前候选可以发布。
+只有全部门禁通过并经明确发布批准后，才创建 `v0.0.1` 标签并发布 GitHub Release。结构验证或历史候选评测通过不等于正式发布批准。
 
 ## 当前候选状态
 
-- 已合并的 PR #39 曾在候选 SHA `3a51d877717c9be992b53ec83448a5a98c9378c2` 上通过行为评测；该评测不覆盖本次同步后的 Skill 内容。
-- 本次候选正在同步 PR #38 的 Skill package tree。同步完成后，必须针对新候选 SHA 重新运行精确行为评测。
-- PR #38 保留为 Draft/Open Builder 证据 PR。正式 Builder 生产、独立验证、三条真实试运行和 Oracle 3/3 PASS 必须绑定当前候选 Skill tree。
-- 当前没有 `v0.0.1` 标签或正式 GitHub Release。发布工作流仅在显式手动批准并核验所有门禁后执行。
+- Release PR #42：Draft/Open，目标 `main`；Builder 证据 PR #38：Draft/Open，保留实验记录，不合并。
+- Round 4 formal Builder：15 cases；独立验证 PASS，0 schema errors，61 source refs verified；三条真实 pilot 和独立 Gold Oracle 3/3 PASS。证据复用审计见 `docs/release-evidence/round4-evidence-reuse-audit.md`。
+- 评测数据集质量状态仍为 `needs_info`，原因是 BR-09 request-failure/error-recovery evidence gap。此限制已记录；不影响已完成三条 pilot 的结果，但不应对数据集完整性作过度承诺。
+- 精确候选行为评测（SHA `c3ef8e5c9cfd156cec29ed7d63a803f32bb536ad`）：两次完整运行行为通过率 98.25% / 100%；Trigger precision/recall 100%/100%（40 cases）；基线完整；稳定性 spread 1.75 pp；所有自动门禁 PASS。Run 1 的 SE07 semantic-dedup criterion 失败，Run 2 通过，透明记录于 `docs/release-evidence/behavioral-evaluation-candidate-2026-11-24.md`。
+- 行为评测范围仅加载 `SKILL.md`，未加载 `references/*`；不是宿主兼容性认证。本版本不宣称跨模型独立 Judge。
+- 评测工作流 run `45224190260` 已成功完成，artifact `14842388182`；候选 head 因新增证据文档变更为 `977123bb6f6e311b4165941873952d5b67b041d6`，需在最终候选 head 上重新完成精确 SHA 评测。
+- 当前没有 `v0.0.1` 标签或正式 GitHub Release。发布工作流仅在显式批准并核验所有门禁后执行。
