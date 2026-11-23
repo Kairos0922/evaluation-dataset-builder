@@ -56,3 +56,41 @@ The schema requires `grading.evaluation_subject`, and the formal Builder output 
 - Historical exact-head CI: https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45221565463
 
 This is an evidence reuse audit, not a new execution or release approval. No model calls were made during this audit.
+
+
+## Final evidence disposition and exact-head status (2026-11-24)
+
+This addendum supersedes the earlier open items in this audit that predated the exact evidence-reuse check and current-candidate behavior evaluation. It does not rewrite the historical run records above.
+
+### Builder output, diagnostic and independent verification
+
+- Formal Builder invocation: run [44959366258](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44959366258), Artifact 14729741906, Builder-run source commit eb1fa5c21e7b2320e0904bb1cb72a38854b9cbd8.
+- The DSH invocation trace is PASS: exit code 0, 530 trace events, exactly one Builder Skill tool call, and nine generated output files. The output is an actual Builder-produced artifact; it was not written or repaired by the validator or this audit.
+- The enclosing builder-production job concluded **failure** because the Builder artifact's heuristic builder-validation-summary.json flagged WB-03-C3, WB-04-C2 and WB-14-C2. These flags remain visible and are not relabelled PASS. Manual semantic review found they score whether the testing Skill detects, reports and classifies application deviations, rather than scoring the raw application outcome. No formal case or Builder output was edited to suppress the flags.
+- Official independent archived-output validation: run [44968128127](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44968128127), Artifact 14732232796: PASS, 1 dataset, 15 cases, 0 schema errors, 61 source evidence references verified; 18/18 public Builder input files and hashes verified. The validator created or modified zero formal cases.
+- A separate Builder-output validation performed in the replay preparation and preserved in the final WB-12 archive also passed with the same 1 dataset / 15 cases / 0 schema errors / 61 source references.
+- The manifest quality state remains needs_info; execution status remains NOT_RUN. The known BR-09 request-failure / error-recovery evidence gap remains unresolved.
+
+### Trial provenance and final Gold Oracle
+
+- WB-02 and WB-10 completed successfully in replay run [44980451933](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44980451933), Artifacts 14738085222 and 14738140416. Their complete archived file trees are byte-identical to the copies included in the final WB-12 evidence archive.
+- WB-12 in that replay was quota-blocked and did not complete. Its failed early attempt and the early Oracle failure are historical only; they are not presented as a successful execution.
+- The one-time targeted WB-12 completion used the frozen Builder dataset, with DeepSeek solely for the actual Skill evaluation: run [45189512695](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45189512695), Artifact 14824967038. The execution completed, recorded exactly one allowed DELETE to the Builder-declared target (HTTP 200), and recorded no retries or unrelated mutations.
+- The final artifact includes all three pilot evidence packages and the final independent Oracle adjudication. Gold Oracle result: **WB-02 PASS, WB-10 PASS, WB-12 PASS; aggregate 3/3 PASS, 0 FAIL, 0 UNKNOWN**. WB-02's business verdict is EXPECTED_VIOLATION_DETECTED, not an application PASS.
+- The four key Builder output files (wb-core.jsonl, source-map.json, wb-core.manifest.json, SUITE-MANIFEST.json) have identical SHA-256 values in the original Builder artifact, replay preparation archive, and final pilot / Oracle archive. The exact digests and workflow / artifact IDs are recorded in [round4-evidence-index.json](round4-evidence-index.json).
+
+### Skill package tree equivalence
+
+The Builder-run package commit, PR #38 current head and PR #42 release candidate contain the same complete skills/evaluation-dataset-builder/ Git tree. The current release verifier independently compares all package paths, modes, object types and blob SHAs across those three commits. It no longer incorrectly requires historic Builder production, independent validation, pilots and final Oracle adjudication to share a single Actions workflow run or the newest documentation-only PR #38 SHA.
+
+### Release-candidate behavior evaluation
+
+- Evidence-repair prompt fix commit: 6868d38efd8a29b9b153dd5e70040382e296f8d9.
+- Exact code-candidate behavior evaluation run [45287365898](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45287365898), Artifact 14872207908: two runs, 57/57 Skill checks PASS each, 40/40 Trigger classifications correct, baseline complete, 0 UNKNOWN, stability spread 0 pp, automated gates PASS.
+- The matched baseline contains one genuine Run-2 FAIL in SE07 (6 original cases versus 4 after deduplication, without explaining the reduction); it remains FAIL and the mean uplift is +0.88 percentage points.
+- The report records 390,834 total tokens and estimated actual cost USD 0.222123; 176 responses were resumed from the preceding checkpoint.
+- The documentation/evidence-index refresh changes the PR head but not Skill text or evaluation inputs. An exact-head evaluation is required after that commit; the workflow is configured for explicit compatible checkpoint reuse. Only the resulting report Artifact whose git_sha matches the final PR head is current release evidence.
+
+### Final gate boundary
+
+No Builder regeneration, independent-validator rerun, WB-02/WB-10 rerun, WB-12 rerun beyond its completed targeted attempt, or Oracle rerun is justified by documentation-only SHA changes. PR #42 and PR #38 remain Draft/Open. No merge, Tag, Release or publication has occurred. Explicit user approval remains required before the post-review merge and publish steps.

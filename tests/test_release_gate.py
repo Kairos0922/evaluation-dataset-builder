@@ -501,7 +501,13 @@ class ReleaseGateUnitTests(unittest.TestCase):
             })
         return {
             "index": {
-                "builder": {"candidate_sha": "builder-sha"},
+                "builder_pr_number": 38,
+                "builder": {
+                    "candidate_sha": "builder-sha", "run_id": 1,
+                    "run_url": "https://github.com/owner/repo/actions/runs/1",
+                },
+                "independent_validation": {"run_id": 2},
+                "final_pilots": {"run_id": 3},
                 "builder_diagnostic_review": {
                     "expected_issue_ids": ["WB-03-C3", "WB-04-C2", "WB-14-C2"],
                     "disposition": "REVIEWED_FALSE_POSITIVE_SCOPE_FLAGS",

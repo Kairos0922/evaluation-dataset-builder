@@ -1,66 +1,65 @@
 # 0.0.1 Candidate Behavior Evaluation Report
 
-Date: 2026-11-24 (report artifact timestamp: 2026-11-23 17:20:28 UTC)
+Date: 2026-11-24
 
-## Candidate binding
+## Evaluated code candidate binding
 
-- Release PR: #42, `release/0.0.1-candidate`
-- Evaluated candidate SHA: `c3ef8e5c9cfd156cec29ed7d63a803f32bb536ad`
-- PR head SHA at evaluation: exact match
-- CI run: [45224205930](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45224205930) — PASS
-- Behavior evaluation workflow: [45224190260](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45224190260) — completed successfully
-- Artifact: `candidate-evaluation-report-45224190260`, ID `14842388182`
-- Artifact SHA-256: `071a6a9ecc39b58c6dd7658e21c44f8de703b586085cb2428063a51bbcf27884`
-- Evaluation report Git SHA: `c3ef8e5c9cfd156cec29ed7d63a803f32bb536ad`
+- Release PR: #42, release/0.0.1-candidate
+- Evaluated code candidate SHA: 6868d38efd8a29b9b153dd5e70040382e296f8d9
+- CI run: [45287379185](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45287379185) — PASS
+- Behavioral evaluation run: [45287365898](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45287365898) — completed successfully
+- Artifact: candidate-evaluation-report-45287365898, ID 14872207908
+- Artifact ZIP SHA-256: 6dc98ffc5c9d6b83e9d065236e8eac706972d073f506a001f460cc8e2a54b054
+- Report git_sha: exact match to the evaluated code candidate SHA
+- release_approved: false
+
+This report records the completed evaluation of the code candidate before the final documentation and release-evidence-index refresh. The final documentation commit is a new candidate SHA and must have its own exact-head Actions report. The report artifact produced on that final head is the release authority; this historical report must not be substituted for it.
 
 ## Results
 
 | Metric | Run 1 | Run 2 | Mean / final |
 |---|---:|---:|---:|
-| Behavior checks passed | 56/57 | 57/57 | 56.5/57 |
-| Behavior pass rate | 98.25% | 100.00% | 99.12% |
-| Baseline pass rate | 96.49% | 98.25% | 97.37% |
-| Uplift over matched baseline | +1.75 pp | +1.75 pp | +1.75 pp |
+| Skill behavior checks passed | 57/57 | 57/57 | 57/57 per run |
+| Skill behavior pass rate | 100.00% | 100.00% | 100.00% |
+| Matched baseline checks passed | 57/57 | 56/57 | 56.5/57 |
+| Matched baseline pass rate | 100.00% | 98.25% | 99.12% |
+| Uplift over matched baseline | 0.00 pp | +1.75 pp | +0.88 pp |
 | Trigger TP / FP / FN / TN | 20/0/0/20 | 20/0/0/20 | 40/40 correct |
 | Trigger precision | 100% | 100% | 100% |
 | Trigger recall | 100% | 100% | 100% |
-| UNKNOWN checks | 0 | 0 | 0 |
+| Skill / baseline UNKNOWN | 0 / 0 | 0 / 0 | 0 |
 
 - Behavior pass threshold: 90% per complete run — **PASS both runs**.
 - Trigger precision and recall thresholds: 95% — **PASS both runs**.
 - Trigger suite: 40 cases (20 positive, 20 negative), no parse errors — **PASS**.
-- Stability: behavior spread 1.75 percentage points; trigger precision/recall spread 0 — **PASS** against 5 pp maximum.
-- Matched baseline comparison complete — **PASS**.
+- Baseline comparison: complete on both runs; every baseline check has an explicit PASS or FAIL disposition — **PASS**.
+- Stability: behavior, trigger precision and trigger recall spreads are all 0 percentage points — **PASS**.
 - Automated evaluation gates — **PASS**.
-- Evaluator field `release_approved` remains `false`; evaluation passing is not release authorization.
 
-## Case-level observation
+## Explicit case-level baseline miss
 
-Run 1 had one failed criterion in **SE07 semantic deduplication**: the generated output omitted the original case count and did not explain why deduplication did not inflate case count. Run 2 passed SE07. This is a non-critical case-level miss under the existing 90% aggregate threshold, not a hidden all-cases-pass result. No UNKNOWN checks occurred.
+Run 2 has one baseline FAIL in **SE07 semantic deduplication**. The baseline output reported 4 unique cases but omitted the original case count of 6 and did not explain why semantic deduplication did not inflate the count. This is a genuine baseline miss and remains FAIL in the report. It is not an UNKNOWN, not hidden, and not upgraded to PASS.
 
-## Scope and limitations
+The candidate Skill passed all 57/57 behavior checks in both runs. The SE07 baseline failure contributes to the matched baseline comparison and the reported uplift; it does not invalidate the predeclared per-run 90% behavior threshold.
 
-- Generator, judge, and trigger classifier: DeepSeek Flash via DeepSeek API.
-- Two complete runs, 198 API requests, 387,000 total tokens.
-- Conservative peak-price reserved estimate: USD 1.42211; estimated actual peak-price cost: USD 0.224096; configured protection ceiling: USD 10.
-- Evaluation scope: `SKILL_ENTRYPOINT_TEXT_PROXY`; loaded `SKILL.md` only. `references/*` were not loaded.
-- This evaluates entrypoint text behavior, not host-specific Skill loading or execution. No cross-model independent Judge claim is made.
+## Model configuration, usage and scope
 
-## Other release evidence
+- Generator, Judge and Trigger Classifier: DeepSeek V4.1 Flash, API model ID deepseek-flash.
+- Same model identity across separate roles. No cross-model independent Judge claim is made.
+- Two complete runs, 199 distinct API responses recorded by the report; 390,834 total tokens.
+- Estimated actual peak-price cost: USD 0.222123; configured protection ceiling: USD 10.
+- Checkpoint reuse: 176 responses were resumed from the prior failed-evaluation checkpoint after the evidence-repair change; no pending or uncertain request remains.
+- Evaluation scope: SKILL_ENTRYPOINT_TEXT_PROXY; loaded SKILL.md only, not references/*.
+- This does not verify host-specific Skill discovery, reference loading, tool invocation or runtime compatibility.
 
-The Round 4 Builder evidence reuse audit establishes package identity with the current Skill/schema tree and reuse of the frozen formal Builder output, independent validation, three real trials, and Gold Oracle 3/3 PASS. The dataset remains `needs_info` for the documented BR-09 request-failure/error-recovery evidence gap; this is recorded as a limitation and does not invalidate the three completed pilot cases.
+## Evidence repair
 
-See [Round 4 evidence reuse audit](round4-evidence-reuse-audit.md).
+The prior exact-head evaluation was blocked because baseline SE03 and SE08 received unsupported Judge PASS claims without locally verifiable quotes. Review of the archived output showed that the evidence-repair prompt was not explicit enough about preserving Markdown delimiters. The repair prompt was changed to require character-for-character quotation, including **, __, backticks, table pipes, list markers and punctuation; it now also provides the prior Judge rationale as context, never as evidence. A new offline regression test covers a quote containing Markdown formatting. The runner still verifies every quote locally and still fails closed when a quote cannot be verified.
 
-## Release disposition
+## Final-head binding and release disposition
 
-**Behavior evaluation gate: PASS. Overall release: NOT YET APPROVED.**
+The following documentation and evidence-index refresh changes the PR head SHA but not Skill text or evaluation inputs. The behavior workflow is configured to use the explicit compatible checkpoint from this completed run. The final-head run must still complete and its Artifact must report the exact final PR head SHA.
 
-Still required:
-1. Review the full release evidence and limitation statement.
-2. Obtain explicit release approval.
-3. Merge PR #42 only after approval and gate review.
-4. Verify PR head and merge commit tree identity.
-5. Run the publish workflow with explicit confirmation, after all evidence-binding checks pass.
+The release verifier enforces both report.git_sha == PR #42 head SHA and report.workflow_run_id == Actions run ID, validates the complete report, and rejects stale artifacts. A historical report or a successful run on an earlier SHA is not sufficient.
 
-No tag or GitHub Release was created by this evaluation.
+**Evaluated code candidate behavior gate: PASS. Overall release: NOT APPROVED.** The final documentation-head exact-SHA result is the attached Actions artifact for the final PR head. No merge, Tag or GitHub Release is created by this report.
