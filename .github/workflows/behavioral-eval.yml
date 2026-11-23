@@ -150,6 +150,7 @@ jobs:
           RESUME_CANDIDATE_SHA=""
           if [ -n "$RESUME_RUN_ID" ] && [ -f .github/behavioral-eval-trigger.txt ]; then
             RESUME_CANDIDATE_SHA="$(sed -n 's/^resume_candidate_sha=//p' .github/behavioral-eval-trigger.txt | head -n 1)"
+            export RESUME_CANDIDATE_SHA
             if ! [[ "$RESUME_CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
               echo "恢复检查点必须提供完整的原始 candidate SHA。"
               exit 2
