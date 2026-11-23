@@ -95,7 +95,7 @@ def evaluation_subject_contract_issues(case: dict) -> list[str]:
         r"未执行|未完成|未按|未能|未逐步|未给出|未指出|未对照|未比对|"
         r"只读取|只报告|仅报告|错误报告|错误判断|误报|误判|漏报|遗漏|忽略|隐藏|跳过|"
         r"重复|多次|超出|超过|违反|调用了|修改了|删除了|重置了|缺少|不足|不完整|"
-        r"编造|假设|制造|把.{0,20}当作|把.{0,40}(?:偏差|缺陷|异常|错误).{0,24}(?:写成|判为|归因于|认为)|"
+        r"编造|假设|制造|把.{0,80}当作|把.{0,40}(?:偏差|缺陷|异常|错误).{0,24}(?:写成|判为|归因于|认为)|"
         r"把.{0,24}(?:应用|页面|系统|结果).{0,24}(?:写成|判为|归因于).{0,24}(?:Skill|Agent|智能体|助手)|"
         r"仍(?:报告|报|称|判定|判断|认为|写成|描述|归类|标记).{0,24}(?:PASS|FAIL|符合|不符合|正确|错误)|"
         r"(?:称|报|报告|判定|判断|认为|写成|描述|归类|标记).{0,24}(?:PASS|FAIL|符合|不符合|正确|错误)|"
@@ -111,15 +111,14 @@ def evaluation_subject_contract_issues(case: dict) -> list[str]:
     issues = []
     for criterion in grading.get("criteria", []):
         fail_condition = str(criterion.get("fail_condition") or "")
-        # Keep Chinese coordinated clauses together when the criterion explicitly
-        # attributes failure to Skill reporting/observation (e.g. "Skill 漏报 A、
-        # B 或 C"). Split hard sentence boundaries and English comma clauses.
-        # For criteria without explicit attribution, split all coordinated clauses
-        # so a separate raw application outcome cannot be masked by nearby wording.
+        # Explicitly Skill-attributed failure descriptions often contain
+        # coordinated Chinese objects (e.g. "Skill 漏报 A、B 或 C"). Preserve
+        # those within a clause. Still split hard boundaries and English commas
+        # so an independent raw-SUT clause cannot be hidden.
         explicit_agent_failure = re.compile(
-            r"(?:Skill|Agent|智能体|助手).{0,40}(?:漏报|遗漏|未发现|未识别|未报告|"
+            r"(?:Skill|Agent|智能体|助手).{0,60}(?:漏报|遗漏|未发现|未识别|未报告|"
             r"未核验|未验证|未观察|未检查|未采集|未执行|未对照|未比对|错误报告|误报|误判|"
-            r"只报告|仅报告|把.{0,24}(?:偏差|缺陷|异常|错误).{0,24}(?:写成|判为|归因于|认为)|"
+            r"只报告|仅报告|强行判|把.{0,80}当作|把.{0,40}(?:偏差|缺陷|异常|错误).{0,24}(?:写成|判为|归因于|认为)|"
             r"仍(?:报告|报|称|判定|判断|认为|写成|描述|归类|标记))",
             re.I,
         )

@@ -624,6 +624,21 @@ def test_validator_still_flags_raw_sut_clause_after_agent_clause_boundary():
     assert "页面状态与预期不一致" in issues[0]
 
 
+def test_validator_accepts_round4_wb15_explicit_agent_fail_condition():
+    case = {
+        "case_id": "WB-15-C2",
+        "grading": {
+            "evaluation_subject": "webapp-testing Skill 的测试与缺陷识别表现",
+            "criteria": [{
+                "criterion_id": "WB-15-C2",
+                "pass_condition": "Skill 报告 BR-09 请求失败分支无法权威验证，不把合成网络拦截结果当作权威结论。",
+                "fail_condition": "Skill 在无受控注入时强行判 BR-09 PASS/FAIL，或把自行 route.abort 的合成结果当作应用符合/不符合的权威证据。",
+            }],
+        },
+    }
+    assert validator.evaluation_subject_contract_issues(case) == []
+
+
 def test_validator_preserves_chinese_omission_scope_over_enumerated_outcomes():
     cases = [
         ("CASE-WB03", "Skill 漏报描述字段未匹配、空状态缺失或摘要变化"),
