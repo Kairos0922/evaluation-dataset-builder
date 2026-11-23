@@ -548,6 +548,13 @@ def main() -> int:
     shutil.copytree(skill_source, workspace / ".dsh" / "skills" / "webapp-testing")
 
     audit_log = case_dir / "server-audit.jsonl"
+    delete_guard_audit_path = case_dir / "delete-guard-audit.jsonl"
+    delete_guard_enabled = args.case_id == "WB-12"
+    if delete_guard_enabled:
+        test_data = (execution.get("test_data") or [])
+        target_spec = next((item for item in test_data if item.get("kind") == "target_task"), {})
+        if target_spec.get("visible_title") != "Verify email notification":
+            raise SystemExit("WB-12 safety guard: unexpected target title; refusing to start")
     server_log = (case_dir / "server.log").open("w", encoding="utf-8")
     env = os.environ.copy()
     env.update({
@@ -571,8 +578,66 @@ def main() -> int:
     started = utc_now()
     pre_state = post_state = None
     try:
+        if delete_guard_enabled:
+            env["APP_DELETE_GUARD_AUDIT"] = str(delete_guard_audit_path)
+            env["APP_DELETE_GUARD_TARGET"] = "WB-104"
+            launcher_path = case_dir / "delete_guard_launcher.py"
+            launcher_path.write_text(
+                """
+import importlib.util, json, os, threading
+from pathlib import Path
+from urllib.parse import urlparse
+source = Path(os.environ["APP_SERVER_SOURCE"])
+spec = importlib.util.spec_from_file_location("workboard_fixture", source)
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+handler = module.Handler
+original_delete = handler.do_DELETE
+original_send_json = handler.send_json
+audit_path = Path(os.environ["APP_DELETE_GUARD_AUDIT"])
+target = os.environ["APP_DELETE_GUARD_TARGET"]
+lock = threading.Lock()
+attempt_count = 0
+def append_event(event):
+    with lock:
+        audit_path.parent.mkdir(parents=True, exist_ok=True)
+        with audit_path.open("a", encoding="utf-8") as f:
+            f.write(json.dumps(event, ensure_ascii=False) + "\\n")
+def capture_send_json(self, status, payload):
+    if getattr(self, "_guard_delete_active", False):
+        self._guard_delete_status = status
+    return original_send_json(self, status, payload)
+def guarded_delete(self):
+    global attempt_count
+    path = urlparse(self.path).path
+    with lock:
+        attempt_count += 1
+        number = attempt_count
+        permitted = number == 1 and path == "/api/tasks/" + target
+    self._guard_delete_active = True
+    self._guard_delete_status = None
+    if not permitted:
+        self.send_json(409, {"error": "Delete guard rejected request", "attempt": number})
+        append_event({"attempt": number, "method": "DELETE", "path": path, "allowed": False, "status": 409,
+                      "reason": "target-mismatch-or-repeat"})
+        self._guard_delete_active = False
+        return
+    original_delete(self)
+    append_event({"attempt": number, "method": "DELETE", "path": path, "allowed": True,
+                  "status": self._guard_delete_status})
+    self._guard_delete_active = False
+handler.send_json = capture_send_json
+handler.do_DELETE = guarded_delete
+module.main()
+""",
+                encoding="utf-8",
+            )
+            env["APP_SERVER_SOURCE"] = str(fixture / "server.py")
+            server_command = [sys.executable, str(launcher_path)]
+        else:
+            server_command = [sys.executable, str(fixture / "server.py")]
         server = subprocess.Popen(
-            [sys.executable, str(fixture / "server.py")],
+            server_command,
             cwd=str(fixture), env=env, stdout=server_log, stderr=subprocess.STDOUT,
             start_new_session=True,
         )
@@ -789,6 +854,8 @@ def main() -> int:
         "session_id": session_id,
         "session_turn_results": session_turn_results,
         "server_port_closed": port_closed,
+        "delete_guard_enabled": delete_guard_enabled,
+        "delete_guard_audit_path": str(delete_guard_audit_path.relative_to(case_dir)) if delete_guard_enabled else None,
         "skill_artifact_file_count": len(skill_artifact_files),
         "skill_artifact_types": sorted(artifact_suffixes),
         "skill_artifact_symlink_paths": artifact_symlink_paths,
