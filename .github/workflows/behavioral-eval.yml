@@ -172,8 +172,8 @@ jobs:
           from pathlib import Path
           report = json.loads(Path("artifacts/eval-report.json").read_text(encoding="utf-8"))
           expected_sha = os.environ["RESUME_CANDIDATE_SHA"]
-          if report.get("git_sha") != expected_sha or report.get("status") != "PASS":
-              raise SystemExit("Response-cache-only migration requires a successful report bound to the prior SHA.")
+          if report.get("git_sha") != expected_sha or report.get("status") != "COMPLETE" or report.get("automated_gate_pass") is not True:
+              raise SystemExit("Response-cache-only migration requires a completed passing report bound to the prior SHA.")
           print("PASS: previous checkpoint report SHA and status verified")
           PY
           fi
