@@ -1,1 +1,1 @@
-One-time request: use DEEPSEEK_API_KEY only for the real WB-12 evaluation; reuse immutable Round 4 Builder output and prior WB-02/WB-10 evidence; no code generation by the model.
+One-time WB-12 DeepSeek evaluation trigger after correcting archived WB-02/WB-10 artifact path normalization. Same immutable Builder output; no WB-02/WB-10 rerun.
