@@ -116,6 +116,13 @@ jobs:
         if: steps.scope.outputs.run_validation == 'true'
         run: python -m pip install --disable-pip-version-check -r .github/requirements-ci.txt
 
+      - name: Validate all GitHub Actions workflows with actionlint
+        if: steps.scope.outputs.run_validation == 'true'
+        run: |
+          set -euo pipefail
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          "$HOME/go/bin/actionlint" -color
+
       - name: 验证正式包
         if: steps.scope.outputs.run_validation == 'true'
         run: python scripts/validate_skill.py
