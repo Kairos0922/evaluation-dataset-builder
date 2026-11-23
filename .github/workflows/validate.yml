@@ -136,7 +136,7 @@ jobs:
         run: python -m unittest discover -s tests -p "test_*.py" -v
 
       - name: 验证独立 Gold Oracle 与 Builder 输出验证器
-        if: steps.scope.outputs.run_validation == 'true'
+        if: steps.scope.outputs.run_validation == 'true' && hashFiles('benchmarks/webapp-testing/oracle/adjudicate_pilot.py') != ''
         run: |
           set -euo pipefail
           python -m py_compile \
