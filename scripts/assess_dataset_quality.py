@@ -219,7 +219,8 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, evalu
         case.get("case_id", "<missing-id>")
         for case in cases if not isinstance(case.get("case_id"), str) or not case.get("case_id")
     ]
-    duplicate_ids = sorted({case_id for case_id in valid_case_ids if valid_case_ids.count(case_id) > 1})
+    case_id_counts = Counter(valid_case_ids)
+    duplicate_ids = sorted(case_id for case_id, count in case_id_counts.items() if count > 1)
     dataset_mismatches = [
         case.get("case_id", "<missing-id>")
         for case in cases if case.get("dataset_id") != dataset_id
