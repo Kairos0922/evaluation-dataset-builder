@@ -139,6 +139,9 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "references/scenario-buckets.md",
             "references/change-impact-and-repair.md",
             "references/dataset-manifest-schema.json",
+            "references/ida-report.schema.json",
+            "references/era-report.schema.json",
+            "references/runtime-record.schema.json",
         ]
         for host_id in hosts:
             discovery = add_evidence(host_id, "discovery", f"{host_id}-discovery")
@@ -360,13 +363,14 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn('RELEASE_BUILDER_PR_NUMBER', workflow)
         self.assertNotIn("python scripts/verify_release.py", workflow)
         self.assertIn("create_release_tag.py", workflow)
-        self.assertIn("python scripts/create_release_tag.py", workflow)
+        self.assertIn('tagger = importlib.import_module("create_release_tag")', workflow)
+        self.assertIn("tagger.create_release_tag()", workflow)
         self.assertIn("workflow_dispatch:", workflow)
         self.assertIn("candidate_sha:", workflow)
         self.assertIn("confirm_publish:", workflow)
         self.assertNotIn("pull_request:", workflow)
         self.assertIn("gh release create", workflow)
-        self.assertLess(workflow.index("python scripts/create_release_tag.py"),
+        self.assertLess(workflow.index("tagger.create_release_tag()"),
                         workflow.index("gh release create"))
         self.assertIn("python scripts/update_release_doc.py", workflow)
         self.assertLess(workflow.index("gh release create"),
