@@ -119,7 +119,34 @@ jobs:
           RELEASE_CANDIDATE_SHA: ${{ steps.release-inputs.outputs.candidate_sha }}
           RELEASE_PR_NUMBER: ${{ steps.release-inputs.outputs.release_pr_number }}
           RELEASE_BUILDER_PR_NUMBER: ${{ steps.release-inputs.outputs.builder_evidence_pr_number }}
-        run: python scripts/create_release_tag.py
+        run: |
+          python - <<'PY'
+          import runpy
+          import sys
+          import urllib.error
+          import urllib.request
+
+          original_urlopen = urllib.request.urlopen
+
+          def traced_urlopen(request, *args, **kwargs):
+              request_url = getattr(request, "full_url", request)
+              try:
+                  return original_urlopen(request, *args, **kwargs)
+              except urllib.error.HTTPError as exc:
+                  if exc.code == 401:
+                      authenticate = (exc.headers or {}).get("WWW-Authenticate", "")
+                      print(
+                          "GITHUB_API_HTTP_401 "
+                          + "request_url=" + str(request_url)
+                          + " final_url=" + str(exc.url)
+                          + " www_authenticate=" + str(authenticate),
+                          file=sys.stderr,
+                      )
+                  raise
+
+          urllib.request.urlopen = traced_urlopen
+          runpy.run_path("scripts/create_release_tag.py", run_name="__main__")
+          PY
       - name: Publish GitHub Release and attach exact-run report
         env:
           GH_TOKEN: ${{ github.token }}
