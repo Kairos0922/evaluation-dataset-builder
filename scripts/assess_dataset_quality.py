@@ -497,8 +497,10 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, evalu
     ]
 
     overall_status = (
-        "NOT_ASSESSED" if not cases
-        else "FAIL" if not schema_ok or not dataset_id_integrity_ok or critical_gate_fail or source_status == "FAIL"
+        "NOT_ASSESSED"
+        if not cases and manifest.get("case_count") == 0 and not manifest_errors
+        else "FAIL"
+        if not schema_ok or not dataset_id_integrity_ok or critical_gate_fail or source_status == "FAIL"
         else "PARTIAL"
     )
     evidence_status = "insufficient" if not cases or not schema_ok else "partial"
