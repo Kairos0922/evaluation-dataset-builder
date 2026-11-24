@@ -154,6 +154,39 @@ class OfflineDatasetAssessmentTests(unittest.TestCase):
             self.assertTrue(any("exact duplicate" in item["description"] for item in report["findings"]))
             self.assertEqual(validate_report(report), [])
 
+    def test_source_registry_resolution_is_reported_separately_from_claim_support(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            manifest_path, cases_path, output_path = self.write_inputs(
+                directory, sample_manifest(), [sample_case()]
+            )
+            registry_path = directory / "sources.json"
+            registry_path.write_text(json.dumps({
+                "sources": [{
+                    "source_id": "SRC-001",
+                    "source_type": "synthetic_scenario",
+                    "title": "Synthetic tool-use exercise"
+                }]
+            }), encoding="utf-8")
+            report, _, _, _, _ = build_report(
+                manifest_path, cases_path, output_path, "both", registry_path
+            )
+            gate = next(item for item in report["gate_results"] if item["gate_id"] == "G01_source_provenance")
+            self.assertEqual(gate["status"], "PASS")
+            source_metric = next(item for item in report["metric_results"] if item["metric_id"] == "IDA-STR-03")
+            self.assertEqual(source_metric["value"], 1.0)
+            self.assertIn("does not prove source authenticity", source_metric["limitations"][0])
+            self.assertEqual(validate_report(report), [])
+
+    def test_empty_cases_with_nonzero_manifest_count_fail(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            report, errors, _, _, _ = self.run_assessment(
+                Path(tmp), sample_manifest(1), []
+            )
+            self.assertTrue(errors)
+            self.assertEqual(report["overall_status"], "FAIL")
+            self.assertEqual(validate_report(report), [])
+
 
 if __name__ == "__main__":
     unittest.main()
