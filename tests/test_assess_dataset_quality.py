@@ -67,7 +67,7 @@ def sample_case(case_id="CASE-001"):
         },
         "quality_status": "candidate",
         "scenario_bucket": ["business_rule"],
-        "case_origin": "synthetic_scenario",
+        "case_origin": "synthetic_gap_fill",
         "coverage_tags": [
             {
                 "dimension": "capability",
