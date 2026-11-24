@@ -190,7 +190,7 @@ def main():
     for relative_path in expected_refs:
         content = read_skill_text(relative_path)
         # JSON Schema 的 $id URI 可以包含目录名 references；它不是二级资源依赖。
-        reference_body = re.sub(r'"\\$id"\\s*:\\s*"[^"]+"', "", content)
+        reference_body = re.sub(r'"\$id"\s*:\s*"[^"]+"', "", content)
         check("references/" not in reference_body,
               f"{relative_path} 不应继续引用第二层 references 路径")
 
