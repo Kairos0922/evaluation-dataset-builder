@@ -145,6 +145,7 @@ jobs:
                   raise
 
           urllib.request.urlopen = traced_urlopen
+          sys.path.insert(0, "scripts")
           runpy.run_path("scripts/create_release_tag.py", run_name="__main__")
           PY
       - name: Publish GitHub Release and attach exact-run report
