@@ -44,7 +44,7 @@
 | EX-05 | 实验 | 完成 Capability / Regression 真实运行效标实验 | TODO | 精确版本绑定的运行轨迹、Oracle、统计分析和限制 |
 | SC-01 | 方案 | 冻结 v0.0.2 需求、架构和验收标准 | TODO | 需求评审决议、设计基线 commit |
 | IM-01 | 实现 | 设计并实现 IDA 报告 Schema / 机器可读契约 | DONE | schemas/ida-report.schema.json；JSON 语法检查通过；commit f47905e |
-| IM-02 | 实现 | 实现独立离线评价器和确定性检查 | IN_PROGRESS | scripts/validate_quality_assessment.py 已实现 Schema + 交叉字段检查；tests/test_quality_assessment_validator.py 已覆盖 IDA/ERA 正反例；CI 尚未跑到该测试步骤 |
+| IM-02 | 实现 | 实现独立离线评价器和确定性检查 | IN_PROGRESS | scripts/assess_dataset_quality.py 已实现 Manifest/Case Schema、ID、来源注册表、覆盖一致性、分布和精确重复检查；scripts/validate_quality_assessment.py 校验 IDA/ERA 报告契约；tests/test_assess_dataset_quality.py 与 tests/test_quality_assessment_validator.py 已添加，待 CI 执行 |
 | IM-03 | 实现 | 实现人工/LLM Judge 校准与证据记录接口 | TODO | 独立校准集协议、Judge 结果契约 |
 | IM-04 | 实现 | 实现 ERA 运行结果报告 Schema / 机器可读契约 | DONE | schemas/era-report.schema.json；精确数据集 SHA、Agent/模型/Harness/环境、Run/Trace、Judge、Capability/Regression 分析字段已定义；JSON 语法检查通过；commit fa28651 |
 | IM-05 | 实现 | 实现 Capability / Regression 统计分析模块 | TODO | 统计方法测试和边界测试 |
@@ -80,4 +80,4 @@
 
 | 日期 | 变更 |
 |---|---|
-| 2026-11-25 | 建立需求、研究证据库、双路径方法论、公式验证协议、实验设计、设计决策、候选指标字典、IDA/ERA Schema、初版报告验证器与测试；Draft PR #44 已创建。更新 Skill 质量标准并加入报告 Schema。补充 CVI/CVR、IRT 样本量、G-Theory、SkillsBench 版本和 failure exposure 证据。PR #44 run #1691 发现 Skill validator 误判 Schema $id，已修复，等待重验。RQ-01、RQ-02、RS-01、FM-01、EX-01、IM-01、IM-04 完成；RS-02、RS-03、DS-01、DS-02、FM-02、IM-02、IM-07、CI-01 进行中。 |
+| 2026-11-25 | 建立需求、研究证据库、双路径方法论、公式验证协议、实验设计、设计决策、候选指标字典、IDA/ERA Schema、离线 IDA 检查器、报告验证器与测试；Draft PR #44 已创建。更新 Skill 质量标准并加入报告 Schema。补充 CVI/CVR、IRT 样本量、G-Theory、SkillsBench 版本和 failure exposure 证据。PR #44 run #1691 发现 Skill validator 误判 Schema $id，已修复；run #1696 为修复后重验，状态待确认。RQ-01、RQ-02、RS-01、FM-01、EX-01、IM-01、IM-04 完成；RS-02、RS-03、DS-01、DS-02、FM-02、IM-02、IM-07、CI-01 进行中。 |
