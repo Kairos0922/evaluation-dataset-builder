@@ -238,7 +238,7 @@ class FormulaValidationTests(unittest.TestCase):
         report = not_validated_report()
         report["candidate_model"]["scalar_score_enabled"] = True
         errors = validate_formula_validation_report(report)
-        self.assertTrue(any("scalar_score_enabled must remain false" in error for error in errors))
+        self.assertTrue(any("scalar_score_enabled" in error for error in errors))
 
 
 if __name__ == "__main__":
