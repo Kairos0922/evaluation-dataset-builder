@@ -570,6 +570,7 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, evalu
     if source_registry_path:
         report["limitations"].append("Source registry identity resolution was performed; claim support still requires independent review.")
 
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return report, structural_errors, duplicate_ids, coverage_errors, source_errors
 
