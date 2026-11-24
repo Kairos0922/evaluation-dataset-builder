@@ -196,8 +196,8 @@ class EvaluationBudgetExceeded(ProviderStopError):
     """Local cost or request cap reached; stop before further paid requests."""
 
 
-def configure_checkpoint(path, signature, compatible_signatures=None):
-    """Load a checkpoint matching exact inputs or an explicitly compatible legacy signature."""
+def configure_checkpoint(path, signature, compatible_signatures=None, response_cache_only=False):
+    """Load exact/compatible checkpoint, or explicitly migrate content-addressed responses only."""
     global CHECKPOINT_PATH, CHECKPOINT_STORE, API_REQUEST_COUNT, ESTIMATED_COST_RESERVED_USD
     accepted_signatures = {signature} | set(compatible_signatures or [])
     CHECKPOINT_PATH = Path(path)
@@ -226,6 +226,38 @@ def configure_checkpoint(path, signature, compatible_signatures=None):
                 print(
                     f"Resuming checkpoint with {len(CHECKPOINT_STORE['responses'])} cached API responses."
                     + (" (compatible SHA migration; Skill hash and evaluation inputs match)" if legacy_match else ""),
+                    flush=True,
+                )
+                save_checkpoint()
+                return
+            if (
+                response_cache_only
+                and existing.get("schema_version") == 6
+                and isinstance(existing.get("responses"), dict)
+            ):
+                # Response cache keys are hashes of the exact run-indexed request
+                # payload. Reuse only completed responses whose payload is identical.
+                # A pending request may have been sent; conservatively move it to
+                # uncertain so the same payload cannot be billed twice.
+                pending = existing.get("pending_requests") or {}
+                uncertain = dict(existing.get("uncertain_requests") or {})
+                uncertain.update(pending)
+                CHECKPOINT_STORE = {
+                    "schema_version": 6,
+                    "signature": signature,
+                    "responses": existing["responses"],
+                    "pending_requests": {},
+                    "uncertain_requests": uncertain,
+                    "estimated_tokens_reserved_by_model": existing.get("estimated_tokens_reserved_by_model", {}),
+                    "estimated_tokens_reserved_by_model_by_day": existing.get("estimated_tokens_reserved_by_model_by_day", {}),
+                    "api_requests": int(existing.get("api_requests", 0) or 0),
+                    "estimated_cost_reserved_usd": float(existing.get("estimated_cost_reserved_usd", 0.0) or 0.0),
+                }
+                API_REQUEST_COUNT = CHECKPOINT_STORE["api_requests"]
+                ESTIMATED_COST_RESERVED_USD = CHECKPOINT_STORE["estimated_cost_reserved_usd"]
+                print(
+                    f"Resuming exact-payload response cache only: {len(CHECKPOINT_STORE['responses'])} cached responses; "
+                    f"{len(uncertain)} ambiguous requests remain blocked. Signature changed; prompts must match exactly.",
                     flush=True,
                 )
                 save_checkpoint()
@@ -683,14 +715,21 @@ def judge_case(api_key, model, criteria, candidate, api_url=JUDGE_API_URL):
                 "or assume the earlier decision is correct. Return supported=true "
                 "only if the candidate directly demonstrates the criterion. If "
                 "supported, provide 1-3 exact verbatim substrings, each 6-120 "
-                "characters, copied from the candidate. Choose short quotes and "
-                "avoid long table rows or full JSON objects. If no exact quote proves "
-                "it, return supported=false and evidence=[]. Never paraphrase. "
+                "characters, copied character-for-character from the candidate. "
+                "Preserve every character of the source, including Markdown "
+                "formatting delimiters such as **, __, backticks, table pipes, "
+                "list markers, quote marks, and punctuation. Never strip, add, "
+                "normalize, or move formatting characters. For compound criteria, "
+                "select up to three short quotes that collectively demonstrate "
+                "the required elements. Prefer short complete clauses over labels. "
+                "If no exact quote proves the criterion, return supported=false "
+                "and evidence=[]. Never paraphrase. "
                 'Return JSON only: {"supported":true,"evidence":["exact quote"]}.'
             )
             repair_user = (
                 "CRITERION:\n" + criterion +
-                "\n\nCANDIDATE OUTPUT (source of quotes):\n" + candidate
+                "\n\nPRIOR JUDGE RATIONALE (context only; not evidence):\n" + rationale +
+                "\n\nCANDIDATE OUTPUT (source of exact quotes):\n" + candidate
             )
             # A second bounded extraction attempt is allowed only if the first
             # response fails local quote validation. It uses a distinct prompt
@@ -1092,7 +1131,12 @@ def main():
         compatible_signatures.append(hashlib.sha256(json.dumps(
             legacy_payload, ensure_ascii=False, sort_keys=True
         ).encode("utf-8")).hexdigest())
-    configure_checkpoint(args.checkpoint, signature, compatible_signatures=compatible_signatures)
+    configure_checkpoint(
+        args.checkpoint,
+        signature,
+        compatible_signatures=compatible_signatures,
+        response_cache_only=os.getenv("RESUME_RESPONSE_CACHE_ONLY", "0") == "1",
+    )
     runs = []
     for index in range(1, args.runs + 1):
         CURRENT_RUN_INDEX = index

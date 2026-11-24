@@ -1,5 +1,5 @@
-Resume the passing exact-SHA evaluation checkpoint; candidate Skill and test inputs are unchanged.
-release_pr_number=39
-resume_run_id=44571477779
-resume_candidate_sha=ae21835aa7d5050b63aacff09fdff318cda65b1b
-resume_attempt=5
+release_pr_number=42
+resume_run_id=45289826668
+resume_candidate_sha=6be00cc2999fd92a2e7d58377cf9b9f6fb4dfd69
+resume_response_cache_only=true
+resume_attempt=12

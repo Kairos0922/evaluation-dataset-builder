@@ -3,7 +3,7 @@ name: Behavioral Skill Evaluation
 
 on:
   push:
-    branches: ["release/0.0.1-finalize"]
+    branches: ["release/0.0.1-candidate"]
     paths:
       - ".github/behavioral-eval-trigger.txt"
   workflow_dispatch:
@@ -21,6 +21,11 @@ on:
         required: false
         default: ""
         type: string
+      resume_response_cache_only:
+        description: 仅复用请求 payload 完全一致的已完成响应；新评测输入会重新请求
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -43,7 +48,7 @@ jobs:
       - name: 验证候选提交与开放 PR 的 head SHA 一致
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_PR_NUMBER: ${{ inputs.release_pr_number || '39' }}
+          RELEASE_PR_NUMBER: ${{ inputs.release_pr_number || '42' }}
           CANDIDATE_SHA: ${{ inputs.candidate_sha || github.sha }}
         run: |
           set -euo pipefail
@@ -132,14 +137,20 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RESUME_RUN_ID: ${{ inputs.resume_run_id || '' }}
+          INPUT_RESPONSE_CACHE_ONLY: ${{ inputs.resume_response_cache_only || '' }}
         run: |
           set -euo pipefail
           if [ -z "$RESUME_RUN_ID" ] && [ -f .github/behavioral-eval-trigger.txt ]; then
             RESUME_RUN_ID="$(sed -n 's/^resume_run_id=//p' .github/behavioral-eval-trigger.txt | head -n 1)"
           fi
+          RESUME_RESPONSE_CACHE_ONLY="$INPUT_RESPONSE_CACHE_ONLY"
+          if [ -z "$RESUME_RESPONSE_CACHE_ONLY" ] && [ -f .github/behavioral-eval-trigger.txt ]; then
+            RESUME_RESPONSE_CACHE_ONLY="$(sed -n 's/^resume_response_cache_only=//p' .github/behavioral-eval-trigger.txt | head -n 1)"
+          fi
           RESUME_CANDIDATE_SHA=""
           if [ -n "$RESUME_RUN_ID" ] && [ -f .github/behavioral-eval-trigger.txt ]; then
             RESUME_CANDIDATE_SHA="$(sed -n 's/^resume_candidate_sha=//p' .github/behavioral-eval-trigger.txt | head -n 1)"
+            export RESUME_CANDIDATE_SHA
             if ! [[ "$RESUME_CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]; then
               echo "恢复检查点必须提供完整的原始 candidate SHA。"
               exit 2
@@ -155,7 +166,20 @@ jobs:
           gh run download "$RESUME_RUN_ID" \
             --name "candidate-evaluation-report-$RESUME_RUN_ID" --dir artifacts
           test -s artifacts/eval-checkpoint.json
-          echo "检查点已下载；Skill SHA、测试集、模型与配置匹配后才允许恢复。"
+          if [ "$RESUME_RESPONSE_CACHE_ONLY" = "true" ]; then
+            test -s artifacts/eval-report.json
+            python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report = json.loads(Path("artifacts/eval-report.json").read_text(encoding="utf-8"))
+          expected_sha = os.environ["RESUME_CANDIDATE_SHA"]
+          if report.get("git_sha") != expected_sha or report.get("status") != "COMPLETE" or report.get("automated_gate_pass") is not True:
+              raise SystemExit("Response-cache-only migration requires a completed passing report bound to the prior SHA.")
+          print("PASS: previous checkpoint report SHA and status verified")
+          PY
+          fi
+          echo "RESUME_RESPONSE_CACHE_ONLY=$RESUME_RESPONSE_CACHE_ONLY" >> "$GITHUB_ENV"
+          echo "检查点已下载；按精确 payload key 复用已完成响应。"
       - name: 执行重复行为、对照基线和触发评测
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
@@ -165,7 +189,6 @@ jobs:
           DEEPSEEK_MAX_ESTIMATED_COST_USD: "10.00"
           DEEPSEEK_MAX_TOKENS: ${{ vars.DEEPSEEK_MAX_TOKENS || '16384' }}
           EVAL_GIT_SHA: ${{ inputs.candidate_sha || github.sha }}
-          RESUME_CANDIDATE_SHA: ${{ env.RESUME_CANDIDATE_SHA }}
         run: |
           set -euo pipefail
           if [ -z "$DEEPSEEK_API_KEY" ]; then

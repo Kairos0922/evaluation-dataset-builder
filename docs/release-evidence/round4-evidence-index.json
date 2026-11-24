@@ -1,0 +1,84 @@
+{
+  "schema_version": "1.0.0",
+  "builder_pr_number": 38,
+  "builder": {
+    "run_id": 44959366258,
+    "run_url": "https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44959366258",
+    "artifact_id": 14729741906,
+    "artifact_name": "webapp-testing-builder-result",
+    "candidate_sha": "eb1fa5c21e7b2320e0904bb1cb72a38854b9cbd8"
+  },
+  "independent_validation": {
+    "run_id": 44968128127,
+    "run_url": "https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44968128127",
+    "head_sha": "adbbc64af4dba5bd6291ce72e06c31222c11bfd7",
+    "artifact_id": 14732232796,
+    "artifact_name": "archived-builder-independent-validation"
+  },
+  "replay": {
+    "run_id": 44980451933,
+    "run_url": "https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44980451933",
+    "head_sha": "59d74dd79666c0c6e61f2c8ac53df4b30cc55860",
+    "artifact_id": 14737577420,
+    "artifact_name": "webapp-testing-replay-builder-input",
+    "reused_pilot_artifacts": {
+      "WB-02": {
+        "artifact_id": 14738085222,
+        "artifact_name": "webapp-testing-pilot-WB-02"
+      },
+      "WB-10": {
+        "artifact_id": 14738140416,
+        "artifact_name": "webapp-testing-pilot-WB-10"
+      }
+    },
+    "note": "WB-12 in this earlier replay was quota-blocked; its final completed execution is recorded in final_pilots."
+  },
+  "final_pilots": {
+    "run_id": 45189512695,
+    "run_url": "https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45189512695",
+    "head_sha": "9480a60565ff67be597a1d9afe638daf7f60baa4",
+    "artifact_id": 14824967038,
+    "artifact_name": "round4-wb12-deepseek-output",
+    "cases": [
+      "WB-02",
+      "WB-10",
+      "WB-12"
+    ],
+    "oracle_status": "PASS",
+    "oracle_case_count": 3
+  },
+  "dataset_file_sha256": {
+    "wb-core.jsonl": "000d38b110b60eae902f86737ea6bd1368f98c6632c42a47bb9470a4a08bfc45",
+    "source-map.json": "ae7609b9a42dc37fe190660246c06d687d9cd6fdcca9b9ea1d2795b1b29dd780",
+    "wb-core.manifest.json": "016b3fc6fba3a3e0d61efef58a265d1b82f696db19aee53aec44bf3bca950b0a",
+    "SUITE-MANIFEST.json": "c2096c8618c140add147f02e5bd7fd3b72a521294ff756ce243805911af952fd"
+  },
+  "builder_diagnostic_review": {
+    "expected_status": "FAIL",
+    "expected_issue_ids": [
+      "WB-03-C3",
+      "WB-04-C2",
+      "WB-14-C2"
+    ],
+    "disposition": "HISTORICAL_FALSE_POSITIVE_FLAGS_REVALIDATED_AFTER_LINT_FIX",
+    "explanation": "The original Builder-production job remains FAILURE because the archived output was checked by a flawed static lint that falsely flagged WB-03-C3, WB-04-C2 and WB-14-C2. The linter was fixed on PR #38 head 7f34ddb1a7b7594a819f05584c7373b7b3cb5242; the exact immutable Builder artifact was revalidated in run 45291624154 and the official validator PASSed (15 cases, 0 schema errors, 61 source references). The original output and historical job result were not modified or reclassified; the new validation is separate evidence."
+  },
+  "builder_current_pr_head_sha_at_audit": "7f34ddb1a7b7594a819f05584c7373b7b3cb5242",
+  "quality_status": "needs_info",
+  "execution_status": "NOT_RUN",
+  "unresolved_quality_gap": "BR-09 request-failure/error-recovery evidence gap",
+  "validator_revalidation": {
+    "run_id": 45291624154,
+    "run_url": "https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45291624154",
+    "head_sha": "7f34ddb1a7b7594a819f05584c7373b7b3cb5242",
+    "artifact_id": 14874193103,
+    "artifact_name": "archived-builder-independent-validation",
+    "validator_status": "PASS",
+    "dataset_count": 1,
+    "case_count": 15,
+    "schema_errors": 0,
+    "source_evidence_refs_verified": 61,
+    "no_formal_cases_created_or_modified": true,
+    "no_model_calls": true
+  }
+}

@@ -83,7 +83,8 @@
         "provides cluster identifiers and a retained representative with merge rationale",
         "retains C03 as a distinct cross-tenant permission boundary",
         "retains C04 and C06 when their expected outcomes differ from the status lookup",
-        "reports original count, deduplicated count, and why case count is not inflated"
+        "reports deduplicated count 4 and identifies the retained independent cases C01, C03, C04, and C06",
+        "states the original six cases and explains C02/C05 are wording variants merged into C01, not independent counted cases"
       ]
     },
     {
