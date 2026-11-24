@@ -1,8 +1,12 @@
 # 评测数据集构建 Skill
 
 **版本：** 0.0.1  
-**发布状态：** 发布候选，尚未正式发布  
+**发布状态：** 已正式发布（[GitHub Release v0.0.1](https://github.com/Kairos0922/evaluation-dataset-builder/releases/tag/v0.0.1)）  
 **类型：** Agent Skills 开放格式 Skill
+
+
+
+> **v0.0.1 发布说明：** 本版本已于 2026-11-24 正式发布。发布候选 Skill SHA 为 `e934a079c88f729d8d66abee50a717797d88f9c3`，发布标签绑定的合并提交为 `cacf86c3b5b68098aef4b969b1e5caa4653708f1`。发布评测及 Builder/Pilot 证据的限制和未解决项见 [RELEASE.md](RELEASE.md) 与 [Release 页面](https://github.com/Kairos0922/evaluation-dataset-builder/releases/tag/v0.0.1)。
 
 ## 这个 Skill 是做什么的
 
