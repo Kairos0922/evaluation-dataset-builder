@@ -372,9 +372,9 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn("gh release create", workflow)
         self.assertLess(workflow.index("tagger.create_release_tag()"),
                         workflow.index("gh release create"))
-        self.assertIn("python scripts/update_release_doc.py", workflow)
+        self.assertIn('python "$RUNNER_TEMP/release-tools/scripts/update_release_doc.py"', workflow)
         self.assertLess(workflow.index("gh release create"),
-                        workflow.index("python scripts/update_release_doc.py"))
+                        workflow.index('python "$RUNNER_TEMP/release-tools/scripts/update_release_doc.py"'))
         self.assertIn("pull-requests: read", workflow)
         self.assertIn("actions: read", workflow)
 
@@ -1782,6 +1782,9 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "references/scenario-buckets.md",
             "references/change-impact-and-repair.md",
             "references/dataset-manifest-schema.json",
+            "references/ida-report.schema.json",
+            "references/era-report.schema.json",
+            "references/runtime-record.schema.json",
         }
         for relative_path in required_refs:
             self.assertTrue((SKILL_DIR / relative_path).is_file(), relative_path)
