@@ -174,6 +174,9 @@ def _pair_analysis(records, baseline_revision: str, candidate_revision: str):
         if old["case_id"] != new["case_id"]:
             incomplete.append(pair_id)
             continue
+        if any(old[key] != new[key] for key in ("model", "harness", "environment", "tool_versions")):
+            incomplete.append(pair_id)
+            continue
         if old["status"] != "valid" or new["status"] != "valid":
             incomplete.append(pair_id)
             continue
@@ -231,6 +234,12 @@ def build_era_report(
         raise ValueError("runtime record schema validation failed: " + "; ".join(validation_errors[:20]))
     if not records:
         raise ValueError("runtime record file contains no records")
+    for record in records:
+        record["agent_outcome"] = record["outcomes"]["agent_outcome"]
+        record["process_outcome"] = record["outcomes"]["process_outcome"]
+        record["grader_outcome"] = record["outcomes"]["grader_outcome"]
+        record["gold_outcome"] = record["outcomes"]["gold_outcome"]
+        record["gold_source"] = record["outcomes"]["gold_source"]
 
     dataset_ids = {record["dataset_id"] for record in records}
     dataset_hashes = {record["dataset_sha256"] for record in records}
@@ -451,8 +460,11 @@ def build_era_report(
             rate_metric("REG-07", failure_exposed, len(exposed_rows), "failure_exposure_rate", [evidence_ref], ["Failure exposure and fault detection are separate outcomes."], confidence),
             {
                 "metric_id": "REG-08",
-                "status": "MEASURED" if fault_rows and costs else "NOT_ASSESSED",
-                "value": (sum(costs) / max(1, sum(record["fault"]["detected"] is True for record in fault_rows))) if fault_rows and costs else None,
+                "status": "MEASURED" if fault_rows and any(record["cost"]["cost_usd"] is not None for record in fault_rows) and sum(record["fault"]["detected"] is True for record in fault_rows) > 0 else "NOT_ASSESSED",
+                "value": (
+                    sum(record["cost"]["cost_usd"] for record in fault_rows if record["cost"]["cost_usd"] is not None)
+                    / sum(record["fault"]["detected"] is True for record in fault_rows)
+                ) if fault_rows and any(record["cost"]["cost_usd"] is not None for record in fault_rows) and sum(record["fault"]["detected"] is True for record in fault_rows) > 0 else None,
                 "unit": "usd_per_detected_fault_run",
                 "numerator": None,
                 "denominator": None,
@@ -496,7 +508,6 @@ def build_era_report(
     else:
         capability_result = None
 
-    unique_target = _single_or_multiple([{"target_revision": record["target_revision"]} for record in records], ["target_revision"])
     configurations = _configuration_map(records)
     runs = []
     for record in records:
