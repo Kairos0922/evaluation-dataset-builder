@@ -24,17 +24,17 @@
 
 | ID | 阶段 | 任务 | 状态 | 完成条件 / 证据 |
 |---|---|---|---|---|
-| RQ-01 | 需求 | 将用户需求、对象、用途和双路径评价边界写入仓库 | DONE | requirements.md；Issue #43 |
-| RQ-02 | 需求 | 明确不沿用未验证权重/阈值，并保留 PR #38 历史证据 | DONE | requirements.md §3、§5；PR #38 不在本分支修改 |
-| RS-01 | 研究 | 建立 Agent Benchmark、Construct Validity 和测量学证据库 | DONE | research-evidence.md；仍需后续复核 |
+| RQ-01 | 需求 | 将用户需求、对象、用途和双路径评价边界写入仓库 | DONE | requirements.md；Issue #43；commit ec5b629 |
+| RQ-02 | 需求 | 明确不沿用未验证权重/阈值，并保留 PR #38 历史证据 | DONE | requirements.md §3、§5；PR #38 不在本分支修改；decision-log.md D-003/D-006 |
+| RS-01 | 研究 | 建立 Agent Benchmark、Construct Validity 和测量学证据库 | DONE | research-evidence.md；NeurIPS ABC / Construct Validity、OECD/JRC、SkillsBench、Agentic Skills at Scale、SkillForgeBench 等来源已记录；commit e8c60fa + 后续研究补充 |
 | RS-02 | 研究 | 深入复核内容效度、评分者一致性、IRT/G-Theory、复合指标和阈值方法 | TODO | 文献矩阵、适用条件和研究限制完整 |
 | RS-03 | 研究 | 复核通用 Agent / Skill 运行效标、历史故障、变异和 Judge 验证实践 | TODO | 形成可执行效标定义与来源 |
-| DS-01 | 设计 | 完成离线独立质量评价方法和维度操作定义 | IN_PROGRESS | 每项指标定义、公式、数据来源、缺失处理和适用性 |
-| DS-02 | 设计 | 完成真实运行评价方法，区分 Agent / 环境 / Judge 误差 | IN_PROGRESS | 运行协议、统计指标、证据契约 |
+| DS-01 | 设计 | 完成离线独立质量评价方法和维度操作定义 | IN_PROGRESS | methodology-design.md 已建立 IDA 结构；仍需完成指标字典、评分锚点和专家审核协议 |
+| DS-02 | 设计 | 完成真实运行评价方法，区分 Agent / 环境 / Judge 误差 | IN_PROGRESS | methodology-design.md 已建立 ERA 结构；formula-validation-protocol.md 已定义误差分解和效标；仍需形成可执行运行协议 |
 | DS-03 | 设计 | 设计 Capability 专属评价与统计方案 | TODO | IRT/区分度/测量精度/泛化方案及假设 |
 | DS-04 | 设计 | 设计 Regression 专属评价与统计方案 | TODO | 配对变化/历史故障/Mutation/Flakiness 方案 |
-| FM-01 | 公式 | 定义构念蓝图、指标类型和候选公式模型族 | TODO | 说明形成性/反映性、非补偿门禁、候选聚合函数 |
-| FM-02 | 公式 | 设计公式构建、权重来源、阈值选择与敏感性分析协议 | TODO | 冻结开发/验证切分和分析计划 |
+| FM-01 | 公式 | 定义构念蓝图、指标类型和候选公式模型族 | DONE | methodology-design.md §3、§5；formula-validation-protocol.md §2、§5；commit f84ef13 + b6cd238 |
+| FM-02 | 公式 | 设计公式构建、权重来源、阈值选择与敏感性分析协议 | IN_PROGRESS | formula-validation-protocol.md 已形成协议草案；需进一步预注册统计分析、外部效标和决策成本方案 |
 | FM-03 | 公式 | 建立独立效度验证实验与证明报告 | TODO | 专家盲评、缺陷注入、外部效标、泛化和不确定性证据 |
 | SC-01 | 方案 | 冻结 v0.0.2 需求、架构和验收标准 | TODO | 需求评审决议、设计基线 commit |
 | IM-01 | 实现 | 设计并实现 IDA 报告 Schema / 机器可读契约 | TODO | Schema + 正反例测试 |
@@ -74,4 +74,4 @@
 
 | 日期 | 变更 |
 |---|---|
-| 2026-11-25 | 建立 v0.0.2 任务清单；RQ-01、RQ-02、RS-01 完成；DS-01、DS-02 开始。 |
+| 2026-11-25 | 建立需求、研究证据库、双路径方法论、公式验证协议和设计决策；RQ-01、RQ-02、RS-01、FM-01 完成；DS-01、DS-02、FM-02 进行中。 |
