@@ -21,13 +21,13 @@ mutation_classes:
     - mutation_id: IDA-M03
       defect: manifest_case_count_mismatch
       deterministic: true
-      expected_signals: ["IDA-STR-02<1", "G07_integrity_leakage=FAIL", "overall_status=FAIL"]
+      expected_signals: ["IDA-STR-02.status=FAIL", "G07_integrity_leakage=FAIL", "overall_status=FAIL"]
       method: "Change manifest.case_count without changing the JSONL record count."
       limitation: "Does not assess whether the declared task universe is complete."
     - mutation_id: IDA-M04
       defect: case_dataset_id_mismatch
       deterministic: true
-      expected_signals: ["IDA-STR-02<1", "G07_integrity_leakage=FAIL", "overall_status=FAIL"]
+      expected_signals: ["IDA-STR-02.status=FAIL", "G07_integrity_leakage=FAIL", "overall_status=FAIL"]
       method: "Change one case.dataset_id to a different dataset identifier."
       limitation: "Only tests identifier consistency."
     - mutation_id: IDA-M05
