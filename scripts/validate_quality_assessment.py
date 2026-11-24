@@ -84,6 +84,18 @@ def _validate_composite(report: dict) -> list[str]:
             errors.append("VALIDATED_FOR_SCOPE requires sufficient_for_scope evidence")
         if critical_blockers:
             errors.append("VALIDATED_FOR_SCOPE is forbidden while critical gates are unresolved")
+        if report["assessment_type"] == "empirical_runtime_assessment":
+            if not any(run["status"] == "valid" for run in report["runs"]):
+                errors.append("VALIDATED_FOR_SCOPE requires at least one valid runtime run")
+            if report["grader_validation"]["status"] != "PASS":
+                errors.append("VALIDATED_FOR_SCOPE requires validated grader evidence")
+            purpose = report["evaluation_purpose"]
+            if purpose in {"capability", "both"}:
+                if report["capability_analysis"]["status"] != "PASS":
+                    errors.append("VALIDATED_FOR_SCOPE requires completed capability analysis")
+            if purpose in {"regression", "both"}:
+                if report["regression_analysis"]["status"] != "PASS":
+                    errors.append("VALIDATED_FOR_SCOPE requires completed regression analysis")
     return errors
 
 
