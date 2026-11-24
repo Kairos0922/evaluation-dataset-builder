@@ -128,3 +128,24 @@ python scripts/assess_runtime_quality.py \
 记录必须包含精确的数据集 SHA、Agent/Skill 目标版本、模型、Harness、环境、工具、运行状态、轨迹、结果、Agent/Process/Judge/Gold outcomes、故障注入信息和成本字段。
 
 分析器当前计算描述性通过率、Judge false pass/false fail/abstention、历史故障与变异检出、配对版本差异、McNemar exact p-value、重复运行不一致和成本画像。它不会自动执行 Agent，也不会把统计量解释为合格阈值。Capability 的 IRT、DIF、测量不变性和 G-Theory 仍需单独建模与验证。
+
+## 综合公式验证证据
+
+任何候选综合分都必须附带独立验证报告，报告格式由 `schemas/formula-validation.schema.json` 定义，并由 Skill 随包提供的同名 Schema 约束。
+
+校验命令：
+
+```bash
+python scripts/validate_formula_validation.py path/to/formula-validation-report.json
+```
+
+验证器会检查：
+- 开发、校准、验证和外部数据集家族是否隔离；
+- 是否有独立、盲法专家评审和评分者一致性证据；
+- 是否有受控缺陷检出结果；
+- 是否有独立外部效标；
+- 是否完成权重、标准化、聚合和维度敏感性分析；
+- 若启用标量分数，是否有基于决策损失的阈值验证；
+- 是否保留可复现代码、commit、随机种子和证据引用。
+
+未完成这些证据时，验证报告状态应为 NOT_VALIDATED，标量分数必须保持关闭。验证器的结构通过仅证明证据包符合契约，不代表证据本身真实或结论有效，仍需独立审计。
