@@ -161,4 +161,5 @@ approved 不代表 EXECUTION_VERIFIED。不得把设计完成、结构校验通�
 - 需要统一术语、状态或机器字段定义：读取 `references/terminology.md`。
 - 生成独立离线评价报告：读取 `references/ida-report.schema.json`。
 - 生成真实环境运行评价报告：读取 `references/era-report.schema.json`。
+- 规范化真实运行轨迹记录：读取 `references/runtime-record.schema.json`。
 - 业务规则、来源、目标或判定标准发生变化：读取 `references/change-impact-and-repair.md`。
