@@ -188,6 +188,73 @@ class OfflineDatasetAssessmentTests(unittest.TestCase):
             self.assertEqual(report["overall_status"], "FAIL")
             self.assertEqual(validate_report(report), [])
 
+    def test_dataset_id_mismatch_fails_identifier_integrity(self):
+        case = sample_case()
+        case["dataset_id"] = "another-dataset"
+        with tempfile.TemporaryDirectory() as tmp:
+            report, _, _, _, _ = self.run_assessment(
+                Path(tmp), sample_manifest(), [case]
+            )
+            self.assertEqual(report["overall_status"], "FAIL")
+            gate = next(item for item in report["gate_results"] if item["gate_id"] == "G07_integrity_leakage")
+            self.assertEqual(gate["status"], "FAIL")
+            self.assertEqual(validate_report(report), [])
+
+    def test_unresolved_source_registry_entry_fails_provenance_gate(self):
+        case = sample_case()
+        case["source_refs"][0]["source_id"] = "MISSING-SOURCE"
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            manifest_path, cases_path, output_path = self.write_inputs(
+                directory, sample_manifest(), [case]
+            )
+            registry_path = directory / "sources.json"
+            registry_path.write_text(json.dumps({
+                "sources": [{
+                    "source_id": "SRC-001",
+                    "source_type": "synthetic_scenario",
+                    "title": "Synthetic tool-use exercise"
+                }]
+            }), encoding="utf-8")
+            report, _, _, _, source_errors = build_report(
+                manifest_path, cases_path, output_path, "both", registry_path
+            )
+            self.assertTrue(source_errors)
+            gate = next(item for item in report["gate_results"] if item["gate_id"] == "G01_source_provenance")
+            self.assertEqual(gate["status"], "FAIL")
+            self.assertEqual(report["overall_status"], "FAIL")
+            self.assertEqual(validate_report(report), [])
+
+    def test_missing_source_references_are_reported_without_claiming_source_validity(self):
+        case = sample_case()
+        case["source_refs"] = []
+        with tempfile.TemporaryDirectory() as tmp:
+            report, _, _, _, _ = self.run_assessment(
+                Path(tmp), sample_manifest(), [case]
+            )
+            source_metric = next(item for item in report["metric_results"] if item["metric_id"] == "IDA-EVD-00")
+            self.assertEqual(source_metric["value"], 0.0)
+            self.assertTrue(any(item["severity"] == "high" and "source reference" in item["description"] for item in report["findings"]))
+            gate = next(item for item in report["gate_results"] if item["gate_id"] == "G01_source_provenance")
+            self.assertEqual(gate["status"], "UNKNOWN")
+            self.assertEqual(report["overall_status"], "PARTIAL")
+            self.assertEqual(validate_report(report), [])
+
+    def test_coverage_declaration_mismatch_is_a_warning_not_a_false_pass(self):
+        manifest = sample_manifest()
+        manifest["coverage"]["dimensions"][0]["covered"] = 0
+        manifest["coverage"]["dimensions"][0]["coverage_rate"] = 0.0
+        with tempfile.TemporaryDirectory() as tmp:
+            report, _, _, coverage_errors, _ = self.run_assessment(
+                Path(tmp), manifest, [sample_case()]
+            )
+            self.assertTrue(coverage_errors)
+            metric = next(item for item in report["metric_results"] if item["metric_id"] == "IDA-COV-00")
+            self.assertEqual(metric["status"], "MEASURED")
+            self.assertTrue(any(item["severity"] == "medium" for item in report["findings"]))
+            self.assertEqual(report["overall_status"], "PARTIAL")
+            self.assertEqual(validate_report(report), [])
+
 
 if __name__ == "__main__":
     unittest.main()
