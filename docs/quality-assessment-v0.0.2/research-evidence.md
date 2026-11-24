@@ -185,3 +185,62 @@
 - Regression 的历史故障回放与缺陷注入效标之间的互补性。
 - 数据集分层、域外验证和 contamination audit 的具体协议。
 - 候选综合模型的非补偿聚合、模型不确定性和决策阈值选择。
+
+
+## 8. 内容效度与专家评审量化
+
+### 8.1 CVI / CVR / Aiken's V
+
+- Lynn (1986) 与 Polit & Beck 等内容效度方法的实践说明：https://cran.r-project.org/web/packages/contentValidity/vignettes/getting-started.html
+- 专家评审设计、报告要素与限制：https://cran.case.edu/web/packages/contentvalidR/vignettes/expert-panel-validity.html
+- CVI / CVR 计算及置信区间说明：https://yelleknek.github.io/DMAR/reference/content_validity_index.html
+
+**适用性：** 可用于专家对指标/条目相关性、必要性和构念覆盖的结构化判断。I-CVI、S-CVI/Ave、S-CVI/UA、Modified Kappa、Aiken's V 和 Lawshe CVR 回答的问题不同，不能互换。应报告专家数量、评分量表、缺失、置信区间和定性意见。
+
+**限制：** CVI 不能单独证明内容完整性或整体构念效度；小专家组比例容易受偶然一致影响。常见经验阈值依赖专家人数和评分设计，不应直接变成通用 Agent / Skill 评分门槛。
+
+## 9. IRT 与样本量设计
+
+### 9.1 IRT 应用于 NLP 评测集
+
+- Vania et al., Building an Evaluation Scale using Item Response Theory
+- EMNLP 2016
+- DOI：https://doi.org/10.18653/v1/D16-1062
+- 全文：https://pmc.ncbi.nlm.nih.gov/articles/PMC5167538/
+
+**贡献：** 在自然语言推理任务中使用 IRT 估计题目难度和区分度，并指出相同准确率可能对应不同测量信息。
+
+**适用性：** 为 Capability Evaluation 使用 IRT 提供 NLP 评测领域先例。
+
+**限制：** 研究对象是 RTE 与人类响应，不代表任意 Agent × Tool × Environment 响应矩阵自动满足 IRT 假设。
+
+### 9.2 IRT 样本量
+
+- Sample-Size Planning in Item-Response Theory: A Tutorial
+- https://journals.sagepub.com/doi/10.1177/25152459251314798
+
+**适用性：** 样本量规划应围绕题目参数估计精度、题目难度分布和模型条件进行，而不是套用统一经验样本数。
+
+## 10. Generalizability Theory（G-Theory）
+
+- Generalizability Theory Made Simple(r)：https://pmc.ncbi.nlm.nih.gov/articles/PMC6699529/
+- How to Optimize Measurement Protocols Using G-Theory：https://pmc.ncbi.nlm.nih.gov/articles/PMC7238938/
+- Stanford AI Measurement Science 教材：https://aims.stanford.edu/textbook/AI-Measurement-Science.pdf
+
+**核心方法：** G-study 估计被测对象、任务、评分者、场次/seed、环境等 facet 及其交互带来的方差；D-study 使用方差分量分析不同任务数、评分者数和重复次数对测量精度的影响。
+
+**适用性：** 对 Agent 运行结果，可将 Agent、Task、Seed、Environment、Judge 视为潜在 facet，但需按实际运行结构选择 crossed / nested 设计，不能机械地把所有因素都当成独立随机项。
+
+**限制：** 结果依赖目标总体、facet 定义和采样设计；G 系数/Φ 系数不是跨场景通用可靠性数字。必须说明相对排序还是绝对判定，并报告方差分量和设计假设。
+
+## 11. 回归测试：故障检出与失败暴露是不同属性
+
+- Ayad et al., Detecting faults vs. Exposing failures: Orthogonal measures of test suite effectiveness
+- Journal of Systems and Software, 230 (2025), 112450
+- DOI：https://doi.org/10.1016/j.jss.2025.112450
+
+**贡献：** 研究区分 fault detection 与 failure exposure，并提出两者可能是统计上不同的测试套件属性。测试可能检测到某种缺陷，却未能把失败清楚暴露给使用者或判定流程。
+
+**适用性：** Regression Evaluation 应分别检查是否触发/发现故障，以及是否产生可观察、可审计、可解释的失败证据。
+
+**限制：** 研究来自传统软件测试；Agent 环境中的故障、状态偏差、行为失败和证据暴露需要重新定义并实证检验。
