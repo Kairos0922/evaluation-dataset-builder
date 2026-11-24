@@ -268,40 +268,85 @@ def main():
     else:
         try:
             config = yaml.safe_load(read_skill_text("references/quality-standard.yaml"))
-            weights = config["scoring"]["weights"]
-            check(sum(weights.values()) == 100, "质量评分权重之和必须为 100")
-            check(all(isinstance(v, (int, float)) and 0 < v <= 100 for v in weights.values()),
-                  "质量评分权重必须为 0 到 100 之间的正数")
-            check(bool(config["scoring"]["critical_gates"]), "质量标准缺少关键门禁")
-            required_dataset_checks = {
-                "business_model_traceability", "gap_priority_coverage", "grading_contract_consistency",
-                "synthetic_case_labeling", "observable_assertion_coverage",
-                "trace_evidence_coverage", "change_impact_traceability"
+            standard = config.get("standard", {})
+            check(standard.get("id") == "agent-skill-dataset-quality",
+                  "质量标准 id 无效")
+            check(standard.get("version") == "2.0.0",
+                  "质量标准版本必须为 2.0.0")
+            check(standard.get("applies_to_release") == "0.0.2",
+                  "质量标准必须声明适用于 0.0.2")
+            check(set(standard.get("targets", [])) ==
+                  {"agent", "skill", "agent_with_skill"},
+                  "质量标准必须覆盖通用 Agent、Skill 和 Agent+Skill")
+            check(set(standard.get("purposes", [])) ==
+                  {"capability", "regression", "both"},
+                  "质量标准必须支持 Capability 与 Regression")
+
+            paths = config.get("assessment_paths", {})
+            independent = paths.get("independent", {})
+            runtime = paths.get("runtime", {})
+            check(independent.get("id") == "IDA" and
+                  independent.get("requires_agent_execution") is False and
+                  independent.get("runtime_metrics_allowed") is False,
+                  "IDA 必须是独立离线评价且不得包含运行专属指标")
+            check(runtime.get("id") == "ERA" and
+                  runtime.get("requires_agent_execution") is True and
+                  runtime.get("requires_exact_version_binding") is True,
+                  "ERA 必须要求真实运行和精确版本绑定")
+            for assessment in (independent, runtime):
+                schema_ref = assessment.get("report_schema")
+                check(isinstance(schema_ref, str) and (ROOT / schema_ref).is_file(),
+                      f"缺少评价报告 Schema：{schema_ref}")
+
+            required_gates = {
+                "G01_source_provenance", "G02_construct_alignment",
+                "G03_task_solvability", "G04_ground_truth_validity",
+                "G05_rubric_validity", "G06_safety_authorization",
+                "G07_integrity_leakage", "G08_runtime_auditability"
             }
-            dataset_checks = set(config.get("checks", {}).get("dataset_level", []))
-            check(required_dataset_checks.issubset(dataset_checks),
-                  "机器可读质量标准缺少必要的数据集级检查项")
+            configured_gates = set(config.get("critical_gates", []))
+            check(required_gates.issubset(configured_gates),
+                  "质量标准缺少必要的关键门禁")
+            check(len(configured_gates) == len(config.get("critical_gates", [])),
+                  "关键门禁不得重复")
+
+            composite = config.get("composite", {})
+            check(composite.get("enabled_by_default") is False,
+                  "未验证的综合评分不得默认启用")
+            check(composite.get("status") == "NOT_VALIDATED",
+                  "综合评分初始状态必须为 NOT_VALIDATED")
+            check(composite.get("value") is None and
+                  composite.get("weights") is None and
+                  composite.get("thresholds") is None,
+                  "未验证的综合评分不得设置数值、权重或阈值")
+            check(bool(composite.get("candidate_models")),
+                  "必须保留候选模型族以供实证比较")
+
+            for key in ("validation_protocol", "validation_experiments"):
+                ref = composite.get(key)
+                check(isinstance(ref, str) and (ROOT / ref).is_file(),
+                      f"综合公式缺少验证依据文件：{ref}")
+
+            governance = config.get("governance", {})
+            for key in ("metric_catalog", "methodology", "research_evidence"):
+                ref = governance.get(key)
+                check(isinstance(ref, str) and (ROOT / ref).is_file(),
+                      f"质量标准缺少治理引用：{ref}")
+            check(governance.get("no_unvalidated_thresholds") is True,
+                  "必须禁止未经验证的阈值")
+            check(governance.get("no_compensation_for_critical_gate_failure") is True,
+                  "关键门禁失败不得被其他维度补偿")
+            check(governance.get("report_evidence_sufficiency_separately") is True,
+                  "必须单独报告证据充分性")
 
             markdown = read_skill_text("references/quality-standard.md")
-            markdown_weights = {}
-            for line in markdown.splitlines():
-                item = re.match(r"\|\s*([a-z][a-z0-9_]*)\s*\|[^|]+\|\s*(\d+(?:\.\d+)?)%\s*\|", line)
-                if item:
-                    markdown_weights[item.group(1)] = float(item.group(2))
-            yaml_weights = {k: float(v) for k, v in weights.items()}
-            check(markdown_weights == yaml_weights,
-                  "quality-standard.md 的权重必须与 quality-standard.yaml 完全一致")
-            case_gate_keys = {
-                item.get("key") for item in config.get("checks", {}).get("case_level", [])
-                if isinstance(item, dict)
-            }
-            configured_gates = set(config.get("scoring", {}).get("critical_gates", []))
-            check(case_gate_keys == configured_gates,
-                  "critical_gates 必须与 case_level 检查项完全一致")
-            check(len(configured_gates) == len(config.get("scoring", {}).get("critical_gates", [])),
-                  "critical_gates 不得包含重复项")
-            check(len(dataset_checks) == len(config.get("checks", {}).get("dataset_level", [])),
-                  "dataset_level 检查项不得重复")
+            check("独立离线评价（IDA）" in markdown and
+                  "真实环境运行评价（ERA）" in markdown,
+                  "质量标准文档必须分别定义 IDA 与 ERA")
+            check("当前标准不提供已验证的通用综合分" in markdown,
+                  "质量标准必须明确当前没有已验证的通用综合分")
+            check("不预设" in markdown or "不得" in markdown,
+                  "质量标准必须明确禁止未经验证的权重或阈值")
         except Exception as exc:
             fail(f"质量标准配置无效：{exc}")
 
