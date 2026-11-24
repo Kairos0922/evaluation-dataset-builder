@@ -65,6 +65,15 @@ def validate_formula_validation_report(report: dict) -> list[str]:
         errors.append("expert_validation must PASS with blinded and independent reviewers")
     if expert["reviewer_count"] < 2 or not expert["agreement_metrics"]:
         errors.append("expert_validation requires at least two reviewers and an inter-rater agreement result")
+    if len(expert["reviewer_profiles"]) < expert["reviewer_count"]:
+        errors.append("reviewer_profiles must identify each independent reviewer")
+    content_validity = expert["content_validity"]
+    if not content_validity.get("method") or all(
+        content_validity.get(key) is None for key in ("cvi", "cvr", "aikens_v")
+    ):
+        errors.append("expert_validation requires a documented content-validity method and result")
+    if not expert["raw_data_ref"]:
+        errors.append("expert_validation.raw_data_ref must identify the blinded review data")
 
     mutation = report["mutation_validation"]
     if mutation["status"] != "PASS":
@@ -73,6 +82,8 @@ def validate_formula_validation_report(report: dict) -> list[str]:
         errors.append("mutation_validation.mutation_count must be positive")
     if mutation["detected_count"] > mutation["mutation_count"]:
         errors.append("mutation_validation.detected_count cannot exceed mutation_count")
+    if not mutation["results_ref"]:
+        errors.append("mutation_validation.results_ref must identify the mutation result evidence")
 
     external = report["external_criterion_validation"]
     if external["status"] != "PASS" or not external["criteria"]:
@@ -83,8 +94,25 @@ def validate_formula_validation_report(report: dict) -> list[str]:
     robustness = report["robustness"]
     if robustness["status"] != "PASS":
         errors.append("robustness.status must be PASS")
+    for key in (
+        "weight_sensitivity", "normalization_sensitivity", "aggregation_sensitivity",
+        "leave_one_dimension_out", "rank_or_grade_instability"
+    ):
+        result = robustness[key]
+        if result["sample_count"] <= 0 or result["value"] is None:
+            errors.append(f"robustness.{key} requires an observed result and non-zero sample count")
+
+    uncertainty = report["uncertainty"]
+    if uncertainty["confidence_level"] is None or not uncertainty["reported_intervals"]:
+        errors.append("validated models require uncertainty intervals and a declared confidence level")
+    if any("bootstrap" in method.lower() for method in uncertainty["methods"]) and report["reproducibility"]["random_seed"] is None:
+        errors.append("bootstrap-based validation requires a recorded random seed")
 
     if scalar_enabled:
+        if model["weights_source"] == "none":
+            errors.append("a scalar score requires a documented weight source")
+        if not model["hard_gates"]:
+            errors.append("a scalar score requires explicit non-compensatory hard gates")
         if model["weights"] is None or not model["weights"]:
             errors.append("a scalar score requires non-empty empirically justified weights")
         elif sum(model["weights"].values()) <= 0:
@@ -94,8 +122,8 @@ def validate_formula_validation_report(report: dict) -> list[str]:
         threshold = report["threshold_validation"]
         if threshold["status"] != "PASS":
             errors.append("threshold_validation.status must be PASS for scalar score enablement")
-        if threshold["selected_threshold"] is None or not threshold["candidate_thresholds"]:
-            errors.append("threshold validation requires candidate and selected thresholds")
+        if threshold["selected_threshold"] is None or not threshold["candidate_thresholds"] or not threshold["validation_results"]:
+            errors.append("threshold validation requires candidate thresholds, a selected threshold and validation results")
     else:
         if model["weights"] is not None or model["thresholds"] is not None:
             errors.append("a validated vector profile must not publish scalar weights or thresholds")
