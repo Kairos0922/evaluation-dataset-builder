@@ -102,6 +102,7 @@ composite:
     - purpose_specific
     - latent_variable_if_assumptions_hold
   validation_protocol: https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/docs/quality-assessment-v0.0.2/formula-validation-protocol.md
+  validation_report_schema: formula-validation.schema.json
   validation_experiments: https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/docs/quality-assessment-v0.0.2/experimental-design.md
 
 governance:
