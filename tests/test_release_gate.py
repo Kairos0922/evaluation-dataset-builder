@@ -654,13 +654,13 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
     def test_release_document_is_marked_published_only_with_evidence(self):
         current = (
-            "# 0.0.1 发布候选说明\\n\\n"
-            "**状态：** 尚未正式发布\\n\\n"
-            "## 发布门禁\\n"
-            "- [ ] Builder 正式生成的评测套件通过独立验证。\\n"
-            "- [ ] 三条真实 Skill 试运行完成并有可复核证据。\\n"
-            "- [ ] 核心行为测试达到预设阈值，并提供可审查报告。\\n"
-            "- [ ] 匹配基线和重复运行稳定性检查通过。\\n"
+            "# 0.0.1 发布候选说明\n\n"
+            "**状态：** 尚未正式发布\n\n"
+            "## 发布门禁\n"
+            "- [ ] Builder 正式生成的评测套件通过独立验证。\n"
+            "- [ ] 三条真实 Skill 试运行完成并有可复核证据。\n"
+            "- [ ] 核心行为测试达到预设阈值，并提供可审查报告。\n"
+            "- [ ] 匹配基线和重复运行稳定性检查通过。\n"
         )
         report = {
             "models": {"generator": "qwen-test", "judge_and_trigger": "judge-test"},
