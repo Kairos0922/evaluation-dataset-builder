@@ -167,3 +167,6 @@ v0.0.1 的固定权重和等级阈值没有足够的独立效度证据，不作�
 - docs/quality-assessment-v0.0.2/experimental-design.md
 
 标准、Schema、指标定义、验证器和报告必须版本一致。修改评分规则时，记录理由、证据、影响范围和是否需要重新验证。
+
+
+综合公式的独立验证证据必须符合随包提供的 Formula Validation Report Schema，并由独立验证器检查。
