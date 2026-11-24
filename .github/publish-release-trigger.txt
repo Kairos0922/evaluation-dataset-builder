@@ -1,5 +1,0 @@
-# Explicit release authorization recorded after user instruction to skip independent review and proceed with v0.0.1 publication.
-confirm_publish=true
-release_pr_number=42
-candidate_sha=e934a079c88f729d8d66abee50a717797d88f9c3
-builder_evidence_pr_number=38
