@@ -214,7 +214,12 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, evalu
     version = manifest.get("version", "unknown")
     digest = dataset_digest(manifest_bytes, cases_bytes)
     case_ids = [case.get("case_id") for case in cases]
-    duplicate_ids = sorted({case_id for case_id in case_ids if case_ids.count(case_id) > 1})
+    valid_case_ids = [case_id for case_id in case_ids if isinstance(case_id, str) and case_id]
+    missing_case_ids = [
+        case.get("case_id", "<missing-id>")
+        for case in cases if not isinstance(case.get("case_id"), str) or not case.get("case_id")
+    ]
+    duplicate_ids = sorted({case_id for case_id in valid_case_ids if valid_case_ids.count(case_id) > 1})
     dataset_mismatches = [
         case.get("case_id", "<missing-id>")
         for case in cases if case.get("dataset_id") != dataset_id
@@ -229,7 +234,6 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, evalu
         for bucket in case.get("scenario_bucket", [])
     )
     source_case_count = sum(bool(case.get("source_refs")) for case in cases)
-    source_reference_count = sum(len(case.get("source_refs", [])) for case in cases)
     criteria_count = sum(
         len(case.get("grading", {}).get("criteria", []))
         for case in cases
@@ -245,7 +249,7 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, evalu
             f"manifest case_count={manifest.get('case_count')} but JSONL contains {len(cases)} cases"
         )
 
-    dataset_id_integrity_ok = not duplicate_ids and not dataset_mismatches and not count_mismatch
+    dataset_id_integrity_ok = not duplicate_ids and not missing_case_ids and not dataset_mismatches and not count_mismatch
     schema_ok = not structural_errors
     source_presence_rate = source_case_count / len(cases) if cases else None
     exact_duplicate_rate = exact_duplicate_case_count / len(cases) if cases else None
@@ -276,6 +280,15 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, evalu
             "evidence_refs": evidence_refs,
             "affected_case_ids": [case_id],
             "recommendation": "为每条用例分配唯一稳定标识，并检查是否存在重复记录。"
+        })
+    for case_id in missing_case_ids:
+        findings.append({
+            "finding_id": f"MISSING-ID-{len(findings) + 1:03d}",
+            "severity": "critical",
+            "description": "A case is missing a non-empty case_id.",
+            "evidence_refs": evidence_refs,
+            "affected_case_ids": [str(case_id)],
+            "recommendation": "为每条用例分配唯一且非空的稳定 case_id。"
         })
     for case_id in dataset_mismatches:
         findings.append({
@@ -409,22 +422,32 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, evalu
         metric(
             "IDA-STR-01",
             ("NOT_APPLICABLE" if not cases else "PASS" if schema_ok else "FAIL"),
-            valid_case_count / len(cases) if cases else None,
-            "proportion_of_cases_passing_schema",
+            valid_case_count / (len(cases) + len(parse_errors)) if (len(cases) + len(parse_errors)) else None,
+            "proportion_of_case_records_passing_schema",
             evidence_refs,
-            ["Schema conformance does not prove semantic validity."],
+            ["Schema conformance does not prove semantic validity; invalid JSONL records count as failed records."],
             valid_case_count,
-            len(cases)
+            len(cases) + len(parse_errors)
         ),
         metric(
             "IDA-STR-02",
             ("NOT_APPLICABLE" if not cases else "PASS" if dataset_id_integrity_ok else "FAIL"),
-            (len(set(case_ids)) / len(case_ids)) if case_ids else None,
-            "unique_case_id_proportion",
+            (len(set(valid_case_ids)) / len(case_ids)) if case_ids else None,
+            "unique_non_empty_case_id_proportion",
             evidence_refs,
             ["This checks identifiers and manifest consistency, not semantic duplicate cases."],
-            len(set(case_ids)),
+            len(set(valid_case_ids)),
             len(case_ids)
+        ),
+        metric(
+            "IDA-STR-03",
+            source_status,
+            resolved_sources / total_sources if total_sources else None,
+            "source_registry_resolution_rate",
+            evidence_refs,
+            ["Registry resolution does not prove source authenticity or claim support."],
+            resolved_sources if total_sources else None,
+            total_sources if total_sources else None
         ),
         metric(
             "IDA-EVD-00",
