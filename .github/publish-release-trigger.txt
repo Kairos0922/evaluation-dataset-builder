@@ -5,3 +5,5 @@ candidate_sha=e934a079c88f729d8d66abee50a717797d88f9c3
 builder_evidence_pr_number=38
 
 # Retry after correcting the diagnostic runner module path.
+
+# Retry after isolating GitHub API authorization from object-storage redirects.
