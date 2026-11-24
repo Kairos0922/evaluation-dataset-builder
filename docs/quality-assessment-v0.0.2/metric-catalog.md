@@ -20,8 +20,15 @@
 
 | ID | 指标 | 操作性定义 / 计算 | 证据来源 | 指标类型 | 限制 |
 |---|---|---|---|---|---|
-| IDA-STR-01 | Schema Conformance | 满足适用 Schema 约束的对象数 / 被检查对象数；同时报告违反项 | JSON Schema Validator | 确定性门禁 | 结构通过不证明语义正确 |
-| IDA-STR-02 | Referential Integrity | 可解析且身份一致的引用数 / 所有要求解析的引用数 | Source Map、路径、SHA、ID | 确定性门禁 | 引用可解析不证明来源支持声明 |
+| IDA-STR-00 | Manifest Schema Conformance | 通过清单 Schema 的状态及违反项 | JSON Schema Validator | 确定性门禁 | 结构通过不证明声明内容真实 |
+| IDA-STR-01 | Case Schema Conformance | 满足用例 Schema 约束的用例数 / 被检查用例数 | JSON Schema Validator | 确定性门禁 | 结构通过不证明语义正确 |
+| IDA-STR-02 | Identifier Integrity | 唯一 case_id 数 / 用例总数，并检查 dataset_id 与 manifest 一致、case_count 一致 | Case IDs、Manifest | 确定性门禁 | 不等于语义去重 |
+| IDA-STR-03 | Source Registry Referential Integrity | 能在独立来源注册表解析且身份字段一致的 source_ref 数 / 待解析 source_ref 总数 | 独立 Source Registry | 确定性门禁 | 不证明来源真实或支持主张；无注册表时 UNKNOWN |
+| IDA-EVD-00 | Source Reference Presence | 至少有一条 source_ref 的用例数 / 用例总数 | Case source_refs | 描述性 | 仅测引用是否存在，不证明来源真实性或主张支持 |
+| IDA-COV-00 | Coverage Consistency Profile | 比较 Manifest 声明的 covered/total/rate 与 Case 标签中的 coverage_item_id 统计 | Manifest、Case coverage_tags | 描述性 | 只检查内部一致性，不证明覆盖全集完整 |
+| IDA-DIV-01 | Scenario Distribution | 按 scenario_bucket 统计用例数量 | Case metadata | 描述性 | 分布均匀不天然等于代表性 |
+| IDA-RED-00 | Exact Duplicate Payload Rate | 去除 case_id 后，规范化 JSON 完全相同的冗余用例数 / 用例总数 | Canonical case payload | 描述性 | 不识别语义重复 |
+| IDA-RUB-00 | Grading Criteria Inventory | 统计评分标准数量及其分布 | Case grading.criteria | 描述性 | 数量不证明完整性或效度 |
 | IDA-EVD-01 | Source Claim Support | 经独立核验确实支持对应主张的引用数 / 抽审引用数 | 原始来源、盲审 | 专家/证据判断 | 必须说明抽样方法和评审一致性 |
 | IDA-EVD-02 | Ground Truth Correctness | 经独立 Oracle/专家确认正确的参考结果数 / 已核验参考结果数 | Oracle、专家、确定性状态 | 门禁/效标 | 没有可信参考标准时为 NOT_ASSESSED |
 | IDA-CON-01 | Construct Alignment | 专家判断任务确实需要目标能力的比例及分歧分布 | 目标构念蓝图、盲审 | 内容效度 | 不能只由生成模型自评 |
