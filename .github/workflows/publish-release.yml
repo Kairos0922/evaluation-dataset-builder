@@ -121,7 +121,7 @@ jobs:
           RELEASE_BUILDER_PR_NUMBER: ${{ steps.release-inputs.outputs.builder_evidence_pr_number }}
         run: |
           python - <<'PY'
-          import runpy
+          import importlib
           import sys
           import urllib.error
           import urllib.request
@@ -171,7 +171,34 @@ jobs:
 
           urllib.request.urlopen = traced_urlopen
           sys.path.insert(0, "scripts")
-          runpy.run_path("scripts/create_release_tag.py", run_name="__main__")
+          tagger = importlib.import_module("create_release_tag")
+
+          def skill_package_tree_signature(repo, commit_sha, token):
+              commit = tagger.api_request(
+                  f"/repos/{repo}/git/commits/{commit_sha}", token
+              )
+              root_tree_sha = (commit.get("tree") or {}).get("sha")
+              tagger.require(bool(root_tree_sha),
+                             f"Commit {commit_sha} does not expose a Git tree.")
+              tree = tagger.api_request(
+                  f"/repos/{repo}/git/trees/{root_tree_sha}?recursive=1", token
+              )
+              tagger.require(tree.get("truncated") is False,
+                             "Skill package tree response was truncated.")
+              prefix = "skills/evaluation-dataset-builder/"
+              signature = {
+                  item["path"]: (item.get("mode"), item.get("type"), item.get("sha"))
+                  for item in tree.get("tree") or []
+                  if item.get("path", "").startswith(prefix)
+              }
+              tagger.require(prefix + "SKILL.md" in signature,
+                             f"Commit {commit_sha} is missing the installable Skill package.")
+              return signature
+
+          # Backfill the missing package-tree helper in this immutable candidate's
+          # release script without changing the evaluated Skill or its recorded SHA.
+          tagger.skill_package_tree_signature = skill_package_tree_signature
+          tagger.create_release_tag()
           PY
       - name: Publish GitHub Release and attach exact-run report
         env:
