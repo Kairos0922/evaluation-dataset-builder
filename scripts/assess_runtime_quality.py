@@ -174,7 +174,7 @@ def _pair_analysis(records, baseline_revision: str, candidate_revision: str):
         if old["case_id"] != new["case_id"]:
             incomplete.append(pair_id)
             continue
-        if any(old[key] != new[key] for key in ("model", "harness", "environment", "tool_versions")):
+        if any(old[key] != new[key] for key in ("model", "harness", "environment", "tool_versions", "seed")):
             incomplete.append(pair_id)
             continue
         if old["status"] != "valid" or new["status"] != "valid":
