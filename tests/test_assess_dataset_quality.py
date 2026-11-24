@@ -234,7 +234,7 @@ class OfflineDatasetAssessmentTests(unittest.TestCase):
             )
             source_metric = next(item for item in report["metric_results"] if item["metric_id"] == "IDA-EVD-00")
             self.assertEqual(source_metric["value"], 0.0)
-            self.assertTrue(any(item["severity"] == "high" and "source reference" in item["description"] for item in report["findings"]))
+            self.assertTrue(any(item["severity"] == "high" and "source_refs" in item["description"] for item in report["findings"]))
             gate = next(item for item in report["gate_results"] if item["gate_id"] == "G01_source_provenance")
             self.assertEqual(gate["status"], "UNKNOWN")
             self.assertEqual(report["overall_status"], "PARTIAL")
