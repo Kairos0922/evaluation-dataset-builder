@@ -43,10 +43,10 @@
 | EX-04 | 实验 | 完成缺陷注入识别实验 | TODO | 盲测结果、按缺陷类型的检出/误报和置信区间 |
 | EX-05 | 实验 | 完成 Capability / Regression 真实运行效标实验 | TODO | 精确版本绑定的运行轨迹、Oracle、统计分析和限制 |
 | SC-01 | 方案 | 冻结 v0.0.2 需求、架构和验收标准 | TODO | 需求评审决议、设计基线 commit |
-| IM-01 | 实现 | 设计并实现 IDA 报告 Schema / 机器可读契约 | TODO | Schema + 正反例测试 |
-| IM-02 | 实现 | 实现独立离线评价器和确定性检查 | TODO | CLI/API、报告、测试 |
+| IM-01 | 实现 | 设计并实现 IDA 报告 Schema / 机器可读契约 | DONE | schemas/ida-report.schema.json；JSON 语法检查通过；commit f47905e |
+| IM-02 | 实现 | 实现独立离线评价器和确定性检查 | IN_PROGRESS | scripts/validate_quality_assessment.py 已实现 Schema + 交叉字段检查；测试文件已添加；尚未由 CI/本地环境执行 |
 | IM-03 | 实现 | 实现人工/LLM Judge 校准与证据记录接口 | TODO | 独立校准集协议、Judge 结果契约 |
-| IM-04 | 实现 | 实现 ERA 运行结果报告 Schema / 机器可读契约 | TODO | 精确版本绑定、轨迹/环境/评分器证据 |
+| IM-04 | 实现 | 实现 ERA 运行结果报告 Schema / 机器可读契约 | DONE | schemas/era-report.schema.json；精确数据集 SHA、Agent/模型/Harness/环境、Run/Trace、Judge、Capability/Regression 分析字段已定义；JSON 语法检查通过；commit fa28651 |
 | IM-05 | 实现 | 实现 Capability / Regression 统计分析模块 | TODO | 统计方法测试和边界测试 |
 | IM-06 | 实现 | 实现候选综合公式比较与敏感性分析 | TODO | 多模型比较；不合格时禁止输出 validated 综合分 |
 | IM-07 | 集成 | 更新 Skill 质量标准、按需加载引用和版本到 0.0.2 | TODO | 正式 Skill 包验证通过 |
@@ -54,7 +54,7 @@
 | QA-02 | 质量 | 完成离线评价器验证与报告 | TODO | 结构、内容、评分者一致性、缺陷检出证据 |
 | QA-03 | 质量 | 完成真实运行评价的端到端验证 | TODO | Agent/Skill 真实运行，Capability 与 Regression 分别有结果 |
 | QA-04 | 质量 | 完成综合公式独立验证；若证据不足则明确 NOT_VALIDATED | TODO | 独立验证集、效度/稳健性/误差报告 |
-| CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | TODO | Exact-head CI PASS |
+| CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | TODO | Exact-head CI PASS；当前没有可核验的 CI run，不能标记通过 |
 | DOC-01 | 文档 | 更新 README、CHANGELOG、版本和限制说明 | TODO | v0.0.2 内容一致 |
 | REL-01 | 发布 | 建立发布候选 PR 并完成审查 | TODO | 所有适用验收门禁通过，PR 记录证据 |
 | REL-02 | 发布 | 用户批准后创建 v0.0.2 Tag 和 GitHub Release | TODO | Release 指向精确验证过的提交，证据齐全 |
@@ -80,4 +80,4 @@
 
 | 日期 | 变更 |
 |---|---|
-| 2026-11-25 | 建立需求、研究证据库、双路径方法论、公式验证协议、实验设计、设计决策和候选指标字典；Draft PR #44 已创建。补充 CVI/CVR、IRT 样本量、G-Theory、SkillsBench 版本和 failure exposure 证据。RQ-01、RQ-02、RS-01、FM-01、EX-01 完成；RS-02、RS-03、DS-01、DS-02、FM-02 进行中。 |
+| 2026-11-25 | 建立需求、研究证据库、双路径方法论、公式验证协议、实验设计、设计决策、候选指标字典、IDA/ERA Schema、初版报告验证器与测试；Draft PR #44 已创建。补充 CVI/CVR、IRT 样本量、G-Theory、SkillsBench 版本和 failure exposure 证据。RQ-01、RQ-02、RS-01、FM-01、EX-01、IM-01、IM-04 完成；RS-02、RS-03、DS-01、DS-02、FM-02、IM-02 进行中。CI 尚未执行。 |
