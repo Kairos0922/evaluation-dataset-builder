@@ -159,4 +159,6 @@ approved 不代表 EXECUTION_VERIFIED。不得把设计完成、结构校验通�
 - 执行质量审查或判断验收状态：读取 `references/quality-standard.md`；需要机器可读的 IDA/ERA 评价路径、关键门禁、指标分组、证据状态和综合分验证状态时，再读取 `references/quality-standard.yaml`。当前标准不提供未经验证的固定权重或通过阈值；没有独立验证证据时，不得输出已验证综合分。
 - 生成或校验用例、数据集清单：分别读取 `references/dataset-schema.json` 和 `references/dataset-manifest-schema.json`。
 - 需要统一术语、状态或机器字段定义：读取 `references/terminology.md`。
+- 生成独立离线评价报告：读取 `references/ida-report.schema.json`。
+- 生成真实环境运行评价报告：读取 `references/era-report.schema.json`。
 - 业务规则、来源、目标或判定标准发生变化：读取 `references/change-impact-and-repair.md`。
