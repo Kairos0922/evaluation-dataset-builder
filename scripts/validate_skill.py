@@ -28,6 +28,7 @@ EXPECTED_SKILL_FILES = {
     "references/ida-report.schema.json",
     "references/era-report.schema.json",
     "references/runtime-record.schema.json",
+    "references/formula-validation.schema.json",
     "references/dataset-schema.json",
     "references/grader-guidelines.md",
     "references/coverage-design-guideline.md",
@@ -218,7 +219,8 @@ def main():
         for schema_name in (
             "references/ida-report.schema.json",
             "references/era-report.schema.json",
-            "references/runtime-record.schema.json"
+            "references/runtime-record.schema.json",
+            "references/formula-validation.schema.json"
         ):
             try:
                 schema = read_skill_json(schema_name)
@@ -352,6 +354,12 @@ def main():
                   "未验证的综合评分不得设置数值、权重或阈值")
             check(bool(composite.get("candidate_models")),
                   "必须保留候选模型族以供实证比较")
+            validation_schema = composite.get("validation_report_schema")
+            check(validation_schema == "formula-validation.schema.json",
+                  "composite.validation_report_schema 必须指向 Skill 随包的公式验证报告 Schema")
+            if validation_schema:
+                check((SKILL_DIR / "references" / validation_schema).is_file(),
+                      "composite.validation_report_schema 文件不存在")
 
             for key in ("validation_protocol", "validation_experiments"):
                 ref = composite.get(key)
