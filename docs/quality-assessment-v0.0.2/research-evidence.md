@@ -102,12 +102,16 @@
 
 ### 4.2 SkillsBench
 
-- 论文入口：https://arxiv.org/abs/2604.12345
+- 论文入口：https://arxiv.org/abs/2602.12670
 - GitHub：https://github.com/benchflow-ai/skillsbench
+
+**证据与贡献：** 论文初始快照报告 86 个任务、11 个领域、7 种 Agent-model 配置和 7,308 条轨迹；采用无 Skill、精选 Skill、自生成 Skill 三种条件配对比较，并使用确定性 verifier。研究报告精选 Skill 平均提升 16.2 个百分点，但 84 个任务中有 16 个任务出现负向变化。该论文为 arXiv 预印本，不能表述为同行评审正式发表。
+
+**当前版本注意：** SkillsBench 官网在 2026-11-24 标注 v1.1 为 87 个任务、8 个领域；其任务集与论文初始快照不是同一版本。官网：https://www.skillsbench.ai/ ，v1.1 发布说明：https://www.skillsbench.ai/blogs/skillsbench-1-1 。报告研究数字时必须绑定具体数据集版本，不能混用 86/11 与 87/8。
 
 **适用性：** 真实 Skill 任务、Oracle、Verifier、Agent 条件对照和任务级效应异质性。
 
-**限制：** 该基准面向 Skill 效用，不等价于通用 Dataset Quality 标准。正式实现时应重新核实论文版本、最终出版状态和仓库当前基准数据，不得依赖未经核验的摘要数字。
+**限制：** 该基准面向 Skill 效用，不等价于通用 Dataset Quality 标准。
 
 ## 5. LLM Judge / Evaluator 验证
 
