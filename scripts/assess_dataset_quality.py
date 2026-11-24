@@ -497,7 +497,7 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, evalu
 
     overall_status = (
         "NOT_ASSESSED" if not cases
-        else "FAIL" if not schema_ok or not dataset_id_integrity_ok or critical_gate_fail
+        else "FAIL" if not schema_ok or not dataset_id_integrity_ok or critical_gate_fail or source_status == "FAIL"
         else "PARTIAL"
     )
     evidence_status = "insufficient" if not cases or not schema_ok else "partial"
@@ -595,9 +595,13 @@ def main() -> int:
     print(f"Assessment: {report['overall_status']}; evidence: {report['evidence_sufficiency']['status']}")
     print(f"Cases: {report['dataset']['case_count']}; SHA-256: {report['dataset']['sha256']}")
     print("Composite score: NOT_VALIDATED (no value emitted)")
-    if structural_errors or duplicate_ids or coverage_errors or source_errors:
-        print("Findings detected; inspect the report for details.", file=sys.stderr)
+    if report["overall_status"] == "FAIL" or any(
+        finding["severity"] in {"critical", "high"} for finding in report["findings"]
+    ):
+        print("Blocking or high-severity findings detected; inspect the report.", file=sys.stderr)
         return 1
+    if coverage_errors:
+        print("Coverage consistency warnings detected; inspect the report.", file=sys.stderr)
     return 0
 
 
