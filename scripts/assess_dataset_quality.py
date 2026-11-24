@@ -16,6 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SKILL_REFERENCES = ROOT / "skills" / "evaluation-dataset-builder" / "references"
 MANIFEST_SCHEMA = SKILL_REFERENCES / "dataset-manifest-schema.json"
 CASE_SCHEMA = SKILL_REFERENCES / "dataset-schema.json"
+SCHEMA_CACHE = {}
 
 
 def load_json(path: Path):
@@ -23,9 +24,12 @@ def load_json(path: Path):
 
 
 def validate_schema(instance, schema_path: Path) -> list[str]:
-    schema = load_json(schema_path)
-    Draft202012Validator.check_schema(schema)
-    validator = Draft202012Validator(schema, format_checker=FormatChecker())
+    validator = SCHEMA_CACHE.get(schema_path)
+    if validator is None:
+        schema = load_json(schema_path)
+        Draft202012Validator.check_schema(schema)
+        validator = Draft202012Validator(schema, format_checker=FormatChecker())
+        SCHEMA_CACHE[schema_path] = validator
     errors = sorted(validator.iter_errors(instance), key=lambda error: list(error.absolute_path))
     return [
         f"{'.'.join(str(part) for part in error.absolute_path) or '<root>'}: {error.message}"
@@ -99,6 +103,8 @@ def check_source_references(cases: list[dict], registry: dict | None):
     for case in cases:
         for source in case.get("source_refs", []):
             references.append((case.get("case_id", "<unknown>"), source))
+    if not references:
+        return "UNKNOWN", 0, 0, ["No case-level source references were supplied."]
     unresolved = []
     for case_id, source in references:
         source_id = source.get("source_id")
@@ -187,17 +193,21 @@ def metric(metric_id, status, value, unit, evidence_refs, limitations, numerator
     }
 
 
-def build_report(manifest_path: Path, cases_path: Path, output_path: Path, source_registry_path: Path | None = None):
+def build_report(manifest_path: Path, cases_path: Path, output_path: Path, evaluation_purpose: str, source_registry_path: Path | None = None):
     manifest_bytes = manifest_path.read_bytes()
     cases_bytes = cases_path.read_bytes()
     manifest = json.loads(manifest_bytes.decode("utf-8"))
     cases, parse_errors = load_jsonl(cases_path)
     manifest_errors = validate_schema(manifest, MANIFEST_SCHEMA)
     case_errors = []
+    valid_case_count = 0
     for index, case in enumerate(cases, start=1):
+        errors = validate_schema(case, CASE_SCHEMA)
+        if not errors:
+            valid_case_count += 1
         case_errors.extend(
             f"case[{index}] {case.get('case_id', '<missing-id>')}: {error}"
-            for error in validate_schema(case, CASE_SCHEMA)
+            for error in errors
         )
 
     dataset_id = manifest.get("dataset_id", "unknown")
@@ -316,7 +326,7 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, sourc
             "recommendation": "补充可追溯来源或明确的合成/推断来源，并说明其适用边界。"
         })
 
-    critical_gate_fail = bool(duplicate_ids)
+    critical_gate_fail = bool(duplicate_ids or dataset_mismatches or count_mismatch)
     gates = [
         {
             "gate_id": "G01_source_provenance",
@@ -352,7 +362,7 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, sourc
         },
         {
             "gate_id": "G05_rubric_validity",
-            "status": "UNKNOWN",
+            "status": "FAIL" if any("grading" in error.lower() for error in case_errors) else "UNKNOWN",
             "severity": "critical",
             "rationale": "Schema and presence checks do not prove semantic alignment or grading validity.",
             "evidence_refs": evidence_refs
@@ -369,9 +379,9 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, sourc
             "status": "FAIL" if critical_gate_fail else "UNKNOWN",
             "severity": "critical",
             "rationale": (
-                "Duplicate case IDs were detected."
+                "Case ID, dataset ID or manifest case-count integrity failed."
                 if critical_gate_fail
-                else "Identifier integrity was checked, but leakage/contamination and source independence were not tested."
+                else "Basic identifiers were checked, but leakage/contamination and source independence were not tested."
             ),
             "evidence_refs": evidence_refs
         },
@@ -387,12 +397,12 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, sourc
     metrics = [
         metric(
             "IDA-STR-01",
-            "PASS" if schema_ok else "FAIL",
-            (len(cases) - len(case_errors)) / len(cases) if cases else None,
+            ("NOT_APPLICABLE" if not cases else "PASS" if schema_ok else "FAIL"),
+            valid_case_count / len(cases) if cases else None,
             "proportion_of_cases_passing_schema",
             evidence_refs,
             ["Schema conformance does not prove semantic validity."],
-            len(cases) - len(case_errors),
+            valid_case_count,
             len(cases)
         ),
         metric(
@@ -466,11 +476,7 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, sourc
             "case_count": len(cases),
             "manifest_ref": manifest_path.name
         },
-        "evaluation_purpose": (
-            "capability" if manifest.get("purpose") == "capability"
-            else "regression" if manifest.get("purpose") == "regression"
-            else "both"
-        ),
+        "evaluation_purpose": evaluation_purpose,
         "assessor": {
             "name": "offline-dataset-quality-assessor",
             "version": "0.0.2",
@@ -535,12 +541,13 @@ def main() -> int:
     parser.add_argument("--manifest", required=True, type=Path)
     parser.add_argument("--cases", required=True, type=Path, help="JSONL file with one case object per line")
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--evaluation-purpose", required=True, choices=["capability", "regression", "both"])
     parser.add_argument("--source-registry", type=Path, help="Optional independent JSON source registry")
     args = parser.parse_args()
 
     try:
         report, structural_errors, duplicate_ids, coverage_errors, source_errors = build_report(
-            args.manifest, args.cases, args.output, args.source_registry
+            args.manifest, args.cases, args.output, args.evaluation_purpose, args.source_registry
         )
     except Exception as exc:
         print(f"FAIL: could not assess dataset: {exc}", file=sys.stderr)
