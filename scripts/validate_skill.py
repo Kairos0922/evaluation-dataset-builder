@@ -189,7 +189,9 @@ def main():
     # 参考文件不应继续引入第二层 references 路径。
     for relative_path in expected_refs:
         content = read_skill_text(relative_path)
-        check("references/" not in content,
+        # JSON Schema 的 $id URI 可以包含目录名 references；它不是二级资源依赖。
+        reference_body = re.sub(r'"\\$id"\\s*:\\s*"[^"]+"', "", content)
+        check("references/" not in reference_body,
               f"{relative_path} 不应继续引用第二层 references 路径")
 
     # 正式 Skill 内容不得绑定到具体服务商或产品名称。
