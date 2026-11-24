@@ -303,6 +303,10 @@ def main():
                 schema_path = SKILL_DIR / "references" / schema_ref if isinstance(schema_ref, str) else None
                 check(schema_path is not None and schema_path.is_file(),
                       f"缺少 Skill 内的评价报告 Schema：{schema_ref}")
+            run_record_ref = runtime.get("run_record_schema")
+            run_record_path = SKILL_DIR / "references" / run_record_ref if isinstance(run_record_ref, str) else None
+            check(run_record_path is not None and run_record_path.is_file(),
+                  f"缺少 Skill 内的运行记录 Schema：{run_record_ref}")
 
             required_gates = {
                 "G01_source_provenance", "G02_construct_alignment",
