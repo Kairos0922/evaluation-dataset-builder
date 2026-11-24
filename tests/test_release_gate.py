@@ -1840,6 +1840,9 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "references/scenario-buckets.md",
             "references/change-impact-and-repair.md",
             "references/dataset-manifest-schema.json",
+            "references/ida-report.schema.json",
+            "references/era-report.schema.json",
+            "references/runtime-record.schema.json",
         }
         actual_files = {
             item.relative_to(SKILL_DIR).as_posix()
