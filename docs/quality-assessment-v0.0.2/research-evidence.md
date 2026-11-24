@@ -244,3 +244,21 @@
 **适用性：** Regression Evaluation 应分别检查是否触发/发现故障，以及是否产生可观察、可审计、可解释的失败证据。
 
 **限制：** 研究来自传统软件测试；Agent 环境中的故障、状态偏差、行为失败和证据暴露需要重新定义并实证检验。
+
+## 11. 复合指标构建的权重、聚合和敏感性方法
+
+### OECD / European Commission JRC：Handbook on Constructing Composite Indicators
+
+- 来源：[OECD/JRC Handbook on Constructing Composite Indicators: Methodology and User Guide](https://www.oecd.org/content/dam/oecd/en/publications/reports/2008/08/handbook-on-constructing-composite-indicators-methodology-and-user-guide_g1gh9301/9789264043466-en.pdf)（2008）。
+- 研究性质：政府间组织与欧盟联合研究中心编写的方法学手册，不是 Agent Benchmark 专项标准，但属于复合指标构建的成熟方法依据。
+- 核心步骤：理论框架、指标选择、缺失数据处理、多变量分析、归一化、权重与聚合、不确定性与敏感性、回到原始指标、与外部指标建立联系、透明呈现。
+- 权重和聚合应服从理论框架，并明确指标间相关性及是否允许补偿。
+- 对权重、归一化、指标纳入/排除、缺失值处理和聚合方式进行不确定性与敏感性分析；应考虑多模型方法，并给分数/排名提供不确定性边界。
+- 复合分必须能拆解回原始指标，且应与外部相关指标建立联系。
+- 手册明确指出，弱理论框架或测量误差较大的软数据，即使采用先进统计方法，也可能导致有争议的结论。
+- 对本项目的意义：权重来源和聚合规则必须由构念与用途决定；AHP、PCA、等权、回归权重均是候选技术，不是自动有效的证明。只有外部效标和独立验证支持后，才能发布综合分。
+
+本轮核验的关键章节：
+- 复合指标构建步骤与质量原则：PDF pp. 14–21。
+- 权重与聚合方法：目录 pp. 89–116。
+- 不确定性和敏感性分析：目录 pp. 117–131。
