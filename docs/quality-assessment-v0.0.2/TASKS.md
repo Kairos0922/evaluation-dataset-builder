@@ -49,12 +49,12 @@
 | IM-04 | 实现 | 实现 ERA 运行结果 Schema / 机器可读契约 | DONE | schemas/era-report.schema.json + schemas/runtime-record.schema.json；Skill references 已同步；精确数据集 SHA、Agent/模型/Harness/环境、Run/Trace、Judge、Capability/Regression 字段已定义；JSON 语法检查通过；commits ef7515c、5030629、f18e010 |
 | IM-05 | 实现 | 实现 Capability / Regression 统计分析模块 | IN_PROGRESS | scripts/assess_runtime_quality.py 已实现 Judge 混淆指标、Wilson CI、配对版本差异、McNemar exact、历史/变异故障检出、重复运行不一致和成本画像；IRT/G-Theory 与真实运行验证未完成；tests/test_assess_runtime_quality.py 已添加，待 CI 执行 |
 | IM-06 | 实现 | 实现候选综合公式比较与敏感性分析 | TODO | 多模型比较；不合格时禁止输出 validated 综合分 |
-| IM-07 | 集成 | 更新 Skill 质量标准、按需加载引用和版本到 0.0.2 | IN_PROGRESS | quality-standard.md/yaml 已替换旧固定权重，IDA/ERA Schema 已加入 Skill references，SKILL.md 已引用；版本元数据待发布候选阶段更新，正式包验证待 CI |
+| IM-07 | 集成 | 更新 Skill 质量标准、按需加载引用和版本到 0.0.2 | IN_PROGRESS | quality-standard.md/yaml 已替换旧固定权重；IDA/ERA 报告 Schema、Runtime Record Schema 已加入 Skill references，SKILL.md 已引用；validate_skill.py 增加 Draft 2020-12 Schema 检查；版本元数据待发布候选阶段更新，正式包验证待 CI |
 | QA-01 | 质量 | 建立元评测数据、已知缺陷注入和专家盲评样本 | TODO | 数据来源、隔离、标注和审计记录 |
 | QA-02 | 质量 | 完成离线评价器验证与报告 | TODO | 结构、内容、评分者一致性、缺陷检出证据 |
 | QA-03 | 质量 | 完成真实运行评价的端到端验证 | TODO | Agent/Skill 真实运行，Capability 与 Regression 分别有结果 |
 | QA-04 | 质量 | 完成综合公式独立验证；若证据不足则明确 NOT_VALIDATED | TODO | 独立验证集、效度/稳健性/误差报告 |
-| CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | IN_PROGRESS | PR #44 run #1691 曾因 JSON Schema $id 被误判而失败，已修复；run #1710（45510890674）仍 pending/排队，尚无 jobs 和 PASS 证据；离线单测尚未执行 |
+| CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | IN_PROGRESS | PR #44 run #1691 曾因 JSON Schema $id 被误判而失败，已修复；run #1710（45510890674）仍 pending/排队，尚无 jobs 和 PASS 证据；新增 runtime schema 与分析器后需在最新 head 重新触发完整 CI |
 | DOC-01 | 文档 | 更新 README、CHANGELOG、版本和限制说明 | TODO | v0.0.2 内容一致 |
 | REL-01 | 发布 | 建立发布候选 PR 并完成审查 | TODO | 所有适用验收门禁通过，PR 记录证据 |
 | REL-02 | 发布 | 用户批准后创建 v0.0.2 Tag 和 GitHub Release | TODO | Release 指向精确验证过的提交，证据齐全 |
@@ -80,4 +80,4 @@
 
 | 日期 | 变更 |
 |---|---|
-| 2026-11-25 | 建立需求、研究证据库、双路径方法论、公式验证协议、实验设计、设计决策、候选指标字典、IDA/ERA/Runtime Record Schema、离线 IDA 检查器、ERA 分析器、报告验证器与测试；Draft PR #44 已创建。更新 Skill 质量标准并加入报告 Schema 与运行记录 Schema。补充 CVI/CVR、IRT 样本量、G-Theory、SkillsBench 版本和 failure exposure 证据。PR #44 run #1691 发现 Skill validator 误判 Schema $id，已修复；run #1710 pending。RQ-01、RQ-02、RS-01、FM-01、EX-01、IM-01、IM-04 完成；RS-02、RS-03、DS-01、DS-02、FM-02、IM-02、IM-05、IM-07、CI-01 进行中。 |
+| 2026-11-25 | 建立需求、研究证据库、双路径方法论、公式验证协议、实验设计、设计决策、候选指标字典、IDA/ERA/Runtime Record Schema、离线 IDA 检查器、ERA 分析器、报告验证器与测试；Draft PR #44 已创建。更新 Skill 质量标准并加入报告 Schema 与运行记录 Schema；validate_skill.py 增加 JSON Schema 检查。补充 CVI/CVR、IRT 样本量、G-Theory、SkillsBench 版本和 failure exposure 证据。PR #44 run #1691 发现 Skill validator 误判 Schema $id，已修复；run #1710 pending，最新代码需重验。RQ-01、RQ-02、RS-01、FM-01、EX-01、IM-01、IM-04 完成；RS-02、RS-03、DS-01、DS-02、FM-02、IM-02、IM-05、IM-07、CI-01 进行中。 |
