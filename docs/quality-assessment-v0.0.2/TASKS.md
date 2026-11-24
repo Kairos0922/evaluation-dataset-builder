@@ -38,7 +38,7 @@
 | FM-02 | 公式 | 设计公式构建、权重来源、阈值选择与敏感性分析协议 | IN_PROGRESS | formula-validation-protocol.md 已明确规范性/经验性/混合权重、损失驱动阈值、模型比较和敏感性分析；仍需冻结预注册分析计划和实际效标 |
 | FM-03 | 公式 | 建立独立效度验证实验与证明报告 | TODO | 执行专家盲评、缺陷注入、外部效标、泛化和不确定性验证；当前仅有协议设计 |
 | EX-01 | 实验 | 完成公式验证实验设计与样本量/效标规划 | DONE | experimental-design.md；定义 E0–E7 阶段、分组隔离、专家盲评、缺陷注入和真实运行方案；commit 4b2f0d3 |
-| EX-02 | 实验 | 建立独立参考数据集与缺陷注入样本 | IN_PROGRESS | defect-mutation-catalog.yaml 已建立 IDA-M01–M12 / ERA-M01–M08；单元测试覆盖一部分确定性缺陷；尚缺独立公开/生产数据集家族、盲测变体和独立缺陷标签 |
+| EX-02 | 实验 | 建立独立参考数据集与缺陷注入样本 | IN_PROGRESS | defect-mutation-catalog.yaml 已建立 IDA-M01–M12 / ERA-M01–M08；单元测试已扩展覆盖身份错配、来源注册表解析/缺失、覆盖声明不一致、Judge abstention、历史故障逃逸和失败未暴露；尚缺独立公开/生产数据集家族、盲测变体和独立缺陷标签 |
 | EX-03 | 实验 | 完成专家内容效度与评分者一致性实验 | TODO | 盲评原始数据、专家资历/协议、CVI/CVR/一致性统计 |
 | EX-04 | 实验 | 完成缺陷注入识别实验 | TODO | 盲测结果、按缺陷类型的检出/误报和置信区间 |
 | EX-05 | 实验 | 完成 Capability / Regression 真实运行效标实验 | BLOCKED | 需要 PR #38 先完成 Builder 正式产出且独立 Validator PASS；当前 PR #38 run #1662 的 Builder production / independent-validation jobs 均 skipped。不得重复运行已完成的历史流程，也不得用合成轨迹冒充真实结果。解除条件：PR #38 产生正式 Builder artifact 并通过独立验证，之后使用本项目 runtime-record.schema.json 收集新运行证据 |
