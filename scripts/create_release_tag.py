@@ -357,6 +357,28 @@ def validate_builder_evidence_payloads(evidence):
     }
 
 
+def skill_package_tree_signature(repo, commit_sha, token):
+    """Return the complete installable Skill package tree for an exact commit."""
+    commit = api_request(f"/repos/{repo}/git/commits/{commit_sha}", token)
+    root_tree_sha = (commit.get("tree") or {}).get("sha")
+    require(bool(root_tree_sha),
+            f"Commit {commit_sha} does not expose a Git tree.")
+    tree = api_request(
+        f"/repos/{repo}/git/trees/{root_tree_sha}?recursive=1", token
+    )
+    require(tree.get("truncated") is False,
+            "Skill package tree response was truncated.")
+    prefix = "skills/evaluation-dataset-builder/"
+    signature = {
+        item["path"]: (item.get("mode"), item.get("type"), item.get("sha"))
+        for item in tree.get("tree") or []
+        if item.get("path", "").startswith(prefix)
+    }
+    require(prefix + "SKILL.md" in signature,
+            f"Commit {commit_sha} is missing the installable Skill package.")
+    return signature
+
+
 def verify_builder_evidence(repo, token, builder_pr_number, release_candidate_sha):
     index_path = Path(__file__).resolve().parents[1] / "docs" / "release-evidence" / "round4-evidence-index.json"
     require(index_path.is_file(), "The immutable Round 4 evidence index is missing.")
