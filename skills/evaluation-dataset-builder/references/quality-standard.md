@@ -55,6 +55,7 @@ IDA 不得伪造 Agent 难度/区分度、真实 Judge 准确率、真实故障�
 ## 4. 真实环境运行评价（ERA）
 
 ERA 必须绑定：
+- 符合 references/runtime-record.schema.json 的逐次运行记录；
 - 数据集版本与 SHA-256；
 - Agent / Skill 版本与提交；
 - 模型标识和版本；
