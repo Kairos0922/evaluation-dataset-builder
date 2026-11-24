@@ -17,7 +17,7 @@ assessment_paths:
   independent:
     id: IDA
     name: Independent Dataset Assessment
-    report_schema: references/ida-report.schema.json
+    report_schema: ida-report.schema.json
     requires_agent_execution: false
     runtime_metrics_allowed: false
     dimensions:
@@ -32,7 +32,7 @@ assessment_paths:
   runtime:
     id: ERA
     name: Empirical Runtime Assessment
-    report_schema: references/era-report.schema.json
+    report_schema: era-report.schema.json
     requires_agent_execution: true
     requires_exact_version_binding: true
     shared_dimensions:
