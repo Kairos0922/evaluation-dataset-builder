@@ -175,7 +175,7 @@ def coverage_summary(manifest: dict, cases: list[dict]):
                 )
             })
             inconsistencies.append(f"{dimension}: case tags contain a dimension not declared in manifest")
-    return declared, inconsistencies
+    return {item["dimension"]: item for item in declared}, inconsistencies
 
 
 def metric(metric_id, status, value, unit, evidence_refs, limitations, numerator=None, denominator=None, notes=None):
