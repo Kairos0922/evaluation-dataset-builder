@@ -40,7 +40,7 @@ mutation_classes:
       defect: missing_source_reference
       deterministic: true
       expected_signals: ["IDA-EVD-00=0", "G01_source_provenance=UNKNOWN", "high_finding"]
-      method: "Remove source_refs from a case."
+      method: "Use case_origin=unknown with a documented information_gaps entry and an empty source_refs array."
       limitation: "Absence is detectable; source sufficiency and authenticity require review."
     - mutation_id: IDA-M07
       defect: exact_duplicate_payload
