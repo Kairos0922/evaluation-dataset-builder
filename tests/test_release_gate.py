@@ -142,9 +142,6 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "references/ida-report.schema.json",
             "references/era-report.schema.json",
             "references/runtime-record.schema.json",
-            "references/ida-report.schema.json",
-            "references/era-report.schema.json",
-            "references/runtime-record.schema.json",
         ]
         for host_id in hosts:
             discovery = add_evidence(host_id, "discovery", f"{host_id}-discovery")
