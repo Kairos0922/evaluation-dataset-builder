@@ -33,6 +33,7 @@ assessment_paths:
     id: ERA
     name: Empirical Runtime Assessment
     report_schema: era-report.schema.json
+    run_record_schema: runtime-record.schema.json
     requires_agent_execution: true
     requires_exact_version_binding: true
     shared_dimensions:
