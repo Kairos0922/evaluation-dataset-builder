@@ -385,7 +385,7 @@ def build_era_report(
         item_profiles[record["case_id"]].append(record["agent_outcome"] == "pass")
     if evaluation_purpose in {"capability", "both"}:
         metrics.append({
-            "metric_id": "CAP-01",
+            "metric_id": "CAP-00",
             "status": "MEASURED" if item_profiles else "NOT_ASSESSED",
             "value": {
                 case_id: {
@@ -402,6 +402,7 @@ def build_era_report(
             "limitations": ["Descriptive item pass rates are not IRT difficulty or discrimination parameters."]
         })
         for metric_id, description in [
+            ("CAP-01", "IRT item difficulty parameter not estimated; observed pass rates are only descriptive."),
             ("CAP-02", "IRT item discrimination not estimated."),
             ("CAP-03", "Test information function not estimated."),
             ("CAP-04", "Conditional measurement error not estimated."),
@@ -422,6 +423,8 @@ def build_era_report(
             })
 
     if evaluation_purpose in {"regression", "both"}:
+        historical_exposure_rows = [record for record in historical_rows if record["fault"]["failure_exposed"] is not None]
+        historical_exposed = sum(record["fault"]["failure_exposed"] is True for record in historical_exposure_rows)
         metrics.extend([
             rate_metric("REG-01", historical_detected, len(historical_rows), "historical_fault_detection_rate", [evidence_ref], ["Historical fault runs are counted at run-instance level; unique fault IDs are reported separately in the analysis metadata."], confidence),
             rate_metric("REG-02", mutation_detected, len(mutation_rows), "mutation_detection_rate", [evidence_ref], ["Mutation detection is not a substitute for real historical fault detection."], confidence),
@@ -461,7 +464,7 @@ def build_era_report(
                 "limitations": ["Criticality classification and complete critical-risk universe are not encoded in runtime records."]
             },
             rate_metric("REG-06", flaky_groups, repeated_groups, "discordant_repeated_group_rate", [evidence_ref], ["This measures observed Agent outcome discordance within declared repeat groups; it does not identify the source of variance."], confidence),
-            rate_metric("REG-07", failure_exposed, len(exposed_rows), "failure_exposure_rate", [evidence_ref], ["Failure exposure and fault detection are separate outcomes."], confidence),
+            rate_metric("REG-07", historical_exposed, len(historical_exposure_rows), "historical_fault_failure_exposure_rate", [evidence_ref], ["This is limited to historical fault replays; shared all-fault exposure is reported as ERA-RUN-05."], confidence),
             {
                 "metric_id": "REG-08",
                 "status": "MEASURED" if fault_rows and any(record["cost"]["cost_usd"] is not None for record in fault_rows) and sum(record["fault"]["detected"] is True for record in fault_rows) > 0 else "NOT_ASSESSED",
