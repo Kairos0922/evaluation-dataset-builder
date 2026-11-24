@@ -1,6 +1,6 @@
 # Evaluation Dataset Builder 0.0.1 发布候选说明
 
-**状态：** 发布候选，尚未正式发布，等待明确的发布批准。PR #42 和 Builder 证据 PR #38 均保持 Draft/Open，均未合并。当前没有创建 v0.0.1 Tag 或 GitHub Release。
+**状态：** 已获用户明确发布授权；PR #42 已合并，Builder 证据 PR #38 仍保持 Draft/Open。发布工作流已执行，但在发布验证步骤收到 GitHub API HTTP 401，未创建 v0.0.1 Tag 或 GitHub Release。当前版本尚未正式发布。
 
 ## 版本范围
 
@@ -78,13 +78,22 @@
 - [x] 三条真实 Skill 试运行及独立 Gold Oracle 3/3 PASS。
 - [x] Builder 输出、独立验证、Pilot 和 Oracle 的 Artifact 证据索引与 SHA-256 绑定已建立；发布脚本会跨工作流校验，不会要求无必要重复执行。
 - [x] BR-09 needs_info、数据集 NOT_RUN、宿主未认证和 Builder 诊断限制均已披露。
-- [ ] 取得用户对发布的明确批准。
-- [ ] 批准合并 PR #42 后，核验最终 merge commit 的 Git tree 与已评审 PR head 完全一致。
-- [ ] 仅在明确批准后创建绑定最终 merge commit 的 v0.0.1 Tag 并发布 GitHub Release。
+- [x] 已取得用户对发布的明确批准。
+- [x] PR #42 已合并；发布验证器已运行，但执行期间 GitHub API 返回 HTTP 401，未能完成发布。
+- [ ] 排除发布工作流的 GitHub API HTTP 401 后，重新执行完整验证，再创建绑定最终 merge commit 的 v0.0.1 Tag 并发布 GitHub Release。
 
-行为评测通过、Builder 证据通过或文档齐备都不构成发布授权。发布流程不会在本候选 PR 中自动合并、打 Tag 或创建 Release。
+行为评测通过、Builder 证据通过或文档齐备都不构成发布授权。本次发布已获明确授权，但因发布验证步骤的 HTTP 401 而停止；不得将其描述为已发布。
 
 
 ## Validator correction evidence (2026-11-24)
 
 The archived Builder output was revalidated after fixing the independent validator's false-positive semantic lint. PR #38 exact head `7f34ddb1a7b7594a819f05584c7373b7b3cb5242` CI passed. Validation run [45291624154](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45291624154), artifact `14874193103`, passed on the original immutable Builder output: 15 cases, 0 schema errors, 61 source references verified. No Builder call, Skill trial, or model call was repeated. The original Builder-production Job failure remains historical and disclosed; it is not reclassified.
+
+
+## Release attempt status (2026-11-24)
+
+- User explicitly authorized publication and waived the separate human-review step.
+- PR #42 was merged into main. Reviewed candidate head: `e934a079c88f729d8d66abee50a717797d88f9c3`; merge commit: `cacf86c3b5b68098aef4b969b1e5caa4653708f1`.
+- Exact-head behavior evaluation and Builder evidence gates were previously recorded as passing. Builder evidence PR #38 remains Draft/Open by design.
+- Publication workflow: [run 45298203024](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45298203024). The verification-and-tag step failed with GitHub API HTTP 401. The job log does not identify which API request returned 401, so the precise failing endpoint and root cause remain unverified.
+- The GitHub Releases API currently returns no releases. No `v0.0.1` tag or GitHub Release was created, and this document has not been marked published.
