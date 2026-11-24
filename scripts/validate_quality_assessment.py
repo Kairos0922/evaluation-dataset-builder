@@ -142,6 +142,8 @@ def validate_report(report: dict, assessment_type: str | None = None) -> list[st
             errors.append("overall_status cannot be PASS when a critical gate fails")
         if critical_unknown and report["overall_status"] == "PASS":
             errors.append("overall_status cannot be PASS while a critical gate is unresolved")
+        if report["overall_status"] == "PASS" and report["evidence_sufficiency"]["status"] in {"insufficient", "not_assessed"}:
+            errors.append("overall_status cannot be PASS when evidence is insufficient or not assessed")
 
     else:
         run_ids = [run["run_id"] for run in report["runs"]]
@@ -153,6 +155,8 @@ def validate_report(report: dict, assessment_type: str | None = None) -> list[st
         if report["grader_validation"]["status"] == "PASS":
             if report["grader_validation"]["sample_count"] == 0:
                 errors.append("grader_validation PASS requires a non-zero sample_count")
+            if not report["grader_validation"]["metric_results"]:
+                errors.append("grader_validation PASS requires at least one reported validation metric")
     return errors
 
 
