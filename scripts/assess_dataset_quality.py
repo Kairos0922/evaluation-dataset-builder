@@ -326,7 +326,8 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, evalu
             "recommendation": "补充可追溯来源或明确的合成/推断来源，并说明其适用边界。"
         })
 
-    critical_gate_fail = bool(duplicate_ids or dataset_mismatches or count_mismatch)
+    case_schema_ok = not case_errors and not parse_errors
+    critical_gate_fail = bool(not schema_ok or duplicate_ids or dataset_mismatches or count_mismatch)
     gates = [
         {
             "gate_id": "G01_source_provenance",
@@ -396,6 +397,16 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, evalu
 
     metrics = [
         metric(
+            "IDA-STR-00",
+            "PASS" if not manifest_errors else "FAIL",
+            1.0 if not manifest_errors else 0.0,
+            "manifest_schema_conformance",
+            evidence_refs,
+            ["Manifest schema conformance does not prove that declared facts are true."],
+            1 if not manifest_errors else 0,
+            1
+        ),
+        metric(
             "IDA-STR-01",
             ("NOT_APPLICABLE" if not cases else "PASS" if schema_ok else "FAIL"),
             valid_case_count / len(cases) if cases else None,
@@ -407,7 +418,7 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, evalu
         ),
         metric(
             "IDA-STR-02",
-            "PASS" if dataset_id_integrity_ok else "FAIL",
+            ("NOT_APPLICABLE" if not cases else "PASS" if dataset_id_integrity_ok else "FAIL"),
             (len(set(case_ids)) / len(case_ids)) if case_ids else None,
             "unique_case_id_proportion",
             evidence_refs,
@@ -461,7 +472,11 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, evalu
         )
     ]
 
-    overall_status = "FAIL" if not schema_ok or not dataset_id_integrity_ok or critical_gate_fail else "PARTIAL"
+    overall_status = (
+        "NOT_ASSESSED" if not cases
+        else "FAIL" if not schema_ok or not dataset_id_integrity_ok or critical_gate_fail
+        else "PARTIAL"
+    )
     evidence_status = "insufficient" if not cases or not schema_ok else "partial"
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     report = {
