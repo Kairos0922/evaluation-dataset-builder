@@ -142,6 +142,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "references/ida-report.schema.json",
             "references/era-report.schema.json",
             "references/runtime-record.schema.json",
+            "references/formula-validation.schema.json",
         ]
         for host_id in hosts:
             discovery = add_evidence(host_id, "discovery", f"{host_id}-discovery")
@@ -1843,6 +1844,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "references/ida-report.schema.json",
             "references/era-report.schema.json",
             "references/runtime-record.schema.json",
+            "references/formula-validation.schema.json",
         }
         actual_files = {
             item.relative_to(SKILL_DIR).as_posix()
