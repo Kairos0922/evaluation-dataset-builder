@@ -189,6 +189,20 @@ class QualityAssessmentValidatorTests(unittest.TestCase):
     def test_valid_era_report(self):
         self.assertEqual(validate_report(base_era()), [])
 
+    def test_ida_pass_requires_sufficient_evidence(self):
+        report = base_ida()
+        report["overall_status"] = "PASS"
+        report["evidence_sufficiency"]["status"] = "insufficient"
+        errors = validate_report(report)
+        self.assertTrue(any("evidence is insufficient" in error for error in errors))
+
+    def test_grader_pass_requires_validation_metrics(self):
+        report = base_era()
+        report["grader_validation"]["status"] = "PASS"
+        report["grader_validation"]["sample_count"] = 10
+        errors = validate_report(report)
+        self.assertTrue(any("at least one reported validation metric" in error for error in errors))
+
     def test_valid_era_run_requires_trace(self):
         report = base_era()
         report["runs"][0]["trace_ref"] = None
