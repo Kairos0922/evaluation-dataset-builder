@@ -1,0 +1,330 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/docs/quality-assessment-v0.0.2/schemas/formula-validation.schema.json",
+  "title": "Quality Composite Model Validation Evidence",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "validation_id",
+    "model_id",
+    "status",
+    "created_at",
+    "scope",
+    "candidate_model",
+    "data_splits",
+    "expert_validation",
+    "mutation_validation",
+    "external_criterion_validation",
+    "robustness",
+    "threshold_validation",
+    "uncertainty",
+    "reproducibility",
+    "conclusion"
+  ],
+  "properties": {
+    "schema_version": { "const": "0.0.2" },
+    "validation_id": { "type": "string", "minLength": 1 },
+    "model_id": { "type": "string", "minLength": 1 },
+    "status": { "enum": ["NOT_VALIDATED", "VALIDATED_FOR_SCOPE", "REJECTED"] },
+    "created_at": { "type": "string", "format": "date-time" },
+    "scope": {
+      "type": "object",
+      "required": ["evaluation_purposes", "target_types", "domains", "validity_boundary"],
+      "properties": {
+        "evaluation_purposes": {
+          "type": "array",
+          "items": { "enum": ["capability", "regression"] },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "target_types": {
+          "type": "array",
+          "items": { "enum": ["agent", "skill", "agent_with_skill"] },
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "domains": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "models": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "environments": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "validity_boundary": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "candidate_model": {
+      "type": "object",
+      "required": ["family", "scalar_score_enabled", "formula_spec", "weights_source", "weights", "hard_gates", "thresholds"],
+      "properties": {
+        "family": { "enum": ["vector_profile", "weighted_arithmetic", "weighted_geometric", "non_compensatory", "hybrid", "other"] },
+        "scalar_score_enabled": { "type": "boolean" },
+        "formula_spec": { "type": "string", "minLength": 1 },
+        "weights_source": { "enum": ["none", "expert_delphi", "ahp", "empirical", "hybrid", "equal", "other"] },
+        "weights": {
+          "type": ["object", "null"],
+          "additionalProperties": { "type": "number", "minimum": 0 }
+        },
+        "hard_gates": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+        "thresholds": { "type": ["object", "null"] },
+        "normalization": { "type": ["string", "null"] },
+        "missing_data_policy": { "type": ["string", "null"] },
+        "aggregation_policy": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "data_splits": {
+      "type": "object",
+      "required": ["development", "calibration", "validation", "external", "grouping_unit", "leakage_audit"],
+      "properties": {
+        "development": { "$ref": "#/$defs/dataset_split" },
+        "calibration": { "$ref": "#/$defs/dataset_split" },
+        "validation": { "$ref": "#/$defs/dataset_split" },
+        "external": { "$ref": "#/$defs/dataset_split" },
+        "grouping_unit": { "type": "string", "minLength": 1 },
+        "leakage_audit": {
+          "type": "object",
+          "required": ["status", "method", "evidence_ref"],
+          "properties": {
+            "status": { "enum": ["PASS", "FAIL", "UNKNOWN"] },
+            "method": { "type": "string", "minLength": 1 },
+            "evidence_ref": { "type": ["string", "null"] },
+            "limitations": { "type": "array", "items": { "type": "string" } }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "expert_validation": {
+      "type": "object",
+      "required": ["status", "reviewer_count", "reviewer_profiles", "blinded", "independent", "content_validity", "agreement_metrics", "raw_data_ref", "limitations"],
+      "properties": {
+        "status": { "enum": ["PASS", "FAIL", "PARTIAL", "NOT_RUN"] },
+        "reviewer_count": { "type": "integer", "minimum": 0 },
+        "reviewer_profiles": { "type": "array", "items": { "type": "string" } },
+        "blinded": { "type": "boolean" },
+        "independent": { "type": "boolean" },
+        "content_validity": {
+          "type": "object",
+          "properties": {
+            "cvi": { "type": ["number", "null"] },
+            "cvr": { "type": ["number", "null"] },
+            "aikens_v": { "type": ["number", "null"] },
+            "method": { "type": ["string", "null"] }
+          },
+          "additionalProperties": false
+        },
+        "agreement_metrics": { "type": "array", "items": { "$ref": "#/$defs/statistical_result" } },
+        "raw_data_ref": { "type": ["string", "null"] },
+        "limitations": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "mutation_validation": {
+      "type": "object",
+      "required": ["status", "catalog_version", "mutation_count", "detected_count", "false_positive_count", "false_negative_count", "results_ref", "limitations"],
+      "properties": {
+        "status": { "enum": ["PASS", "FAIL", "PARTIAL", "NOT_RUN"] },
+        "catalog_version": { "type": "string", "minLength": 1 },
+        "mutation_count": { "type": "integer", "minimum": 0 },
+        "detected_count": { "type": "integer", "minimum": 0 },
+        "false_positive_count": { "type": "integer", "minimum": 0 },
+        "false_negative_count": { "type": "integer", "minimum": 0 },
+        "per_defect_results": { "type": "array", "items": { "$ref": "#/$defs/statistical_result" } },
+        "results_ref": { "type": ["string", "null"] },
+        "limitations": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "external_criterion_validation": {
+      "type": "object",
+      "required": ["status", "criteria", "limitations"],
+      "properties": {
+        "status": { "enum": ["PASS", "FAIL", "PARTIAL", "NOT_RUN"] },
+        "criteria": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["criterion", "source_ref", "sample_count", "method", "result", "status"],
+            "properties": {
+              "criterion": { "type": "string", "minLength": 1 },
+              "source_ref": { "type": "string", "minLength": 1 },
+              "sample_count": { "type": "integer", "minimum": 0 },
+              "method": { "type": "string", "minLength": 1 },
+              "result": { "$ref": "#/$defs/statistical_result" },
+              "status": { "enum": ["PASS", "FAIL", "PARTIAL", "NOT_RUN"] }
+            },
+            "additionalProperties": false
+          }
+        },
+        "limitations": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "robustness": {
+      "type": "object",
+      "required": ["status", "weight_sensitivity", "normalization_sensitivity", "aggregation_sensitivity", "leave_one_dimension_out", "rank_or_grade_instability", "limitations"],
+      "properties": {
+        "status": { "enum": ["PASS", "FAIL", "PARTIAL", "NOT_RUN"] },
+        "weight_sensitivity": { "$ref": "#/$defs/statistical_result" },
+        "normalization_sensitivity": { "$ref": "#/$defs/statistical_result" },
+        "aggregation_sensitivity": { "$ref": "#/$defs/statistical_result" },
+        "leave_one_dimension_out": { "$ref": "#/$defs/statistical_result" },
+        "rank_or_grade_instability": { "$ref": "#/$defs/statistical_result" },
+        "limitations": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "threshold_validation": {
+      "type": "object",
+      "required": ["status", "decision_context", "loss_model", "selection_method", "candidate_thresholds", "validation_results", "limitations"],
+      "properties": {
+        "status": { "enum": ["PASS", "FAIL", "PARTIAL", "NOT_RUN", "NOT_APPLICABLE"] },
+        "decision_context": { "type": "string", "minLength": 1 },
+        "loss_model": {
+          "type": "object",
+          "required": ["false_pass_cost", "false_fail_cost", "source"],
+          "properties": {
+            "false_pass_cost": { "type": ["number", "string"] },
+            "false_fail_cost": { "type": ["number", "string"] },
+            "source": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        "selection_method": { "type": "string", "minLength": 1 },
+        "candidate_thresholds": { "type": "array", "items": { "type": "number" } },
+        "selected_threshold": { "type": ["number", "null"] },
+        "validation_results": { "type": "array", "items": { "$ref": "#/$defs/statistical_result" } },
+        "limitations": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "uncertainty": {
+      "type": "object",
+      "required": ["methods", "confidence_level", "reported_intervals", "limitations"],
+      "properties": {
+        "methods": { "type": "array", "items": { "type": "string" } },
+        "confidence_level": { "type": ["number", "null"], "exclusiveMinimum": 0, "exclusiveMaximum": 1 },
+        "reported_intervals": { "type": "array", "items": { "$ref": "#/$defs/statistical_result" } },
+        "limitations": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "reproducibility": {
+      "type": "object",
+      "required": ["analysis_code_ref", "commit_sha", "random_seed", "environment", "reproduction_instructions"],
+      "properties": {
+        "analysis_code_ref": { "type": "string", "minLength": 1 },
+        "commit_sha": { "type": "string", "minLength": 7 },
+        "random_seed": { "type": ["integer", "null"] },
+        "environment": { "type": "string", "minLength": 1 },
+        "reproduction_instructions": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "conclusion": {
+      "type": "object",
+      "required": ["decision", "scope_statement", "limitations", "evidence_refs"],
+      "properties": {
+        "decision": { "enum": ["VALIDATED_FOR_SCOPE", "NOT_VALIDATED", "REJECTED"] },
+        "scope_statement": { "type": "string", "minLength": 1 },
+        "limitations": { "type": "array", "items": { "type": "string" } },
+        "evidence_refs": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    }
+  },
+  "$defs": {
+    "dataset_split": {
+      "type": "object",
+      "required": ["datasets", "sample_count"],
+      "properties": {
+        "datasets": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["dataset_family", "source_ref", "sha256"],
+            "properties": {
+              "dataset_family": { "type": "string", "minLength": 1 },
+              "source_ref": { "type": "string", "minLength": 1 },
+              "sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
+              "notes": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "sample_count": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "statistical_result": {
+      "type": "object",
+      "required": ["name", "value", "interval", "method", "sample_count", "interpretation"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "value": { "type": ["number", "string", "object", "null"] },
+        "interval": { "type": ["object", "null"] },
+        "method": { "type": "string", "minLength": 1 },
+        "sample_count": { "type": "integer", "minimum": 0 },
+        "interpretation": { "type": "string", "minLength": 1 },
+        "evidence_ref": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": { "const": "VALIDATED_FOR_SCOPE" },
+          "candidate_model": {
+            "properties": { "scalar_score_enabled": { "const": true } },
+            "required": ["scalar_score_enabled"]
+          }
+        },
+        "required": ["status", "candidate_model"]
+      },
+      "then": {
+        "properties": {
+          "data_splits": {
+            "properties": {
+              "leakage_audit": { "properties": { "status": { "const": "PASS" } } }
+            }
+          },
+          "expert_validation": {
+            "properties": {
+              "status": { "const": "PASS" },
+              "blinded": { "const": true },
+              "independent": { "const": true },
+              "reviewer_count": { "minimum": 2 }
+            }
+          },
+          "mutation_validation": { "properties": { "status": { "const": "PASS" } } },
+          "external_criterion_validation": { "properties": { "status": { "const": "PASS" } } },
+          "robustness": { "properties": { "status": { "const": "PASS" } } },
+          "threshold_validation": { "properties": { "status": { "const": "PASS" } } },
+          "candidate_model": {
+            "properties": {
+              "weights": { "type": "object", "minProperties": 1 },
+              "thresholds": { "type": "object", "minProperties": 1 }
+            }
+          },
+          "conclusion": { "properties": { "decision": { "const": "VALIDATED_FOR_SCOPE" } } }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "status": { "enum": ["NOT_VALIDATED", "REJECTED"] }
+        },
+        "required": ["status"]
+      },
+      "then": {
+        "properties": {
+          "candidate_model": { "properties": { "scalar_score_enabled": { "const": false } } },
+          "conclusion": { "properties": { "decision": { "enum": ["NOT_VALIDATED", "REJECTED"] } } }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}
