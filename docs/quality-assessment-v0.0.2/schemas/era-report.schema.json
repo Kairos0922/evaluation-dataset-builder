@@ -84,7 +84,24 @@
         },
         "tool_versions": { "type": "object", "additionalProperties": { "type": "string" } },
         "execution_parameters": { "type": "object" },
-        "protocol_ref": { "type": ["string", "null"] }
+        "protocol_ref": { "type": ["string", "null"] },
+        "configurations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["configuration_id", "target_revision", "model", "harness", "environment"],
+            "properties": {
+              "configuration_id": { "type": "string", "minLength": 1 },
+              "target_revision": { "type": "string", "minLength": 1 },
+              "model": { "type": "object" },
+              "harness": { "type": "object" },
+              "environment": { "type": "object" },
+              "tool_versions": { "type": "object", "additionalProperties": { "type": "string" } },
+              "execution_parameters": { "type": "object" }
+            },
+            "additionalProperties": false
+          }
+        }
       },
       "additionalProperties": false
     },
@@ -101,7 +118,26 @@
           "started_at": { "type": ["string", "null"], "format": "date-time" },
           "trace_ref": { "type": ["string", "null"] },
           "result_ref": { "type": ["string", "null"] },
-          "failure_class": { "type": ["string", "null"] }
+          "failure_class": { "type": ["string", "null"] },
+          "case_id": { "type": ["string", "null"] },
+          "configuration_id": { "type": ["string", "null"] },
+          "target_revision": { "type": ["string", "null"] },
+          "agent_outcome": { "enum": ["pass", "fail", "abstain", "unknown", null] },
+          "process_outcome": { "enum": ["pass", "fail", "unknown", null] },
+          "grader_outcome": { "enum": ["pass", "fail", "abstain", "unknown", null] },
+          "gold_outcome": { "enum": ["pass", "fail", "unknown", null] },
+          "pair_id": { "type": ["string", "null"] },
+          "repeat_group_id": { "type": ["string", "null"] },
+          "fault_kind": { "enum": ["none", "historical", "mutation", null] },
+          "fault_id": { "type": ["string", "null"] },
+          "fault_injected": { "type": ["boolean", "null"] },
+          "fault_detected": { "type": ["boolean", "null"] },
+          "failure_exposed": { "type": ["boolean", "null"] },
+          "duration_seconds": { "type": ["number", "null"], "minimum": 0 },
+          "input_tokens": { "type": ["integer", "null"], "minimum": 0 },
+          "output_tokens": { "type": ["integer", "null"], "minimum": 0 },
+          "tool_calls": { "type": ["integer", "null"], "minimum": 0 },
+          "cost_usd": { "type": ["number", "null"], "minimum": 0 }
         },
         "additionalProperties": false
       }
