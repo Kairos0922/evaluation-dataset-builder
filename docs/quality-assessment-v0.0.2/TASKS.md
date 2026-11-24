@@ -54,7 +54,7 @@
 | QA-02 | 质量 | 完成离线评价器验证与报告 | TODO | 结构、内容、评分者一致性、缺陷检出证据 |
 | QA-03 | 质量 | 完成真实运行评价的端到端验证 | TODO | Agent/Skill 真实运行，Capability 与 Regression 分别有结果 |
 | QA-04 | 质量 | 完成综合公式独立验证；若证据不足则明确 NOT_VALIDATED | TODO | 独立验证集、效度/稳健性/误差报告 |
-| CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | IN_PROGRESS | PR #44 run #1730（45511565908）在 validate_skill.py 失败：quality-standard.md 二级引用路径触发规则，已在 bb96d1b 修复；run #1732（45511671065）因后续代码更新被取消；最新 head 包含 IDA/ERA 新测试，尚无完整 CI PASS |
+| CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | IN_PROGRESS | PR #44 run #1730（45511565908）在 validate_skill.py 失败：quality-standard.md 二级引用路径触发规则，已在 bb96d1b 修复；run #1732（45511671065）因后续代码更新被取消；最新 head 0716e249 尚未触发最终 CI，IDA/ERA 新测试尚未执行 |
 | DOC-01 | 文档 | 更新 README、CHANGELOG、版本和限制说明 | TODO | v0.0.2 内容一致 |
 | REL-01 | 发布 | 建立发布候选 PR 并完成审查 | TODO | 所有适用验收门禁通过，PR 记录证据 |
 | REL-02 | 发布 | 用户批准后创建 v0.0.2 Tag 和 GitHub Release | TODO | Release 指向精确验证过的提交，证据齐全 |
@@ -80,4 +80,4 @@
 
 | 日期 | 变更 |
 |---|---|
-| 2026-11-25 | 建立需求、研究证据库、双路径方法论、公式验证协议、实验设计、设计决策、候选指标字典、IDA/ERA/Runtime Record Schema、离线 IDA 检查器、ERA 分析器、报告验证器与测试；Draft PR #44 已创建。更新 Skill 质量标准并加入报告 Schema 与运行记录 Schema；validate_skill.py 增加 JSON Schema 检查。补充 CVI/CVR、IRT 样本量、G-Theory、SkillsBench 和 OECD/JRC 复合指标手册证据；细化权重、阈值和敏感性验证方法。PR #44 run #1691 的 $id 误判已修复；run #1730 的二级引用问题已在 bb96d1b 修复；run #1732 因后续代码更新被取消；当前最新代码待重验。RQ-01、RQ-02、RS-01、FM-01、EX-01、IM-01、IM-04 完成；RS-02、RS-03、DS-01、DS-02、FM-02、IM-02、IM-05、IM-07、CI-01 进行中。 |
+| 2026-11-25 | 建立需求、研究证据库、双路径方法论、公式验证协议、实验设计、设计决策、候选指标字典、IDA/ERA/Runtime Record Schema、离线 IDA 检查器、ERA 分析器、报告验证器与测试；Draft PR #44 已创建。更新 Skill 质量标准并加入报告 Schema 与运行记录 Schema；validate_skill.py 增加 JSON Schema 检查。补充 CVI/CVR、IRT 样本量、G-Theory、SkillsBench 和 OECD/JRC 复合指标手册证据；细化规范性/经验性权重、损失驱动阈值和敏感性验证方法；补齐 IDA/ERA 测试样例及运行记录统计分析。PR #44 run #1691 的 $id 误判已修复；run #1730 的二级引用问题已在 bb96d1b 修复；run #1732 因后续代码更新被取消；当前最新代码待重验。RQ-01、RQ-02、RS-01、FM-01、EX-01、IM-01、IM-04 完成；RS-02、RS-03、DS-01、DS-02、FM-02、IM-02、IM-05、IM-07、CI-01 进行中。 |
