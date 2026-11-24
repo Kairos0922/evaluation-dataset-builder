@@ -44,7 +44,7 @@
 | EX-05 | 实验 | 完成 Capability / Regression 真实运行效标实验 | BLOCKED | 需要 PR #38 先完成 Builder 正式产出且独立 Validator PASS；当前 PR #38 run #1662 的 Builder production / independent-validation jobs 均 skipped。不得重复运行已完成的历史流程，也不得用合成轨迹冒充真实结果。解除条件：PR #38 产生正式 Builder artifact 并通过独立验证，之后使用本项目 runtime-record.schema.json 收集新运行证据 |
 | SC-01 | 方案 | 冻结 v0.0.2 需求、架构和验收标准 | TODO | 需求评审决议、设计基线 commit |
 | IM-01 | 实现 | 设计并实现 IDA 报告 Schema / 机器可读契约 | DONE | schemas/ida-report.schema.json；JSON 语法检查通过；commit f47905e |
-| IM-02 | 实现 | 实现独立离线评价器和确定性检查 | DONE | scripts/assess_dataset_quality.py（d02ab48）实现 Manifest/Case Schema、ID、来源注册表、覆盖一致性、分布、精确重复和生成报告契约检查；scripts/validate_quality_assessment.py（4fdd295）校验 IDA/ERA 报告；tests/test_assess_dataset_quality.py（bf81220）与 tests/test_quality_assessment_validator.py（58c8352）通过 PR #44 run #1771 |
+| IM-02 | 实现 | 实现独立离线评价器和确定性检查 | IN_PROGRESS | 实现已通过前一轮单测；本轮扩展来源缺失/解析、覆盖不一致和身份错配测试，run #1784 仅有 1 个测试断言文本不匹配，已修正，等待最新 head 全量复验 |
 | IM-03 | 实现 | 实现人工/LLM Judge 校准与证据记录接口 | TODO | 独立校准集协议、Judge 结果契约 |
 | IM-04 | 实现 | 实现 ERA 运行结果 Schema / 机器可读契约 | DONE | schemas/era-report.schema.json + schemas/runtime-record.schema.json；Skill references 已同步；精确数据集 SHA、Agent/模型/Harness/环境、Run/Trace、Judge、Capability/Regression 字段已定义；JSON 语法检查通过；commits ef7515c、5030629、f18e010 |
 | IM-05 | 实现 | 实现 Capability / Regression 统计分析模块 | IN_PROGRESS | scripts/assess_runtime_quality.py 已实现 Judge 混淆指标、Wilson CI、配对版本差异、McNemar exact、历史/变异故障检出、重复运行不一致和成本画像；IRT/G-Theory 与真实运行验证未完成；tests/test_assess_runtime_quality.py 已添加，待 CI 执行 |
@@ -54,7 +54,7 @@
 | QA-02 | 质量 | 完成离线评价器验证与报告 | IN_PROGRESS | 结构检查器、报告契约和 151 项 CI 测试已通过；语义内容效度、专家一致性、独立缺陷识别实验尚未完成 |
 | QA-03 | 质量 | 完成真实运行评价的端到端验证 | BLOCKED | 与 EX-05 同一前置条件：PR #38 正式 Builder artifact + independent Validator PASS；当前没有可用的正式数据集和真实 Agent 运行记录 |
 | QA-04 | 质量 | 完成综合公式独立验证；若证据不足则明确 NOT_VALIDATED | IN_PROGRESS | 已有公式验证协议和向量画像定义；尚缺专家效标、缺陷注入数据、真实运行效标与冻结验证集。证据不足时保持 NOT_VALIDATED，不得发布标量总分 |
-| CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | DONE | PR #44 run #1774（45513077814）在精确当前 head cb43aa7 上 PASS：actionlint、正式包验证、Benchmark 贯通样例、151 项离线单测全部通过；require-main-target PASS。Builder production、独立 Gold Oracle 和 Skill pilot jobs 按本 PR 条件跳过，不属于本轮质量评价实现验收。可复核日志：[workflow run #1774](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45513077814) |
+| CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | IN_PROGRESS | run #1774（45513077814）在旧实现 head 上 151 项测试 PASS；扩展到 155 项后，run #1784（45513477801）有 1 个测试断言失败，已修正，最新 head 需再次完整 CI。Builder production、独立 Gold Oracle 和 Skill pilot jobs 按本 PR 条件跳过，不属于本轮质量评价实现验收。 |
 | DOC-01 | 文档 | 更新 README、CHANGELOG、版本和限制说明 | TODO | v0.0.2 内容一致 |
 | REL-01 | 发布 | 建立发布候选 PR 并完成审查 | TODO | 所有适用验收门禁通过，PR 记录证据 |
 | REL-02 | 发布 | 用户批准后创建 v0.0.2 Tag 和 GitHub Release | TODO | Release 指向精确验证过的提交，证据齐全 |
@@ -77,7 +77,8 @@
 - [x] 建立本任务追踪文件。
 - [x] 完成 IDA 确定性离线评价器及报告验证器，并通过单元测试。
 - [x] 完成 ERA 运行记录统计分析器初版及单元测试。
-- [x] 在精确 PR head 上通过 actionlint、正式包、Benchmark 样例和 151 项离线单测（run #1771）。
+- [x] 在精确 PR head 上通过 actionlint、正式包、Benchmark 样例和 151 项离线单测（run #1774）。
+- [ ] 扩展缺陷注入测试后，在最新 head 上再次通过完整 CI。
 
 ## 当前不代表已完成的事项
 
@@ -91,4 +92,4 @@
 
 | 日期 | 变更 |
 |---|---|
-| 2026-11-25 | 建立需求、研究证据库、双路径方法论、公式验证协议、实验设计、设计决策、候选指标字典、IDA/ERA/Runtime Record Schema、离线 IDA 检查器、ERA 分析器、报告验证器与测试；Draft PR #44 已创建。更新 Skill 质量标准并加入报告 Schema 与运行记录 Schema；validate_skill.py 增加 JSON Schema 检查；Release Gate 测试同步纳入新增 Schema 和当前 Workflow 实现。补充 CVI/CVR、IRT 样本量、G-Theory、SkillsBench 和 OECD/JRC 复合指标手册证据；细化规范性/经验性权重、损失驱动阈值和敏感性验证方法；正式定义 IDA/ERA 用途条件化质量画像；建立 defect-mutation-catalog.yaml 和对应测试。PR #44 run #1774 在精确 head cb43aa7 上 actionlint、正式包、Benchmark 样例和 151 项离线测试全部 PASS；IM-02 与 CI-01 完成。 PR #44 run #1784（45513477801）actionlint、正式包、Benchmark 样例 PASS，155 项测试中仅 1 个断言失败：missing-source test 期望描述文本为 source reference，但实现报告字段名 source_refs；已修正测试断言，等待最新 head 重跑。公式效度、专家盲评、缺陷注入、真实 Agent 运行、IRT/G-Theory、版本元数据和 Release 仍未完成。RQ-01、RQ-02、RS-01、FM-01、EX-01、IM-01、IM-02、IM-04、CI-01 完成；RS-02、RS-03、DS-01、DS-02、FM-02、IM-05、IM-07 进行中。 |
+| 2026-11-25 | 建立需求、研究证据库、双路径方法论、公式验证协议、实验设计、设计决策、候选指标字典、IDA/ERA/Runtime Record Schema、离线 IDA 检查器、ERA 分析器、报告验证器与测试；Draft PR #44 已创建。更新 Skill 质量标准并加入报告 Schema 与运行记录 Schema；validate_skill.py 增加 JSON Schema 检查；Release Gate 测试同步纳入新增 Schema 和当前 Workflow 实现。补充 CVI/CVR、IRT 样本量、G-Theory、SkillsBench 和 OECD/JRC 复合指标手册证据；细化规范性/经验性权重、损失驱动阈值和敏感性验证方法；正式定义 IDA/ERA 用途条件化质量画像；建立 defect-mutation-catalog.yaml 和对应测试。PR #44 run #1774 在精确 head cb43aa7 上 actionlint、正式包、Benchmark 样例和 151 项离线测试全部 PASS；IM-02 与 CI-01 的前一版验收完成；缺陷测试扩展后的最新 head 复验中。 PR #44 run #1784（45513477801）actionlint、正式包、Benchmark 样例 PASS，155 项测试中仅 1 个断言失败：missing-source test 期望描述文本为 source reference，但实现报告字段名 source_refs；已修正测试断言，等待最新 head 重跑。公式效度、专家盲评、缺陷注入、真实 Agent 运行、IRT/G-Theory、版本元数据和 Release 仍未完成。RQ-01、RQ-02、RS-01、FM-01、EX-01、IM-01、IM-02、IM-04、CI-01 完成；RS-02、RS-03、DS-01、DS-02、FM-02、IM-05、IM-07 进行中。 |
