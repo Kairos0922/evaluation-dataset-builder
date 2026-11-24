@@ -224,6 +224,22 @@ class QualityAssessmentValidatorTests(unittest.TestCase):
         errors = validate_report(report)
         self.assertTrue(any("requires sufficient_for_scope" in error for error in errors))
 
+    def test_era_composite_requires_runtime_and_grader_evidence(self):
+        report = base_era()
+        report["evidence_sufficiency"]["status"] = "sufficient_for_scope"
+        report["composite"] = {
+            "status": "VALIDATED_FOR_SCOPE",
+            "value": 0.9,
+            "model_id": "model-1",
+            "scope": "general agents",
+            "validation_report_ref": "report://validation",
+            "limitations": []
+        }
+        errors = validate_report(report)
+        self.assertTrue(any("requires validated grader evidence" in error for error in errors))
+        self.assertTrue(any("completed capability analysis" in error for error in errors))
+        self.assertTrue(any("completed regression analysis" in error for error in errors))
+
 
 if __name__ == "__main__":
     unittest.main()
