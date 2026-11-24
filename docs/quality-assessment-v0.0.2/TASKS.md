@@ -36,7 +36,12 @@
 | DS-04 | 设计 | 设计 Regression 专属评价与统计方案 | TODO | 配对变化/历史故障/Mutation/Flakiness 方案 |
 | FM-01 | 公式 | 定义构念蓝图、指标类型和候选公式模型族 | DONE | methodology-design.md §3、§5；formula-validation-protocol.md §2、§5；commit f84ef13 + b6cd238 |
 | FM-02 | 公式 | 设计公式构建、权重来源、阈值选择与敏感性分析协议 | IN_PROGRESS | formula-validation-protocol.md 已形成开发/验证隔离、效标、模型比较、敏感性和阈值论证草案；仍需冻结预注册分析计划 |
-| FM-03 | 公式 | 建立独立效度验证实验与证明报告 | TODO | 专家盲评、缺陷注入、外部效标、泛化和不确定性证据 |
+| FM-03 | 公式 | 建立独立效度验证实验与证明报告 | TODO | 执行专家盲评、缺陷注入、外部效标、泛化和不确定性验证；当前仅有协议设计 |
+| EX-01 | 实验 | 完成公式验证实验设计与样本量/效标规划 | DONE | experimental-design.md；定义 E0–E7 阶段、分组隔离、专家盲评、缺陷注入和真实运行方案；commit 4b2f0d3 |
+| EX-02 | 实验 | 建立独立参考数据集与缺陷注入样本 | TODO | 数据来源、版本、SHA、缺陷标签、对照组和独立确认 |
+| EX-03 | 实验 | 完成专家内容效度与评分者一致性实验 | TODO | 盲评原始数据、专家资历/协议、CVI/CVR/一致性统计 |
+| EX-04 | 实验 | 完成缺陷注入识别实验 | TODO | 盲测结果、按缺陷类型的检出/误报和置信区间 |
+| EX-05 | 实验 | 完成 Capability / Regression 真实运行效标实验 | TODO | 精确版本绑定的运行轨迹、Oracle、统计分析和限制 |
 | SC-01 | 方案 | 冻结 v0.0.2 需求、架构和验收标准 | TODO | 需求评审决议、设计基线 commit |
 | IM-01 | 实现 | 设计并实现 IDA 报告 Schema / 机器可读契约 | TODO | Schema + 正反例测试 |
 | IM-02 | 实现 | 实现独立离线评价器和确定性检查 | TODO | CLI/API、报告、测试 |
@@ -75,4 +80,4 @@
 
 | 日期 | 变更 |
 |---|---|
-| 2026-11-25 | 建立需求、研究证据库、双路径方法论、公式验证协议、设计决策和候选指标字典；Draft PR #44 已创建。补充 CVI/CVR、IRT 样本量、G-Theory、SkillsBench 版本和 failure exposure 证据。RQ-01、RQ-02、RS-01、FM-01 完成；RS-02、RS-03、DS-01、DS-02、FM-02 进行中。 |
+| 2026-11-25 | 建立需求、研究证据库、双路径方法论、公式验证协议、实验设计、设计决策和候选指标字典；Draft PR #44 已创建。补充 CVI/CVR、IRT 样本量、G-Theory、SkillsBench 版本和 failure exposure 证据。RQ-01、RQ-02、RS-01、FM-01、EX-01 完成；RS-02、RS-03、DS-01、DS-02、FM-02 进行中。 |
