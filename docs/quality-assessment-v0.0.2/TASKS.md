@@ -54,7 +54,7 @@
 | QA-02 | 质量 | 完成离线评价器验证与报告 | TODO | 结构、内容、评分者一致性、缺陷检出证据 |
 | QA-03 | 质量 | 完成真实运行评价的端到端验证 | TODO | Agent/Skill 真实运行，Capability 与 Regression 分别有结果 |
 | QA-04 | 质量 | 完成综合公式独立验证；若证据不足则明确 NOT_VALIDATED | TODO | 独立验证集、效度/稳健性/误差报告 |
-| CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | IN_PROGRESS | PR #44 run #1730（45511565908）在 validate_skill.py 失败：quality-standard.md 二级引用路径触发规则，已在 bb96d1b 修复；run #1732（45511671065）因后续代码更新被取消；run #1744（45512031405）中 actionlint、正式包和 Benchmark 样例 PASS，离线测试 151 项中有 2 failures / 8 errors；已修复 IDA coverage profile 的数组类型、Release Gate 测试换行 fixture、Skill 文件清单、当前 Workflow 断言及 exact-tree fixture；最新 head 尚待重跑 |
+| CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | IN_PROGRESS | PR #44 run #1730（45511565908）在 validate_skill.py 失败：quality-standard.md 二级引用路径触发规则，已在 bb96d1b 修复；run #1732（45511671065）因后续代码更新被取消；run #1744（45512031405）中 actionlint、正式包和 Benchmark 样例 PASS，离线测试 151 项中有 2 failures / 8 errors；已修复 IDA coverage profile 的数组类型、Release Gate 测试换行 fixture、Skill 文件清单、当前 Workflow 断言及 exact-tree fixture。run #1755（45512425312）actionlint、正式包和 Benchmark 样例 PASS，但在离线测试步骤开始前因后续文档提交被取消；最新 head 需重新执行完整 CI |
 | DOC-01 | 文档 | 更新 README、CHANGELOG、版本和限制说明 | TODO | v0.0.2 内容一致 |
 | REL-01 | 发布 | 建立发布候选 PR 并完成审查 | TODO | 所有适用验收门禁通过，PR 记录证据 |
 | REL-02 | 发布 | 用户批准后创建 v0.0.2 Tag 和 GitHub Release | TODO | Release 指向精确验证过的提交，证据齐全 |
@@ -80,4 +80,4 @@
 
 | 日期 | 变更 |
 |---|---|
-| 2026-11-25 | 建立需求、研究证据库、双路径方法论、公式验证协议、实验设计、设计决策、候选指标字典、IDA/ERA/Runtime Record Schema、离线 IDA 检查器、ERA 分析器、报告验证器与测试；Draft PR #44 已创建。更新 Skill 质量标准并加入报告 Schema 与运行记录 Schema；validate_skill.py 增加 JSON Schema 检查；Release Gate 测试同步纳入新增 Schema 和当前 Workflow 实现。补充 CVI/CVR、IRT 样本量、G-Theory、SkillsBench 和 OECD/JRC 复合指标手册证据；细化规范性/经验性权重、损失驱动阈值和敏感性验证方法；补齐 IDA/ERA 测试样例及运行记录统计分析。PR #44 run #1691 的 $id 误判已修复；run #1730 的二级引用问题已在 bb96d1b 修复；run #1744 正式包与 Benchmark 样例通过；离线测试 151 项中发现 2 failures / 8 errors。7 项 IDA 测试由 coverage profile 数组类型导致，已改为对象；3 项旧 Release Gate 测试分别修正 newline fixture、随包 Schema 文件清单和当前发布 Workflow 断言，并同步 exact-tree fixture key；最新 head 需重跑完整测试。RQ-01、RQ-02、RS-01、FM-01、EX-01、IM-01、IM-04 完成；RS-02、RS-03、DS-01、DS-02、FM-02、IM-02、IM-05、IM-07、CI-01 进行中。 |
+| 2026-11-25 | 建立需求、研究证据库、双路径方法论、公式验证协议、实验设计、设计决策、候选指标字典、IDA/ERA/Runtime Record Schema、离线 IDA 检查器、ERA 分析器、报告验证器与测试；Draft PR #44 已创建。更新 Skill 质量标准并加入报告 Schema 与运行记录 Schema；validate_skill.py 增加 JSON Schema 检查；Release Gate 测试同步纳入新增 Schema 和当前 Workflow 实现。补充 CVI/CVR、IRT 样本量、G-Theory、SkillsBench 和 OECD/JRC 复合指标手册证据；细化规范性/经验性权重、损失驱动阈值和敏感性验证方法；正式定义 IDA/ERA 用途条件化质量画像；补齐 IDA/ERA 测试样例及运行记录统计分析。PR #44 run #1691 的 $id 误判已修复；run #1730 的二级引用问题已在 bb96d1b 修复；run #1744 正式包与 Benchmark 样例通过；离线测试 151 项中发现 2 failures / 8 errors。7 项 IDA 测试由 coverage profile 数组类型导致，已改为对象；3 项旧 Release Gate 测试分别修正 newline fixture、随包 Schema 文件清单和当前发布 Workflow 断言，并同步 exact-tree fixture key；最新 head 需重跑完整测试。RQ-01、RQ-02、RS-01、FM-01、EX-01、IM-01、IM-04 完成；RS-02、RS-03、DS-01、DS-02、FM-02、IM-02、IM-05、IM-07、CI-01 进行中。 |
