@@ -570,6 +570,14 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, evalu
     if source_registry_path:
         report["limitations"].append("Source registry identity resolution was performed; claim support still requires independent review.")
 
+    try:
+        from .validate_quality_assessment import validate_report
+    except ImportError:
+        from validate_quality_assessment import validate_report
+    contract_errors = validate_report(report)
+    if contract_errors:
+        raise ValueError("generated IDA report failed its schema/semantic contract: " + "; ".join(contract_errors))
+
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     return report, structural_errors, duplicate_ids, coverage_errors, source_errors
