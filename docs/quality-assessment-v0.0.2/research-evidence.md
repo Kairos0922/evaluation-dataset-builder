@@ -113,6 +113,27 @@
 
 **限制：** 该基准面向 Skill 效用，不等价于通用 Dataset Quality 标准。
 
+
+### 4.3 A Framework for Evaluating Agentic Skills at Scale（预印本）
+
+- arXiv：https://arxiv.org/abs/2606.17819
+
+**证据与贡献：** 对 500 个真实 Skill 构建 1,000 个任务，使用 Instruction Following 与 Goal Completion Rubrics，并在有 Skill / 无 Skill 条件下评估 19 种 Agent-model 配置。
+
+**适用性：** 支持以配对对照估计 Skill 对目标任务的增量效用，并说明 Skill 效果依赖模型和任务上下文。
+
+**限制：** 该工作测量 Skill utility，不直接测量数据集的静态质量；任务生成和 Judge Rubric 仍需独立验证。论文为 arXiv 预印本。
+
+### 4.4 SkillForgeBench（预印本）
+
+- arXiv：https://arxiv.org/abs/2610.14918
+
+**证据与贡献：** 报告 842 个沙箱任务、五个专业领域，并同时评价任务完成和过程要求；论文摘要显示仅看完成结果可能高估 Agent 可靠性。
+
+**适用性：** 支持将 Outcome 与 Process Rubric 分开，尤其适用于需要遵循步骤、约束和操作流程的 Agent / Skill。
+
+**限制：** 预印本结果不能视为跨任务域的普遍结论；其领域与任务构造仍需在通用框架中独立复核。
+
 ## 5. LLM Judge / Evaluator 验证
 
 ### 5.1 Validating LLM-as-a-Judge Systems under Rating Indeterminacy
