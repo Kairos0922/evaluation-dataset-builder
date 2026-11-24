@@ -297,8 +297,9 @@ def main():
                   "ERA 必须要求真实运行和精确版本绑定")
             for assessment in (independent, runtime):
                 schema_ref = assessment.get("report_schema")
-                check(isinstance(schema_ref, str) and (ROOT / schema_ref).is_file(),
-                      f"缺少评价报告 Schema：{schema_ref}")
+                schema_path = SKILL_DIR / "references" / schema_ref if isinstance(schema_ref, str) else None
+                check(schema_path is not None and schema_path.is_file(),
+                      f"缺少 Skill 内的评价报告 Schema：{schema_ref}")
 
             required_gates = {
                 "G01_source_provenance", "G02_construct_alignment",
@@ -326,13 +327,23 @@ def main():
 
             for key in ("validation_protocol", "validation_experiments"):
                 ref = composite.get(key)
-                check(isinstance(ref, str) and (ROOT / ref).is_file(),
+                if isinstance(ref, str) and ref.startswith("https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/"):
+                    relative = ref.split("/blob/main/", 1)[1].split("#", 1)[0]
+                    resolved = ROOT / relative
+                else:
+                    resolved = ROOT / ref if isinstance(ref, str) else None
+                check(resolved is not None and resolved.is_file(),
                       f"综合公式缺少验证依据文件：{ref}")
 
             governance = config.get("governance", {})
             for key in ("metric_catalog", "methodology", "research_evidence"):
                 ref = governance.get(key)
-                check(isinstance(ref, str) and (ROOT / ref).is_file(),
+                if isinstance(ref, str) and ref.startswith("https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/"):
+                    relative = ref.split("/blob/main/", 1)[1].split("#", 1)[0]
+                    resolved = ROOT / relative
+                else:
+                    resolved = ROOT / ref if isinstance(ref, str) else None
+                check(resolved is not None and resolved.is_file(),
                       f"质量标准缺少治理引用：{ref}")
             check(governance.get("no_unvalidated_thresholds") is True,
                   "必须禁止未经验证的阈值")
