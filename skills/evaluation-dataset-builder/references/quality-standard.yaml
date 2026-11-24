@@ -73,6 +73,7 @@ critical_gates:
 statuses:
   - PASS
   - FAIL
+  - MEASURED
   - UNKNOWN
   - NOT_RUN
   - NOT_ASSESSED
