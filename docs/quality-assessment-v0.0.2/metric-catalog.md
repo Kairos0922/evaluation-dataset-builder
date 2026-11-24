@@ -69,7 +69,8 @@
 
 | ID | 指标 | 操作性定义 / 计算 | 限制 |
 |---|---|---|---|
-| CAP-01 | Empirical Item Difficulty | 在明确 Agent/配置总体中任务通过概率或 IRT 难度参数 | 依赖样本总体和模型假设；不可直接视为题目质量 |
+| CAP-00 | Observed Item Pass-Rate Profile | 每道题在指定 Agent/配置/环境总体中的观察通过率及运行数 | 仅为描述性统计，不等于 IRT 难度参数 |
+| CAP-01 | Empirical Item Difficulty | 在明确 Agent/配置总体中估计任务通过概率或 IRT 难度参数 | 依赖样本总体和模型假设；不可直接视为题目质量 |
 | CAP-02 | Item Discrimination | 题目对目标能力差异的区分参数/相关 | 需足够能力范围；检查局部依赖和混淆因素 |
 | CAP-03 | Test Information | 给定能力区间的测试信息函数 | 需要拟合适当 IRT 模型 |
 | CAP-04 | Conditional Measurement Error | 各能力区间的条件标准误/区间宽度 | 必须报告估计不确定性 |
@@ -87,7 +88,7 @@
 | REG-04 | Critical Regression Escape | 已确认关键退化但测试未暴露的案例数/比例 | 需定义关键风险全集 |
 | REG-05 | Regression False Pass / False Fail | 新旧版本变化经 Oracle 确认后，回归判定器的误放行/误报 | 不能只报告总体 accuracy |
 | REG-06 | Flakiness / Discordance | 同一版本、任务和协议的重复运行结果不一致程度 | 分解 Agent、环境、Judge 方差 |
-| REG-07 | Fault Diagnosis | 检测后是否定位到正确能力/行为/规则/工具调用 | 需有独立故障分类 |
+| REG-07 | Historical Fault Failure Exposure | 在历史真实故障回放中，已确认失败被暴露为可观察证据的比例 | 与检测率不同；必须只使用经独立确认的历史故障 |
 | REG-08 | Cost per Detected Fault | 发现一个已确认缺陷的执行成本分布 | 不能替代检出质量 |
 
 ## 6. 计量与缺失处理约束
