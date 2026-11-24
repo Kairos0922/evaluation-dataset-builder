@@ -229,6 +229,10 @@ def build_era_report(
     bootstrap_resamples: int = 2000,
     bootstrap_seed: int = 2026,
 ):
+    if not 0 < confidence < 1:
+        raise ValueError("confidence must be strictly between 0 and 1")
+    if bootstrap_resamples < 1:
+        raise ValueError("bootstrap_resamples must be positive")
     records, validation_errors = load_records(records_path)
     if validation_errors:
         raise ValueError("runtime record schema validation failed: " + "; ".join(validation_errors[:20]))
@@ -643,7 +647,10 @@ def build_era_report(
         ]
     }
 
-    from validate_quality_assessment import validate_report
+    try:
+        from .validate_quality_assessment import validate_report
+    except ImportError:
+        from validate_quality_assessment import validate_report
     contract_errors = validate_report(report)
     if contract_errors:
         raise ValueError("generated ERA report failed its schema/semantic contract: " + "; ".join(contract_errors))
