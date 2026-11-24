@@ -56,7 +56,7 @@
         "required": ["gate_id", "status", "severity", "rationale", "evidence_refs"],
         "properties": {
           "gate_id": { "type": "string", "minLength": 1 },
-          "status": { "enum": ["PASS", "FAIL", "UNKNOWN", "NOT_RUN", "NOT_ASSESSED", "NOT_APPLICABLE"] },
+          "status": { "enum": ["PASS", "FAIL", "MEASURED", "UNKNOWN", "NOT_RUN", "NOT_ASSESSED", "NOT_APPLICABLE"] },
           "severity": { "enum": ["critical", "high", "medium", "low", "informational"] },
           "rationale": { "type": "string" },
           "evidence_refs": { "type": "array", "items": { "type": "string", "minLength": 1 } }
@@ -71,7 +71,7 @@
         "required": ["metric_id", "status", "value", "unit", "evidence_refs", "limitations"],
         "properties": {
           "metric_id": { "type": "string", "minLength": 1 },
-          "status": { "enum": ["PASS", "FAIL", "UNKNOWN", "NOT_RUN", "NOT_ASSESSED", "NOT_APPLICABLE", "NOT_VALIDATED"] },
+          "status": { "enum": ["PASS", "FAIL", "MEASURED", "UNKNOWN", "NOT_RUN", "NOT_ASSESSED", "NOT_APPLICABLE", "NOT_VALIDATED"] },
           "value": { "type": ["number", "string", "object", "null"] },
           "unit": { "type": ["string", "null"] },
           "numerator": { "type": ["number", "integer", "null"] },
