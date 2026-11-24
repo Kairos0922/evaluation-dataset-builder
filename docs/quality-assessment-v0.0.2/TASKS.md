@@ -41,7 +41,7 @@
 | EX-02 | 实验 | 建立独立参考数据集与缺陷注入样本 | TODO | 数据来源、版本、SHA、缺陷标签、对照组和独立确认 |
 | EX-03 | 实验 | 完成专家内容效度与评分者一致性实验 | TODO | 盲评原始数据、专家资历/协议、CVI/CVR/一致性统计 |
 | EX-04 | 实验 | 完成缺陷注入识别实验 | TODO | 盲测结果、按缺陷类型的检出/误报和置信区间 |
-| EX-05 | 实验 | 完成 Capability / Regression 真实运行效标实验 | TODO | 精确版本绑定的运行轨迹、Oracle、统计分析和限制 |
+| EX-05 | 实验 | 完成 Capability / Regression 真实运行效标实验 | BLOCKED | 需要 PR #38 先完成 Builder 正式产出且独立 Validator PASS；当前 PR #38 run #1662 的 Builder production / independent-validation jobs 均 skipped。不得重复运行已完成的历史流程，也不得用合成轨迹冒充真实结果。解除条件：PR #38 产生正式 Builder artifact 并通过独立验证，之后使用本项目 runtime-record.schema.json 收集新运行证据 |
 | SC-01 | 方案 | 冻结 v0.0.2 需求、架构和验收标准 | TODO | 需求评审决议、设计基线 commit |
 | IM-01 | 实现 | 设计并实现 IDA 报告 Schema / 机器可读契约 | DONE | schemas/ida-report.schema.json；JSON 语法检查通过；commit f47905e |
 | IM-02 | 实现 | 实现独立离线评价器和确定性检查 | DONE | scripts/assess_dataset_quality.py（d02ab48）实现 Manifest/Case Schema、ID、来源注册表、覆盖一致性、分布、精确重复和生成报告契约检查；scripts/validate_quality_assessment.py（4fdd295）校验 IDA/ERA 报告；tests/test_assess_dataset_quality.py（bf81220）与 tests/test_quality_assessment_validator.py（58c8352）通过 PR #44 run #1771 |
@@ -52,12 +52,20 @@
 | IM-07 | 集成 | 更新 Skill 质量标准、按需加载引用和版本到 0.0.2 | IN_PROGRESS | quality-standard.md/yaml 已替换旧固定权重；IDA/ERA 报告 Schema、Runtime Record Schema 已加入 Skill references，SKILL.md 已引用；validate_skill.py 增加 Draft 2020-12 Schema 检查；版本元数据待发布候选阶段更新，正式包验证待 CI |
 | QA-01 | 质量 | 建立元评测数据、已知缺陷注入和专家盲评样本 | TODO | 数据来源、隔离、标注和审计记录 |
 | QA-02 | 质量 | 完成离线评价器验证与报告 | TODO | 结构、内容、评分者一致性、缺陷检出证据 |
-| QA-03 | 质量 | 完成真实运行评价的端到端验证 | TODO | Agent/Skill 真实运行，Capability 与 Regression 分别有结果 |
-| QA-04 | 质量 | 完成综合公式独立验证；若证据不足则明确 NOT_VALIDATED | TODO | 独立验证集、效度/稳健性/误差报告 |
+| QA-03 | 质量 | 完成真实运行评价的端到端验证 | BLOCKED | 与 EX-05 同一前置条件：PR #38 正式 Builder artifact + independent Validator PASS；当前没有可用的正式数据集和真实 Agent 运行记录 |
+| QA-04 | 质量 | 完成综合公式独立验证；若证据不足则明确 NOT_VALIDATED | IN_PROGRESS | 已有公式验证协议和向量画像定义；尚缺专家效标、缺陷注入数据、真实运行效标与冻结验证集。证据不足时保持 NOT_VALIDATED，不得发布标量总分 |
 | CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | DONE | PR #44 run #1774（45513077814）在精确当前 head cb43aa7 上 PASS：actionlint、正式包验证、Benchmark 贯通样例、151 项离线单测全部通过；require-main-target PASS。Builder production、独立 Gold Oracle 和 Skill pilot jobs 按本 PR 条件跳过，不属于本轮质量评价实现验收。可复核日志：[workflow run #1774](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45513077814) |
 | DOC-01 | 文档 | 更新 README、CHANGELOG、版本和限制说明 | TODO | v0.0.2 内容一致 |
 | REL-01 | 发布 | 建立发布候选 PR 并完成审查 | TODO | 所有适用验收门禁通过，PR 记录证据 |
 | REL-02 | 发布 | 用户批准后创建 v0.0.2 Tag 和 GitHub Release | TODO | Release 指向精确验证过的提交，证据齐全 |
+
+## 外部依赖与阻塞
+
+- PR #38（Builder 正式生产与独立验证）是本项目真实运行评价的外部依赖。当前可核验的 PR #38 head 为 7f34ddb；其 run #1662 只通过上游资产审计，Builder production、independent-validation、pilot 等 jobs 均 skipped。
+- 因此当前没有经过正式门禁的 Builder 输出可供本项目做真实数据集质量评价，也没有可用于 ERA 的真实 Agent 运行记录。
+- 本任务不会修改 PR #38，不会重复执行已完成的 Builder/Pilot/Oracle 历史证据，不会把单元测试夹具或合成轨迹伪装成真实运行证据。
+- PR #38 的 Builder 正式产出和独立 Validator PASS 后，才解除 EX-05 / QA-03 阻塞；届时应绑定精确 dataset SHA、Agent/Skill revision、模型、Harness、环境和 run records。
+- 当前 PR #44 的 CI PASS 只证明本项目代码、Schema、Skill 包和离线测试通过，不代表公式效度或真实运行评价已经通过。
 
 ## 当前已完成
 
