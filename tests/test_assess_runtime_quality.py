@@ -69,8 +69,9 @@ class RuntimeAssessmentTests(unittest.TestCase):
             runtime_record("b2", "baseline", "CASE-2", "fail", "pass", "fail", pair_id="P2"),
             runtime_record("c2", "candidate", "CASE-2", "pass", "pass", "pass", pair_id="P2"),
             runtime_record("b1-repeat", "baseline", "CASE-1", "fail", "unknown", "unknown", repeat_group_id="R1"),
-            runtime_record("h1", "candidate", "CASE-3", "fail", "unknown", "unknown", fault_kind="historical", fault_id="H1", fault_detected=True, failure_exposed=True),
-            runtime_record("m1", "candidate", "CASE-4", "pass", "unknown", "unknown", fault_kind="mutation", fault_id="M1", fault_detected=False, failure_exposed=False)
+            runtime_record("h1", "candidate", "CASE-3", "fail", "unknown", "unknown", fault_kind="historical", fault_id="H1", fault_detected=False, failure_exposed=False),
+            runtime_record("m1", "candidate", "CASE-4", "pass", "unknown", "unknown", fault_kind="mutation", fault_id="M1", fault_detected=False, failure_exposed=False),
+            runtime_record("j1", "candidate", "CASE-5", "pass", "pass", "abstain")
         ]
         with tempfile.TemporaryDirectory() as tmp:
             directory = Path(tmp)
@@ -85,9 +86,17 @@ class RuntimeAssessmentTests(unittest.TestCase):
                 candidate_revision="candidate",
                 bootstrap_resamples=200
             )
-            self.assertEqual(report["grader_validation"]["sample_count"], 4)
+            self.assertEqual(report["grader_validation"]["sample_count"], 5)
             grader_false_pass = next(item for item in report["metric_results"] if item["metric_id"] == "ERA-GRD-01")
             self.assertEqual(grader_false_pass["value"], 0.5)
+            grader_abstention = next(item for item in report["metric_results"] if item["metric_id"] == "ERA-GRD-03")
+            self.assertEqual(grader_abstention["value"], 0.2)
+            historical_detection = next(item for item in report["metric_results"] if item["metric_id"] == "REG-01")
+            self.assertEqual(historical_detection["value"], 0.0)
+            historical_exposure = next(item for item in report["metric_results"] if item["metric_id"] == "REG-07")
+            self.assertEqual(historical_exposure["value"], 0.0)
+            all_fault_exposure = next(item for item in report["metric_results"] if item["metric_id"] == "ERA-RUN-05")
+            self.assertEqual(all_fault_exposure["value"], 0.0)
             regression = next(item for item in report["metric_results"] if item["metric_id"] == "REG-03")
             self.assertEqual(regression["value"]["candidate_minus_baseline_pass_rate"], 0.0)
             self.assertEqual(regression["value"]["baseline_pass_to_candidate_fail"], 1)
