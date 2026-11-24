@@ -228,6 +228,15 @@ class OfflineDatasetAssessmentTests(unittest.TestCase):
     def test_missing_source_references_are_reported_without_claiming_source_validity(self):
         case = sample_case()
         case["source_refs"] = []
+        case["case_origin"] = "unknown"
+        case["information_gaps"] = [{
+            "gap_id": "GAP-001",
+            "description": "The source origin has not yet been established.",
+            "affected_claims": ["task provenance"],
+            "required_evidence": ["independent source record"],
+            "responsible_role": "reviewer",
+            "status": "OPEN"
+        }]
         with tempfile.TemporaryDirectory() as tmp:
             report, _, _, _, _ = self.run_assessment(
                 Path(tmp), sample_manifest(), [case]
