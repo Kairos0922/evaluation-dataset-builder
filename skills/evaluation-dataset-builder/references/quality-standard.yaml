@@ -17,7 +17,7 @@ assessment_paths:
   independent:
     id: IDA
     name: Independent Dataset Assessment
-    report_schema: docs/quality-assessment-v0.0.2/schemas/ida-report.schema.json
+    report_schema: references/ida-report.schema.json
     requires_agent_execution: false
     runtime_metrics_allowed: false
     dimensions:
@@ -32,7 +32,7 @@ assessment_paths:
   runtime:
     id: ERA
     name: Empirical Runtime Assessment
-    report_schema: docs/quality-assessment-v0.0.2/schemas/era-report.schema.json
+    report_schema: references/era-report.schema.json
     requires_agent_execution: true
     requires_exact_version_binding: true
     shared_dimensions:
@@ -98,13 +98,13 @@ composite:
     - non_compensatory_bottleneck
     - purpose_specific
     - latent_variable_if_assumptions_hold
-  validation_protocol: docs/quality-assessment-v0.0.2/formula-validation-protocol.md
-  validation_experiments: docs/quality-assessment-v0.0.2/experimental-design.md
+  validation_protocol: https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/docs/quality-assessment-v0.0.2/formula-validation-protocol.md
+  validation_experiments: https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/docs/quality-assessment-v0.0.2/experimental-design.md
 
 governance:
-  metric_catalog: docs/quality-assessment-v0.0.2/metric-catalog.md
-  methodology: docs/quality-assessment-v0.0.2/methodology-design.md
-  research_evidence: docs/quality-assessment-v0.0.2/research-evidence.md
+  metric_catalog: https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/docs/quality-assessment-v0.0.2/metric-catalog.md
+  methodology: https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/docs/quality-assessment-v0.0.2/methodology-design.md
+  research_evidence: https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/docs/quality-assessment-v0.0.2/research-evidence.md
   no_unvalidated_thresholds: true
   no_compensation_for_critical_gate_failure: true
   report_evidence_sufficiency_separately: true
