@@ -39,6 +39,7 @@ def sample_case(case_id="CASE-001"):
         "title": "Check tool selection",
         "evaluation_target": "general-agent",
         "objective": "Select the required tool for the stated task.",
+        "assumptions": ["The status lookup tool is available and authorized."],
         "user_input": "Find the status of resource A.",
         "expected_behavior": "Use the status lookup tool and report the returned state.",
         "source_refs": [
