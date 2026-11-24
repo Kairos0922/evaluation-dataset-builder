@@ -18,7 +18,7 @@ from verify_release import (
 
 def build_published_release_doc(current, report, candidate_sha, release_sha,
                                 workflow_run_id=None):
-    heading = re.search(r"^# .*0\\.0\\.1.*发布候选说明\\s*$", current, re.MULTILINE)
+    heading = re.search(r"^# .*0\.0\.1.*发布候选说明\s*$", current, re.MULTILINE)
     require(heading is not None,
             "RELEASE.md is missing a recognized v0.0.1 candidate heading.")
     text = (
@@ -28,12 +28,12 @@ def build_published_release_doc(current, report, candidate_sha, release_sha,
     )
 
     status = (
-        "**状态：** 已正式发布。Git Tag `v0.0.1` 与 GitHub Release 已创建；"
-        f"候选 SHA `{candidate_sha}`，发布目标提交 `{release_sha}`。"
+        "**状态：** 已正式发布。Git Tag v0.0.1 与 GitHub Release 已创建；"
+        f"候选 SHA {candidate_sha}，发布目标提交 {release_sha}。"
         "Builder 证据 PR #38 继续保持 Draft/Open。"
     )
     text, replaced = re.subn(
-        r"^\\*\\*状态：\\*\\*.*$",
+        r"^\*\*状态：\*\*.*$",
         lambda _: status,
         text,
         count=1,
@@ -41,7 +41,7 @@ def build_published_release_doc(current, report, candidate_sha, release_sha,
     )
     require(replaced == 1, "RELEASE.md is missing its status line.")
 
-    gate = re.search(r"^## 发布门禁[^\\n]*\\n", text, re.MULTILINE)
+    gate = re.search(r"^## 发布门禁[^\n]*\n", text, re.MULTILINE)
     require(gate is not None, "RELEASE.md is missing the release-gate checklist.")
     next_heading = re.search(r"^## ", text[gate.end():], re.MULTILINE)
     gate_end = gate.end() + next_heading.start() if next_heading else len(text)
@@ -63,7 +63,7 @@ def build_published_release_doc(current, report, candidate_sha, release_sha,
 
     # Remove the stale failure-only status block from the earlier release attempt.
     text = re.sub(
-        r"\\n## Release attempt status[^\\n]*.*\\Z",
+        r"\n## Release attempt status[^\n]*.*\Z",
         "",
         text,
         flags=re.DOTALL,
@@ -79,23 +79,23 @@ def build_published_release_doc(current, report, candidate_sha, release_sha,
     stability = report["stability"]
     baseline = report["baseline_comparison"]
     evidence = (
-        "\\n\\n## Release evidence\\n\\n"
-        f"- Candidate PR head SHA: `{candidate_sha}`\\n"
-        f"- Merged main commit / tag SHA: `{release_sha}`\\n"
-        f"- Release workflow run: `{workflow_run_id or 'not recorded'}`\\n"
-        f"- Evaluation workflow run: {report.get('workflow_run_id')}\\n"
-        f"- Generator: `{report['models']['generator']}`; Independent Judge: `{report['models']['judge_and_trigger']}`\\n"
-        f"- Behavior mean / spread: {stability['behavior_pass_rate']['mean']:.1%} / {stability['behavior_pass_rate']['spread']:.1%}\\n"
-        f"- Trigger Precision mean / spread: {stability['trigger_precision']['mean']:.1%} / {stability['trigger_precision']['spread']:.1%}\\n"
-        f"- Trigger Recall mean / spread: {stability['trigger_recall']['mean']:.1%} / {stability['trigger_recall']['spread']:.1%}\\n"
-        f"- Matched baseline mean uplift: {baseline['mean_uplift']:+.1%}\\n"
-        f"- Builder evidence PR: #{builder['pr_number']} at `{builder['candidate_sha']}`\\n"
-        f"- Builder production run: {builder['workflow_run_url']}\\n"
-        f"- Independently validated datasets / cases: {builder['dataset_count']} / {builder['case_count']}\\n"
-        f"- Real Skill trials: {builder['pilot_count']} PASS ({', '.join(builder['pilot_case_ids'])})\\n"
-        "\\nThis release does not claim that each documented host's installation, discovery, reference-loading, and tool-integration path has been independently verified.\\n"
+        "\n\n## Release evidence\n\n"
+        f"- Candidate PR head SHA: {candidate_sha}\n"
+        f"- Merged main commit / tag SHA: {release_sha}\n"
+        f"- Release workflow run: {workflow_run_id or 'not recorded'}\n"
+        f"- Evaluation workflow run: {report.get('workflow_run_id')}\n"
+        f"- Generator: {report['models']['generator']}; Independent Judge: {report['models']['judge_and_trigger']}\n"
+        f"- Behavior mean / spread: {stability['behavior_pass_rate']['mean']:.1%} / {stability['behavior_pass_rate']['spread']:.1%}\n"
+        f"- Trigger Precision mean / spread: {stability['trigger_precision']['mean']:.1%} / {stability['trigger_precision']['spread']:.1%}\n"
+        f"- Trigger Recall mean / spread: {stability['trigger_recall']['mean']:.1%} / {stability['trigger_recall']['spread']:.1%}\n"
+        f"- Matched baseline mean uplift: {baseline['mean_uplift']:+.1%}\n"
+        f"- Builder evidence PR: #{builder['pr_number']} at {builder['candidate_sha']}\n"
+        f"- Builder production run: {builder['workflow_run_url']}\n"
+        f"- Independently validated datasets / cases: {builder['dataset_count']} / {builder['case_count']}\n"
+        f"- Real Skill trials: {builder['pilot_count']} PASS ({', '.join(builder['pilot_case_ids'])})\n"
+        "\nThis release does not claim that each documented host's installation, discovery, reference-loading, and tool-integration path has been independently verified.\n"
     )
-    return text.rstrip() + evidence + "\\n"
+    return text.rstrip() + evidence + "\n"
 
 
 def put_file(path, token, payload):
