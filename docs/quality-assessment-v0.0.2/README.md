@@ -94,3 +94,37 @@ python -m unittest discover -s tests
 - [实验设计](experimental-design.md)
 - [设计决策](decision-log.md)
 - [持久化任务清单](TASKS.md)
+
+## 真实运行评价
+
+每行一条运行记录，必须符合：
+- docs/quality-assessment-v0.0.2/schemas/runtime-record.schema.json
+- Skill 内 references/runtime-record.schema.json
+
+Capability 示例：
+
+```bash
+python scripts/assess_runtime_quality.py \
+  --records path/to/runtime-records.jsonl \
+  --output artifacts/era-report.json \
+  --dataset-version 1.0.0 \
+  --target-name my-agent \
+  --evaluation-purpose capability
+```
+
+Regression / Both 需要明确配对比较的两个版本：
+
+```bash
+python scripts/assess_runtime_quality.py \
+  --records path/to/runtime-records.jsonl \
+  --output artifacts/era-report.json \
+  --dataset-version 1.0.0 \
+  --target-name my-agent \
+  --evaluation-purpose both \
+  --baseline-revision BASE_SHA \
+  --candidate-revision CANDIDATE_SHA
+```
+
+记录必须包含精确的数据集 SHA、Agent/Skill 目标版本、模型、Harness、环境、工具、运行状态、轨迹、结果、Agent/Process/Judge/Gold outcomes、故障注入信息和成本字段。
+
+分析器当前计算描述性通过率、Judge false pass/false fail/abstention、历史故障与变异检出、配对版本差异、McNemar exact p-value、重复运行不一致和成本画像。它不会自动执行 Agent，也不会把统计量解释为合格阈值。Capability 的 IRT、DIF、测量不变性和 G-Theory 仍需单独建模与验证。
