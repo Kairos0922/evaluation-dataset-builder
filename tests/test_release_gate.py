@@ -679,7 +679,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 "workflow_run_url": "https://github.com/example/repo/actions/runs/98765",
                 "dataset_count": 3, "case_count": 24, "pilot_count": 3,
                 "pilot_case_ids": ["CASE-DELETE", "CASE-STATE", "CASE-SEARCH"],
-                "skill_tree_matches_release_candidate": True,
+                "skill_tree_matches_builder_evidence_and_release_candidate": True,
             },
         }
         updated = UPDATE_RELEASE_DOC.build_published_release_doc(
