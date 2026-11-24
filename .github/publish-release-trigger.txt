@@ -9,3 +9,5 @@ builder_evidence_pr_number=38
 # Retry after isolating GitHub API authorization from object-storage redirects.
 
 # Retry after restoring release tooling package-tree helper.
+
+# Re-run idempotent publication and mark RELEASE.md using maintained tooling.
