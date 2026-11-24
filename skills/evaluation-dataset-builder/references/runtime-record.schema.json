@@ -116,7 +116,7 @@
     },
     {
       "if": { "properties": { "fault": { "properties": { "kind": { "const": "none" } }, "required": ["kind"] } }, "required": ["fault"] },
-      "then": { "properties": { "fault": { "properties": { "injected": { "const": false } } } }
+      "then": { "properties": { "fault": { "properties": { "injected": { "const": false } } } } }
     }
   ],
   "additionalProperties": false
