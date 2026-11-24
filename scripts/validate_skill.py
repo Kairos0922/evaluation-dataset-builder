@@ -10,6 +10,11 @@ try:
 except ImportError:  # pragma: no cover - CI and documented local setup install PyYAML
     yaml = None
 
+try:
+    from jsonschema import Draft202012Validator
+except ImportError:  # pragma: no cover - CI and documented local setup install jsonschema
+    Draft202012Validator = None
+
 ROOT = Path(__file__).resolve().parents[1]
 SKILL_DIR = ROOT / "skills" / "evaluation-dataset-builder"
 SKILL_NAME = "evaluation-dataset-builder"
@@ -206,6 +211,22 @@ def main():
         for pattern in forbidden_patterns:
             if re.search(pattern, content, flags=re.IGNORECASE):
                 fail(f"Skill 文件疑似包含具体模型或服务商绑定：{relative_path}（匹配 {pattern}）")
+
+    if Draft202012Validator is None:
+        fail("缺少 jsonschema；无法验证报告 Schema")
+    else:
+        for schema_name in (
+            "references/ida-report.schema.json",
+            "references/era-report.schema.json",
+            "references/runtime-record.schema.json"
+        ):
+            try:
+                schema = read_skill_json(schema_name)
+                Draft202012Validator.check_schema(schema)
+                check(schema.get("$schema") == "https://json-schema.org/draft/2020-12/schema",
+                      f"{schema_name} 必须使用 JSON Schema Draft 2020-12")
+            except Exception as exc:
+                fail(f"{schema_name} 无效：{exc}")
 
     case_schema = read_skill_json("references/dataset-schema.json")
     if isinstance(case_schema, dict):
