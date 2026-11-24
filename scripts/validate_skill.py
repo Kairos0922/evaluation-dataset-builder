@@ -22,6 +22,7 @@ EXPECTED_SKILL_FILES = {
     "references/quality-standard.yaml",
     "references/ida-report.schema.json",
     "references/era-report.schema.json",
+    "references/runtime-record.schema.json",
     "references/dataset-schema.json",
     "references/grader-guidelines.md",
     "references/coverage-design-guideline.md",
