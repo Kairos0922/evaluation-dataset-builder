@@ -156,7 +156,7 @@ approved 不代表 EXECUTION_VERIFIED。不得把设计完成、结构校验通�
 - 定义覆盖全集、统计覆盖率、排序缺口：读取 `references/coverage-design-guideline.md`。
 - 核实资料权威性、区分真实案例与合成补缺：读取 `references/source-and-evidence-policy.md`。
 - 设计用例判定契约、通过/失败条件和证据要求：读取 `references/grader-guidelines.md`。
-- 执行质量审查、计算质量分或判断验收等级：读取 `references/quality-standard.md`；需要机器可读权重、阈值或门禁配置时，再读取 `references/quality-standard.yaml`。
+- 执行质量审查或判断验收状态：读取 `references/quality-standard.md`；需要机器可读的 IDA/ERA 评价路径、关键门禁、指标分组、证据状态和综合分验证状态时，再读取 `references/quality-standard.yaml`。当前标准不提供未经验证的固定权重或通过阈值；没有独立验证证据时，不得输出已验证综合分。
 - 生成或校验用例、数据集清单：分别读取 `references/dataset-schema.json` 和 `references/dataset-manifest-schema.json`。
 - 需要统一术语、状态或机器字段定义：读取 `references/terminology.md`。
 - 业务规则、来源、目标或判定标准发生变化：读取 `references/change-impact-and-repair.md`。
