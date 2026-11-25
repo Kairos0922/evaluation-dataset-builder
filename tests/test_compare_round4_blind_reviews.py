@@ -97,12 +97,15 @@ class Round4BlindReviewComparisonTests(unittest.TestCase):
     def test_comparison_reports_differences_without_adjudicating(self):
         self.b["items"][0]["freeze_decision"] = "NEEDS_REVISION"
         self.b["items"][0]["assertions"][0]["assertion_id"] = "B-CHANGED"
+        self.b["items"][0]["evidence_refs"] = ["different-source.md#BR-02", "trace.json"]
         report = compare_reviews(self.a, self.b, self.crosswalk)
         self.assertEqual(report["status"], "REQUIRES_HUMAN_ADJUDICATION")
         self.assertEqual(report["case_count"], 12)
         self.assertGreaterEqual(report["cases_with_differences"], 1)
         self.assertTrue(all(case["human_adjudication_required"] for case in report["cases"]))
         self.assertIn("does not resolve disagreements", report["guardrail"])
+        self.assertTrue(report["overall_notes"]["different"] is False)
+        self.assertTrue(any("evidence_refs" in [d["field"] for d in case["differences"]] for case in report["cases"]))
 
     def test_crosswalk_must_map_all_cases_once_per_reviewer(self):
         rows = self.crosswalk_path.read_text(encoding="utf-8").splitlines()
@@ -110,6 +113,15 @@ class Round4BlindReviewComparisonTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "crosswalk B labels"):
             load_crosswalk(self.crosswalk_path)
 
+    def test_crosswalk_rejects_case_hash_mismatch_between_reviewers(self):
+        rows = list(csv.DictReader(self.crosswalk_path.open(encoding="utf-8")))
+        rows[-1]["case_sha256"] = "b" * 64
+        with self.crosswalk_path.open("w", encoding="utf-8", newline="") as handle:
+            writer = csv.DictWriter(handle, fieldnames=rows[0].keys())
+            writer.writeheader()
+            writer.writerows(rows)
+        with self.assertRaisesRegex(ValueError, "case SHA-256 differs between reviewers"):
+            load_crosswalk(self.crosswalk_path)
     def test_crosswalk_rejects_duplicate_case_mapping(self):
         with self.crosswalk_path.open("r", encoding="utf-8", newline="") as handle:
             rows = list(csv.DictReader(handle))
