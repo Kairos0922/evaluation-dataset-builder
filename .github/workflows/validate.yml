@@ -1598,9 +1598,16 @@ jobs:
           import json
           from pathlib import Path
 
+          from scripts.validate_quality_assessment import validate_report
+
           ida = json.loads(Path("artifacts/round4-ida-report.json").read_text())
           era = json.loads(Path("artifacts/round4-era-report.json").read_text())
           metadata = json.loads(Path("artifacts/round4-runtime-import-metadata.json").read_text())
+
+          for label, report in (("IDA", ida), ("ERA", era)):
+              errors = validate_report(report)
+              assert not errors, f"{label} report contract validation failed: {errors}"
+          print("PASS: IDA and ERA reports conform to their JSON Schemas and cross-field contracts.")
 
           assert ida["overall_status"] == "PARTIAL", ida["overall_status"]
           assert ida["composite"]["status"] == "NOT_VALIDATED"
