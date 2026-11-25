@@ -73,13 +73,7 @@ def validate_freeze_manifest(
     if adjudicator_id in {reviewer_a.get("reviewer_id"), reviewer_b.get("reviewer_id")}:
         errors.append("adjudicator must be independent from both reviewers")
 
-    expected_report = compare_reviews(
-        reviewer_a,
-        reviewer_b,
-        comparison_report.get("_crosswalk", {"A": {}, "B": {}}),
-    ) if False else None
-    # The caller supplies a comparison report already recomputed from the validated
-    # submissions and crosswalk; this function checks its identity and coverage.
+    # The caller recomputes the comparison report from both submissions and crosswalk.
     if comparison_report.get("status") != "REQUIRES_HUMAN_ADJUDICATION":
         errors.append("comparison report must retain REQUIRES_HUMAN_ADJUDICATION status")
     if comparison_report.get("dataset_sha256") != dataset_sha256:
