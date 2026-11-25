@@ -90,6 +90,18 @@ def validate_submission(submission: dict, *, slot: str, schema: dict) -> list[st
     return errors
 
 
+def validate_pair(submission_a: dict, submission_b: dict, schema: dict) -> list[str]:
+    errors = (
+        validate_submission(submission_a, slot="A", schema=schema)
+        + validate_submission(submission_b, slot="B", schema=schema)
+    )
+    if submission_a.get("reviewer_id") == submission_b.get("reviewer_id"):
+        errors.append("reviewer IDs must be distinct to establish independent submissions")
+    for slot, submission in (("A", submission_a), ("B", submission_b)):
+        if submission.get("dataset_sha256") != EXPECTED_DATASET_SHA256:
+            errors.append(f"reviewer {slot} dataset SHA-256 does not match the frozen dataset")
+    return errors
+
 def compare_reviews(submission_a: dict, submission_b: dict, crosswalk: dict[str, dict[str, str]]) -> dict:
     by_label = {
         slot: {item["blind_label"]: item for item in submission["items"]}
@@ -176,16 +188,8 @@ def main() -> int:
         Draft202012Validator.check_schema(schema)
         submission_a = load_json(args.reviewer_a)
         submission_b = load_json(args.reviewer_b)
-        errors = (
-            validate_submission(submission_a, slot="A", schema=schema)
-            + validate_submission(submission_b, slot="B", schema=schema)
-        )
-        if submission_a.get("reviewer_id") == submission_b.get("reviewer_id"):
-            errors.append("reviewer IDs must be distinct to establish independent submissions")
-        if submission_a.get("dataset_sha256") != EXPECTED_DATASET_SHA256:
-            errors.append("reviewer A dataset SHA-256 does not match the frozen dataset")
-        if submission_b.get("dataset_sha256") != EXPECTED_DATASET_SHA256:
-            errors.append("reviewer B dataset SHA-256 does not match the frozen dataset")
+        errors = validate_pair(submission_a, submission_b, schema)
+
         if errors:
             print("Blind review validation FAILED:")
             for error in errors:
