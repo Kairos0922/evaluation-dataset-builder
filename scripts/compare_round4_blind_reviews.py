@@ -31,6 +31,8 @@ COMPARE_FIELDS = (
     "application_skill_separation",
     "ambiguity_notes",
     "prohibited_side_effects",
+    "rationale",
+    "evidence_refs",
 )
 
 
@@ -46,6 +48,7 @@ def load_json(path: Path) -> dict:
 
 def load_crosswalk(path: Path) -> dict[str, dict[str, str]]:
     mapped: dict[str, dict[str, str]] = {"A": {}, "B": {}}
+    case_hashes: dict[str, dict[str, str]] = {"A": {}, "B": {}}
     try:
         with path.open("r", encoding="utf-8", newline="") as handle:
             reader = csv.DictReader(handle)
@@ -60,7 +63,11 @@ def load_crosswalk(path: Path) -> dict[str, dict[str, str]]:
                     raise ValueError(f"duplicate crosswalk label: {slot}/{label}")
                 if case_id not in EXPECTED_CASE_IDS:
                     raise ValueError(f"unexpected case ID in crosswalk: {case_id}")
+                digest = row["case_sha256"]
+                if len(digest) != 64 or any(char not in "0123456789abcdef" for char in digest):
+                    raise ValueError(f"invalid case SHA-256 in crosswalk: {slot}/{label}")
                 mapped[slot][label] = case_id
+                case_hashes[slot][case_id] = digest
     except OSError as exc:
         raise ValueError(f"cannot read coordinator crosswalk {path}: {exc}") from exc
 
@@ -71,6 +78,9 @@ def load_crosswalk(path: Path) -> dict[str, dict[str, str]]:
             raise ValueError(f"crosswalk {slot} does not map the exact 12 target cases")
         if len(set(mapped[slot].values())) != 12:
             raise ValueError(f"crosswalk {slot} maps multiple labels to the same case")
+    for case_id in EXPECTED_CASE_IDS:
+        if case_hashes["A"][case_id] != case_hashes["B"][case_id]:
+            raise ValueError(f"crosswalk case SHA-256 differs between reviewers for {case_id}")
     return mapped
 
 
@@ -164,6 +174,11 @@ def compare_reviews(submission_a: dict, submission_b: dict, crosswalk: dict[str,
             "B": {"reviewer_id": submission_b["reviewer_id"], "packet_sha256": submission_b["packet_sha256"]},
         },
         "reviewer_ids_distinct": submission_a["reviewer_id"] != submission_b["reviewer_id"],
+        "overall_notes": {
+            "reviewer_a": submission_a.get("overall_notes"),
+            "reviewer_b": submission_b.get("overall_notes"),
+            "different": submission_a.get("overall_notes") != submission_b.get("overall_notes"),
+        },
         "case_count": len(cases),
         "cases_with_differences": sum(bool(case["differences"]) for case in cases),
         "cases": cases,
