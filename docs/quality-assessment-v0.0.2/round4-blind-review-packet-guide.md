@@ -69,7 +69,31 @@ python scripts/build_round4_blind_review_packets.py \
 6. 只有经审查者确认并仲裁后的 Oracle 规则才能冻结。资料包生成和 CI 通过都不等于 Oracle 已获批准。
 7. 目前未招募审查者、未收到评分、未计算 CVI/CVR/Aiken's V 或一致性统计；剩余 12 条仍 NOT_RUN。
 
-## 7. 当前门禁
+## 7. 评审提交格式与差异比较
+
+新增提交契约：`schemas/round4-blind-review-submission.schema.json`。每位评审者在完成 12 份 Markdown 工作表后，另提交一份 JSON：
+
+- `reviewer_slot` 必须为 A 或 B；`reviewer_id` 使用匿名 ID，且两人必须不同。
+- `packet_sha256` 必须匹配其收到的 ZIP；`dataset_sha256` 必须匹配本节冻结 JSONL。
+- `items` 必须恰好包含该审查包中的 12 个匿名标签，每个标签一次。
+- 每个案例提交构念必要性、清晰度、可执行性、独立规范断言、证据方法、PASS/FAIL/UNKNOWN 条件、Application/Skill 分离规则、动作预算、冻结建议、理由和至少两个证据引用。
+- JSON 是机器接收格式，不取代原始 Markdown 工作表；两者都应保留并计算 SHA-256。
+
+完成回收后，协调者先核验两份 JSON 和 ZIP 哈希，再从 coordinator-only ZIP 提取 `crosswalk.csv`。比较命令：
+
+```bash
+python scripts/compare_round4_blind_reviews.py \\
+  --reviewer-a /path/to/reviewer-a-submission.json \\
+  --reviewer-b /path/to/reviewer-b-submission.json \\
+  --crosswalk /path/to/coordinator-only/crosswalk.csv \\
+  --output /path/to/round4-review-comparison.json
+```
+
+比较器会检查 Schema、资料包身份、冻结数据集 SHA、12 个标签完整性、交叉表映射和评审者身份是否不同；然后按原始 case ID 对齐两位评审的判断，并列出字段及断言差异。输出状态固定为 `REQUIRES_HUMAN_ADJUDICATION`。比较器不裁决分歧、不自动选择 PASS/FAIL/UNKNOWN、不冻结 Oracle，也不授权 Runner 启动。
+
+比较报告、两份原始 JSON、12×2 Markdown 工作表、两份原始资料包及 coordinator crosswalk 应分别归档并记录 SHA。任何补充或更正都应作为新版本保留，不覆盖原始提交。
+
+## 8. 当前门禁
 
 - [x] 冻结数据集 SHA 校验。
 - [x] 两份审查包匿名化和分离。
