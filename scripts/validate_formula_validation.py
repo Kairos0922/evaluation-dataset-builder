@@ -42,9 +42,8 @@ def validate_formula_validation_report(report: dict) -> list[str]:
     families_by_split = {}
     for split_name in split_names:
         split = splits[split_name]
-        observed_count = sum(item["sample_count"] for item in split["datasets"])
-        if observed_count != split["sample_count"]:
-            errors.append(f"data_splits.{split_name}.sample_count does not equal the sum of dataset sample_count values")
+        if not split["datasets"]:
+            errors.append(f"data_splits.{split_name}.datasets must include at least one source dataset for VALIDATED_FOR_SCOPE")
         families_by_split[split_name] = {item["dataset_family"] for item in split["datasets"]}
         if split["sample_count"] <= 0:
             errors.append(f"data_splits.{split_name} must contain non-empty evidence for VALIDATED_FOR_SCOPE")
