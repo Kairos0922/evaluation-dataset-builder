@@ -186,6 +186,7 @@ def import_evidence(
     source_registry_output: Path,
     metadata_output: Path,
     builder_run_id: str,
+    builder_artifact_id: str,
     independent_validation_run_id: str,
     post_pilot_revalidation_run_id: str,
     pilot_run_id: str,
@@ -269,6 +270,7 @@ def import_evidence(
     output_path.write_text("".join(json.dumps(record, ensure_ascii=False) + "\n" for record in records), encoding="utf-8")
     metadata = {
         "builder_run_id": builder_run_id,
+        "builder_artifact_id": builder_artifact_id,
         "independent_validation_run_id": independent_validation_run_id,
         "post_pilot_revalidation_run_id": post_pilot_revalidation_run_id,
         "builder_production_job_conclusion": "failure_with_artifact_emitted",
@@ -309,6 +311,7 @@ def main() -> int:
     parser.add_argument("--source-registry-output", required=True, type=Path)
     parser.add_argument("--metadata-output", required=True, type=Path)
     parser.add_argument("--builder-run-id", default="44959366258")
+    parser.add_argument("--builder-artifact-id", default="14729741906")
     parser.add_argument("--independent-validation-run-id", default="44968128127")
     parser.add_argument("--post-pilot-revalidation-run-id", default="45291624154")
     parser.add_argument("--pilot-run-id", default="45189512695")
@@ -321,6 +324,7 @@ def main() -> int:
             args.source_registry_output,
             args.metadata_output,
             args.builder_run_id,
+            args.builder_artifact_id,
             args.independent_validation_run_id,
             args.post_pilot_revalidation_run_id,
             args.pilot_run_id,
