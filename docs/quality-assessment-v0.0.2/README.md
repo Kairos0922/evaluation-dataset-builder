@@ -4,10 +4,10 @@
 
 ## 当前实现状态
 
-- IDA：已提供第一版确定性离线检查器，尚未完成语义专家审查模块。
-- ERA：已定义报告契约，尚未完成真实运行收集器和统计分析器。
+- IDA：确定性离线检查器、报告 Schema 和跨字段验证器已实现；语义专家审查和内容效度实证未完成。
+- ERA：Runtime Record Schema、历史 Pilot 导入器、统计分析器和报告验证器已实现；现有真实证据仅 3/15 Pilot，完整运行验证未完成。
 - 综合分：未验证。当前不输出总分、权重或通过阈值。
-- Capability / Regression：分别定义指标和实验路径，端到端验证尚未完成。
+- Capability / Regression：已定义用途专属统计路径并提供部分分析实现；IRT/G-Theory 和完整 Regression 配对效标尚未完成。
 
 ## 独立离线评价
 
@@ -75,6 +75,13 @@ python scripts/validate_quality_assessment.py --report artifacts/ida-report.json
 ```
 
 报告契约通过仅表示结构和交叉字段约束有效，不证明评价结论有效。
+
+## 新增执行协议与证据契约
+
+- [架构与验收基线](architecture-and-acceptance-baseline.md)：明确 IDA/ERA 边界、证据等级、模块数据流和验收含义。
+- [ERA 真实运行执行协议](runtime-assessment-protocol.md)：规定冻结清单、单次运行、失败归因、Capability/Regression 分析和停止规则。
+- [专家盲评协议](expert-review-protocol.md)：规定内容效度、盲评、仲裁和一致性统计。
+- [Judge Calibration Report Schema](schemas/judge-calibration-report.schema.json) 与 `scripts/validate_judge_calibration.py`：校验 Judge 校准证据包；合成 smoke 结果不得标记为有效度通过。
 
 ## 测试
 
@@ -149,3 +156,8 @@ python scripts/validate_formula_validation.py path/to/formula-validation-report.
 - 是否保留可复现代码、commit、随机种子和证据引用。
 
 未完成这些证据时，验证报告状态应为 NOT_VALIDATED，标量分数必须保持关闭。验证器的结构通过仅证明证据包符合契约，不代表证据本身真实或结论有效，仍需独立审计。
+
+
+## 当前 Round 4 证据边界
+
+最新精确验证 head 为 `8930dcc656288e1b6fd7bc672202bbec520b92b9`，Run #1930（45714388411）207/207 离线测试 PASS，Round 4 IDA/ERA 报告契约 PASS。该 Run 未启动新的 Builder production、independent-validation、Pilot 或 adjudication；它重新分析既有冻结证据。当前 15 条用例中 3 条真实 Pilot、12 条 NOT_RUN，IDA/ERA PARTIAL，Judge NOT_RUN，Regression 无配对，IRT/G-Theory 未拟合，综合分 NOT_VALIDATED。
