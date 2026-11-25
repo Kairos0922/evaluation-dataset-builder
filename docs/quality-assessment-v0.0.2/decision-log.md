@@ -47,3 +47,12 @@
 - 决策：0.0.2 在独立分支推进；不关闭或覆盖 PR #38，不重跑其已完成的 Builder / Pilot / Oracle。
 - 原因：保持历史证据可追溯，避免把本次质量评价研究与先前 Builder 验收混淆。
 - 影响：所有 0.0.2 代码、文档和实验使用独立文件和精确 SHA 绑定。
+
+
+## D-007：冻结 v0.0.2 工程架构与验收解释基线
+
+- 日期：2026-11-26
+- 状态：已采纳
+- 决策：采用 `architecture-and-acceptance-baseline.md` 作为 v0.0.2 的工程架构和验收解释基线；采用 `runtime-assessment-protocol.md` 作为 ERA 执行协议基线。
+- 原因：需求、方法论、Schema、分析器和发布门禁需要统一的数据流、责任边界、失败归因和证据等级，避免将离线检查、真实运行、专家判断和效度结论混为一谈。
+- 影响：IDA 与 ERA 分离；Capability 与 Regression 分别报告；Judge/Gold 必须独立；关键门禁不可补偿；无证据时保持 NOT_RUN / UNKNOWN / NOT_VALIDATED。该决策冻结的是工程/验收定义，不代表实证实验通过或发布获批。
