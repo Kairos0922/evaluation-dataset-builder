@@ -52,7 +52,9 @@ def validate_freeze_manifest(
     if manifest.get("oracle_plan_sha256") != plan_sha256:
         errors.append("manifest oracle_plan_sha256 does not match the supplied plan")
 
-    review_inputs = manifest.get("review_inputs", {})
+    review_inputs = manifest.get("review_inputs")
+    if not isinstance(review_inputs, dict):
+        review_inputs = {}
     if review_inputs.get("reviewer_a_id") != reviewer_a.get("reviewer_id"):
         errors.append("manifest reviewer_a_id does not match Reviewer A submission")
     if review_inputs.get("reviewer_b_id") != reviewer_b.get("reviewer_id"):
@@ -68,7 +70,9 @@ def validate_freeze_manifest(
     if review_inputs.get("crosswalk_sha256") != crosswalk_sha256:
         errors.append("coordinator crosswalk SHA-256 mismatch")
 
-    adjudication = manifest.get("adjudication", {})
+    adjudication = manifest.get("adjudication")
+    if not isinstance(adjudication, dict):
+        adjudication = {}
     adjudicator_id = adjudication.get("adjudicator_id")
     if adjudicator_id in {reviewer_a.get("reviewer_id"), reviewer_b.get("reviewer_id")}:
         errors.append("adjudicator must be independent from both reviewers")
@@ -78,17 +82,23 @@ def validate_freeze_manifest(
         errors.append("comparison report must retain REQUIRES_HUMAN_ADJUDICATION status")
     if comparison_report.get("dataset_sha256") != dataset_sha256:
         errors.append("comparison report dataset SHA-256 mismatch")
-    report_reviewers = comparison_report.get("reviewers", {})
+    report_reviewers = comparison_report.get("reviewers")
+    if not isinstance(report_reviewers, dict):
+        report_reviewers = {}
     if report_reviewers.get("A", {}).get("reviewer_id") != reviewer_a.get("reviewer_id"):
         errors.append("comparison report Reviewer A identity mismatch")
     if report_reviewers.get("B", {}).get("reviewer_id") != reviewer_b.get("reviewer_id"):
         errors.append("comparison report Reviewer B identity mismatch")
     report_cases = comparison_report.get("cases", [])
+    if not isinstance(report_cases, list):
+        report_cases = []
     report_case_ids = [case.get("case_id") for case in report_cases if isinstance(case, dict)]
     if len(report_case_ids) != 12 or set(report_case_ids) != EXPECTED_CASE_IDS or len(set(report_case_ids)) != 12:
         errors.append("comparison report must cover the exact 12 target cases")
 
-    cases = manifest.get("cases", [])
+    cases = manifest.get("cases")
+    if not isinstance(cases, list):
+        cases = []
     case_ids = [case.get("case_id") for case in cases if isinstance(case, dict)]
     if len(case_ids) != 12 or set(case_ids) != EXPECTED_CASE_IDS or len(set(case_ids)) != 12:
         errors.append("freeze manifest must contain each of the 12 target cases exactly once")
