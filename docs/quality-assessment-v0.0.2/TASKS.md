@@ -141,3 +141,10 @@
 - 外部候选登记表已基于官方仓库 LICENSE / README 和官方 Hugging Face GAIA 数据集卡复核：AgentDojo 代码仓库 MIT；AppWorld 公开代码及加密保护 bundle 标示 Apache-2.0，bundle 的公开再分发及衍生内容须保持加密；WebArena、BrowserGym、OSWorld、WorkArena 代码仓库标示 Apache-2.0；GAIA validation/test 数据受 gated / 不得以 crawlable 形式再分享的条款约束。以上均不等于数据集、环境镜像、第三方软件、账号或实例的整体许可批准。
 - WebArena-Verified 的具体数据版本和独立数据许可、OSWorld-Verified 具体任务/镜像、AgentDojo 各数据资产、WorkArena ServiceNow 实例授权仍未逐项取得并核验；候选仍是桌面初筛，不导入、不运行、不用于公式验证。
 - Issue #43 招募公告截至本次核查仍无评审者报名或提交。Reviewer A/B 资料包未分发；没有真实双盲审查、独立仲裁或 12-case Oracle freeze。PR #44 继续 Draft/Open，PR #38 与 main 未修改。
+
+
+### 外部来源复核文档更新后的精确 head 验证（2026-11-26）
+- 最新文档 head `7e874e6dc7dee325afa72f272a774c9ffdf60fb6` 对应 Run #1928（45714022690）Workflow SUCCESS。Validate Job：actionlint、正式 Skill 包、Benchmark 贯通样例及 207/207 离线测试 PASS；Round 4 real-evidence Job SUCCESS，IDA/ERA 报告 JSON Schema 与 cross-field contract validation PASS。
+- Run #1928 的 Round 4 结果：IDA=PARTIAL，15 条用例；ERA=PARTIAL，3/3 现有 Pilot 运行有效且 Gold PASS；12 条仍 NOT_RUN；Judge=NOT_RUN；composite=NOT_VALIDATED。Builder production、independent-validation、Pilot 和 adjudication jobs 均 SKIPPED，本次没有新增生产执行。
+- Round 4 artifact #15068532330，SHA-256 `169584f44207cacf2e2021f8c4c1054ffacd50899780b66493b4b60c276f2dac`。Run #1928 的精确 head 与 artifact 已核验。
+- 这次 Run 只验证代码、文档、离线测试及既有冻结证据的 IDA/ERA 分析，不改变人工评审、Oracle freeze、外部 Benchmark 授权或发布审批状态。
