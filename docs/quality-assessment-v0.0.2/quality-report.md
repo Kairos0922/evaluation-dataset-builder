@@ -52,6 +52,7 @@ v0.0.2 已完成需求基线、研究与方法论设计、IDA/ERA 核心工程�
 | [#1933](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45719605220) | `878303fba7d4db75df979073d97c9d529b70d74e` | SUCCESS | **215/215** | #15071077843 |
 | [#1939](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45720458350) | `87d3747444ddaa5e7391e202f7595121f1fa86a7` | SUCCESS | **215/215** | #15072186678 |
 | [#1940](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45720639140) | `0f50a9cc9de97ec2778b026c34dfd69e2c1b8bf8` | SUCCESS | **215/215** | #15072316423 |
+| [#1941](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45720784376) | `3a99fcc0de3609971d6c701bade210251c77fd04` | SUCCESS | **215/215** | #15070789521 |
 
 Run #1933 的 Round 4 artifact SHA-256：
 
@@ -138,3 +139,8 @@ Run #1939 在包含任务质量报告、TASKS 状态统计、README/CHANGELOG �
 ### 最终任务台账提交复验
 
 Run #1940（45720639140）在精确 head `0f50a9cc9de97ec2778b026c34dfd69e2c1b8bf8` 上完成完整验证并 SUCCESS：actionlint、正式 Skill 包、Benchmark、215/215 离线测试（含 8 项 Judge calibration contract tests）和 Round 4 IDA/ERA 报告契约均 PASS。Round 4 artifact #15072316423，SHA-256 `8532534e9f923fb949484c66038523d011b4a5bafe788724b7a3e7b3d76904e0`。Builder production / independent-validation / Pilot / adjudication Jobs 均 SKIPPED；本次仍只复核已有真实证据，没有新增真实执行。
+
+
+### TASKS 与质量报告记录提交复验
+
+Run #1941（45720784376）在精确 head `3a99fcc0de3609971d6c701bade210251c77fd04` 上 Workflow SUCCESS：actionlint、Skill 正式包、Benchmark、215/215 离线测试及 Round 4 IDA/ERA 报告契约 PASS。Round 4 artifact #15070789521，SHA-256 `729c0131446788b21a06aa280b8b75f48218e3e21e5b666a284ca9a59977c1e5`。生产 Builder、独立验证、Pilot 和 adjudication Jobs 均 SKIPPED，没有新增真实运行。
