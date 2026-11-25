@@ -29,6 +29,7 @@ EXPECTED_SKILL_FILES = {
     "references/era-report.schema.json",
     "references/runtime-record.schema.json",
     "references/formula-validation.schema.json",
+    "references/expert-review-record.schema.json",
     "references/dataset-schema.json",
     "references/grader-guidelines.md",
     "references/coverage-design-guideline.md",
@@ -220,7 +221,8 @@ def main():
             "references/ida-report.schema.json",
             "references/era-report.schema.json",
             "references/runtime-record.schema.json",
-            "references/formula-validation.schema.json"
+            "references/formula-validation.schema.json",
+            "references/expert-review-record.schema.json"
         ):
             try:
                 schema = read_skill_json(schema_name)
