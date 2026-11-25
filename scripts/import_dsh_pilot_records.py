@@ -130,18 +130,18 @@ def build_runtime_record(
         },
         "harness": {
             "name": "DeepSeek DSH Headless",
-            "version": "not_recorded"
+            "version": "0.2.2-rc.1"
         },
         "environment": {
             "name": "GitHub-hosted runner",
-            "version": "ubuntu-latest",
+            "version": "ubuntu26/20261116.202",
             "digest": None,
             "region": None
         },
         "tool_versions": {
-            "dsh_cli": "not_recorded",
+            "dsh_cli": "0.2.2-rc.1",
             "playwright": "1.64.1",
-            "chromium": "not_recorded"
+            "chromium_headless_shell": "156.0.8078.4"
         },
         "status": run_status,
         "seed": None,
