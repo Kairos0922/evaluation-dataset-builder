@@ -48,14 +48,14 @@
 | IM-03 | 实现 | 实现人工/LLM Judge 校准与证据记录接口 | TODO | 独立校准集协议、Judge 结果契约 |
 | IM-04 | 实现 | 实现 ERA 运行结果 Schema / 机器可读契约 | DONE | schemas/era-report.schema.json + schemas/runtime-record.schema.json；Skill references 已同步；精确数据集 SHA、Agent/模型/Harness/环境、Run/Trace、Judge、Capability/Regression 字段已定义；JSON 语法检查通过；commits ef7515c、5030629、f18e010 |
 | IM-05 | 实现 | 实现 Capability / Regression 统计分析模块 | IN_PROGRESS | scripts/assess_runtime_quality.py 已实现 Judge 混淆指标、Wilson CI、配对版本差异、McNemar exact、历史/变异故障检出、重复运行不一致和成本画像；IRT/G-Theory 与真实运行验证未完成；tests/test_assess_runtime_quality.py 已添加，待 CI 执行 |
-| IM-06 | 实现 | 实现公式验证证据 Schema 和独立验证器 | IN_PROGRESS | 已新增 schemas/formula-validation.schema.json、Skill reference 和 scripts/validate_formula_validation.py；tests/test_validate_formula_validation.py 覆盖未验证状态、独立证据、数据泄漏和标量启用门禁；待 CI 验证 |
+| IM-06 | 实现 | 实现公式验证证据 Schema 和独立验证器 | DONE | Schema、Skill reference、验证器及契约测试已实现；修复 split-level sample_count 契约错误；commit b6740f9 + a2dc04e；run #1808（45550108441）在 head a2dc04e 上 162 项测试 PASS。此状态仅表示报告结构/逻辑契约验证器完成，不代表公式实验有效 |
 | IM-07 | 集成 | 更新 Skill 质量标准、按需加载引用和版本到 0.0.2 | IN_PROGRESS | quality-standard.md/yaml 已替换旧固定权重；IDA/ERA/Runtime Record/Formula Validation Schema 已加入 Skill references，SKILL.md 已引用；validate_skill.py 检查所有 Draft 2020-12 Schema；版本元数据待发布候选阶段更新，最新正式包验证待 CI |
 | IM-09 | 实现 | 比较候选综合公式并执行权重/聚合敏感性分析 | TODO | 需独立开发集和外部效标；不得用同一批专家标签同时拟合和验证 |
 | QA-01 | 质量 | 建立元评测数据、已知缺陷注入和专家盲评样本 | IN_PROGRESS | 已有缺陷目录与确定性单测；尚缺独立来源的真实数据集、专家盲评样本、训练/验证隔离和审计记录 |
 | QA-02 | 质量 | 完成离线评价器验证与报告 | IN_PROGRESS | IDA 结构检查器、报告契约和 155 项 CI 测试已通过；新加入 Formula Validation evidence validator 及其测试待 CI；语义内容效度、专家一致性、独立缺陷识别实验尚未完成 |
 | QA-03 | 质量 | 完成真实运行评价的端到端验证 | BLOCKED | 与 EX-05 同一前置条件：PR #38 正式 Builder artifact + independent Validator PASS；当前没有可用的正式数据集和真实 Agent 运行记录 |
 | QA-04 | 质量 | 完成综合公式独立验证；若证据不足则明确 NOT_VALIDATED | IN_PROGRESS | 已有公式验证协议和向量画像定义；尚缺专家效标、缺陷注入数据、真实运行效标与冻结验证集。证据不足时保持 NOT_VALIDATED，不得发布标量总分 |
-| CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | IN_PROGRESS | run #1793（45513812818）在前一 head 上 155 项测试 PASS；新增 Formula Validation Schema、验证器、Skill 引用和测试后需重新运行完整 CI |
+| P0-CI-01 | 工程 | 修复 CI #1807 中 Formula Validation Validator 对 datasets[].sample_count 的错误读取，并增加回归测试 | DONE | Schema 将 sample_count 定义在 split 层；验证器改为校验来源数据集非空并使用 split 总样本量；commit b6740f9（验证器）、a2dc04e（回归测试）；run #1808（45550108441）精确 head a2dc04e：actionlint、Skill 正式包、Benchmark 贯通样例 PASS，162/162 离线测试 PASS。Builder production / independent-validation jobs 按 PR 条件 SKIPPED |
 | DOC-01 | 文档 | 更新 README、CHANGELOG、版本和限制说明 | TODO | v0.0.2 内容一致 |
 | REL-01 | 发布 | 建立发布候选 PR 并完成审查 | TODO | 所有适用验收门禁通过，PR 记录证据 |
 | REL-02 | 发布 | 用户批准后创建 v0.0.2 Tag 和 GitHub Release | TODO | Release 指向精确验证过的提交，证据齐全 |
@@ -80,6 +80,7 @@
 - [x] 完成 ERA 运行记录统计分析器初版及单元测试。
 - [x] 在精确 PR head 上通过 actionlint、正式包、Benchmark 样例和 151 项离线单测（run #1774）。
 - [x] 扩展缺陷注入测试后，在精确 head 885444a 上通过 actionlint、正式包、Benchmark 样例和 155 项离线单测（run #1793）。
+- [x] 修复 Formula Validation Validator 与 Schema 的 sample_count 层级错配；在精确 head a2dc04e 上通过 actionlint、正式 Skill 包、Benchmark 贯通样例和 162 项离线测试（run #1808，45550108441）。
 
 ## 当前不代表已完成的事项
 
@@ -93,4 +94,5 @@
 
 | 日期 | 变更 |
 |---|---|
+| 2026-11-25 | P0 修复：Validator 不再读取 Schema 未定义的 datasets[].sample_count，改为依据 split-level sample_count 并检查来源数据集非空；新增两项回归测试。run #1808 在精确 head a2dc04e 上 actionlint、Skill 包、Benchmark 和 162 项离线测试全部 PASS。新增 methodology-matrix.md，覆盖内容效度、IRT、G-Theory、ICC/Kappa、Judge 校准、缺陷注入、外部效标、样本量/功效和区间策略。公式科学效度、专家盲评、真实缺陷和 ERA 实验仍未完成。 |
 | 2026-11-25 | 建立需求、研究证据库、双路径方法论、公式验证协议、实验设计、设计决策、候选指标字典、IDA/ERA/Runtime Record Schema、离线 IDA 检查器、ERA 分析器、报告验证器与测试；Draft PR #44 已创建。更新 Skill 质量标准并加入报告 Schema 与运行记录 Schema；validate_skill.py 增加 JSON Schema 检查；Release Gate 测试同步纳入新增 Schema 和当前 Workflow 实现。补充 CVI/CVR、IRT 样本量、G-Theory、SkillsBench 和 OECD/JRC 复合指标手册证据；细化规范性/经验性权重、损失驱动阈值和敏感性验证方法；正式定义 IDA/ERA 用途条件化质量画像；建立 defect-mutation-catalog.yaml 和对应测试。PR #44 run #1774 在精确 head cb43aa7 上 actionlint、正式包、Benchmark 样例和 151 项离线测试全部 PASS；IM-02 与 CI-01 的前一版验收完成；缺陷测试扩展后的最新 head 复验中。 PR #44 run #1784（45513477801）actionlint、正式包、Benchmark 样例 PASS，155 项测试中仅 1 个断言失败；修正描述断言后，run #1789（45513651073）仍有 1 个失败：missing-source mutation 使用 synthetic_gap_fill，但当前 Case Schema 要求该来源必须引用 synthetic_scenario；已改为 schema-valid 的 unknown + information_gaps 样本，等待最新 head 重跑。公式效度、专家盲评、盲测缺陷注入、真实 Agent 运行、IRT/G-Theory、版本元数据和 Release 仍未完成。RQ-01、RQ-02、RS-01、FM-01、EX-01、IM-01、IM-02、IM-04、CI-01 完成；RS-02、RS-03、DS-01、DS-02、FM-02、IM-05、IM-07 进行中。 |
