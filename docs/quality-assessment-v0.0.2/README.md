@@ -91,6 +91,10 @@ python -m unittest discover -s tests
 
 发布前必须在精确 PR head 上执行完整 CI，并记录 workflow run 和 artifact。
 
+## 质量审计报告
+
+本轮按 TASKS.md 执行的阶段性任务质量审计见 [quality-report.md](quality-report.md)。报告区分工程验证与科学效度，不把 CI PASS 当作实证有效性证明。
+
 ## 参考文档
 
 - [需求规格](requirements.md)
