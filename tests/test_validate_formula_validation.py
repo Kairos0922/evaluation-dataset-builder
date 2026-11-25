@@ -228,6 +228,18 @@ class FormulaValidationTests(unittest.TestCase):
         errors = validate_formula_validation_report(report)
         self.assertTrue(any("external_criterion_validation" in error for error in errors))
 
+    def test_validated_split_requires_at_least_one_dataset_source(self):
+        report = validated_report()
+        report["data_splits"]["development"]["datasets"] = []
+        errors = validate_formula_validation_report(report)
+        self.assertTrue(any("development.datasets must include at least one source dataset" in error for error in errors))
+
+    def test_dataset_entries_follow_schema_without_per_dataset_sample_count(self):
+        report = validated_report()
+        self.assertEqual(validate_formula_validation_report(report), [])
+        for split_name in ("development", "calibration", "validation", "external"):
+            self.assertNotIn("sample_count", report["data_splits"][split_name]["datasets"][0])
+
     def test_dataset_family_overlap_is_detected(self):
         report = validated_report()
         report["data_splits"]["external"] = copy.deepcopy(report["data_splits"]["development"])
