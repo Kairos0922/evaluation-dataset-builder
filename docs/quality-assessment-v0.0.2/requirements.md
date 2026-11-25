@@ -1,7 +1,7 @@
 # v0.0.2 需求规格：通用 Agent / Skill 评测集质量评价
 
 - 目标版本：0.0.2
-- 状态：需求基线已记录，待方案评审冻结
+- 状态：需求基线与工程架构/验收解释基线已冻结（D-007）；发布验收仍待完成
 - GitHub Issue：[#43](https://github.com/Kairos0922/evaluation-dataset-builder/issues/43)
 - 适用对象：通用 Agent / Skill
 - 评测用途：Capability Evaluation 与 Regression Evaluation
@@ -113,3 +113,8 @@ v0.0.1 已具备评测集生成、Schema 校验、来源追溯、覆盖矩阵、
 - 权重、阈值若样本或证据不足，必须明确报告未确定，不得以默认值冒充科学结论。
 - 任务清单每项完成后更新状态、commit、测试/实验和证据引用。
 - 不覆盖或更改 PR #38 的既有历史证据和 Draft/Open 状态。
+
+
+## 10. 架构与验收基线
+
+需求和边界由本文件及 Issue #43 定义；工程模块边界、IDA/ERA 数据流、证据等级、失败归因、用途专属分析和验收解释统一见 [architecture-and-acceptance-baseline.md](architecture-and-acceptance-baseline.md)。ERA 的实际执行协议见 [runtime-assessment-protocol.md](runtime-assessment-protocol.md)。D-007 仅冻结设计与验收语义，不代表实证结果或发布批准。
