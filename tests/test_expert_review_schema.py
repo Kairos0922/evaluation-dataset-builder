@@ -1,7 +1,7 @@
 import json
+import unittest
 from pathlib import Path
 
-import pytest
 from jsonschema import Draft202012Validator, FormatChecker
 
 
@@ -45,47 +45,48 @@ def valid_record(**overrides):
     return record
 
 
-def test_expert_review_schema_is_valid_and_mirrored():
-    schema_text = DOC_SCHEMA.read_text(encoding="utf-8")
-    assert SKILL_SCHEMA.read_text(encoding="utf-8") == schema_text
-    Draft202012Validator.check_schema(json.loads(schema_text))
+class ExpertReviewSchemaTests(unittest.TestCase):
+    def setUp(self):
+        self.validator = Draft202012Validator(
+            load_schema(), format_checker=FormatChecker()
+        )
+
+    def test_expert_review_schema_is_valid_and_mirrored(self):
+        schema_text = DOC_SCHEMA.read_text(encoding="utf-8")
+        self.assertEqual(SKILL_SCHEMA.read_text(encoding="utf-8"), schema_text)
+        Draft202012Validator.check_schema(json.loads(schema_text))
+
+    def test_valid_blind_four_point_review_record(self):
+        self.assertTrue(self.validator.is_valid(valid_record()))
+
+    def test_valid_necessity_record_uses_distinct_three_level_scale(self):
+        record = valid_record(
+            rating_dimension="necessity",
+            rating_scale="necessity_three_level",
+            rating="essential",
+        )
+        self.assertTrue(self.validator.is_valid(record))
+
+    def test_valid_adjudication_record_preserves_stage_and_decision(self):
+        record = valid_record(
+            review_stage="adjudication",
+            blind_status=False,
+            adjudication_status="needs_more_evidence",
+        )
+        self.assertTrue(self.validator.is_valid(record))
+
+    def test_invalid_expert_review_records_are_rejected(self):
+        invalid_overrides = [
+            {"rating_dimension": "relevance", "rating_scale": "necessity_three_level", "rating": "essential"},
+            {"rating_dimension": "necessity", "rating_scale": "four_point", "rating": 4},
+            {"blind_status": False},
+            {"reviewer_email": "reviewer@example.com"},
+            {"dataset_sha256": "not-a-sha256"},
+        ]
+        for overrides in invalid_overrides:
+            with self.subTest(overrides=overrides):
+                self.assertFalse(self.validator.is_valid(valid_record(**overrides)))
 
 
-def test_valid_blind_four_point_review_record():
-    validator = Draft202012Validator(load_schema(), format_checker=FormatChecker())
-    assert validator.is_valid(valid_record())
-
-
-def test_valid_necessity_record_uses_distinct_three_level_scale():
-    validator = Draft202012Validator(load_schema(), format_checker=FormatChecker())
-    record = valid_record(
-        rating_dimension="necessity",
-        rating_scale="necessity_three_level",
-        rating="essential",
-    )
-    assert validator.is_valid(record)
-
-
-def test_valid_adjudication_record_preserves_stage_and_decision():
-    validator = Draft202012Validator(load_schema(), format_checker=FormatChecker())
-    record = valid_record(
-        review_stage="adjudication",
-        blind_status=False,
-        adjudication_status="needs_more_evidence",
-    )
-    assert validator.is_valid(record)
-
-
-@pytest.mark.parametrize(
-    "overrides",
-    [
-        {"rating_dimension": "relevance", "rating_scale": "necessity_three_level", "rating": "essential"},
-        {"rating_dimension": "necessity", "rating_scale": "four_point", "rating": 4},
-        {"blind_status": False},
-        {"reviewer_email": "reviewer@example.com"},
-        {"dataset_sha256": "not-a-sha256"},
-    ],
-)
-def test_invalid_expert_review_records_are_rejected(overrides):
-    validator = Draft202012Validator(load_schema(), format_checker=FormatChecker())
-    assert not validator.is_valid(valid_record(**overrides))
+if __name__ == "__main__":
+    unittest.main()
