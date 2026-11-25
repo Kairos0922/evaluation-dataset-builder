@@ -1563,6 +1563,7 @@ jobs:
             --source-registry-output artifacts/round4-source-registry.json \
             --metadata-output artifacts/round4-runtime-import-metadata.json \
             --builder-run-id 44959366258 \
+            --builder-artifact-id 14729741906 \
             --independent-validation-run-id 44968128127 \
             --post-pilot-revalidation-run-id 45291624154 \
             --pilot-run-id 45189512695 \
