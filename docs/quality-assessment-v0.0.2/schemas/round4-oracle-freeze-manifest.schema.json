@@ -323,20 +323,5 @@
         "NOT_FROZEN"
       ]
     }
-  },
-  "allOf": [
-    {
-      "properties": {
-        "review_inputs": {
-          "properties": {
-            "reviewer_b_id": {
-              "not": {
-                "const": "__same_as_a__"
-              }
-            }
-          }
-        }
-      }
-    }
-  ]
+  }
 }
