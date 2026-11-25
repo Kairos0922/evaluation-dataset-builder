@@ -36,7 +36,7 @@
 | DS-04 | 设计 | 设计 Regression 专属评价与统计方案 | DONE | 已定义同 case/config/environment/seed 配对、转移表、McNemar exact/Bootstrap、历史故障与 Mutation 分开、关键门禁及 Flakiness；真实故障集效度由 EX-05 跟踪。 |
 | FM-01 | 公式 | 定义构念蓝图、指标类型和候选公式模型族 | DONE | methodology-design.md §3、§5；formula-validation-protocol.md §2、§5；commit f84ef13 + b6cd238 |
 | FM-02 | 公式 | 设计公式构建、权重来源、阈值选择与敏感性分析协议 | DONE | formula-validation-protocol.md 已定义候选模型族、规范性/经验性/混合权重来源、训练/验证隔离、损失驱动阈值、敏感性/稳健性分析和验证结论状态。具体预注册参数必须绑定独立数据集与外部效标，属于 FM-03。 |
-| FM-03 | 公式 | 建立独立效度验证实验与证明报告 | TODO | 执行专家盲评、缺陷注入、外部效标、泛化和不确定性验证；当前仅有协议设计 |
+| FM-03 | 公式 | 建立独立效度验证实验与证明报告 | BLOCKED | 已有预注册/验证协议设计；缺少独立专家效标、盲测缺陷、真实运行效标和冻结验证集，当前不能执行确认性公式验证。解除条件见 QA-04 |
 | EX-01 | 实验 | 完成公式验证实验设计与样本量/效标规划 | DONE | experimental-design.md；定义 E0–E7 阶段、分组隔离、专家盲评、缺陷注入和真实运行方案；commit 4b2f0d3 |
 | EX-02 | 实验 | 建立独立参考数据集与缺陷注入样本 | BLOCKED | 已建立 IDA-M01–M12 / ERA-M01–M08 缺陷目录与确定性单测，并完成 AppWorld、AgentDojo、WebArena-Verified、OSWorld-Verified、GAIA、WorkArena 官方代码许可/访问限制桌面初筛。阻塞：尚无逐资产许可确认、锁定版本/哈希、合法数据快照、独立 Oracle 和盲测变体；代码许可证不代表任务数据/镜像/实例授权。 |
 | EX-03 | 实验 | 完成专家内容效度与评分者一致性实验 | BLOCKED | 盲评协议、匿名评分 Schema、统计计划和招募公告已建立；Issue #43 目前只有招募公告，尚无独立评审者报名/评分。解除条件：两名独立评审者和独立仲裁者完成真实盲评并归档原始记录。 |
@@ -72,6 +72,11 @@
 - 当前 PR #44 的 CI PASS 只证明本项目代码、Schema、Skill 包和离线测试通过，不代表公式效度或真实运行评价已经通过。
 
 ## 当前已完成
+
+- [x] 完成架构与验收解释基线（SC-01）：architecture-and-acceptance-baseline.md + decision-log D-007。
+- [x] 完成 ERA 可执行运行协议（DS-02）：runtime-assessment-protocol.md。
+- [x] 完成 Judge Calibration Report Schema、验证器和 8 项契约测试；Run #1933 215/215 PASS（IM-03 仍待执行脚本集成和独立 Gold 实证）。
+- [x] 更新根 README、CHANGELOG、研发 README，记录 v0.0.2 未发布状态和限制；质量报告见 [quality-report.md](quality-report.md)。
 
 - [x] v0.0.2 需求边界写入 GitHub Issue #43。
 - [x] 建立工作分支 feat/quality-assessment-v0.0.2。
@@ -166,3 +171,9 @@
 - Run #1933（45719605220，代码 head `878303fba7d4db75df979073d97c9d529b70d74e`）Workflow SUCCESS：actionlint、Skill 正式包、Benchmark、215/215 离线测试 PASS；新增 8 项 Judge calibration contract tests 均执行通过。Round 4 IDA/ERA 报告 Schema 与 cross-field contract PASS，artifact #15071077843，SHA-256 `890e71e91b58d95f3ee7d551380db0606305e92cafb1d00bbbeaf9a8f24369f8`。IDA/ERA 仍 PARTIAL，3/15 Pilot，12 NOT_RUN，Judge NOT_RUN，composite NOT_VALIDATED；Builder production / independent-validation / Pilot / adjudication jobs 均 SKIPPED。
 - RS-02/RS-03 的文献与方法复核任务已完成；外部数据许可/样本快照、专家盲评、缺陷盲测和真实运行验证仍分别由 EX-02/03/04/05/07 跟踪，不因研究文档完成而提前标记实验完成。
 - PR #44 继续 Draft/Open；PR #38 与 main 未修改；不创建 tag/release。
+
+
+### 任务质量审计报告（2026-11-26）
+- 新增 [quality-report.md](quality-report.md)，逐项汇总 37 项任务状态、工程交付、CI/Artifact 证据、IDA/ERA 真实结果、科学效度缺口和发布建议。
+- 任务表状态统计：19 DONE、8 IN_PROGRESS、10 BLOCKED、0 TODO。DONE 只表示该项设计/工程交付完成，不表示关联实证实验或发布门禁通过。
+- 当前结论：工程验证通过，实证效度部分完成，发布门禁未通过。PR #44 保持 Draft/Open，不创建 v0.0.2 tag/release。
