@@ -156,6 +156,18 @@ class Round4OracleFreezeManifestTests(unittest.TestCase):
         errors = validate_freeze_manifest(item, **self.kwargs)
         self.assertTrue(any("freeze_status must be NOT_FROZEN" in error for error in errors))
 
+    def test_malformed_nested_manifest_values_return_validation_errors(self):
+        item = manifest()
+        item["review_inputs"] = []
+        item["adjudication"] = None
+        item["cases"] = None
+        self.report["reviewers"] = None
+        self.report["cases"] = None
+        errors = validate_freeze_manifest(item, **self.kwargs)
+        self.assertTrue(any("review_inputs" in error for error in errors))
+        self.assertTrue(any("adjudication" in error for error in errors))
+        self.assertTrue(any("cases" in error for error in errors))
+
     def test_requires_review_comparison_report_to_remain_non_adjudicating(self):
         self.report["status"] = "FROZEN"
         errors = validate_freeze_manifest(manifest(), **self.kwargs)
