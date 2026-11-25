@@ -305,13 +305,14 @@ def build_era_report(
         if record["outcomes"]["gold_source"] in {"independent_oracle", "expert_adjudication"}
         and record["gold_outcome"] in {"pass", "fail"}
     ]
-    judged_rows = [record for record in gold_rows if record["grader_outcome"] in {"pass", "fail"}]
+    graded_gold_rows = [record for record in gold_rows if record["outcomes"].get("grader_id")]
+    judged_rows = [record for record in graded_gold_rows if record["grader_outcome"] in {"pass", "fail"}]
     grader_correct = sum(record["gold_outcome"] == record["grader_outcome"] for record in judged_rows)
-    gold_fail_rows = [record for record in gold_rows if record["gold_outcome"] == "fail"]
-    gold_pass_rows = [record for record in gold_rows if record["gold_outcome"] == "pass"]
-    false_passes = sum(record["grader_outcome"] == "pass" for record in gold_fail_rows)
-    false_fails = sum(record["grader_outcome"] == "fail" for record in gold_pass_rows)
-    abstentions = sum(record["grader_outcome"] in {"abstain", "unknown"} for record in gold_rows)
+    graded_gold_fail_rows = [record for record in graded_gold_rows if record["gold_outcome"] == "fail"]
+    graded_gold_pass_rows = [record for record in graded_gold_rows if record["gold_outcome"] == "pass"]
+    false_passes = sum(record["grader_outcome"] == "pass" for record in graded_gold_fail_rows)
+    false_fails = sum(record["grader_outcome"] == "fail" for record in graded_gold_pass_rows)
+    abstentions = sum(record["grader_outcome"] in {"abstain", "unknown"} for record in graded_gold_rows)
 
     fault_rows = [
         record for record in records
@@ -343,19 +344,25 @@ def build_era_report(
     durations = [record["cost"]["duration_seconds"] for record in records if record["cost"]["duration_seconds"] is not None]
     costs = [record["cost"]["cost_usd"] for record in records if record["cost"]["cost_usd"] is not None]
     tokens = [
-        record["cost"]["input_tokens"] + record["cost"]["output_tokens"]
+        record["cost"].get("total_tokens")
+        if record["cost"].get("total_tokens") is not None
+        else record["cost"]["input_tokens"] + record["cost"]["output_tokens"]
         for record in records
-        if record["cost"]["input_tokens"] is not None and record["cost"]["output_tokens"] is not None
+        if record["cost"].get("total_tokens") is not None
+        or (record["cost"]["input_tokens"] is not None and record["cost"]["output_tokens"] is not None)
     ]
+    cache_read_tokens = [record["cost"].get("cache_read_tokens") for record in records if record["cost"].get("cache_read_tokens") is not None]
+    cache_write_tokens = [record["cost"].get("cache_write_tokens") for record in records if record["cost"].get("cache_write_tokens") is not None]
+    model_steps = [record["cost"].get("model_steps") for record in records if record["cost"].get("model_steps") is not None]
 
     metrics = [
         rate_metric("ERA-RUN-01", len(valid_runs), total_runs, "valid_run_rate", [evidence_ref], ["Valid-run rate does not by itself measure Agent quality."], confidence),
         rate_metric("ERA-RUN-02", environment_failed, total_runs, "environment_failure_rate", [evidence_ref], ["Environment failures must not be attributed to the Agent or dataset."], confidence),
         rate_metric("ERA-RUN-03", agent_passes, len(outcome_rows), "agent_outcome_pass_rate", [evidence_ref], ["This is the tested Agent outcome, not a standalone dataset quality score."], confidence),
         rate_metric("ERA-RUN-04", process_passes, len(process_rows), "process_compliance_rate", [evidence_ref], ["Process requirements must be defined by the task and rubric."], confidence),
-        rate_metric("ERA-GRD-01", false_passes, len(gold_fail_rows), "grader_false_pass_rate", [evidence_ref], ["Gold labels must come from an independent Oracle or expert adjudication."], confidence),
-        rate_metric("ERA-GRD-02", false_fails, len(gold_pass_rows), "grader_false_fail_rate", [evidence_ref], ["Gold labels must come from an independent Oracle or expert adjudication."], confidence),
-        rate_metric("ERA-GRD-03", abstentions, len(gold_rows), "grader_abstention_rate", [evidence_ref], ["Abstentions must remain distinct from pass and fail."], confidence),
+        rate_metric("ERA-GRD-01", false_passes, len(graded_gold_fail_rows), "grader_false_pass_rate", [evidence_ref], ["Gold labels must come from an independent Oracle or expert adjudication."], confidence),
+        rate_metric("ERA-GRD-02", false_fails, len(graded_gold_pass_rows), "grader_false_fail_rate", [evidence_ref], ["Gold labels must come from an independent Oracle or expert adjudication."], confidence),
+        rate_metric("ERA-GRD-03", abstentions, len(graded_gold_rows), "grader_abstention_rate", [evidence_ref], ["Abstentions must remain distinct from pass and fail."], confidence),
         rate_metric("ERA-GRD-04", grader_correct, len(judged_rows), "grader_accuracy_on_judged_gold_rows", [evidence_ref], ["Accuracy excludes abstentions; report coverage and abstention separately."], confidence),
         rate_metric("ERA-RUN-05", failure_exposed, len(exposed_rows), "failure_exposure_rate_on_injected_fault_runs", [evidence_ref], ["Failure exposure is distinct from fault detection."], confidence),
         {
@@ -366,6 +373,9 @@ def build_era_report(
                 "duration_seconds_p95": _percentile(durations, 0.95),
                 "cost_usd_median": median(costs) if costs else None,
                 "total_tokens_median": median(tokens) if tokens else None,
+                "cache_read_tokens_median": median(cache_read_tokens) if cache_read_tokens else None,
+                "cache_write_tokens_median": median(cache_write_tokens) if cache_write_tokens else None,
+                "model_steps_median": median(model_steps) if model_steps else None,
                 "tool_calls_median": median([
                     record["cost"]["tool_calls"] for record in records
                     if record["cost"]["tool_calls"] is not None
@@ -548,14 +558,14 @@ def build_era_report(
         })
 
     grader_metrics = []
-    if gold_rows:
+    if graded_gold_rows:
         grader_metrics = [
-            {"metric_id": "ERA-GRD-01", "status": "MEASURED" if gold_fail_rows else "NOT_ASSESSED", "value": false_passes / len(gold_fail_rows) if gold_fail_rows else None, "unit": "false_pass_rate", "interval": wilson_interval(false_passes, len(gold_fail_rows), confidence) if gold_fail_rows else None, "evidence_refs": [evidence_ref]},
-            {"metric_id": "ERA-GRD-02", "status": "MEASURED" if gold_pass_rows else "NOT_ASSESSED", "value": false_fails / len(gold_pass_rows) if gold_pass_rows else None, "unit": "false_fail_rate", "interval": wilson_interval(false_fails, len(gold_pass_rows), confidence) if gold_pass_rows else None, "evidence_refs": [evidence_ref]},
-            {"metric_id": "ERA-GRD-03", "status": "MEASURED", "value": abstentions / len(gold_rows), "unit": "abstention_rate", "interval": wilson_interval(abstentions, len(gold_rows), confidence), "evidence_refs": [evidence_ref]},
+            {"metric_id": "ERA-GRD-01", "status": "MEASURED" if gold_fail_rows else "NOT_ASSESSED", "value": false_passes / len(graded_gold_fail_rows) if graded_gold_fail_rows else None, "unit": "false_pass_rate", "interval": wilson_interval(false_passes, len(graded_gold_fail_rows), confidence) if graded_gold_fail_rows else None, "evidence_refs": [evidence_ref]},
+            {"metric_id": "ERA-GRD-02", "status": "MEASURED" if gold_pass_rows else "NOT_ASSESSED", "value": false_fails / len(graded_gold_pass_rows) if graded_gold_pass_rows else None, "unit": "false_fail_rate", "interval": wilson_interval(false_fails, len(graded_gold_pass_rows), confidence) if graded_gold_pass_rows else None, "evidence_refs": [evidence_ref]},
+            {"metric_id": "ERA-GRD-03", "status": "MEASURED", "value": abstentions / len(graded_gold_rows), "unit": "abstention_rate", "interval": wilson_interval(abstentions, len(graded_gold_rows), confidence), "evidence_refs": [evidence_ref]},
             {"metric_id": "ERA-GRD-04", "status": "MEASURED" if judged_rows else "NOT_ASSESSED", "value": grader_correct / len(judged_rows) if judged_rows else None, "unit": "accuracy_on_non_abstained_gold_rows", "interval": wilson_interval(grader_correct, len(judged_rows), confidence) if judged_rows else None, "evidence_refs": [evidence_ref]}
         ]
-    grader_status = "PARTIAL" if gold_rows else "NOT_RUN"
+    grader_status = "PARTIAL" if graded_gold_rows else "NOT_RUN"
 
     findings = []
     if not gold_rows:
@@ -563,6 +573,13 @@ def build_era_report(
             "finding_id": "ERA-NO-GOLD",
             "severity": "high",
             "description": "No independent Oracle or expert-adjudicated gold outcomes were available for grader validation.",
+            "evidence_refs": [evidence_ref]
+        })
+    if gold_rows and not graded_gold_rows:
+        findings.append({
+            "finding_id": "ERA-NO-GRADER",
+            "severity": "medium",
+            "description": "Independent Gold labels are available, but no Judge output is linked to these records; Judge error and abstention metrics are not assessed.",
             "evidence_refs": [evidence_ref]
         })
     if incomplete_pairs:
@@ -611,7 +628,7 @@ def build_era_report(
         "grader_validation": {
             "status": grader_status,
             "reference_standard": "Only independent_oracle and expert_adjudication gold_source records are used.",
-            "sample_count": len(gold_rows),
+            "sample_count": len(graded_gold_rows),
             "metric_results": grader_metrics,
             "limitations": [
                 "A partial measurement is not a pass decision; no acceptance thresholds are applied.",
