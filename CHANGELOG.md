@@ -1,5 +1,18 @@
 # 版本变更记录
 
+## 0.0.2 — Unreleased（研发中）
+
+> 本节记录开发分支已实现的工程资产，不代表发布批准或实证效度通过。正式版本号仍为 0.0.1。
+
+- 建立 IDA 离线质量检查器、ERA Runtime Record 与统计分析器、机器可读报告 Schema 和跨字段验证器。
+- 建立 Capability 与 Regression 的用途专属分析设计；综合公式、权重和阈值保持 NOT_VALIDATED。
+- 建立专家内容效度盲评协议、评分记录 Schema、Judge 校准证据报告 Schema 与验证器。
+- 建立 Round 4 独立 Oracle 双盲评审包、提交比较器、hash-bound 执行前冻结门禁。
+- 增加 ERA 真实运行执行协议、架构与验收基线、外部 Benchmark 候选及许可限制登记。
+- 最新可核验 CI：Run #1930（45714388411，精确 head 8930dcc656288e1b6fd7bc672202bbec520b92b9），207/207 离线测试 PASS，Round 4 IDA/ERA 报告契约验证 PASS；Artifact 15069091920。
+- 实证边界：15 条 Round 4 用例中仅 3 条真实 Pilot，12 条 NOT_RUN；Judge NOT_RUN；IDA/ERA PARTIAL；综合分 NOT_VALIDATED。专家评审、Oracle 冻结、盲测缺陷实验、Capability/Regression 完整效标和公式独立验证仍未完成。
+- 发布限制：尚无 v0.0.2 Release Candidate、最终发布审查或用户发布批准；不得创建 v0.0.2 tag/release。
+
 ## 0.0.1 — 发布候选
 
 - 建立通用评测数据集构建 Skill。
