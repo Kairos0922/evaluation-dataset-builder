@@ -82,7 +82,7 @@ def validate_freeze_manifest(
     if not isinstance(adjudication, dict):
         adjudication = {}
     adjudicator_id = adjudication.get("adjudicator_id")
-    if adjudicator_id is not None and adjudicator_id in {reviewer_a_id, reviewer_b_id}:
+    if adjudicator_id is not None and (adjudicator_id == reviewer_a_id or adjudicator_id == reviewer_b_id):
         errors.append("adjudicator must be independent from both reviewers")
 
     # The caller recomputes the comparison report from both submissions and crosswalk.
