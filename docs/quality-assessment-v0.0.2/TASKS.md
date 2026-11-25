@@ -57,7 +57,7 @@
 | QA-03 | 质量 | 完成真实运行评价的端到端验证 | IN_PROGRESS | Run #1847 的 Round 4 真实证据 Job、IDA/ERA 报告 JSON Schema 和 cross-field contract validation PASS，artifact 15012860922；IDA PARTIAL、ERA PARTIAL，三条 Pilot 均有独立 Oracle PASS；12/15 NOT_RUN、Judge NOT_RUN、无 Regression 配对、IRT/G-Theory 未拟合。报告已记录于 round4-real-evidence-results.md；尚需扩展真实运行和外部效度证据 |
 | QA-04 | 质量 | 完成综合公式独立验证；若证据不足则明确 NOT_VALIDATED | IN_PROGRESS | 已有公式验证协议和向量画像定义；尚缺专家效标、缺陷注入数据、真实运行效标与冻结验证集。证据不足时保持 NOT_VALIDATED，不得发布标量总分 |
 | P0-CI-01 | 工程 | 修复 CI #1807 中 Formula Validation Validator 对 datasets[].sample_count 的错误读取，并增加回归测试 | DONE | Schema 将 sample_count 定义在 split 层；验证器改为校验来源数据集非空并使用 split 总样本量；commit b6740f9（验证器）、a2dc04e（回归测试）；run #1808（45550108441）精确 head a2dc04e：actionlint、Skill 正式包、Benchmark 贯通样例 PASS，162/162 离线测试 PASS。Builder production / independent-validation jobs 按 PR 条件 SKIPPED |
-| CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | DONE | 最新完整 CI Run #1861（45595437684，精确 head 428b3ac8ec6b40f168b04bc012cfa6e73336c1fe）actionlint、正式 Skill 包、Benchmark、167/167 离线测试、真实证据 IDA/ERA 和两份报告 JSON Schema / cross-field validation 全部 PASS；真实证据 Artifact 15013081639。PR #38 前置条件保护的 Builder production / independent-validation / pilot Jobs 为 SKIPPED，不计为通过 |
+| CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | IN_PROGRESS | Run #1861（45595437684，head 428b3ac）actionlint、正式 Skill 包、Benchmark、167/167 离线测试、真实证据 IDA/ERA 和报告 Schema/cross-field validation PASS。随后新增 expert-review-record.schema.json、Skill reference mirror 和 5 项 unittest（commits b5d644c、78d2b44、cc4b5c2）；最新 head ced5e33 的 Run #1873（45596269313）仍 PENDING，新增测试尚未验证。PR #38 前置条件保护的 Builder production / independent-validation / pilot Jobs 为 SKIPPED，不计为通过 |
 | DOC-01 | 文档 | 更新 README、CHANGELOG、版本和限制说明 | TODO | v0.0.2 内容一致 |
 | REL-01 | 发布 | 建立发布候选 PR 并完成审查 | TODO | 所有适用验收门禁通过，PR 记录证据 |
 | REL-02 | 发布 | 用户批准后创建 v0.0.2 Tag 和 GitHub Release | TODO | Release 指向精确验证过的提交，证据齐全 |
@@ -98,6 +98,7 @@
 
 | 日期 | 变更 |
 |---|---|
+| 2026-11-25 | CI-01 重新打开：新增专家评分记录 Schema 与 unittest 后，旧 Run #1861 的 167/167 不包含新增测试；head ced5e33 的 Run #1873 仍 PENDING，不能提前标记 CI 完成。 |
 | 2026-11-25 | 专家盲评协议落地：新增 expert-review-protocol.md（盲评/仲裁分离、评分锚点、CVI/CVR/Aiken's V、一致性统计、区间/功效规划、无统一阈值）；新增 expert-review-record.schema.json 并镜像至 Skill references，新增 unittest 覆盖 schema 合法性、尺度约束、盲评状态和匿名化。相关 commits 3fd46df、b5d644c、78d2b44、cc4b5c2。未招募专家，所有专家统计仍 NOT_RUN。 |
 | 2026-11-25 | PR #44 最新 TASKS.md head 428b3ac 的 Run #1861（45595437684）最终 PASS：actionlint、Skill 正式包、Benchmark、167/167 离线测试、真实证据导入、IDA/ERA、JSON Schema 和 cross-field validation 全部 PASS；报告 artifact 15013081639。Builder production、independent-validation 和 pilot Jobs 依 PR #38 前置条件 SKIPPED。 |
 | 2026-11-25 | 最新 TASKS.md 变更前的完整验证 Run #1858（45595208813，精确 head 3f5ad1bce112f8d08b26b618ab51a6d99c32a0ce）成功：actionlint、Skill 包、Benchmark、167/167 测试、真实 IDA/ERA 导入和报告 JSON Schema / cross-field validation PASS；真实证据 Artifact 已归档。该 run 未执行 PR #38 前置条件保护的 Builder production / independent-validation / pilot jobs（SKIPPED）。外部 Benchmark 候选初筛文件 commits e34a5dc + a693120。 |
