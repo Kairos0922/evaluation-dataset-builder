@@ -125,3 +125,11 @@
 - Run #1925（45633631233，精确 head 01e81f4894a4b58361f65fe36fb5b7ca1254707b）通过 actionlint、正式 Skill 包、Benchmark、207/207 离线测试，以及 Round 4 IDA/ERA 报告契约检查；真实证据 artifact 15031253612。IDA/ERA 仍保持 PARTIAL，12 条仍 NOT_RUN，Judge NOT_RUN，综合分 NOT_VALIDATED。
 - Run #1923（45633356833）因同一分支后续提交触发并发取消，未完成验证；不作为验收证据。Run #1924（45633425338）在前一代码 head 通过 207/207 测试，但随后代码又有小幅防御性修正，因此以 Run #1925 为当前有效证据。
 - 本次仅增强验证器对无效输入的失败安全性，不改变 Oracle 决策规则，不创建 Gold，不授权 Runner。两份盲审包仍未分发/回收；人工评审与仲裁继续 NOT_RUN。
+
+### 端到端推进与外部评审招募（2026-11-25）
+- 用户要求一次性完成所有任务。重新核对 Issue #43、PR #44、TASKS.md、Round 4 Oracle plan、盲审包指南和最新 CI。PR #44 当前 head 为 c84d94b8655e8df0deb8fef3b25b3d990353cb1d，Draft/Open/未合并；PR #38 未触碰。
+- 已在 Issue #43 发布独立评审招募说明（comment 7165679690）：招募两位互不交流的独立评审者，并说明资格、12-case 评审范围、UNKNOWN 规则、禁止协调、隐私和交付要求。发布时 Issue 尚无评论或志愿者；截至本次核查尚无评审提交或仲裁人选，因此 EX-03 / EX-07 的人工证据仍 BLOCKED。
+- 盲审包已经生成并通过哈希/结构检查，但本次没有公开上传盲审包，也没有把 coordinator-only crosswalk 暴露给评审者。待志愿者确认后再通过受控渠道分别分发 A/B 包。
+- 不会用同一模型伪装两名独立专家，不会自行生成 Gold 或假造真实用户/应用行为；这会破坏本项目 Issue #43 明确要求的独立效度证据。
+- 最新 CI Run #1926（45634060282）仍是本分支 TASKS 上次更新后精确代码 head 的有效证据：207/207 离线测试、正式包、Benchmark、actionlint、Round 4 IDA/ERA 报告契约 PASS；生产 Builder / 独立验证 / Pilot jobs SKIPPED。
+- 当前可由仓库维护者单独完成的工程工作已推进到执行前冻结门禁。尚需外部输入的工作包括：专家内容效度/评分者一致性、独立 Oracle 盲审和仲裁、外部基准数据许可/快照与独立 Oracle、真实缺陷注入与跨 Agent/Skill 运行效标、公式冻结验证，以及用户批准发布。上述任务不能仅靠本仓库代码或 CI 伪造完成。
