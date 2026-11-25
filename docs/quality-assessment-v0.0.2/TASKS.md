@@ -58,7 +58,7 @@
 | QA-03 | 质量 | 完成真实运行评价的端到端验证 | IN_PROGRESS | Run #1847 的 Round 4 真实证据 Job、IDA/ERA 报告 JSON Schema 和 cross-field contract validation PASS，artifact 15012860922；IDA PARTIAL、ERA PARTIAL，三条 Pilot 均有独立 Oracle PASS；12/15 NOT_RUN、Judge NOT_RUN、无 Regression 配对、IRT/G-Theory 未拟合。报告已记录于 round4-real-evidence-results.md；尚需扩展真实运行和外部效度证据 |
 | QA-04 | 质量 | 完成综合公式独立验证；若证据不足则明确 NOT_VALIDATED | IN_PROGRESS | 已有公式验证协议和向量画像定义；尚缺专家效标、缺陷注入数据、真实运行效标与冻结验证集。证据不足时保持 NOT_VALIDATED，不得发布标量总分 |
 | P0-CI-01 | 工程 | 修复 CI #1807 中 Formula Validation Validator 对 datasets[].sample_count 的错误读取，并增加回归测试 | DONE | Schema 将 sample_count 定义在 split 层；验证器改为校验来源数据集非空并使用 split 总样本量；commit b6740f9（验证器）、a2dc04e（回归测试）；run #1808（45550108441）精确 head a2dc04e：actionlint、Skill 正式包、Benchmark 贯通样例 PASS，162/162 离线测试 PASS。Builder production / independent-validation jobs 按 PR 条件 SKIPPED |
-| CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | IN_PROGRESS | Run #1861（45595437684，head 428b3ac）actionlint、正式 Skill 包、Benchmark、167/167 离线测试、真实证据 IDA/ERA 和报告 Schema/cross-field validation PASS。随后新增 expert-review-record.schema.json、Skill reference mirror 和 5 项 unittest（commits b5d644c、78d2b44、cc4b5c2）；最新 head ced5e33 的 Run #1873（45596269313）仍 PENDING，新增测试尚未验证。PR #38 前置条件保护的 Builder production / independent-validation / pilot Jobs 为 SKIPPED，不计为通过 |
+| CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | DONE | Run #1883（45605677694，精确代码/测试 head eca54a8b537b9a0e2f051e7b36492dabdc5976ca）actionlint PASS、正式 Skill 包验证 PASS、Benchmark 贯通样例 PASS、177/177 离线测试 PASS、Round 4 冻结证据导入/IDA/ERA/报告 JSON Schema 与 cross-field validation PASS；真实证据 artifact 15017119143。该次 PR #44 CI 的 Builder production / independent-validation / pilot Jobs 按范围保护 SKIPPED，不计作本次验证通过，也不影响对已归档三条 Pilot 的分析。后续若代码、Schema 或 workflow 改动，必须重新执行全量验证 |
 | DOC-01 | 文档 | 更新 README、CHANGELOG、版本和限制说明 | TODO | v0.0.2 内容一致 |
 | REL-01 | 发布 | 建立发布候选 PR 并完成审查 | TODO | 所有适用验收门禁通过，PR 记录证据 |
 | REL-02 | 发布 | 用户批准后创建 v0.0.2 Tag 和 GitHub Release | TODO | Release 指向精确验证过的提交，证据齐全 |
@@ -99,7 +99,7 @@
 
 | 日期 | 变更 |
 |---|---|
-| 2026-11-25 | CI-01 发现并修复正式包白名单遗漏：Run #1874（45596410768）actionlint PASS，但 validate_skill.py 因 EXPECTED_SKILL_FILES 未登记 expert-review-record.schema.json 失败，后续步骤 SKIPPED。已在 c0bf1cd 更新白名单并纳入 Draft 2020-12 Schema 检查，在 dc96108 更新 SKILL.md 直接引用该资源；新增 Round 4 独立 Oracle 计划 commit c129b21。修复后完整 CI 待执行，专家评分测试尚无 CI 结果。 |
+| 2026-11-25 | CI-01 完成修复后全量验收：Run #1883（45605677694，head eca54a8b537b9a0e2f051e7b36492dabdc5976ca）actionlint、正式 Skill 包、Benchmark、177/177 离线测试及 Round 4 冻结证据 IDA/ERA + 报告 Schema/cross-field validation 全部 PASS；artifact 15017119143。Run #1874 的包白名单错误、Run #1875/#1881 的 Release Gate 清单断言错误均已修复；PR #38 生产/Pilot Jobs 按范围保护 SKIPPED。CI-01 标记 DONE。 |
 | 2026-11-25 | Round 4 Oracle 设计与记录契约：检查冻结 Pilot artifact 中 15 条 Builder 原始用例、合成业务规则、应用说明、Runner 契约和 Workboard fixture；为剩余 12 条建立独立规范断言、API/DOM/trace 证据、Skill/Application 双结果、动作预算和 UNKNOWN 规则。计划 commit c129b21；Oracle record Schema commit 0118318，5 项 schema unittest commit cf282da。WB-15 application outcome 强制 UNKNOWN；超预算不能记 Skill PASS。计划待独立审查者确认，未执行剩余 12 条。 |
 | 2026-11-25 | 专家盲评协议落地：新增 expert-review-protocol.md（盲评/仲裁分离、评分锚点、CVI/CVR/Aiken's V、一致性统计、区间/功效规划、无统一阈值）；新增 expert-review-record.schema.json 并镜像至 Skill references，新增 unittest 覆盖 schema 合法性、尺度约束、盲评状态和匿名化。相关 commits 3fd46df、b5d644c、78d2b44、cc4b5c2。未招募专家，所有专家统计仍 NOT_RUN。 |
 | 2026-11-25 | PR #44 最新 TASKS.md head 428b3ac 的 Run #1861（45595437684）最终 PASS：actionlint、Skill 正式包、Benchmark、167/167 离线测试、真实证据导入、IDA/ERA、JSON Schema 和 cross-field validation 全部 PASS；报告 artifact 15013081639。Builder production、independent-validation 和 pilot Jobs 依 PR #38 前置条件 SKIPPED。 |
