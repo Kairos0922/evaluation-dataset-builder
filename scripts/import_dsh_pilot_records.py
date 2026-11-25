@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 from pathlib import Path
 
 
@@ -186,6 +187,7 @@ def import_evidence(
     metadata_output: Path,
     builder_run_id: str,
     independent_validation_run_id: str,
+    post_pilot_revalidation_run_id: str,
     pilot_run_id: str,
     pilot_artifact_id: str,
 ) -> tuple[list[dict], dict]:
@@ -256,7 +258,9 @@ def import_evidence(
             raise ValueError(f"runner metadata does not match Builder dataset/case for {case_id}")
         if runner.get("builder_case_sha256") != raw_case_sha256:
             raise ValueError(f"pilot {case_id} is not bound to the exact archived Builder JSONL SHA-256")
-        if runner.get("webapp_testing_skill_commit") != case_by_id[case_id].get("evaluation_target", "").split("commit ")[-1].rstrip(")"):
+        target_text = case_by_id[case_id].get("evaluation_target", "")
+        target_match = re.search(r"commit ([a-fA-F0-9]{40})", target_text)
+        if not target_match or runner.get("webapp_testing_skill_commit") != target_match.group(1):
             raise ValueError(f"pilot {case_id} target revision does not match the Builder-authored case")
         verify_pilot_evidence(pilot_dir, runner)
         records.append(build_runtime_record(case_id, runner, oracle_case, manifest["dataset_id"], dataset_sha))
@@ -266,6 +270,8 @@ def import_evidence(
     metadata = {
         "builder_run_id": builder_run_id,
         "independent_validation_run_id": independent_validation_run_id,
+        "post_pilot_revalidation_run_id": post_pilot_revalidation_run_id,
+        "builder_production_job_conclusion": "failure_with_artifact_emitted",
         "pilot_run_id": pilot_run_id,
         "pilot_artifact_id": pilot_artifact_id,
         "dataset_id": manifest["dataset_id"],
@@ -303,7 +309,8 @@ def main() -> int:
     parser.add_argument("--source-registry-output", required=True, type=Path)
     parser.add_argument("--metadata-output", required=True, type=Path)
     parser.add_argument("--builder-run-id", default="44959366258")
-    parser.add_argument("--independent-validation-run-id", default="45291624154")
+    parser.add_argument("--independent-validation-run-id", default="44968128127")
+    parser.add_argument("--post-pilot-revalidation-run-id", default="45291624154")
     parser.add_argument("--pilot-run-id", default="45189512695")
     parser.add_argument("--pilot-artifact-id", default="14824967038")
     args = parser.parse_args()
@@ -315,6 +322,7 @@ def main() -> int:
             args.metadata_output,
             args.builder_run_id,
             args.independent_validation_run_id,
+            args.post_pilot_revalidation_run_id,
             args.pilot_run_id,
             args.pilot_artifact_id,
         )
