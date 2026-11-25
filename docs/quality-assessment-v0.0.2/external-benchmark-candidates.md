@@ -35,7 +35,7 @@
 
 ### AgentDojo
 - 官方仓库：https://github.com/ethz-spylab/agentdojo
-- 官方文档：https://agentdojo.spylab.ai/
+- 官方文档：https://agentdojo.spylab.ai/\n- 官方结果页：https://agentdojo.spylab.ai/results/（包含 utility、utility under attack、targeted ASR 和轨迹查看；官方明确说明结果组合不完整，不能视作公平排行榜）
 - LICENSE：https://github.com/ethz-spylab/agentdojo/blob/main/LICENSE
 - 关键限制：主要测量 prompt injection 下的安全与效用，不应将其安全结果外推为一般任务能力。
 
