@@ -300,6 +300,8 @@ def build_era_report(
     ]
     process_passes = sum(record["process_outcome"] == "pass" for record in process_rows)
 
+    # A Gold Oracle label without a linked grader_id is not a Judge abstention or a Judge decision.
+    # Keep Oracle evidence available while excluding it from Judge error-rate denominators.
     gold_rows = [
         record for record in records
         if record["outcomes"]["gold_source"] in {"independent_oracle", "expert_adjudication"}
