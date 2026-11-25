@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/docs/quality-assessment-v0.0.2/schemas/round4-blind-review-submission.schema.json",
+  "title": "Round 4 Blind Oracle Review Submission",
+  "description": "One complete, independently authored pre-execution Oracle review. This is not a Gold adjudication record.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "reviewer_slot",
+    "reviewer_id",
+    "submitted_at",
+    "packet_sha256",
+    "dataset_sha256",
+    "protocol_version",
+    "items",
+    "overall_notes"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "reviewer_slot": {
+      "enum": [
+        "A",
+        "B"
+      ]
+    },
+    "reviewer_id": {
+      "type": "string",
+      "pattern": "^RV-[A-Za-z0-9_-]{3,40}$"
+    },
+    "submitted_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "packet_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "dataset_sha256": {
+      "const": "000d38b110b60eae902f86737ea6bd1368f98c6632c42a47bb9470a4a08bfc45"
+    },
+    "protocol_version": {
+      "const": "Round4 Oracle independent review v1.0"
+    },
+    "items": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "blind_label",
+          "construct_relevance",
+          "clarity",
+          "executability",
+          "ambiguity_notes",
+          "assertions",
+          "application_skill_separation",
+          "max_write_actions",
+          "max_script_runs",
+          "prohibited_side_effects",
+          "freeze_decision",
+          "rationale",
+          "evidence_refs"
+        ],
+        "properties": {
+          "blind_label": {
+            "type": "string",
+            "pattern": "^R[AB]-ITEM-(0[1-9]|1[0-2])$"
+          },
+          "construct_relevance": {
+            "enum": [
+              "ESSENTIAL",
+              "USEFUL_NOT_ESSENTIAL",
+              "NOT_NECESSARY"
+            ]
+          },
+          "clarity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4
+          },
+          "executability": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 4
+          },
+          "ambiguity_notes": {
+            "type": "string"
+          },
+          "assertions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "assertion_id",
+                "normative_ref",
+                "observation_method",
+                "pass_condition",
+                "fail_condition",
+                "unknown_condition"
+              ],
+              "properties": {
+                "assertion_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "normative_ref": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "observation_method": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "enum": [
+                      "api_state",
+                      "dom",
+                      "accessibility_snapshot",
+                      "playwright_trace",
+                      "browser_event_log",
+                      "server_audit",
+                      "human_blind_review",
+                      "runner_contract"
+                    ]
+                  }
+                },
+                "pass_condition": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "fail_condition": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "unknown_condition": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              }
+            }
+          },
+          "application_skill_separation": {
+            "type": "string",
+            "minLength": 20
+          },
+          "max_write_actions": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "max_script_runs": {
+            "type": "integer",
+            "const": 1
+          },
+          "prohibited_side_effects": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "freeze_decision": {
+            "enum": [
+              "YES",
+              "NO",
+              "NEEDS_REVISION"
+            ]
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 20
+          },
+          "evidence_refs": {
+            "type": "array",
+            "minItems": 2,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "overall_notes": {
+      "type": "string",
+      "minLength": 20
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "reviewer_slot": {
+            "const": "A"
+          }
+        },
+        "required": [
+          "reviewer_slot"
+        ]
+      },
+      "then": {
+        "properties": {
+          "packet_sha256": {
+            "const": "0dff42e51bba9e85fc12df9f1ae170a6baec28793ad3ca3496e07a6abe94180f"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "reviewer_slot": {
+            "const": "B"
+          }
+        },
+        "required": [
+          "reviewer_slot"
+        ]
+      },
+      "then": {
+        "properties": {
+          "packet_sha256": {
+            "const": "205bd9bda8579c19c127cb1279e3f8378518fcc02f0cf84abbe33a7a8f733d92"
+          }
+        }
+      }
+    }
+  ]
+}
