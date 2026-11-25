@@ -111,7 +111,8 @@ class Round4BlindReviewComparisonTests(unittest.TestCase):
             load_crosswalk(self.crosswalk_path)
 
     def test_crosswalk_rejects_duplicate_case_mapping(self):
-        rows = list(csv.DictReader(self.crosswalk_path.open(encoding="utf-8")))
+        with self.crosswalk_path.open("r", encoding="utf-8", newline="") as handle:
+            rows = list(csv.DictReader(handle))
         rows[-1]["case_id"] = rows[-2]["case_id"]
         with self.crosswalk_path.open("w", encoding="utf-8", newline="") as handle:
             writer = csv.DictWriter(handle, fieldnames=rows[0].keys())
