@@ -9,7 +9,7 @@
 - 当前版本：0.0.1
 - 目标版本：0.0.2
 - 当前状态：IN_PROGRESS
-- 最后更新：2026-11-25
+- 最后更新：2026-11-26
 
 ## 状态定义
 
@@ -28,40 +28,40 @@
 | RQ-01 | 需求 | 将用户需求、对象、用途和双路径评价边界写入仓库 | DONE | requirements.md；Issue #43；commit ec5b629 |
 | RQ-02 | 需求 | 明确不沿用未验证权重/阈值，并保留 PR #38 历史证据 | DONE | requirements.md §3、§5；PR #38 不在本分支修改；decision-log.md D-003/D-006 |
 | RS-01 | 研究 | 建立 Agent Benchmark、Construct Validity 和测量学证据库 | DONE | research-evidence.md；NeurIPS ABC / Construct Validity、OECD/JRC、SkillsBench、Agentic Skills at Scale、SkillForgeBench 等来源已记录；commit e8c60fa + 后续研究补充 |
-| RS-02 | 研究 | 深入复核内容效度、评分者一致性、IRT/G-Theory、复合指标和阈值方法 | IN_PROGRESS | research-evidence.md、methodology-matrix.md、formula-validation-protocol.md 已覆盖 CVI/CVR、Aiken's V、ICC/Kappa/Alpha、IRT、G-Theory、敏感性和样本量规划；新增 expert-review-protocol.md（commit 3fd46df），明确盲评流程、评分锚点、统计定义、区间/功效设计和不设统一阈值原则；仍需专家实证和真实数据验证 |
-| RS-03 | 研究 | 复核通用 Agent / Skill 运行效标、历史故障、变异和 Judge 验证实践 | IN_PROGRESS | ABC、SkillsBench、Agentic Skills at Scale、SkillForgeBench、Judge 验证和 fault exposure 已记录；新增独立 Benchmark 候选矩阵，涵盖 AppWorld、AgentDojo、WebArena-Verified、OSWorld-Verified、GAIA、WorkArena；仍需锁定具体版本、访问许可、Oracle 和可复现环境，并细化跨域效标验证 |
-| DS-01 | 设计 | 完成离线独立质量评价方法和维度操作定义 | IN_PROGRESS | methodology-design.md + metric-catalog.md 已建立 IDA 指标候选；仍需定义审查锚点、评分者校准和内容效度流程；metric catalog commit 4b91a78 |
-| DS-02 | 设计 | 完成真实运行评价方法，区分 Agent / 环境 / Judge 误差 | IN_PROGRESS | methodology-design.md + metric-catalog.md 定义 ERA 与共享运行指标；formula-validation-protocol.md 规定验证证据；仍需形成可执行运行协议 |
-| DS-03 | 设计 | 设计 Capability 专属评价与统计方案 | IN_PROGRESS | 已定义观察题目通过率画像、IRT 难度/区分度、Test Information、DIF、测量不变性和 G-Theory 的用途与限制；当前 analyzer 仅输出描述性通过率，IRT/G-Theory 估计与假设检验未完成 |
-| DS-04 | 设计 | 设计 Regression 专属评价与统计方案 | IN_PROGRESS | 已定义同 case/model/environment/seed 配对、McNemar exact、历史故障、Mutation、失败暴露和重复运行不一致；需用真实故障集验证代表性和检出效度 |
+| RS-02 | 研究 | 深入复核内容效度、评分者一致性、IRT/G-Theory、复合指标和阈值方法 | DONE | 已完成方法复核与可执行设计：research-evidence.md、methodology-matrix.md、formula-validation-protocol.md、expert-review-protocol.md 覆盖 CVI/CVR/Aiken's V、ICC/Kappa/Alpha、IRT/G-Theory、复合指标、损失驱动阈值、敏感性和功效规划。专家实证另由 EX-03/QA-01 跟踪，不作为文献复核完成的前提。 |
+| RS-03 | 研究 | 复核通用 Agent / Skill 运行效标、历史故障、变异和 Judge 验证实践 | DONE | 已完成通用 Agent/Skill Benchmark、Judge、历史故障、Mutation、失败暴露和重复性方法复核；外部候选官方代码许可/访问限制初筛见 external-benchmark-candidates.md。锁定可用版本、数据资产许可、Oracle 和运行环境属于 EX-02/EX-05，仍未完成。 |
+| DS-01 | 设计 | 完成离线独立质量评价方法和维度操作定义 | DONE | methodology-design.md、metric-catalog.md 定义 IDA 构念/指标/单位/分子分母/证据/局限；expert-review-protocol.md 定义盲评评分锚点与仲裁。实际专家校准由 EX-03 单独验证。 |
+| DS-02 | 设计 | 完成真实运行评价方法，区分 Agent / 环境 / Judge 误差 | DONE | 新增 runtime-assessment-protocol.md，冻结执行前身份、单次运行步骤、失败归因、Judge/Gold 独立性、Capability/Regression 分支、重复/停止规则与报告要求。实际运行效标由 EX-05/EX-06 验证。 |
+| DS-03 | 设计 | 设计 Capability 专属评价与统计方案 | DONE | methodology-design.md、metric-catalog.md、formula-validation-protocol.md 与 runtime-assessment-protocol.md 已定义 Capability 任务画像、IRT/DIF/Test Information、G-Theory 适用假设及无假设支持时的替代报告；统计拟合实现/实证另由 IM-05/EX-05 跟踪。 |
+| DS-04 | 设计 | 设计 Regression 专属评价与统计方案 | DONE | 已定义同 case/config/environment/seed 配对、转移表、McNemar exact/Bootstrap、历史故障与 Mutation 分开、关键门禁及 Flakiness；真实故障集效度由 EX-05 跟踪。 |
 | FM-01 | 公式 | 定义构念蓝图、指标类型和候选公式模型族 | DONE | methodology-design.md §3、§5；formula-validation-protocol.md §2、§5；commit f84ef13 + b6cd238 |
-| FM-02 | 公式 | 设计公式构建、权重来源、阈值选择与敏感性分析协议 | IN_PROGRESS | formula-validation-protocol.md 已明确规范性/经验性/混合权重、损失驱动阈值、模型比较和敏感性分析；仍需冻结预注册分析计划和实际效标 |
+| FM-02 | 公式 | 设计公式构建、权重来源、阈值选择与敏感性分析协议 | DONE | formula-validation-protocol.md 已定义候选模型族、规范性/经验性/混合权重来源、训练/验证隔离、损失驱动阈值、敏感性/稳健性分析和验证结论状态。具体预注册参数必须绑定独立数据集与外部效标，属于 FM-03。 |
 | FM-03 | 公式 | 建立独立效度验证实验与证明报告 | TODO | 执行专家盲评、缺陷注入、外部效标、泛化和不确定性验证；当前仅有协议设计 |
 | EX-01 | 实验 | 完成公式验证实验设计与样本量/效标规划 | DONE | experimental-design.md；定义 E0–E7 阶段、分组隔离、专家盲评、缺陷注入和真实运行方案；commit 4b2f0d3 |
-| EX-02 | 实验 | 建立独立参考数据集与缺陷注入样本 | IN_PROGRESS | defect-mutation-catalog.yaml 已建立 IDA-M01–M12 / ERA-M01–M08，并有确定性单测；新增 external-benchmark-candidates.md（commits e34a5dc + a693120），初筛 AppWorld、AgentDojo、WebArena-Verified、OSWorld-Verified、GAIA、WorkArena。仅完成桌面候选登记，尚未导入外部任务；待核实数据/环境许可、版本哈希、Oracle、独立标签和盲测变体 |
-| EX-03 | 实验 | 完成专家内容效度与评分者一致性实验 | IN_PROGRESS | 已新增可执行盲评协议 expert-review-protocol.md（commit 3fd46df）及匿名专家评分记录 JSON Schema（docs + Skill reference，commits b5d644c + 78d2b44），测试覆盖四点评分/必要性三分类、盲评/仲裁阶段和隐私字段约束（test commit cc4b5c2）。尚未招募专家或产生评分，CVI/CVR/Aiken's V/ICC 等均 NOT_RUN |
-| EX-04 | 实验 | 完成缺陷注入识别实验 | TODO | 盲测结果、按缺陷类型的检出/误报和置信区间 |
-| EX-06 | 工程/实验 | 将真实 Builder、DSH Trace、Runner 和独立 Oracle 证据转换为规范 Runtime Record，并运行 IDA/ERA | IN_PROGRESS | importer commit 53d5b47；provenance commit da19614；ERA missing-Judge / denominator 修复 commits 5169120 + b1ad36c；cache/token fields commit 77b4e4b，Skill schema mirror 931b0ea；真实证据 Job commit 93857faf。Run #1847（45594508903，head 0366be3）真实证据导入、IDA、ERA、JSON Schema 与跨字段契约校验 PASS，Artifact 15012860922；IDA PARTIAL（15 cases，61/61 source refs resolved）；ERA PARTIAL（3/15 pilot，3/3 Oracle PASS，12 NOT_RUN，Judge NOT_RUN，composite NOT_VALIDATED）。已从冻结 artifact 复核 15 条原始用例及 fixture 资产；剩余 12 条仍 NOT_RUN。详见 round4-real-evidence-results.md 和 round4-independent-oracle-plan.md |
-| EX-05 | 实验 | 完成 Capability / Regression 真实运行效标实验 | IN_PROGRESS | PR #38 前置条件已核验：Builder artifact 14729741906（run 44959366258）包含 15 条 Builder 原始用例；独立输出验证 run 44968128127 PASS，冻结产出复验 run 45291624154 PASS。Builder production Job 本身曾失败（启发式误报），不得写成 PASS。三条真实 Skill Pilot（WB-02/WB-10/WB-12）及 Gold Oracle 3/3 PASS 归档于 run 45189512695 / artifact 14824967038。当前仅 3/15 执行，12 条 NOT_RUN；完整 Capability/Regression 统计仍未完成 |
-| EX-07 | 实验 | 为 Round 4 剩余 12 条用例建立独立 Gold Oracle 规则和执行前门禁 | IN_PROGRESS | 独立 Oracle 计划、记录 Schema、hash-bound validator、盲审包生成器、双评审提交 Schema 与比较器已实现。新增执行前冻结 manifest Schema（f6fabb9）、冻结验证器（517d484）、9 项测试（dd3e8d9）。Run #1918（45629438803，代码 head dd3e8d9c769b04cfd742224f4ace2d261afdc5b3）与最新文档 head Run #1919（45629744208，head 550acfcf6fd997c938c70a948b9d786e28583c58）均 actionlint、正式 Skill 包、Benchmark、205/205 离线测试、Round 4 IDA/ERA 与报告契约验证 PASS；生产/Pilot 前置 Jobs 依范围保护 SKIPPED。冻结验证器绑定两份原始提交、比较报告、coordinator crosswalk、数据集/计划/逐 case SHA，重新计算比较报告并核验逐字段一致；要求评审者与仲裁者身份独立，任何案例未冻结则整体不得 FROZEN。评审者仍未招募/提交，无真实评分或仲裁，Oracle 未冻结；12 条仍 NOT_RUN，WB-15 application outcome 固定 UNKNOWN |
-| SC-01 | 方案 | 冻结 v0.0.2 需求、架构和验收标准 | TODO | 需求评审决议、设计基线 commit |
+| EX-02 | 实验 | 建立独立参考数据集与缺陷注入样本 | BLOCKED | 已建立 IDA-M01–M12 / ERA-M01–M08 缺陷目录与确定性单测，并完成 AppWorld、AgentDojo、WebArena-Verified、OSWorld-Verified、GAIA、WorkArena 官方代码许可/访问限制桌面初筛。阻塞：尚无逐资产许可确认、锁定版本/哈希、合法数据快照、独立 Oracle 和盲测变体；代码许可证不代表任务数据/镜像/实例授权。 |
+| EX-03 | 实验 | 完成专家内容效度与评分者一致性实验 | BLOCKED | 盲评协议、匿名评分 Schema、统计计划和招募公告已建立；Issue #43 目前只有招募公告，尚无独立评审者报名/评分。解除条件：两名独立评审者和独立仲裁者完成真实盲评并归档原始记录。 |
+| EX-04 | 实验 | 完成缺陷注入识别实验 | BLOCKED | 确定性变异算子和单测已建立，但没有独立确认的缺陷变体、盲测结果、误报/漏报和区间。解除条件：独立确认基线/变体、冻结标签与盲测评估。 |
+| EX-06 | 工程/实验 | 将真实 Builder、DSH Trace、Runner 和独立 Oracle 证据转换为规范 Runtime Record，并运行 IDA/ERA | IN_PROGRESS | Builder/Pilot 原始证据导入器、Runtime Record、IDA/ERA 分析及报告 Schema/cross-field validator 已实现。Run #1933（45719605220，精确代码 head 878303fba7d4db75df979073d97c9d529b70d74e）报告契约 PASS；Artifact 15071077843。结果仍 IDA/ERA PARTIAL，3/15 Pilot，12 NOT_RUN，Judge NOT_RUN，composite NOT_VALIDATED。 |
+| EX-05 | 实验 | 完成 Capability / Regression 真实运行效标实验 | IN_PROGRESS | 已有三条真实 Skill Pilot（WB-02/WB-10/WB-12）和独立 Gold Oracle 3/3 PASS；数据集 15 条中 12 条 NOT_RUN。没有完整 Capability 响应矩阵、IRT/G-Theory 结果或同 case 版本配对 Regression；继续受 EX-07 Oracle 冻结和外部运行环境限制。 |
+| EX-07 | 实验 | 为 Round 4 剩余 12 条用例建立独立 Gold Oracle 规则和执行前门禁 | BLOCKED | 独立 Oracle 计划、记录 Schema、A/B 盲审包生成器、比较器、hash-bound freeze manifest/validator 和测试均已实现。Issue #43 无评审者响应，盲审包未分发/回收，未产生独立仲裁；12 条保持 NOT_RUN，WB-15 Application outcome UNKNOWN。 |
+| SC-01 | 方案 | 冻结 v0.0.2 需求、架构和验收标准 | DONE | 新增 architecture-and-acceptance-baseline.md，定义模块边界、IDA/ERA 数据流、证据等级、关键不变量、用途分支、版本策略和分层验收矩阵；decision-log.md D-007 采纳，requirements.md 状态同步。 |
 | IM-01 | 实现 | 设计并实现 IDA 报告 Schema / 机器可读契约 | DONE | schemas/ida-report.schema.json；JSON 语法检查通过；commit f47905e |
 | IM-02 | 实现 | 实现独立离线评价器和确定性检查 | DONE | scripts/assess_dataset_quality.py 实现 Manifest/Case Schema、ID、来源注册表、覆盖一致性、分布、精确重复和报告契约检查；扩展身份错配、来源缺失/解析、覆盖不一致测试；run #1793 在精确 head 885444a 上 155 项测试 PASS |
-| IM-03 | 实现 | 实现人工/LLM Judge 校准与证据记录接口 | TODO | 独立校准集协议、Judge 结果契约 |
+| IM-03 | 实现 | 实现人工/LLM Judge 校准与证据记录接口 | IN_PROGRESS | 新增 Judge Calibration Report Schema、scripts/validate_judge_calibration.py 与 8 项契约测试；Run #1933（45719605220）完整 CI 215/215 PASS。当前只验证证据包结构、哈希/计数/身份约束；尚未接入现有 tests/calibrate_judge.py 报告生成流程，也未进行独立 Gold 的真实 Judge 校准。 |
 | IM-04 | 实现 | 实现 ERA 运行结果 Schema / 机器可读契约 | DONE | schemas/era-report.schema.json + schemas/runtime-record.schema.json；Skill references 已同步；精确数据集 SHA、Agent/模型/Harness/环境、Run/Trace、Judge、Capability/Regression 字段已定义；JSON 语法检查通过；commits ef7515c、5030629、f18e010 |
-| IM-05 | 实现 | 实现 Capability / Regression 统计分析模块 | IN_PROGRESS | scripts/assess_runtime_quality.py 已实现 Judge 混淆指标、Wilson CI、配对版本差异、McNemar exact、历史/变异故障检出、重复运行不一致和成本画像；IRT/G-Theory 与真实运行验证未完成；tests/test_assess_runtime_quality.py 已添加，待 CI 执行 |
+| IM-05 | 实现 | 实现 Capability / Regression 统计分析模块 | IN_PROGRESS | assess_runtime_quality.py 已实现 Judge 混淆指标、Wilson CI、配对版本差异、McNemar exact、历史/变异故障检出、重复运行不一致和成本画像。IRT/G-Theory 估计、DIF/测量不变性和充分真实样本仍未完成。 |
 | IM-06 | 实现 | 实现公式验证证据 Schema 和独立验证器 | DONE | Schema、Skill reference、验证器及契约测试已实现；修复 split-level sample_count 契约错误；commit b6740f9 + a2dc04e；run #1808（45550108441）在 head a2dc04e 上 162 项测试 PASS。此状态仅表示报告结构/逻辑契约验证器完成，不代表公式实验有效 |
-| IM-07 | 集成 | 更新 Skill 质量标准、按需加载引用和版本到 0.0.2 | IN_PROGRESS | quality-standard.md/yaml 已替换旧固定权重；IDA/ERA/Runtime Record/Formula Validation Schema 已加入 Skill references，SKILL.md 已引用；validate_skill.py 检查所有 Draft 2020-12 Schema；版本元数据待发布候选阶段更新，最新正式包验证待 CI |
-| IM-09 | 实现 | 比较候选综合公式并执行权重/聚合敏感性分析 | TODO | 需独立开发集和外部效标；不得用同一批专家标签同时拟合和验证 |
-| QA-01 | 质量 | 建立元评测数据、已知缺陷注入和专家盲评样本 | IN_PROGRESS | 已有缺陷目录与确定性单测；新增 external-benchmark-candidates.md 和 expert-review-protocol.md；专家原始记录 Schema 已建立并有单测。尚缺经许可确认的真实参考集快照、专家盲评原始数据、分组数据切分、独立缺陷标签和审计记录 |
-| QA-02 | 质量 | 完成离线评价器验证与报告 | IN_PROGRESS | IDA 结构检查器、报告契约和历史 CI 测试已通过；专家评分 Schema 新增后，Run #1874 暴露 Skill 文件白名单遗漏，已修复（commits c0bf1cd、dc96108），等待完整 CI 复验；语义内容效度、专家一致性、独立缺陷识别实验尚未完成 |
-| QA-03 | 质量 | 完成真实运行评价的端到端验证 | IN_PROGRESS | Run #1847 的 Round 4 真实证据 Job、IDA/ERA 报告 JSON Schema 和 cross-field contract validation PASS，artifact 15012860922；IDA PARTIAL、ERA PARTIAL，三条 Pilot 均有独立 Oracle PASS；12/15 NOT_RUN、Judge NOT_RUN、无 Regression 配对、IRT/G-Theory 未拟合。报告已记录于 round4-real-evidence-results.md；尚需扩展真实运行和外部效度证据 |
-| QA-04 | 质量 | 完成综合公式独立验证；若证据不足则明确 NOT_VALIDATED | IN_PROGRESS | 已有公式验证协议和向量画像定义；尚缺专家效标、缺陷注入数据、真实运行效标与冻结验证集。证据不足时保持 NOT_VALIDATED，不得发布标量总分 |
+| IM-07 | 集成 | 更新 Skill 质量标准、按需加载引用和版本到 0.0.2 | IN_PROGRESS | quality-standard.md/yaml 和 IDA/ERA/Runtime Record/Formula Validation references 已更新到 v0.0.2 方法标准；正式 Skill frontmatter 与 VERSION 仍保持已发布 0.0.1，待全部发布门禁通过后再进入 0.0.2 RC 元数据升级。 |
+| IM-09 | 实现 | 比较候选综合公式并执行权重/聚合敏感性分析 | BLOCKED | 候选公式数学形式和比较协议已定义，但无独立开发集、专家效标、盲测缺陷和外部运行效标；当前不得估计权重/阈值或输出标量总分。 |
+| QA-01 | 质量 | 建立元评测数据、已知缺陷注入和专家盲评样本 | BLOCKED | 缺陷目录、专家协议、评分 Schema、Benchmark 候选登记已建立；缺少许可确认的参考数据快照、专家原始盲评、独立缺陷标签和数据切分。 |
+| QA-02 | 质量 | 完成离线评价器验证与报告 | IN_PROGRESS | 确定性 IDA 检查器、报告契约和离线测试持续通过；Run #1933 的完整 CI 215/215 PASS。语义内容效度、专家一致性和盲测缺陷识别尚未执行，不能判定评价器整体效度完成。 |
+| QA-03 | 质量 | 完成真实运行评价的端到端验证 | IN_PROGRESS | Run #1933 重新导入冻结证据并通过 IDA/ERA 报告 Schema 与 cross-field validation；IDA=PARTIAL（15 条），ERA=PARTIAL（3/15 Pilot），12 NOT_RUN，Judge NOT_RUN，无 Regression 配对，IRT/G-Theory 未拟合。 |
+| QA-04 | 质量 | 完成综合公式独立验证；若证据不足则明确 NOT_VALIDATED | BLOCKED | 候选公式、验证 Schema/validator 和实验协议已建立；缺少独立专家效标、盲测缺陷、真实运行效标和冻结验证集。保持 composite NOT_VALIDATED/value=null。 |
 | P0-CI-01 | 工程 | 修复 CI #1807 中 Formula Validation Validator 对 datasets[].sample_count 的错误读取，并增加回归测试 | DONE | Schema 将 sample_count 定义在 split 层；验证器改为校验来源数据集非空并使用 split 总样本量；commit b6740f9（验证器）、a2dc04e（回归测试）；run #1808（45550108441）精确 head a2dc04e：actionlint、Skill 正式包、Benchmark 贯通样例 PASS，162/162 离线测试 PASS。Builder production / independent-validation jobs 按 PR 条件 SKIPPED |
 | CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | DONE | Run #1890（45606669627，精确 head d38d797cfd3476e0e28cb8155f599e70920bff13）完整验证 PASS：actionlint、正式 Skill 包、Benchmark、185/185 离线测试、Round 4 冻结证据导入/IDA/ERA/报告 JSON Schema 与 cross-field validation 全部 PASS；真实证据 artifact 15017663406。此前 Run #1885 在 validator 加入前 177/177 PASS；Run #1890 包含新增 Oracle validator 与 8 项测试。PR #38 Builder production / independent-validation / pilot Jobs 按范围保护 SKIPPED，不计作本次验证通过 |
-| DOC-01 | 文档 | 更新 README、CHANGELOG、版本和限制说明 | TODO | v0.0.2 内容一致 |
-| REL-01 | 发布 | 建立发布候选 PR 并完成审查 | TODO | 所有适用验收门禁通过，PR 记录证据 |
-| REL-02 | 发布 | 用户批准后创建 v0.0.2 Tag 和 GitHub Release | TODO | Release 指向精确验证过的提交，证据齐全 |
+| DOC-01 | 文档 | 更新 README、CHANGELOG、版本和限制说明 | IN_PROGRESS | 已更新根 README、CHANGELOG、研发 README，补充 v0.0.2 未发布状态、实现现状和实证限制；VERSION 与正式 Skill metadata 暂保持 0.0.1，待发布候选阶段升级，避免未过门禁就宣称 0.0.2。 |
+| REL-01 | 发布 | 建立发布候选 PR 并完成审查 | BLOCKED | 尚未满足独立评审、Oracle 冻结、完整运行效标、缺陷盲测和公式验证等适用门禁；PR #44 继续 Draft/Open，不转 Ready。 |
+| REL-02 | 发布 | 用户批准后创建 v0.0.2 Tag 和 GitHub Release | BLOCKED | 必须在 REL-01 审查通过后，由用户明确批准创建 tag/release；当前不得发布。 |
 
 ## 外部依赖与阻塞
 
@@ -89,11 +89,13 @@
 
 ## 当前不代表已完成的事项
 
-- 候选指标尚未完成系统文献复核。
-- 任何综合公式、权重、阈值均未验证。
-- 未建立专家盲评或缺陷注入数据。
-- 未完成独立评价器和真实运行评价器实现。
-- 未进行 v0.0.2 版本发布。
+- 独立专家内容效度、评分者一致性和 Round 4 双盲 Oracle 仲裁尚未执行。
+- 外部参考 Benchmark 的具体数据资产许可、版本哈希、Oracle 和合法快照尚未全部锁定。
+- 盲测缺陷注入及其误报/漏报区间尚未执行。
+- Round 4 12/15 用例仍 NOT_RUN；完整 Capability 与 Regression 真实效标尚未完成。
+- Judge 独立 Gold 校准尚未执行；IRT/G-Theory/DIF 尚未拟合。
+- 综合公式、权重和阈值均未验证，标量总分保持关闭。
+- v0.0.2 尚未形成 Release Candidate、审查批准或正式发布。
 
 ## 变更记录
 
@@ -154,3 +156,13 @@
 - 精确 head `ff89125da4879e3af3d8e243bddc3f00c0da619e` 对应 Run #1929（45714154402）Workflow SUCCESS。actionlint、正式 Skill 包、Benchmark 贯通样例、207/207 离线测试 PASS；Round 4 IDA/ERA 分析与 JSON Schema / cross-field contract validation PASS。
 - Round 4 artifact #15068059286，SHA-256 `d4fe7e74d9990d1062ccd6072416b78a23041c3b83863798a9dd581c14ccf09d`。IDA=PARTIAL（15 条），ERA=PARTIAL（现有 3/3 Pilot 有效且 Gold PASS），12 条 NOT_RUN，Judge=NOT_RUN，composite=NOT_VALIDATED。
 - Builder production、independent-validation、Pilot 与 adjudication jobs 均 SKIPPED；此 run 不构成新的 Builder 生产执行、外部评审或 Oracle freeze。
+
+
+### 按 TASKS.md 执行的架构/协议/校准接口补齐（2026-11-26）
+- 新增 `architecture-and-acceptance-baseline.md`，并通过 decision-log D-007 冻结工程架构和验收解释基线；requirements.md 已同步为“需求/架构基线已冻结，发布验收待完成”。SC-01 DONE。
+- 新增 `runtime-assessment-protocol.md`，将运行前冻结、单次运行、失败归因、Judge/Gold 独立性、Capability/Regression、重复/停止规则写成可执行协议。DS-02 DONE；DS-03/DS-04 设计任务完成，实证仍由 EX-05 跟踪。
+- 新增 Judge Calibration Report Schema、`scripts/validate_judge_calibration.py` 和 8 项测试。验证器重新计算 adjudicable denominator、exact match、False Pass/False Fail、abstention 和 accuracy，校验 suite SHA/case IDs，并阻止 synthetic smoke 被标记为 VALIDATED_FOR_SCOPE。IM-03 保持 IN_PROGRESS，因现有 LLM 校准执行脚本尚未集成该报告契约，且没有独立 Gold 实证。
+- 更新根 README、CHANGELOG 和研发 README，明确 0.0.2 仍在开发、正式版本仍为 0.0.1、当前实证边界和未完成门禁；DOC-01 IN_PROGRESS，版本元数据等所有发布门禁满足后再升级。
+- Run #1933（45719605220，代码 head `878303fba7d4db75df979073d97c9d529b70d74e`）Workflow SUCCESS：actionlint、Skill 正式包、Benchmark、215/215 离线测试 PASS；新增 8 项 Judge calibration contract tests 均执行通过。Round 4 IDA/ERA 报告 Schema 与 cross-field contract PASS，artifact #15071077843，SHA-256 `890e71e91b58d95f3ee7d551380db0606305e92cafb1d00bbbeaf9a8f24369f8`。IDA/ERA 仍 PARTIAL，3/15 Pilot，12 NOT_RUN，Judge NOT_RUN，composite NOT_VALIDATED；Builder production / independent-validation / Pilot / adjudication jobs 均 SKIPPED。
+- RS-02/RS-03 的文献与方法复核任务已完成；外部数据许可/样本快照、专家盲评、缺陷盲测和真实运行验证仍分别由 EX-02/03/04/05/07 跟踪，不因研究文档完成而提前标记实验完成。
+- PR #44 继续 Draft/Open；PR #38 与 main 未修改；不创建 tag/release。
