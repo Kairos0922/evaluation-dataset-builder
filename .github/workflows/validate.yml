@@ -1536,7 +1536,7 @@ jobs:
         with:
           repository: ${{ github.repository }}
           run-id: 45189512695
-          artifact-ids: 14824967038
+          name: round4-wb12-free-retry-output
           github-token: ${{ secrets.GITHUB_TOKEN }}
           path: artifacts/round4-evidence
 
