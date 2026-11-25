@@ -56,6 +56,7 @@
 | QA-03 | 质量 | 完成真实运行评价的端到端验证 | BLOCKED | 与 EX-05 同一前置条件：PR #38 正式 Builder artifact + independent Validator PASS；当前没有可用的正式数据集和真实 Agent 运行记录 |
 | QA-04 | 质量 | 完成综合公式独立验证；若证据不足则明确 NOT_VALIDATED | IN_PROGRESS | 已有公式验证协议和向量画像定义；尚缺专家效标、缺陷注入数据、真实运行效标与冻结验证集。证据不足时保持 NOT_VALIDATED，不得发布标量总分 |
 | P0-CI-01 | 工程 | 修复 CI #1807 中 Formula Validation Validator 对 datasets[].sample_count 的错误读取，并增加回归测试 | DONE | Schema 将 sample_count 定义在 split 层；验证器改为校验来源数据集非空并使用 split 总样本量；commit b6740f9（验证器）、a2dc04e（回归测试）；run #1808（45550108441）精确 head a2dc04e：actionlint、Skill 正式包、Benchmark 贯通样例 PASS，162/162 离线测试 PASS。Builder production / independent-validation jobs 按 PR 条件 SKIPPED |
+| CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | DONE | 最新代码 head a2dc04e 的 run #1808（45550108441）通过 actionlint、正式包验证、Benchmark 贯通样例和 162 项离线测试；Builder production、independent-validation、pilot jobs 因 PR #38 前置条件未满足而 SKIPPED，不将其描述为通过 |
 | DOC-01 | 文档 | 更新 README、CHANGELOG、版本和限制说明 | TODO | v0.0.2 内容一致 |
 | REL-01 | 发布 | 建立发布候选 PR 并完成审查 | TODO | 所有适用验收门禁通过，PR 记录证据 |
 | REL-02 | 发布 | 用户批准后创建 v0.0.2 Tag 和 GitHub Release | TODO | Release 指向精确验证过的提交，证据齐全 |
