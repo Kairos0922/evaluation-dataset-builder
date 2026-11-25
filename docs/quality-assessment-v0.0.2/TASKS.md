@@ -197,3 +197,9 @@
 - Round 4 artifact #15070789521，SHA-256 `729c0131446788b21a06aa280b8b75f48218e3e21e5b666a284ca9a59977c1e5`。IDA/ERA PARTIAL，15 条中 3 条 Pilot、12 条 NOT_RUN，Judge NOT_RUN，composite NOT_VALIDATED。
 - Builder production、independent-validation、Pilot、adjudication jobs 均 SKIPPED；本次未新增真实运行、独立评审或 Oracle freeze。
 - 当前任务质量报告：`quality-report.md`。37 项任务状态：19 DONE、8 IN_PROGRESS、10 BLOCKED、0 TODO。
+
+
+### 最新质量报告提交 head 复验（2026-11-26）
+- 精确 head `122d38527a3af2e3d012598cbb6ac93b3b4ecfc0` 对应 Run #1944（45721014232）Workflow SUCCESS：actionlint、正式 Skill 包、Benchmark、215/215 离线测试（含 8 项 Judge calibration contract tests）PASS；Round 4 IDA/ERA Schema 与 cross-field contract PASS。
+- Round 4 artifact #15070934643，SHA-256 `6ba0929eabd3354dbb06eedf43e55ff682b435320415b737c36063f2f8237ea1`。IDA/ERA PARTIAL，15 条中 3 条 Pilot、12 条 NOT_RUN，Judge NOT_RUN，composite NOT_VALIDATED。
+- Builder production / independent-validation / Pilot / adjudication jobs 均 SKIPPED；没有新增真实运行、独立评审或 Oracle freeze。
