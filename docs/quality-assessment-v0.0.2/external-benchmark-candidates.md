@@ -18,12 +18,12 @@
 
 | 候选 | 主要构念 / 任务类型 | Oracle / 评分形式 | 许可与访问核验 | 初步用途判断 |
 |---|---|---|---|---|
-| AppWorld | 多 App、API 调用、跨步骤状态变更、交互式编码 Agent | 以数据库最终状态为基础的 evaluation programs；任务有 setup / solution / evaluation 程序 | 仓库代码公开部分 Apache-2.0；任务、App/API 实现与测试在加密 bundle 中，公开再分发及派生内容须保持加密 | **优先候选**：适合作为 Agent + 多工具工作流的独立外部效标；需先确认访问与加密数据处理合规，不能把任务明文复制进本仓库 |
-| AgentDojo | 多工具 Agent 的提示注入防御、安全与效用 | 模拟环境中的用户任务效用和攻击目标成功情况；以环境状态评估，而非只评文本 | 官方仓库 LICENSE 为 MIT；依赖和外部模型调用仍需分别审查 | **优先候选（安全子域）**：用于风险覆盖、工具调用边界和缺陷注入；不能代表通用能力全域 |
-| WebArena / WebArena-Verified（BrowserGym / AgentLab 生态） | 浏览器多站点、多步骤 Web Agent 任务 | 自托管网站环境、任务配置和执行轨迹；可运行任务级环境评价 | WebArena 与 BrowserGym 代码仓库 LICENSE 为 Apache-2.0；各 benchmark 数据、实例、网站镜像和第三方依赖仍需单独审查 | **优先候选（Web 子域）**：与现有 webapp-testing Skill 相关，但需防止同生态任务模板造成领域过拟合 |
-| OSWorld / OSWorld-Verified | 桌面 GUI、多应用、多步骤操作 | 真实桌面 VM 中执行任务；提供本地评价流程和 Verified 版本 | OSWorld 代码仓库 LICENSE 为 Apache-2.0；VM 镜像、软件、外部账户和具体任务资产需逐项核验；公开 Verified Leaderboard 有维护者审核流程 | **第二阶段候选（Desktop 子域）**：有助于检验跨环境泛化，基础设施成本较高 |
-| GAIA | 通用助手任务，涉及网页、工具、文件、图像等 | 以明确答案为核心的任务评价；分级任务，包含附件 | 官方 Hugging Face 数据集为 gated；测试答案和元数据受访问条件约束，维护者要求不要以可爬取形式重新分享 | **外部效标候选，不作直接任务导入**：适合检验多模态/工具使用问答结果；不等同于可重置的状态型工作流环境 |
-| WorkArena / WorkArena++ | 企业知识工作、ServiceNow 浏览器流程、组合规划 | BrowserGym 环境任务；WorkArena++ 组合任务覆盖规划、推理与记忆 | WorkArena 代码仓库 LICENSE 为 Apache-2.0；ServiceNow 实例数据需要申请 gated access | **可选候选（企业工作流）**：任务域有价值，但环境访问和实例数据门槛较高 |
+| AppWorld | 多 App、API 调用、跨步骤状态变更、交互式编码 Agent | 以数据库最终状态为基础的 evaluation programs；任务有 setup / solution / evaluation 程序 | 官方 README 将普通公开代码与受保护 bundle 区分；两者均标示 Apache-2.0，但 bundle 另有公开再分发及衍生内容必须保持加密的要求 | **优先候选**：适合作为 Agent + 多工具工作流的独立外部效标；须先确认加密 bundle 的访问与处理符合附加条件，不能公开明文或衍生内容 |
+| AgentDojo | 多工具 Agent 的提示注入防御、安全与效用 | 模拟环境中的用户任务效用和攻击目标成功情况；以环境状态评估，而非只评文本 | 官方代码仓库 LICENSE 为 MIT；任务/fixture 内容、依赖和外部模型调用仍须分别审查，不能仅凭代码许可证推定全部资产可再分发 | **优先候选（安全子域）**：用于风险覆盖、工具调用边界和缺陷注入；不能代表通用能力全域 |
+| WebArena / WebArena-Verified（BrowserGym / AgentLab 生态） | 浏览器多站点、多步骤 Web Agent 任务 | 自托管网站环境、任务配置和执行轨迹；可运行任务级环境评价 | 官方 WebArena 与 BrowserGym 代码仓库 LICENSE 为 Apache-2.0；本次未确认 WebArena-Verified 具体数据版本/独立数据许可，任务数据、网站镜像和第三方依赖仍需逐项审查 | **优先候选（Web 子域）**：与现有 webapp-testing Skill 相关，但需先锁定可合法使用的任务版本，并防止同生态任务模板造成领域过拟合 |
+| OSWorld / OSWorld-Verified | 桌面 GUI、多应用、多步骤操作 | 真实桌面 VM 中执行任务；提供本地评价流程和 Verified 版本 | OSWorld 代码仓库 LICENSE 为 Apache-2.0；本次未完成 OSWorld-Verified 具体任务、VM 镜像、软件和外部账户资产许可审计；公开 Verified Leaderboard 结果不能由本地运行自行宣称 | **第二阶段候选（Desktop 子域）**：有助于检验跨环境泛化，基础设施成本较高，先解决镜像和任务资产授权 |
+| GAIA | 通用助手任务，涉及网页、工具、文件、图像等 | 以明确答案为核心的任务评价；分级任务，包含附件 | 官方 Hugging Face 数据集 gated；数据卡要求 validation/test 不得以 crawlable 形式重新分享，test 答案与元数据保持私有；任何访问须遵守 gated 条款 | **外部效标候选，不作直接任务导入**：适合检验多模态/工具使用问答结果；不等同于可重置的状态型工作流环境，不能将受限样本复制入本仓库 |
+| WorkArena / WorkArena++ | 企业知识工作、ServiceNow 浏览器流程、组合规划 | BrowserGym 环境任务；WorkArena++ 组合任务覆盖规划、推理与记忆 | WorkArena 代码仓库 LICENSE 为 Apache-2.0；ServiceNow 实例/账号访问与数据授权仍需单独申请确认，代码许可证不覆盖实例内容 | **可选候选（企业工作流）**：任务域有价值，但环境访问和实例数据门槛较高 |
 
 ## 3. 证据与源链接
 
@@ -89,3 +89,19 @@
 - GAIA 补充通用工具使用与多模态问答结果。
 
 本登记表仅完成桌面初筛。下一步必须逐个锁定具体数据版本、访问条款、数据哈希、Oracle 实现、环境镜像和可复现执行脚本，之后才可将候选升级为可用的独立参考集。
+
+
+## 7. 官方来源复核记录（2026-11-26）
+
+本轮只确认官方仓库公开的代码许可证及官方数据卡/README 明示的访问限制。没有据此推定数据集整体许可、镜像、依赖或服务实例授权。
+
+| 项目 | 官方可核验信息 | 本轮结论 |
+|---|---|---|
+| AppWorld | [官方 README](https://github.com/StonyBrookNLP/appworld) 明确区分普通公开代码与加密 bundle；受保护部分包含可能影响 benchmark 分数的任务、App/API 实现和 evaluation tests。bundle 的公开再分发或衍生内容要求保持加密。 [LICENSE](https://github.com/StonyBrookNLP/appworld/blob/main/LICENSE) 标示 Apache-2.0。 | **条件可用候选**。不能把解密任务/代码或衍生内容以明文放入仓库、issue 或公开文档。 |
+| AgentDojo | [官方 LICENSE](https://github.com/ethz-spylab/agentdojo/blob/main/LICENSE) 标示 MIT；官方项目定位是评估 LLM Agent 攻击与防御。 | **代码许可证已确认**；任务资产、依赖、模型调用条款仍待逐项核验。 |
+| WebArena / BrowserGym | [WebArena LICENSE](https://github.com/web-arena-x/webarena/blob/main/LICENSE) 与 [BrowserGym LICENSE](https://github.com/ServiceNow/BrowserGym/blob/main/LICENSE) 均标示 Apache-2.0。WebArena README 要求正式复现实验自建网站环境，并在完成 812 个样例后重置环境。 | **代码许可证已确认**；WebArena-Verified 的具体版本、任务数据和站点镜像许可仍未确认。 |
+| OSWorld | [官方 LICENSE](https://github.com/xlang-ai/OSWorld/blob/main/LICENSE) 标示 Apache-2.0。 | **代码许可证已确认**；VM 镜像、桌面软件、任务数据和账户/服务许可仍待审计。 |
+| GAIA | [官方 Hugging Face 数据集卡](https://huggingface.co/datasets/gaia-benchmark/GAIA) 说明数据 gated，并要求不要以 crawlable 格式重新分享 validation/test；test answers/metadata 为 private。 | **受限访问候选**；不复制受限数据，不公开重新打包。 |
+| WorkArena | [官方 LICENSE](https://github.com/ServiceNow/WorkArena/blob/main/LICENSE) 标示 Apache-2.0。 | **代码许可证已确认**；ServiceNow 实例和实例数据授权不由仓库许可证覆盖，仍需单独取得。 |
+
+**范围说明：** 本表不是法律意见，也不是完整许可审查。许可证和访问条件可能随版本变化。正式使用前须锁定 commit/tag、下载来源、文件哈希、依赖 SBOM、镜像 digest、任务数据条款和必要授权；任何未能确认的资产标记 BLOCKED，不绕过门禁。
