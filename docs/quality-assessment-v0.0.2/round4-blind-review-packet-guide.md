@@ -93,7 +93,40 @@ python scripts/compare_round4_blind_reviews.py \\
 
 比较报告、两份原始 JSON、12×2 Markdown 工作表、两份原始资料包及 coordinator crosswalk 应分别归档并记录 SHA。任何补充或更正都应作为新版本保留，不覆盖原始提交。
 
-## 8. 当前门禁
+## 8. 仲裁结果与执行前 Oracle 冻结
+
+两份独立评审提交并完成差异比较后，必须由独立仲裁者逐案形成冻结决定。新增契约：
+
+- Schema：`schemas/round4-oracle-freeze-manifest.schema.json`
+- 验证器：`scripts/validate_round4_oracle_freeze.py`
+- 测试：`tests/test_validate_round4_oracle_freeze.py`
+
+Freeze manifest 是执行前的 Oracle 规则冻结记录，不是 Skill 运行结果。它必须记录：
+
+1. 冻结数据集、Oracle plan、两份原始评审提交、差异报告和 coordinator crosswalk 的 SHA-256。
+2. 两位不同评审者的匿名 ID，以及与两位评审者不同的仲裁者 ID。
+3. 12 条案例逐条的 case SHA、Application assertions、Skill assertions、PASS/FAIL/UNKNOWN 条件、观测方法、动作预算、禁止副作用和证据依据。
+4. 每条案例的 `FROZEN` 或 `NOT_FROZEN` 决定。任何一条未冻结，整体状态必须为 `NOT_FROZEN`。
+
+验证器会重新验证两份盲评提交，使用 coordinator crosswalk 重新计算比较报告并要求与归档报告逐字段完全一致；同时核对所有输入文件 SHA、数据集和逐条 case SHA、12 条案例集合、评审者与仲裁者身份。只有 12 条全部冻结且 `--require-frozen` 验证通过，才可将该 manifest 作为 Runner 的后续执行前输入。验证成功本身仍不会启动 Runner，当前实现固定输出 `execution_authorized: false`。
+
+示例：
+
+```bash
+python scripts/validate_round4_oracle_freeze.py \
+  --manifest /path/to/oracle-freeze-manifest.json \
+  --dataset-jsonl /path/to/wb-core.jsonl \
+  --oracle-plan docs/quality-assessment-v0.0.2/round4-independent-oracle-plan.md \
+  --reviewer-a /path/to/reviewer-a-submission.json \
+  --reviewer-b /path/to/reviewer-b-submission.json \
+  --comparison-report /path/to/round4-review-comparison.json \
+  --crosswalk /path/to/coordinator-only/crosswalk.csv \
+  --require-frozen
+```
+
+仲裁者不得以 Builder 的 `expected_behavior`、`grading`、`reference_outcome` 或 trace expectations 作为 Gold 来源。若两位评审的分歧未解决、规范来源不足、观测方法不可执行或 UNKNOWN 边界不清晰，应将对应 case 标为 `NOT_FROZEN`，修订后重新独立审查。
+
+## 9. 当前门禁
 
 - [x] 冻结数据集 SHA 校验。
 - [x] 两份审查包匿名化和分离。
