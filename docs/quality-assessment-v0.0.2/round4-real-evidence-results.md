@@ -85,11 +85,13 @@ Run #1847（精确 head `0366be3bad636051c1d7c2375874acb335650009`）：
 - Skill 正式包验证：PASS。
 - Benchmark 贯通样例：PASS。
 - 离线测试：167/167 PASS。
-- Round 4 真实证据导入、IDA、ERA 和报告边界断言：PASS。\n- IDA / ERA 报告通过正式 JSON Schema 与跨字段契约验证：PASS。\n- 报告归档 Artifact：15012860922。
+- Round 4 真实证据导入、IDA、ERA 和报告边界断言：PASS。
+- IDA / ERA 报告通过正式 JSON Schema 与跨字段契约验证：PASS。
+- 报告归档 Artifact：15012860922。
 - 其他依赖 PR #38 生产前置条件的 Jobs 为 SKIPPED，不计为通过。
 
 后续动作：
-1. 将 IDA/ERA 报告 JSON Schema 和跨字段契约校验纳入真实证据 Job 的强制步骤。
+1. 已将 IDA/ERA 报告 JSON Schema 与跨字段契约校验纳入真实证据 Job，并在 Run #1847 验证通过。
 2. 扩展 12 条未运行用例的真实执行，先处理环境/业务规则证据缺口。
 3. 单独设计多配置、多任务、重复运行和版本配对实验；不得用当前三条 Pilot 拟合 IRT 或 G-Theory。
 4. 获取独立 Judge 输出与专家标签后再评价 Judge。
