@@ -46,6 +46,12 @@ def validate_freeze_manifest(
     for error in validator.iter_errors(manifest):
         location = ".".join(str(part) for part in error.absolute_path)
         errors.append(f"manifest.{location}: {error.message}")
+    if not isinstance(manifest, dict):
+        return errors
+
+    reviewer_a = reviewer_a if isinstance(reviewer_a, dict) else {}
+    reviewer_b = reviewer_b if isinstance(reviewer_b, dict) else {}
+    comparison_report = comparison_report if isinstance(comparison_report, dict) else {}
 
     if manifest.get("dataset_sha256") != dataset_sha256:
         errors.append("manifest dataset_sha256 does not match the frozen dataset")
@@ -55,11 +61,13 @@ def validate_freeze_manifest(
     review_inputs = manifest.get("review_inputs")
     if not isinstance(review_inputs, dict):
         review_inputs = {}
-    if review_inputs.get("reviewer_a_id") != reviewer_a.get("reviewer_id"):
+    reviewer_a_id = reviewer_a.get("reviewer_id")
+    reviewer_b_id = reviewer_b.get("reviewer_id")
+    if review_inputs.get("reviewer_a_id") != reviewer_a_id:
         errors.append("manifest reviewer_a_id does not match Reviewer A submission")
-    if review_inputs.get("reviewer_b_id") != reviewer_b.get("reviewer_id"):
+    if review_inputs.get("reviewer_b_id") != reviewer_b_id:
         errors.append("manifest reviewer_b_id does not match Reviewer B submission")
-    if reviewer_a.get("reviewer_id") == reviewer_b.get("reviewer_id"):
+    if reviewer_a_id == reviewer_b_id:
         errors.append("independent reviewer IDs must be distinct")
     if review_inputs.get("reviewer_a_submission_sha256") != reviewer_a_sha256:
         errors.append("Reviewer A submission SHA-256 mismatch")
@@ -74,7 +82,7 @@ def validate_freeze_manifest(
     if not isinstance(adjudication, dict):
         adjudication = {}
     adjudicator_id = adjudication.get("adjudicator_id")
-    if adjudicator_id in {reviewer_a.get("reviewer_id"), reviewer_b.get("reviewer_id")}:
+    if adjudicator_id is not None and adjudicator_id in {reviewer_a_id, reviewer_b_id}:
         errors.append("adjudicator must be independent from both reviewers")
 
     # The caller recomputes the comparison report from both submissions and crosswalk.
@@ -85,27 +93,41 @@ def validate_freeze_manifest(
     report_reviewers = comparison_report.get("reviewers")
     if not isinstance(report_reviewers, dict):
         report_reviewers = {}
-    if report_reviewers.get("A", {}).get("reviewer_id") != reviewer_a.get("reviewer_id"):
+    report_a = report_reviewers.get("A")
+    report_b = report_reviewers.get("B")
+    report_a = report_a if isinstance(report_a, dict) else {}
+    report_b = report_b if isinstance(report_b, dict) else {}
+    if report_a.get("reviewer_id") != reviewer_a_id:
         errors.append("comparison report Reviewer A identity mismatch")
-    if report_reviewers.get("B", {}).get("reviewer_id") != reviewer_b.get("reviewer_id"):
+    if report_b.get("reviewer_id") != reviewer_b_id:
         errors.append("comparison report Reviewer B identity mismatch")
+
     report_cases = comparison_report.get("cases", [])
     if not isinstance(report_cases, list):
         report_cases = []
-    report_case_ids = [case.get("case_id") for case in report_cases if isinstance(case, dict)]
+    report_case_ids = [
+        case.get("case_id") for case in report_cases
+        if isinstance(case, dict) and isinstance(case.get("case_id"), str)
+    ]
     if len(report_case_ids) != 12 or set(report_case_ids) != EXPECTED_CASE_IDS or len(set(report_case_ids)) != 12:
         errors.append("comparison report must cover the exact 12 target cases")
 
     cases = manifest.get("cases")
     if not isinstance(cases, list):
         cases = []
-    case_ids = [case.get("case_id") for case in cases if isinstance(case, dict)]
+    case_ids = [
+        case.get("case_id") for case in cases
+        if isinstance(case, dict) and isinstance(case.get("case_id"), str)
+    ]
     if len(case_ids) != 12 or set(case_ids) != EXPECTED_CASE_IDS or len(set(case_ids)) != 12:
         errors.append("freeze manifest must contain each of the 12 target cases exactly once")
     for index, case in enumerate(cases, start=1):
         if not isinstance(case, dict):
             continue
         case_id = case.get("case_id")
+        if not isinstance(case_id, str):
+            errors.append(f"case[{index}] case_id must be a string")
+            continue
         expected_hash = case_hashes.get(case_id)
         if expected_hash is None:
             errors.append(f"case[{index}] {case_id}: case is absent from frozen dataset")
@@ -118,10 +140,7 @@ def validate_freeze_manifest(
     expected_status = "FROZEN" if all_cases_frozen else "NOT_FROZEN"
     if manifest.get("freeze_status") != expected_status:
         errors.append(f"freeze_status must be {expected_status} based on all 12 case decisions")
-    if manifest.get("freeze_status") == "FROZEN" and not all_cases_frozen:
-        errors.append("Oracle cannot be frozen while any case is not FROZEN")
     return errors
-
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
