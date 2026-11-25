@@ -113,6 +113,22 @@ def validate_records(
         if consensus in {"agreed", "adjudicated"}:
             if not {"final_application_outcome", "final_skill_outcome"}.issubset(adjudication):
                 errors.append(f"{prefix}: finalized consensus requires both final outcomes")
+            else:
+                if record.get("application_outcome") != adjudication.get("final_application_outcome"):
+                    errors.append(f"{prefix}: application_outcome differs from finalized adjudication")
+                if record.get("skill_outcome") != adjudication.get("final_skill_outcome"):
+                    errors.append(f"{prefix}: skill_outcome differs from finalized adjudication")
+
+        budget = record.get("action_budget", {})
+        max_scripts = budget.get("max_script_runs")
+        observed_scripts = budget.get("observed_script_runs")
+        max_writes = budget.get("max_write_actions")
+        observed_writes = budget.get("observed_write_actions")
+        if all(isinstance(value, int) for value in (max_scripts, observed_scripts, max_writes, observed_writes)):
+            actual_exceeded = observed_scripts > max_scripts or observed_writes > max_writes
+            if budget.get("budget_exceeded") is not actual_exceeded:
+                errors.append(f"{prefix}: budget_exceeded does not match observed action counts")
+
         if record.get("record_status") == "accepted":
             run = record.get("run", {})
             if consensus not in {"agreed", "adjudicated"}:
