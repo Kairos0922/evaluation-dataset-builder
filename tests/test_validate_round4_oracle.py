@@ -138,6 +138,18 @@ class Round4OracleValidatorTests(unittest.TestCase):
         errors = validate_records([item], **self.kwargs)
         self.assertTrue(any("verified clean reset" in error for error in errors))
 
+    def test_rejects_top_level_outcomes_that_disagree_with_adjudication(self):
+        item = record()
+        item["skill_outcome"] = "FAIL"
+        errors = validate_records([item], **self.kwargs)
+        self.assertTrue(any("skill_outcome differs" in error for error in errors))
+
+    def test_action_budget_flag_must_match_observed_counts(self):
+        item = record()
+        item["action_budget"]["observed_write_actions"] = 1
+        errors = validate_records([item], **self.kwargs)
+        self.assertTrue(any("budget_exceeded does not match" in error for error in errors))
+
 
 if __name__ == "__main__":
     unittest.main()
