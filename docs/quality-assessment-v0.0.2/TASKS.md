@@ -148,3 +148,9 @@
 - Run #1928 的 Round 4 结果：IDA=PARTIAL，15 条用例；ERA=PARTIAL，3/3 现有 Pilot 运行有效且 Gold PASS；12 条仍 NOT_RUN；Judge=NOT_RUN；composite=NOT_VALIDATED。Builder production、independent-validation、Pilot 和 adjudication jobs 均 SKIPPED，本次没有新增生产执行。
 - Round 4 artifact #15068532330，SHA-256 `169584f44207cacf2e2021f8c4c1054ffacd50899780b66493b4b60c276f2dac`。Run #1928 的精确 head 与 artifact 已核验。
 - 这次 Run 只验证代码、文档、离线测试及既有冻结证据的 IDA/ERA 分析，不改变人工评审、Oracle freeze、外部 Benchmark 授权或发布审批状态。
+
+
+### TASKS.md 最新记录 head 的精确验证（2026-11-26）
+- 精确 head `ff89125da4879e3af3d8e243bddc3f00c0da619e` 对应 Run #1929（45714154402）Workflow SUCCESS。actionlint、正式 Skill 包、Benchmark 贯通样例、207/207 离线测试 PASS；Round 4 IDA/ERA 分析与 JSON Schema / cross-field contract validation PASS。
+- Round 4 artifact #15068059286，SHA-256 `d4fe7e74d9990d1062ccd6072416b78a23041c3b83863798a9dd581c14ccf09d`。IDA=PARTIAL（15 条），ERA=PARTIAL（现有 3/3 Pilot 有效且 Gold PASS），12 条 NOT_RUN，Judge=NOT_RUN，composite=NOT_VALIDATED。
+- Builder production、independent-validation、Pilot 与 adjudication jobs 均 SKIPPED；此 run 不构成新的 Builder 生产执行、外部评审或 Oracle freeze。
