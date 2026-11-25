@@ -10,7 +10,7 @@
 | 独立输出验证 | [Run 44968128127](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/44968128127) | PASS |
 | 冻结产出复验 | [Run 45291624154](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45291624154) | PASS |
 | 三条真实 Skill Pilot / Oracle | [Run 45189512695](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45189512695), artifact 14824967038 | WB-02 / WB-10 / WB-12；独立 Gold Oracle 3/3 PASS |
-| IDA / ERA 自动分析 | [PR #44 Run 1842](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45551929918), artifact 14994092367 | validate Job 与 round4-real-evidence-assessment Job PASS |
+| IDA / ERA 自动分析 | [PR #44 Run 1847](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45594508903), artifact 15012860922 | validate Job 与 round4-real-evidence-assessment Job PASS |
 
 数据集：`wb-core@1.0.0`  
 Dataset digest：`cc949f0e9d9c60e6d2ad405749c3829aacc7a2fcbee75fa57e570b56de1f2141`  
@@ -80,12 +80,12 @@ Manifest 的数据集质量状态仍为 `needs_info`，BR-09 request-failure / e
 
 ## 5. CI 结果和下一步
 
-Run #1842（精确 head `089f4e33cb868ab06a505bc7cc6267f21848c90f`）：
+Run #1847（精确 head `0366be3bad636051c1d7c2375874acb335650009`）：
 - actionlint：PASS。
 - Skill 正式包验证：PASS。
 - Benchmark 贯通样例：PASS。
 - 离线测试：167/167 PASS。
-- Round 4 真实证据导入、IDA、ERA 和报告边界断言：PASS。
+- Round 4 真实证据导入、IDA、ERA 和报告边界断言：PASS。\n- IDA / ERA 报告通过正式 JSON Schema 与跨字段契约验证：PASS。\n- 报告归档 Artifact：15012860922。
 - 其他依赖 PR #38 生产前置条件的 Jobs 为 SKIPPED，不计为通过。
 
 后续动作：
