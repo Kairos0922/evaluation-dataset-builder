@@ -310,10 +310,10 @@ def build_era_report(
     graded_gold_rows = [record for record in gold_rows if record["outcomes"].get("grader_id")]
     judged_rows = [record for record in graded_gold_rows if record["grader_outcome"] in {"pass", "fail"}]
     grader_correct = sum(record["gold_outcome"] == record["grader_outcome"] for record in judged_rows)
-    graded_gold_fail_rows = [record for record in graded_gold_rows if record["gold_outcome"] == "fail"]
-    graded_gold_pass_rows = [record for record in graded_gold_rows if record["gold_outcome"] == "pass"]
-    false_passes = sum(record["grader_outcome"] == "pass" for record in graded_gold_fail_rows)
-    false_fails = sum(record["grader_outcome"] == "fail" for record in graded_gold_pass_rows)
+    judged_gold_fail_rows = [record for record in judged_rows if record["gold_outcome"] == "fail"]
+    judged_gold_pass_rows = [record for record in judged_rows if record["gold_outcome"] == "pass"]
+    false_passes = sum(record["grader_outcome"] == "pass" for record in judged_gold_fail_rows)
+    false_fails = sum(record["grader_outcome"] == "fail" for record in judged_gold_pass_rows)
     abstentions = sum(record["grader_outcome"] in {"abstain", "unknown"} for record in graded_gold_rows)
 
     fault_rows = [
@@ -362,8 +362,8 @@ def build_era_report(
         rate_metric("ERA-RUN-02", environment_failed, total_runs, "environment_failure_rate", [evidence_ref], ["Environment failures must not be attributed to the Agent or dataset."], confidence),
         rate_metric("ERA-RUN-03", agent_passes, len(outcome_rows), "agent_outcome_pass_rate", [evidence_ref], ["This is the tested Agent outcome, not a standalone dataset quality score."], confidence),
         rate_metric("ERA-RUN-04", process_passes, len(process_rows), "process_compliance_rate", [evidence_ref], ["Process requirements must be defined by the task and rubric."], confidence),
-        rate_metric("ERA-GRD-01", false_passes, len(graded_gold_fail_rows), "grader_false_pass_rate", [evidence_ref], ["Gold labels must come from an independent Oracle or expert adjudication."], confidence),
-        rate_metric("ERA-GRD-02", false_fails, len(graded_gold_pass_rows), "grader_false_fail_rate", [evidence_ref], ["Gold labels must come from an independent Oracle or expert adjudication."], confidence),
+        rate_metric("ERA-GRD-01", false_passes, len(judged_gold_fail_rows), "grader_false_pass_rate", [evidence_ref], ["Gold labels must come from an independent Oracle or expert adjudication."], confidence),
+        rate_metric("ERA-GRD-02", false_fails, len(judged_gold_pass_rows), "grader_false_fail_rate", [evidence_ref], ["Gold labels must come from an independent Oracle or expert adjudication."], confidence),
         rate_metric("ERA-GRD-03", abstentions, len(graded_gold_rows), "grader_abstention_rate", [evidence_ref], ["Abstentions must remain distinct from pass and fail."], confidence),
         rate_metric("ERA-GRD-04", grader_correct, len(judged_rows), "grader_accuracy_on_judged_gold_rows", [evidence_ref], ["Accuracy excludes abstentions; report coverage and abstention separately."], confidence),
         rate_metric("ERA-RUN-05", failure_exposed, len(exposed_rows), "failure_exposure_rate_on_injected_fault_runs", [evidence_ref], ["Failure exposure is distinct from fault detection."], confidence),
@@ -562,8 +562,8 @@ def build_era_report(
     grader_metrics = []
     if graded_gold_rows:
         grader_metrics = [
-            {"metric_id": "ERA-GRD-01", "status": "MEASURED" if graded_gold_fail_rows else "NOT_ASSESSED", "value": false_passes / len(graded_gold_fail_rows) if graded_gold_fail_rows else None, "unit": "false_pass_rate", "interval": wilson_interval(false_passes, len(graded_gold_fail_rows), confidence) if graded_gold_fail_rows else None, "evidence_refs": [evidence_ref]},
-            {"metric_id": "ERA-GRD-02", "status": "MEASURED" if graded_gold_pass_rows else "NOT_ASSESSED", "value": false_fails / len(graded_gold_pass_rows) if graded_gold_pass_rows else None, "unit": "false_fail_rate", "interval": wilson_interval(false_fails, len(graded_gold_pass_rows), confidence) if graded_gold_pass_rows else None, "evidence_refs": [evidence_ref]},
+            {"metric_id": "ERA-GRD-01", "status": "MEASURED" if judged_gold_fail_rows else "NOT_ASSESSED", "value": false_passes / len(judged_gold_fail_rows) if judged_gold_fail_rows else None, "unit": "false_pass_rate", "interval": wilson_interval(false_passes, len(judged_gold_fail_rows), confidence) if judged_gold_fail_rows else None, "evidence_refs": [evidence_ref]},
+            {"metric_id": "ERA-GRD-02", "status": "MEASURED" if judged_gold_pass_rows else "NOT_ASSESSED", "value": false_fails / len(judged_gold_pass_rows) if judged_gold_pass_rows else None, "unit": "false_fail_rate", "interval": wilson_interval(false_fails, len(judged_gold_pass_rows), confidence) if judged_gold_pass_rows else None, "evidence_refs": [evidence_ref]},
             {"metric_id": "ERA-GRD-03", "status": "MEASURED", "value": abstentions / len(graded_gold_rows), "unit": "abstention_rate", "interval": wilson_interval(abstentions, len(graded_gold_rows), confidence), "evidence_refs": [evidence_ref]},
             {"metric_id": "ERA-GRD-04", "status": "MEASURED" if judged_rows else "NOT_ASSESSED", "value": grader_correct / len(judged_rows) if judged_rows else None, "unit": "accuracy_on_non_abstained_gold_rows", "interval": wilson_interval(grader_correct, len(judged_rows), confidence) if judged_rows else None, "evidence_refs": [evidence_ref]}
         ]
