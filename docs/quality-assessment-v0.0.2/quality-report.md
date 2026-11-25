@@ -50,6 +50,7 @@ v0.0.2 已完成需求基线、研究与方法论设计、IDA/ERA 核心工程�
 |---|---|---|---:|---|
 | [#1930](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45714388411) | `8930dcc656288e1b6fd7bc672202bbec520b92b9` | SUCCESS | 207/207 | #15069091920 |
 | [#1933](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45719605220) | `878303fba7d4db75df979073d97c9d529b70d74e` | SUCCESS | **215/215** | #15071077843 |
+| [#1939](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45720458350) | `87d3747444ddaa5e7391e202f7595121f1fa86a7` | SUCCESS | **215/215** | #15072186678 |
 
 Run #1933 的 Round 4 artifact SHA-256：
 
@@ -126,3 +127,8 @@ Run #1933 中 Builder production、independent-validation、webapp-testing-pilot
 - [ERA 真实运行执行协议](runtime-assessment-protocol.md)
 
 **最终结论：** v0.0.2 的工程骨架和机器契约已具备可审计性，但科学效度证据尚不充分。当前质量等级应表述为“工程验证通过、实证效度部分完成、发布门禁未通过”，而不是“v0.0.2 全部完成”。
+
+
+### 最新文档基线复验
+
+Run #1939 在包含任务质量报告、TASKS 状态统计、README/CHANGELOG 和方法协议文档的精确 head `87d3747444ddaa5e7391e202f7595121f1fa86a7` 上再次通过完整验证：actionlint、Skill 正式包、Benchmark、215/215 离线测试和 Round 4 IDA/ERA 报告契约均 PASS。Round 4 artifact #15072186678，SHA-256 `be681dfd0a61be229e66b7953b3f02f66366d31d700b8e33755e3719df739b44`。受保护的 Builder production、independent-validation、Pilot 和 adjudication Jobs 仍 SKIPPED；本次仍是既有证据复核，没有新增真实运行。
