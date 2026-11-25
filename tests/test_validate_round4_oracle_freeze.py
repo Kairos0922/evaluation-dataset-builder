@@ -12,7 +12,7 @@ SCHEMA = json.loads(
     (ROOT / "docs/quality-assessment-v0.0.2/schemas/round4-oracle-freeze-manifest.schema.json")
     .read_text(encoding="utf-8")
 )
-DATASET_SHA = "000d38b110b60eae902f86737ea6bd1368f98c6632c42a47bb9470a4a08bfc45
+DATASET_SHA = "000d38b110b60eae902f86737ea6bd1368f98c6632c42a47bb9470a4a08bfc45"
 PLAN_SHA = "b" * 64
 CASE_HASHES = {case_id: f"{index:064x}" for index, case_id in enumerate(sorted(EXPECTED_CASE_IDS), 1)}
 
