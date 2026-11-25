@@ -168,6 +168,20 @@ class Round4OracleFreezeManifestTests(unittest.TestCase):
         self.assertTrue(any("adjudication" in error for error in errors))
         self.assertTrue(any("cases" in error for error in errors))
 
+    def test_malformed_nested_review_report_and_case_ids_return_errors(self):
+        item = manifest()
+        item["cases"][0]["case_id"] = ["WB-01"]
+        self.report["reviewers"]["A"] = []
+        self.report["cases"][0]["case_id"] = ["WB-01"]
+        errors = validate_freeze_manifest(item, **self.kwargs)
+        self.assertTrue(any("case_id must be a string" in error for error in errors))
+        self.assertTrue(any("comparison report must cover" in error for error in errors))
+        self.assertTrue(any("Reviewer A identity mismatch" in error for error in errors))
+
+    def test_non_object_top_level_manifest_returns_schema_errors(self):
+        errors = validate_freeze_manifest([], **self.kwargs)
+        self.assertTrue(any("manifest" in error for error in errors))
+
     def test_requires_review_comparison_report_to_remain_non_adjudicating(self):
         self.report["status"] = "FROZEN"
         errors = validate_freeze_manifest(manifest(), **self.kwargs)
