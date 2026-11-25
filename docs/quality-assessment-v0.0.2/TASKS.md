@@ -203,3 +203,9 @@
 - 精确 head `122d38527a3af2e3d012598cbb6ac93b3b4ecfc0` 对应 Run #1944（45721014232）Workflow SUCCESS：actionlint、正式 Skill 包、Benchmark、215/215 离线测试（含 8 项 Judge calibration contract tests）PASS；Round 4 IDA/ERA Schema 与 cross-field contract PASS。
 - Round 4 artifact #15070934643，SHA-256 `6ba0929eabd3354dbb06eedf43e55ff682b435320415b737c36063f2f8237ea1`。IDA/ERA PARTIAL，15 条中 3 条 Pilot、12 条 NOT_RUN，Judge NOT_RUN，composite NOT_VALIDATED。
 - Builder production / independent-validation / Pilot / adjudication jobs 均 SKIPPED；没有新增真实运行、独立评审或 Oracle freeze。
+
+
+### 质量报告与 CHANGELOG 最新 head 复验（2026-11-26）
+- 精确 head `bca98059650afce9df752917553bcff98adeb91e` 对应 Run #1947（45721216859）Workflow SUCCESS：actionlint、正式 Skill 包、Benchmark、215/215 离线测试（含 8 项 Judge calibration contract tests）PASS；Round 4 IDA/ERA Schema 与 cross-field contract PASS。
+- Round 4 artifact #15071653396，SHA-256 `153f702408de37fc4581e7441171b7f53916809be256563a89501c883f50bf80`。IDA/ERA PARTIAL，15 条中 3 条 Pilot、12 条 NOT_RUN；Judge NOT_RUN，composite NOT_VALIDATED。
+- 生产 Builder、independent-validation、Pilot、adjudication Jobs 均 SKIPPED；没有新增真实运行、独立评审或 Oracle freeze。
