@@ -9,7 +9,7 @@ from scripts.validate_quality_assessment import validate_report
 
 def runtime_record(run_id, revision, case_id, agent_outcome, gold_outcome, grader_outcome,
                    pair_id=None, repeat_group_id=None, fault_kind="none", fault_id=None,
-                   fault_detected=None, failure_exposed=None):
+                   fault_detected=None, failure_exposed=None, grader_id="judge-a"):
     return {
         "record_version": "0.0.2",
         "run_id": run_id,
@@ -35,7 +35,7 @@ def runtime_record(run_id, revision, case_id, agent_outcome, gold_outcome, grade
             "process_outcome": "pass",
             "grader_outcome": grader_outcome,
             "gold_outcome": gold_outcome,
-            "grader_id": "judge-a",
+            "grader_id": grader_id,
             "grader_revision": "1",
             "gold_source": "independent_oracle" if gold_outcome != "unknown" else "not_available"
         },
@@ -91,6 +91,8 @@ class RuntimeAssessmentTests(unittest.TestCase):
             self.assertEqual(grader_false_pass["value"], 0.5)
             grader_abstention = next(item for item in report["metric_results"] if item["metric_id"] == "ERA-GRD-03")
             self.assertEqual(grader_abstention["value"], 0.2)
+            grader_false_fail = next(item for item in report["metric_results"] if item["metric_id"] == "ERA-GRD-02")
+            self.assertEqual(grader_false_fail["value"], 0.5)
             historical_detection = next(item for item in report["metric_results"] if item["metric_id"] == "REG-01")
             self.assertEqual(historical_detection["value"], 0.0)
             historical_exposure = next(item for item in report["metric_results"] if item["metric_id"] == "REG-07")
@@ -105,6 +107,21 @@ class RuntimeAssessmentTests(unittest.TestCase):
             self.assertEqual(flakiness["value"], 1.0)
             self.assertEqual(report["composite"]["status"], "NOT_VALIDATED")
             self.assertIsNone(report["composite"]["value"])
+            self.assertEqual(validate_report(report), [])
+
+    def test_missing_judge_is_not_misreported_as_abstention_or_zero_false_pass(self):
+        record = runtime_record("oracle-only", "current", "CASE-1", "pass", "pass", "unknown", grader_id=None)
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            records_path = self.write_records(directory, [record])
+            report = build_era_report(records_path, directory / "era-report.json", "1.0.0", "demo-agent", "capability")
+            self.assertEqual(report["grader_validation"]["status"], "NOT_RUN")
+            self.assertEqual(report["grader_validation"]["sample_count"], 0)
+            self.assertTrue(any(f["finding_id"] == "ERA-NO-GRADER" for f in report["findings"]))
+            for metric_id in ("ERA-GRD-01", "ERA-GRD-02", "ERA-GRD-03", "ERA-GRD-04"):
+                metric = next(item for item in report["metric_results"] if item["metric_id"] == metric_id)
+                self.assertEqual(metric["status"], "NOT_ASSESSED")
+                self.assertIsNone(metric["value"])
             self.assertEqual(validate_report(report), [])
 
     def test_runtime_analyzer_rejects_invalid_records(self):
