@@ -133,3 +133,11 @@
 - 不会用同一模型伪装两名独立专家，不会自行生成 Gold 或假造真实用户/应用行为；这会破坏本项目 Issue #43 明确要求的独立效度证据。
 - 最新 CI Run #1926（45634060282）仍是本分支 TASKS 上次更新后精确代码 head 的有效证据：207/207 离线测试、正式包、Benchmark、actionlint、Round 4 IDA/ERA 报告契约 PASS；生产 Builder / 独立验证 / Pilot jobs SKIPPED。
 - 当前可由仓库维护者单独完成的工程工作已推进到执行前冻结门禁。尚需外部输入的工作包括：专家内容效度/评分者一致性、独立 Oracle 盲审和仲裁、外部基准数据许可/快照与独立 Oracle、真实缺陷注入与跨 Agent/Skill 运行效标、公式冻结验证，以及用户批准发布。上述任务不能仅靠本仓库代码或 CI 伪造完成。
+
+
+### 最新提交 Run #1927 与外部来源许可复核（2026-11-26）
+- PR #44 最新提交 `ceb7eadb01fbf3ee8fcabbeccf3f7c311c55ffdc` 对应 Run #1927（45636955491）Workflow SUCCESS。Validate Job：actionlint、正式 Skill 包、Benchmark 贯通样例及离线测试全部通过，207/207 tests PASS。Round 4 real-evidence Job SUCCESS，重新导入冻结证据并执行 IDA/ERA 报告与 cross-field contract validation；报告保持 IDA=PARTIAL、ERA=PARTIAL、Judge=NOT_RUN、composite=NOT_VALIDATED、15 条中 3 条 Pilot / 12 条 NOT_RUN。Artifact #15033410956，SHA-256 `1f0a613ceb675b3156ae591c7550235b5571938026e9446291855b5e01fd3723`。
+- 本次 Run #1927 的 Builder production、independent-validation、webapp-testing-pilot、adjudicate-pilot 等受上游门禁保护的 Job 均 SKIPPED；openrouter-preflight 的实际凭据/推理检查步骤也因不是显式 preflight marker commit 而 SKIPPED。不能把本次 CI 描述为新的 Builder 生产执行或 Pilot 扩容。
+- 外部候选登记表已基于官方仓库 LICENSE / README 和官方 Hugging Face GAIA 数据集卡复核：AgentDojo 代码仓库 MIT；AppWorld 公开代码及加密保护 bundle 标示 Apache-2.0，bundle 的公开再分发及衍生内容须保持加密；WebArena、BrowserGym、OSWorld、WorkArena 代码仓库标示 Apache-2.0；GAIA validation/test 数据受 gated / 不得以 crawlable 形式再分享的条款约束。以上均不等于数据集、环境镜像、第三方软件、账号或实例的整体许可批准。
+- WebArena-Verified 的具体数据版本和独立数据许可、OSWorld-Verified 具体任务/镜像、AgentDojo 各数据资产、WorkArena ServiceNow 实例授权仍未逐项取得并核验；候选仍是桌面初筛，不导入、不运行、不用于公式验证。
+- Issue #43 招募公告截至本次核查仍无评审者报名或提交。Reviewer A/B 资料包未分发；没有真实双盲审查、独立仲裁或 12-case Oracle freeze。PR #44 继续 Draft/Open，PR #38 与 main 未修改。
