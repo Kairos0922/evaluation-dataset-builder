@@ -41,7 +41,7 @@
 | EX-02 | 实验 | 建立独立参考数据集与缺陷注入样本 | IN_PROGRESS | defect-mutation-catalog.yaml 已建立 IDA-M01–M12 / ERA-M01–M08；单元测试已扩展覆盖身份错配、来源注册表解析/缺失、覆盖声明不一致、Judge abstention、历史故障逃逸和失败未暴露；尚缺独立公开/生产数据集家族、盲测变体和独立缺陷标签 |
 | EX-03 | 实验 | 完成专家内容效度与评分者一致性实验 | TODO | 盲评原始数据、专家资历/协议、CVI/CVR/一致性统计 |
 | EX-04 | 实验 | 完成缺陷注入识别实验 | TODO | 盲测结果、按缺陷类型的检出/误报和置信区间 |
-| EX-05 | 实验 | 完成 Capability / Regression 真实运行效标实验 | BLOCKED | 需要 PR #38 先完成 Builder 正式产出且独立 Validator PASS；当前 PR #38 run #1662 的 Builder production / independent-validation jobs 均 skipped。不得重复运行已完成的历史流程，也不得用合成轨迹冒充真实结果。解除条件：PR #38 产生正式 Builder artifact 并通过独立验证，之后使用本项目 runtime-record.schema.json 收集新运行证据 |
+| EX-06 | 工程/实验 | 将真实 Builder、DSH Trace、Runner 和独立 Oracle 证据转换为规范 Runtime Record，并运行 IDA/ERA | IN_PROGRESS | importer commit 53d5b47；ERA missing-Judge 修复 commit 5169120；Runtime Record cache/token 字段 commit 77b4e4b；回归测试 commit 3b7813f + 52288d0；真实证据 CI Job commit 4ba8583。等待 CI 产出 IDA/ERA 报告和归档 Artifact |\n| EX-05 | 实验 | 完成 Capability / Regression 真实运行效标实验 | IN_PROGRESS | PR #38 前置条件已核验：Builder artifact 14729741906（run 44959366258）包含 15 条 Builder 原始用例；独立输出验证 run 44968128127 PASS，冻结产出复验 run 45291624154 PASS。Builder production Job 本身曾失败（启发式误报），不得写成 PASS。三条真实 Skill Pilot（WB-02/WB-10/WB-12）及 Gold Oracle 3/3 PASS 归档于 run 45189512695 / artifact 14824967038。当前仅 3/15 执行，12 条 NOT_RUN；完整 Capability/Regression 统计仍未完成 |
 | SC-01 | 方案 | 冻结 v0.0.2 需求、架构和验收标准 | TODO | 需求评审决议、设计基线 commit |
 | IM-01 | 实现 | 设计并实现 IDA 报告 Schema / 机器可读契约 | DONE | schemas/ida-report.schema.json；JSON 语法检查通过；commit f47905e |
 | IM-02 | 实现 | 实现独立离线评价器和确定性检查 | DONE | scripts/assess_dataset_quality.py 实现 Manifest/Case Schema、ID、来源注册表、覆盖一致性、分布、精确重复和报告契约检查；扩展身份错配、来源缺失/解析、覆盖不一致测试；run #1793 在精确 head 885444a 上 155 项测试 PASS |
@@ -53,7 +53,7 @@
 | IM-09 | 实现 | 比较候选综合公式并执行权重/聚合敏感性分析 | TODO | 需独立开发集和外部效标；不得用同一批专家标签同时拟合和验证 |
 | QA-01 | 质量 | 建立元评测数据、已知缺陷注入和专家盲评样本 | IN_PROGRESS | 已有缺陷目录与确定性单测；尚缺独立来源的真实数据集、专家盲评样本、训练/验证隔离和审计记录 |
 | QA-02 | 质量 | 完成离线评价器验证与报告 | IN_PROGRESS | IDA 结构检查器、报告契约和 155 项 CI 测试已通过；新加入 Formula Validation evidence validator 及其测试待 CI；语义内容效度、专家一致性、独立缺陷识别实验尚未完成 |
-| QA-03 | 质量 | 完成真实运行评价的端到端验证 | BLOCKED | 与 EX-05 同一前置条件：PR #38 正式 Builder artifact + independent Validator PASS；当前没有可用的正式数据集和真实 Agent 运行记录 |
+| QA-03 | 质量 | 完成真实运行评价的端到端验证 | IN_PROGRESS | 已取得 PR #38 正式 Builder artifact、独立 Validator PASS 和三条真实 Pilot/Oracle 证据；新增 scripts/import_dsh_pilot_records.py、ERA 缺失 Judge 语义修复及真实证据 CI Job。等待 PR #44 新 CI 对原始 artifact 执行 IDA/ERA 并归档报告；不能将 3/15 Pilot 推广为全量运行结论 |
 | QA-04 | 质量 | 完成综合公式独立验证；若证据不足则明确 NOT_VALIDATED | IN_PROGRESS | 已有公式验证协议和向量画像定义；尚缺专家效标、缺陷注入数据、真实运行效标与冻结验证集。证据不足时保持 NOT_VALIDATED，不得发布标量总分 |
 | P0-CI-01 | 工程 | 修复 CI #1807 中 Formula Validation Validator 对 datasets[].sample_count 的错误读取，并增加回归测试 | DONE | Schema 将 sample_count 定义在 split 层；验证器改为校验来源数据集非空并使用 split 总样本量；commit b6740f9（验证器）、a2dc04e（回归测试）；run #1808（45550108441）精确 head a2dc04e：actionlint、Skill 正式包、Benchmark 贯通样例 PASS，162/162 离线测试 PASS。Builder production / independent-validation jobs 按 PR 条件 SKIPPED |
 | CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | DONE | 最新代码 head a2dc04e 的 run #1808（45550108441）通过 actionlint、正式包验证、Benchmark 贯通样例和 162 项离线测试；Builder production、independent-validation、pilot jobs 因 PR #38 前置条件未满足而 SKIPPED，不将其描述为通过 |
@@ -63,10 +63,10 @@
 
 ## 外部依赖与阻塞
 
-- PR #38（Builder 正式生产与独立验证）是本项目真实运行评价的外部依赖。当前可核验的 PR #38 head 为 7f34ddb；其 run #1662 只通过上游资产审计，Builder production、independent-validation、pilot 等 jobs 均 skipped。
-- 因此当前没有经过正式门禁的 Builder 输出可供本项目做真实数据集质量评价，也没有可用于 ERA 的真实 Agent 运行记录。
-- 本任务不会修改 PR #38，不会重复执行已完成的 Builder/Pilot/Oracle 历史证据，不会把单元测试夹具或合成轨迹伪装成真实运行证据。
-- PR #38 的 Builder 正式产出和独立 Validator PASS 后，才解除 EX-05 / QA-03 阻塞；届时应绑定精确 dataset SHA、Agent/Skill revision、模型、Harness、环境和 run records。
+- PR #38 已关闭。历史 run #1662 的 skipped 状态已被后续 Round 4 证据取代，不再作为当前阻塞依据。
+- Builder 原始输出来自 run #44959366258 / artifact #14729741906；该 production Job 结论为 failure（启发式误报），但 Builder 输出 artifact 已产生。独立验证 run #44968128127 PASS，冻结产出复验 run #45291624154 PASS。只有在此限定下，认定“正式 Builder 输出 + 独立 Validator PASS”前置条件满足；不把 Builder Job 说成 PASS。
+- 三条真实 Pilot 与独立 Oracle 证据来自 run #45189512695 / artifact #14824967038：WB-02、WB-10、WB-12，Oracle 3/3 PASS。数据集共 15 条，另外 12 条仍未执行；Manifest 仍为 quality_status=needs_info、execution_status=NOT_RUN。
+- PR #44 通过 importer 和 CI 下载冻结证据，不重复运行历史 Builder/Pilot/Oracle，不修改 PR #38，不使用合成轨迹冒充真实结果。
 - 当前 PR #44 的 CI PASS 只证明本项目代码、Schema、Skill 包和离线测试通过，不代表公式效度或真实运行评价已经通过。
 
 ## 当前已完成
@@ -82,6 +82,8 @@
 - [x] 在精确 PR head 上通过 actionlint、正式包、Benchmark 样例和 151 项离线单测（run #1774）。
 - [x] 扩展缺陷注入测试后，在精确 head 885444a 上通过 actionlint、正式包、Benchmark 样例和 155 项离线单测（run #1793）。
 - [x] 修复 Formula Validation Validator 与 Schema 的 sample_count 层级错配；在精确 head a2dc04e 上通过 actionlint、正式 Skill 包、Benchmark 贯通样例和 162 项离线测试（run #1808，45550108441）。
+- [x] 核实 PR #38 后续 Round 4 Builder/独立验证/Pilot/Oracle 原始证据，确认三条真实 Pilot 已完成；12/15 数据集用例仍 NOT_RUN。
+- [x] 增加真实 DSH Pilot Runtime Record importer、缓存 Token/Model Step 字段、缺失 Judge 与 abstention 区分修复及回归测试；增加 PR #44 冻结证据 IDA/ERA CI Job，等待首次执行结果。
 
 ## 当前不代表已完成的事项
 
@@ -95,5 +97,5 @@
 
 | 日期 | 变更 |
 |---|---|
-| 2026-11-25 | P0 修复：Validator 不再读取 Schema 未定义的 datasets[].sample_count，改为依据 split-level sample_count 并检查来源数据集非空；新增两项回归测试。run #1808 在精确 head a2dc04e 上 actionlint、Skill 包、Benchmark 和 162 项离线测试全部 PASS。新增 methodology-matrix.md，覆盖内容效度、IRT、G-Theory、ICC/Kappa、Judge 校准、缺陷注入、外部效标、样本量/功效和区间策略。公式科学效度、专家盲评、真实缺陷和 ERA 实验仍未完成。 |
+| 2026-11-25 | 更新 PR #38 外部依赖状态：正式 Builder artifact 与独立 Validator PASS 已核验，三条真实 Skill Pilot / Gold Oracle 3/3 PASS；新增真实证据导入器和 IDA/ERA CI Job。Builder production Job failure、12/15 NOT_RUN、dataset needs_info 均保留为限制。 |\n| 2026-11-25 | P0 修复：Validator 不再读取 Schema 未定义的 datasets[].sample_count，改为依据 split-level sample_count 并检查来源数据集非空；新增两项回归测试。run #1808 在精确 head a2dc04e 上 actionlint、Skill 包、Benchmark 和 162 项离线测试全部 PASS。新增 methodology-matrix.md，覆盖内容效度、IRT、G-Theory、ICC/Kappa、Judge 校准、缺陷注入、外部效标、样本量/功效和区间策略。公式科学效度、专家盲评、真实缺陷和 ERA 实验仍未完成。 |
 | 2026-11-25 | 建立需求、研究证据库、双路径方法论、公式验证协议、实验设计、设计决策、候选指标字典、IDA/ERA/Runtime Record Schema、离线 IDA 检查器、ERA 分析器、报告验证器与测试；Draft PR #44 已创建。更新 Skill 质量标准并加入报告 Schema 与运行记录 Schema；validate_skill.py 增加 JSON Schema 检查；Release Gate 测试同步纳入新增 Schema 和当前 Workflow 实现。补充 CVI/CVR、IRT 样本量、G-Theory、SkillsBench 和 OECD/JRC 复合指标手册证据；细化规范性/经验性权重、损失驱动阈值和敏感性验证方法；正式定义 IDA/ERA 用途条件化质量画像；建立 defect-mutation-catalog.yaml 和对应测试。PR #44 run #1774 在精确 head cb43aa7 上 actionlint、正式包、Benchmark 样例和 151 项离线测试全部 PASS；IM-02 与 CI-01 的前一版验收完成；缺陷测试扩展后的最新 head 复验中。 PR #44 run #1784（45513477801）actionlint、正式包、Benchmark 样例 PASS，155 项测试中仅 1 个断言失败；修正描述断言后，run #1789（45513651073）仍有 1 个失败：missing-source mutation 使用 synthetic_gap_fill，但当前 Case Schema 要求该来源必须引用 synthetic_scenario；已改为 schema-valid 的 unknown + information_gaps 样本，等待最新 head 重跑。公式效度、专家盲评、盲测缺陷注入、真实 Agent 运行、IRT/G-Theory、版本元数据和 Release 仍未完成。RQ-01、RQ-02、RS-01、FM-01、EX-01、IM-01、IM-02、IM-04、CI-01 完成；RS-02、RS-03、DS-01、DS-02、FM-02、IM-05、IM-07 进行中。 |
