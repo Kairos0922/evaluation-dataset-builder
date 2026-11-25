@@ -107,11 +107,11 @@ WB-13 测量的是观测能力与报告诚实性，不要求应用必须出现�
 |---|---|
 | 12 条用例的独立判定矩阵 | 已设计，待两名独立审查者审阅 |
 | 规范来源和 fixture 身份哈希 | 已从冻结 Pilot artifact 提取；执行前须再次核验 |
-| Oracle 记录 Schema / adjudication 实现 | 尚未实现 |
+| Oracle 记录 Schema / hash-bound validator | 已实现；见 round4-oracle-record.schema.json、validate_round4_oracle.py |\n| 执行前 freeze manifest Schema / hash-bound Gate | 已实现并通过 CI；见 round4-oracle-freeze-manifest.schema.json、validate_round4_oracle_freeze.py |\n| 人工逐案仲裁与 12-case Oracle 冻结 | NOT_RUN；尚无两名评审者提交，不能生成 Gold |\n| Runner 执行与执行后 adjudication 流程 | 尚未实现；须在执行前 Oracle 冻结且用户明确授权后开发/启用 |
 | 盲态 Oracle 记录 | 尚未产生 |
 | 剩余 12 条 Skill 运行 | NOT_RUN |
 | WB-15 请求失败应用结果 | UNKNOWN / needs_info |
 | Capability 总体统计、IRT / G-Theory | NOT_RUN |
 | 综合分 | NOT_VALIDATED |
 
-**下一步：** 实现 Oracle 记录契约和独立验证脚本；由独立审查者确认本计划并冻结哈希；通过所有执行前 Gate 后，才可启动剩余用例。任何真实运行结果都必须保留原始 trace、状态快照、审计日志和证据哈希。
+**下一步：** 将 Reviewer A/B 盲审包分别交给两名互不交流的独立审查者；收回并冻结原始提交及 SHA；运行盲审差异比较器；由独立仲裁者逐案填写 freeze manifest；通过 `validate_round4_oracle_freeze.py --require-frozen` 后，再等待用户明确授权开发/启动 Runner。任何真实运行结果都必须保留原始 trace、状态快照、审计日志和证据哈希。
