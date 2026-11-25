@@ -12,6 +12,7 @@ from scripts.compare_round4_blind_reviews import (
     compare_reviews,
     load_crosswalk,
     validate_submission,
+    validate_pair,
 )
 
 SCHEMA = json.loads(DEFAULT_SCHEMA.read_text(encoding="utf-8"))
@@ -119,9 +120,15 @@ class Round4BlindReviewComparisonTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "exact 12 target cases"):
             load_crosswalk(self.crosswalk_path)
 
-    def test_same_reviewer_identity_is_not_independent(self):
+    def test_same_reviewer_identity_is_rejected(self):
         self.b["reviewer_id"] = self.a["reviewer_id"]
-        self.assertEqual(self.a["reviewer_id"], self.b["reviewer_id"])
+        errors = validate_pair(self.a, self.b, SCHEMA)
+        self.assertTrue(any("reviewer IDs must be distinct" in error for error in errors))
+
+    def test_pair_rejects_wrong_frozen_dataset_hash(self):
+        self.b["dataset_sha256"] = "0" * 64
+        errors = validate_pair(self.a, self.b, SCHEMA)
+        self.assertTrue(any("dataset SHA-256" in error for error in errors))
 
 
 if __name__ == "__main__":
