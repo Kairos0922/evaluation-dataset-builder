@@ -58,7 +58,7 @@
 | QA-03 | 质量 | 完成真实运行评价的端到端验证 | IN_PROGRESS | Run #1847 的 Round 4 真实证据 Job、IDA/ERA 报告 JSON Schema 和 cross-field contract validation PASS，artifact 15012860922；IDA PARTIAL、ERA PARTIAL，三条 Pilot 均有独立 Oracle PASS；12/15 NOT_RUN、Judge NOT_RUN、无 Regression 配对、IRT/G-Theory 未拟合。报告已记录于 round4-real-evidence-results.md；尚需扩展真实运行和外部效度证据 |
 | QA-04 | 质量 | 完成综合公式独立验证；若证据不足则明确 NOT_VALIDATED | IN_PROGRESS | 已有公式验证协议和向量画像定义；尚缺专家效标、缺陷注入数据、真实运行效标与冻结验证集。证据不足时保持 NOT_VALIDATED，不得发布标量总分 |
 | P0-CI-01 | 工程 | 修复 CI #1807 中 Formula Validation Validator 对 datasets[].sample_count 的错误读取，并增加回归测试 | DONE | Schema 将 sample_count 定义在 split 层；验证器改为校验来源数据集非空并使用 split 总样本量；commit b6740f9（验证器）、a2dc04e（回归测试）；run #1808（45550108441）精确 head a2dc04e：actionlint、Skill 正式包、Benchmark 贯通样例 PASS，162/162 离线测试 PASS。Builder production / independent-validation jobs 按 PR 条件 SKIPPED |
-| CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | IN_PROGRESS | 最新已通过 Run #1885（45606082544，head 0699653）完成 actionlint、正式 Skill 包、Benchmark、177/177 离线测试及 Round 4 IDA/ERA 报告契约验证。随后新增 Round 4 Oracle hash-bound validator 与 8 项测试（commits 51ae748、fa2a6e1、0cacd6b、1330ce9）；最新 head 1330ce93 的 Run #1889（45606605794）待执行，新增测试未取得 CI 结果。PR #38 Builder production / independent-validation / pilot Jobs 按范围保护 SKIPPED，不计作通过 |
+| CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | DONE | Run #1890（45606669627，精确 head d38d797cfd3476e0e28cb8155f599e70920bff13）完整验证 PASS：actionlint、正式 Skill 包、Benchmark、185/185 离线测试、Round 4 冻结证据导入/IDA/ERA/报告 JSON Schema 与 cross-field validation 全部 PASS；真实证据 artifact 15017663406。此前 Run #1885 在 validator 加入前 177/177 PASS；Run #1890 包含新增 Oracle validator 与 8 项测试。PR #38 Builder production / independent-validation / pilot Jobs 按范围保护 SKIPPED，不计作本次验证通过 |
 | DOC-01 | 文档 | 更新 README、CHANGELOG、版本和限制说明 | TODO | v0.0.2 内容一致 |
 | REL-01 | 发布 | 建立发布候选 PR 并完成审查 | TODO | 所有适用验收门禁通过，PR 记录证据 |
 | REL-02 | 发布 | 用户批准后创建 v0.0.2 Tag 和 GitHub Release | TODO | Release 指向精确验证过的提交，证据齐全 |
@@ -99,7 +99,7 @@
 
 | 日期 | 变更 |
 |---|---|
-| 2026-11-25 | CI-01 复验重开：在 Run #1885（45606082544，head 0699653）177/177 PASS 后，新增 Round 4 Oracle validator 与 8 项单测，必须在新 head 上重新执行完整 CI；Run #1889（45606605794，head 1330ce9）等待执行。此前 Run #1885 的 177/177 不包含新增 validator 测试。 |
+| 2026-11-25 | CI-01 完成 Oracle validator 增量后的完整复验：Run #1890（45606669627，head d38d797cfd3476e0e28cb8155f599e70920bff13）actionlint、正式 Skill 包、Benchmark、185/185 离线测试、Round 4 IDA/ERA 和报告契约验证全部 PASS；artifact 15017663406。新增 Oracle validator 与 8 项测试已纳入本次 185 项测试；CI-01 标记 DONE。PR #38 生产/Pilot Jobs 仍按范围保护 SKIPPED。 |
 | 2026-11-25 | Round 4 Oracle 设计、Schema 与验证器：独立判定计划 commit c129b21；记录 Schema commit 0118318；hash-bound validator commit 51ae748，校验数据集/用例/计划哈希、重复记录、评审者集合、仲裁结果与动作预算；新增 8 项 unittest（commits 0cacd6b、fa2a6e1、1330ce9）。WB-15 application outcome 强制 UNKNOWN；超预算不能记 Skill PASS。计划待独立审查者确认，未执行剩余 12 条。 |
 | 2026-11-25 | 专家盲评协议落地：新增 expert-review-protocol.md（盲评/仲裁分离、评分锚点、CVI/CVR/Aiken's V、一致性统计、区间/功效规划、无统一阈值）；新增 expert-review-record.schema.json 并镜像至 Skill references，新增 unittest 覆盖 schema 合法性、尺度约束、盲评状态和匿名化。相关 commits 3fd46df、b5d644c、78d2b44、cc4b5c2。未招募专家，所有专家统计仍 NOT_RUN。 |
 | 2026-11-25 | PR #44 最新 TASKS.md head 428b3ac 的 Run #1861（45595437684）最终 PASS：actionlint、Skill 正式包、Benchmark、167/167 离线测试、真实证据导入、IDA/ERA、JSON Schema 和 cross-field validation 全部 PASS；报告 artifact 15013081639。Builder production、independent-validation 和 pilot Jobs 依 PR #38 前置条件 SKIPPED。 |
