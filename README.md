@@ -8,6 +8,14 @@
 
 > **v0.0.1 发布说明：** 本版本已于 2026-11-24 正式发布。发布候选 Skill SHA 为 `e934a079c88f729d8d66abee50a717797d88f9c3`，发布标签绑定的合并提交为 `cacf86c3b5b68098aef4b969b1e5caa4653708f1`。发布评测及 Builder/Pilot 证据的限制和未解决项见 [RELEASE.md](RELEASE.md) 与 [Release 页面](https://github.com/Kairos0922/evaluation-dataset-builder/releases/tag/v0.0.1)。
 
+## v0.0.2 研发状态
+
+v0.0.2 正在独立分支 `feat/quality-assessment-v0.0.2` 开发，当前正式发布版本仍为 **0.0.1**。v0.0.2 尚未发布、尚未形成 Release Candidate，也不应将本分支视为可替代已发布版本的正式包。
+
+v0.0.2 的研发目标是建立通用 Agent / Skill 数据集的独立离线质量评价（IDA）与真实运行评价（ERA），分别支持 Capability 和 Regression。当前已有离线检查器、运行记录分析器、机器可读报告契约、Oracle 冻结工具、专家盲评协议和实验设计。最新已验证的工程状态及未完成门禁见 [v0.0.2 任务清单](docs/quality-assessment-v0.0.2/TASKS.md) 与 [研发质量报告](docs/quality-assessment-v0.0.2/quality-report.md)。
+
+**重要限制：** 当前 IDA/ERA 实证结果仍为 PARTIAL；Round 4 数据集 15 条用例中仅 3 条有真实 Pilot 和独立 Gold Oracle，另外 12 条 NOT_RUN。Judge 校准的独立实证、专家内容效度、缺陷注入盲测、Regression 配对、IRT/G-Theory 和综合公式效度均未完成。综合分、固定权重和通过阈值保持关闭，不得把 CI/Schema PASS 解释为测量效度。
+
 ## 这个 Skill 是做什么的
 
 本 Skill 帮助 Agent 为 Agent、Skill、API、工作流及其他软件系统构建高质量评测数据集。它提供一套可复用的业务分析、场景规划、用例生成、判定契约设计、质量审查和增量维护流程。
