@@ -89,7 +89,7 @@ python scripts/compare_round4_blind_reviews.py \\
   --output /path/to/round4-review-comparison.json
 ```
 
-比较器会检查 Schema、资料包身份、冻结数据集 SHA、12 个标签完整性、交叉表映射和评审者身份是否不同；然后按原始 case ID 对齐两位评审的判断，并列出字段及断言差异。输出状态固定为 `REQUIRES_HUMAN_ADJUDICATION`。比较器不裁决分歧、不自动选择 PASS/FAIL/UNKNOWN、不冻结 Oracle，也不授权 Runner 启动。
+比较器会检查 Schema、资料包身份、冻结数据集 SHA、12 个标签完整性、交叉表映射、两位评审对同一 case 的 case SHA 一致性和评审者身份是否不同；然后按原始 case ID 对齐两位评审的判断，并列出构念/可执行性/冻结意见、动作预算、Application/Skill 分离、理由、证据引用和规范断言差异，同时比较总体意见。输出状态固定为 `REQUIRES_HUMAN_ADJUDICATION`。比较器不裁决分歧、不自动选择 PASS/FAIL/UNKNOWN、不冻结 Oracle，也不授权 Runner 启动。
 
 比较报告、两份原始 JSON、12×2 Markdown 工作表、两份原始资料包及 coordinator crosswalk 应分别归档并记录 SHA。任何补充或更正都应作为新版本保留，不覆盖原始提交。
 
