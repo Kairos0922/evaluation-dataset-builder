@@ -10,7 +10,8 @@
 - 建立 Round 4 独立 Oracle 双盲评审包、提交比较器、hash-bound 执行前冻结门禁。
 - 增加 ERA 真实运行执行协议、架构与验收基线、外部 Benchmark 候选及许可限制登记。
 - 最新 Judge 校准接口代码验证：Run #1993（45802577224，精确 head 4067dba939a4e5171864c85cde413c46e934ee65），actionlint、正式 Skill 包、Benchmark、238/238 离线测试 PASS；Round 4 IDA/ERA contract PASS；Artifact 15108810359。该验证证明导入器/契约/测试通过，不证明任何真实 Judge 的经验有效性。
-- EX-05 因缺少 12-case 独立 Oracle freeze、额外真实运行授权/环境、多配置和版本配对数据，已明确调整为 BLOCKED；Issue #43 招募帖尚无独立评审者响应。\n- IM-03 的 manual/LLM Judge 证据导入接口已实现，支持 held-out/blinded 独立 Gold、逐案证据、重复 Judge 运行及 case-level 非伪重复统计；由于尚无真实独立 Judge 校准样本，任务保持 BLOCKED，synthetic smoke 仍 NOT_VALIDATED。
+- EX-05 因缺少 12-case 独立 Oracle freeze、额外真实运行授权/环境、多配置和版本配对数据，已明确调整为 BLOCKED；Issue #43 招募帖尚无独立评审者响应。
+- IM-03 的 manual/LLM Judge 证据导入接口已实现，支持 held-out/blinded 独立 Gold、逐案证据、重复 Judge 运行及 case-level 非伪重复统计；由于尚无真实独立 Judge 校准样本，任务保持 BLOCKED，synthetic smoke 仍 NOT_VALIDATED。
 - EX-06 真实 Builder/DSH/Runner/独立 Oracle 证据规范化与 IDA/ERA 执行已完成；Run #1983（45800505196，精确 head d899ea3）230/230 离线测试与 Round 4 evidence Job PASS，Artifact 15105794918。该完成状态仅覆盖现有 3 条 Pilot 证据，不代表剩余用例或科学效度门禁完成。
 - 实证边界：15 条 Round 4 用例中仅 3 条真实 Pilot，12 条 NOT_RUN；独立 Gold Judge 校准仍 NOT_RUN（synthetic smoke 仅验证执行/报告契约）；IDA/ERA PARTIAL；综合分 NOT_VALIDATED。专家评审、Oracle 冻结、盲测缺陷实验、Capability/Regression 完整效标和公式独立验证仍未完成。
 - 发布限制：尚无 v0.0.2 Release Candidate、最终发布审查或用户发布批准；不得创建 v0.0.2 tag/release。
