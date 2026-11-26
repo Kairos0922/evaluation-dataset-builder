@@ -245,3 +245,9 @@
 - 实现平衡双 facet Person×Item G-study 方法矩估计、Person/Item/Person×Item+Residual 方差分量、相对 G、绝对 Phi 和 D-study 题目数量画像；负方差分量保留 raw 估计并明确警告。
 - 新增报告 Schema `schemas/capability-measurement-report.schema.json`、方法/边界说明 `capability-measurement-analysis.md` 和 `tests/test_analyze_capability_measurement.py`（5 项测试）。
 - 工程估计器不证明模型假设或构念效度；不支持 2PL、多维 IRT、DIF、多 facet Seed/Environment/Judge、非平衡或重复测量设计。缺少 independent Gold 时输出 NOT_ASSESSED，不以 0 代替缺失。IM-05 保持 IN_PROGRESS，等待 CI 与真实数据/参数恢复验证。
+
+
+### Capability 测量原型与文档基线 CI 复验（2026-11-26）
+- 代码/测试精确 head `52093376778d428145e9b968df38ba54e9d26d4f` 对应 Run #1968（45732528514）SUCCESS：actionlint、正式 Skill 包、Benchmark、223/223 离线测试（含 5 项新 Capability measurement tests）和 Round 4 IDA/ERA 报告契约均 PASS；artifact #15077900941，SHA-256 `6fbcc3496f66f2aad9bc2a2057b8380523b19d6c8cbb4fdacb85bf48c2f9ed5e`。
+- TASKS、质量报告和 CHANGELOG 更新后的精确 head `c1babc7ec9d51de6ac0c3cdb36232573c32f53bb` 对应 Run #1972（45732657722）Workflow SUCCESS：actionlint、正式 Skill 包、Benchmark、223/223 离线测试和 Round 4 IDA/ERA 报告 Schema/cross-field validation 全部 PASS；artifact #15077358259，SHA-256 `af22544c66e638472b91f9e2d0a85f237e916a44ee3ebe082b20c4a3c099ea57`。
+- 本轮 Builder production、independent-validation、Pilot、adjudication jobs 均 SKIPPED；没有新增生产执行或独立 Gold 数据。IM-05 继续 IN_PROGRESS，原型输出仅 ESTIMATED_EXPLORATORY。
