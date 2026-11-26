@@ -258,3 +258,4 @@
 - 新增 `tests/test_capability_measurement_monte_carlo.py`：执行 30 次 × 80 配置 × 25 用例的确定性模拟；门禁有效重复数及能力/难度相关、RMSE 范围，避免仅断言“算法能运行”。
 - 固定设计模拟：26/30 次可估计；能力与题目难度平均相关约 0.867/0.961，RMSE 约 0.492/0.268 logits。4 次失败因完全分离被 fail-closed。
 - 该证据等级仅为 SIMULATION_ONLY；分位数是模拟重复分布，不是现实置信区间，也不证明模型适配、DIF、测量不变性或外部效度。G-Theory 参数恢复仍未完成，因此 IM-05 保持 IN_PROGRESS。
+- 本轮实现提交：`bb7cc26378cdc262c5560f49f358a258a00de367`；等待 PR #44 精确 head 的 CI 复验后再记录测试验收结论。
