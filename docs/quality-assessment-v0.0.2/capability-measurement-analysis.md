@@ -62,3 +62,18 @@ python scripts/analyze_capability_measurement.py \
 - 增加 2PL/多维模型时先建立参数恢复模拟和模型诊断；
 - 增加 DIF 分组设计和不变性检验；
 - 将估计结果与外部能力效标、专家蓝图和历史故障样本进行独立验证。
+
+
+## 6. Rasch 1PL Monte Carlo 参数恢复（模拟证据）
+
+新增可复现脚本 `scripts/run_capability_measurement_monte_carlo.py`，默认固定 seed=8000、30 次独立重复、每次 80 个配置 × 25 个用例。数据由已知的 Rasch 1PL 生成：能力位置服从 Normal(0, 0.8)，题目难度服从 Normal(0, 0.9)，响应服从 Bernoulli(logit(theta - difficulty))。每次重复均调用生产估计函数；完全分离或无法估计的重复单独计数，不从失败重复中伪造参数。
+
+固定设计的基线模拟结果：
+- 有效重复：26/30；失败 4/30（完全分离时 fail-closed）。
+- 有效重复上的平均能力位置相关：约 0.867；平均题目难度相关：约 0.961。
+- 平均能力 RMSE：约 0.492 logits；平均题目难度 RMSE：约 0.268 logits。
+- 报告同时输出重复间 p2.5 / median / p97.5 分位数；这些是模拟重复分布分位数，不是现实总体置信区间。
+
+运行：`python scripts/run_capability_measurement_monte_carlo.py --output artifacts/rasch-recovery.json`。
+
+**解释边界：** 该模拟只验证在正确指定的单维 Rasch 1PL 数据生成模型下的参数恢复行为；它不是对真实 Agent/Skill 能力构念、单维性、局部独立、DIF、测量不变性或 G-Theory 模型的验证。G-Theory 的二元观测方差分解尚无独立参数恢复实验。IM-05 继续 IN_PROGRESS。

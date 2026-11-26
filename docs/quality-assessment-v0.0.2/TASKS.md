@@ -49,7 +49,7 @@
 | IM-02 | 实现 | 实现独立离线评价器和确定性检查 | DONE | scripts/assess_dataset_quality.py 实现 Manifest/Case Schema、ID、来源注册表、覆盖一致性、分布、精确重复和报告契约检查；扩展身份错配、来源缺失/解析、覆盖不一致测试；run #1793 在精确 head 885444a 上 155 项测试 PASS |
 | IM-03 | 实现 | 实现人工/LLM Judge 校准与证据记录接口 | IN_PROGRESS | 已将 tests/calibrate_judge.py 接入 v0.0.2 Judge Calibration Report 契约：输出 suite SHA/case IDs、Judge prompt/implementation SHA、运行/commit 身份、逐案 Gold/Judge 状态及重算指标；执行时调用 validate_report() 和 suite 哈希校验。新增 tests/test_calibrate_judge_contract.py 覆盖报告生成、False Pass/False Fail/Abstention 重算与身份哈希。提交 33bd883、bbb2d85、98f9e66；Run #1953（45731724029，head 98f9e66）执行 218 项测试时发现 1 项新增测试的 abstention 期望值错误（夹具含多个 UNKNOWN）；已在 cd95707 修复。最新精确 head `f4d2cc2fadc2c8136a8c5d405a3d6a47eee5efb2` 的 Run #1958（45731888915）SUCCESS，actionlint、正式包、Benchmark、218/218 离线测试和 Round 4 IDA/ERA 报告契约均 PASS；artifact 15077441739，SHA-256 `02e7d5a2386f0ea6e1f57a8382c6af64bd1f4a661f81e934cab569e74e4aa004`。IM-03 仍 IN_PROGRESS：当前执行仍为 synthetic_smoke/NOT_VALIDATED，独立 Gold、盲法 held-out 校准与人工复核尚未开展。 |
 | IM-04 | 实现 | 实现 ERA 运行结果 Schema / 机器可读契约 | DONE | schemas/era-report.schema.json + schemas/runtime-record.schema.json；Skill references 已同步；精确数据集 SHA、Agent/模型/Harness/环境、Run/Trace、Judge、Capability/Regression 字段已定义；JSON 语法检查通过；commits ef7515c、5030629、f18e010 |
-| IM-05 | 实现 | 实现 Capability / Regression 统计分析模块 | IN_PROGRESS | assess_runtime_quality.py 已实现 Judge 混淆指标、Wilson CI、配对版本差异、McNemar exact、历史/变异故障检出、重复运行不一致和成本画像。IRT/G-Theory 估计、DIF/测量不变性和充分真实样本仍未完成。 |
+| IM-05 | 实现 | 实现 Capability / Regression 统计分析模块 | IN_PROGRESS | assess_runtime_quality.py 已实现 Judge 混淆指标、Wilson CI、配对版本差异、McNemar exact、历史/变异故障检出、重复运行不一致和成本画像；Capability Rasch 1PL / 双 facet G-study 探索性估计器已实现。新增固定 seed 的 30-replication Rasch 1PL Monte Carlo 参数恢复实验及自动回归测试（26/30 有效；能力/难度平均相关约 0.867/0.961；RMSE 约 0.492/0.268）。仍缺 G-Theory 参数恢复、模型拟合诊断、DIF/测量不变性、真实数据精度与独立外部效标；不得标记 DONE。 |
 | IM-06 | 实现 | 实现公式验证证据 Schema 和独立验证器 | DONE | Schema、Skill reference、验证器及契约测试已实现；修复 split-level sample_count 契约错误；commit b6740f9 + a2dc04e；run #1808（45550108441）在 head a2dc04e 上 162 项测试 PASS。此状态仅表示报告结构/逻辑契约验证器完成，不代表公式实验有效 |
 | IM-07 | 集成 | 更新 Skill 质量标准、按需加载引用和版本到 0.0.2 | IN_PROGRESS | quality-standard.md/yaml 和 IDA/ERA/Runtime Record/Formula Validation references 已更新到 v0.0.2 方法标准；正式 Skill frontmatter 与 VERSION 仍保持已发布 0.0.1，待全部发布门禁通过后再进入 0.0.2 RC 元数据升级。 |
 | IM-09 | 实现 | 比较候选综合公式并执行权重/聚合敏感性分析 | BLOCKED | 候选公式数学形式和比较协议已定义，但无独立开发集、专家效标、盲测缺陷和外部运行效标；当前不得估计权重/阈值或输出标量总分。 |
@@ -251,3 +251,10 @@
 - 代码/测试精确 head `52093376778d428145e9b968df38ba54e9d26d4f` 对应 Run #1968（45732528514）SUCCESS：actionlint、正式 Skill 包、Benchmark、223/223 离线测试（含 5 项新 Capability measurement tests）和 Round 4 IDA/ERA 报告契约均 PASS；artifact #15077900941，SHA-256 `6fbcc3496f66f2aad9bc2a2057b8380523b19d6c8cbb4fdacb85bf48c2f9ed5e`。
 - TASKS、质量报告和 CHANGELOG 更新后的精确 head `c1babc7ec9d51de6ac0c3cdb36232573c32f53bb` 对应 Run #1972（45732657722）Workflow SUCCESS：actionlint、正式 Skill 包、Benchmark、223/223 离线测试和 Round 4 IDA/ERA 报告 Schema/cross-field validation 全部 PASS；artifact #15077358259，SHA-256 `af22544c66e638472b91f9e2d0a85f237e916a44ee3ebe082b20c4a3c099ea57`。
 - 本轮 Builder production、independent-validation、Pilot、adjudication jobs 均 SKIPPED；没有新增生产执行或独立 Gold 数据。IM-05 继续 IN_PROGRESS，原型输出仅 ESTIMATED_EXPLORATORY。
+
+
+### Capability Rasch 参数恢复模拟实验（2026-11-26）
+- 新增 `scripts/run_capability_measurement_monte_carlo.py`：固定随机种子、已知 Rasch 1PL 数据生成机制、重复估计、分离/失败计数、参数相关与 RMSE 汇总，并报告跨重复分布分位数。
+- 新增 `tests/test_capability_measurement_monte_carlo.py`：执行 30 次 × 80 配置 × 25 用例的确定性模拟；门禁有效重复数及能力/难度相关、RMSE 范围，避免仅断言“算法能运行”。
+- 固定设计模拟：26/30 次可估计；能力与题目难度平均相关约 0.867/0.961，RMSE 约 0.492/0.268 logits。4 次失败因完全分离被 fail-closed。
+- 该证据等级仅为 SIMULATION_ONLY；分位数是模拟重复分布，不是现实置信区间，也不证明模型适配、DIF、测量不变性或外部效度。G-Theory 参数恢复仍未完成，因此 IM-05 保持 IN_PROGRESS。
