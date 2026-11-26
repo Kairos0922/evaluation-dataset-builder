@@ -156,6 +156,19 @@ jobs:
           if-no-files-found: error
           retention-days: 90
 
+      - name: Run offline IDA controlled-mutation sensitivity experiment
+        if: steps.scope.outputs.run_validation == 'true'
+        run: python scripts/run_ida_mutation_validation.py --output artifacts/ida-mutation-validation.json
+
+      - name: Upload offline IDA mutation evidence
+        if: steps.scope.outputs.run_validation == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ida-mutation-validation
+          path: artifacts/ida-mutation-validation.json
+          if-no-files-found: error
+          retention-days: 90
+
       - name: 验证独立 Gold Oracle 与 Builder 输出验证器
         if: steps.scope.outputs.run_validation == 'true' && hashFiles('benchmarks/webapp-testing/oracle/adjudicate_pilot.py') != ''
         run: |

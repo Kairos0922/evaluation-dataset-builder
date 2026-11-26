@@ -1,0 +1,368 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/docs/quality-assessment-v0.0.2/schemas/ida-mutation-validation-report.schema.json",
+  "title": "Offline IDA Controlled Mutation Validation Report",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "report_id",
+    "created_at",
+    "evidence_level",
+    "catalog_version",
+    "deterministic_mutations",
+    "negative_controls",
+    "non_deterministic_mutations",
+    "summary",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.0.2"
+    },
+    "report_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "evidence_level": {
+      "const": "SYNTHETIC_CONTROLLED_MUTATION"
+    },
+    "catalog_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "deterministic_mutations": {
+      "type": "array",
+      "minItems": 8,
+      "items": {
+        "type": "object",
+        "required": [
+          "mutation_id",
+          "defect",
+          "status",
+          "expected_signals",
+          "observed_signals",
+          "dataset_sha256",
+          "structural_errors",
+          "duplicate_case_ids",
+          "coverage_errors",
+          "source_errors",
+          "report_sha256"
+        ],
+        "properties": {
+          "mutation_id": {
+            "type": "string"
+          },
+          "defect": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "PASS",
+              "FAIL"
+            ]
+          },
+          "expected_signals": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "observed_signals": {
+            "type": "object"
+          },
+          "dataset_sha256": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{64}$"
+          },
+          "structural_errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "duplicate_case_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "coverage_errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "source_errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "report_sha256": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{64}$"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "negative_controls": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "control_id",
+          "control",
+          "status",
+          "false_positive",
+          "overall_status",
+          "G01_source_provenance",
+          "G07_integrity_leakage",
+          "dataset_sha256",
+          "structural_errors",
+          "duplicate_case_ids",
+          "coverage_errors",
+          "source_errors",
+          "report_sha256"
+        ],
+        "properties": {
+          "control_id": {
+            "type": "string"
+          },
+          "control": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "PASS",
+              "FAIL"
+            ]
+          },
+          "false_positive": {
+            "type": "boolean"
+          },
+          "overall_status": {
+            "enum": [
+              "PASS",
+              "FAIL",
+              "PARTIAL",
+              "NOT_ASSESSED"
+            ]
+          },
+          "G01_source_provenance": {
+            "enum": [
+              "PASS",
+              "FAIL",
+              "MEASURED",
+              "UNKNOWN",
+              "NOT_RUN",
+              "NOT_ASSESSED",
+              "NOT_APPLICABLE"
+            ]
+          },
+          "G07_integrity_leakage": {
+            "enum": [
+              "PASS",
+              "FAIL",
+              "MEASURED",
+              "UNKNOWN",
+              "NOT_RUN",
+              "NOT_ASSESSED",
+              "NOT_APPLICABLE"
+            ]
+          },
+          "dataset_sha256": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{64}$"
+          },
+          "structural_errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "duplicate_case_ids": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "coverage_errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "source_errors": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "report_sha256": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{64}$"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "non_deterministic_mutations": {
+      "type": "array",
+      "minItems": 4,
+      "items": {
+        "type": "object",
+        "required": [
+          "mutation_id",
+          "status",
+          "reason"
+        ],
+        "properties": {
+          "mutation_id": {
+            "type": "string"
+          },
+          "status": {
+            "const": "NOT_ASSESSED"
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "deterministic_mutation_count",
+        "detected_mutation_count",
+        "missed_mutation_count",
+        "deterministic_detection_rate",
+        "deterministic_detection_rate_interval",
+        "negative_control_count",
+        "false_positive_control_count",
+        "negative_control_false_positive_rate",
+        "negative_control_false_positive_rate_interval",
+        "non_deterministic_not_assessed_count"
+      ],
+      "properties": {
+        "deterministic_mutation_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "detected_mutation_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "missed_mutation_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "deterministic_detection_rate": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "deterministic_detection_rate_interval": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "required": [
+            "lower",
+            "upper",
+            "level",
+            "method"
+          ],
+          "properties": {
+            "lower": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "upper": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "level": {
+              "const": 0.95
+            },
+            "method": {
+              "const": "Wilson score interval"
+            }
+          },
+          "additionalProperties": false
+        },
+        "negative_control_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "false_positive_control_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "negative_control_false_positive_rate": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "negative_control_false_positive_rate_interval": {
+          "type": [
+            "object",
+            "null"
+          ],
+          "required": [
+            "lower",
+            "upper",
+            "level",
+            "method"
+          ],
+          "properties": {
+            "lower": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "upper": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1
+            },
+            "level": {
+              "const": 0.95
+            },
+            "method": {
+              "const": "Wilson score interval"
+            }
+          },
+          "additionalProperties": false
+        },
+        "non_deterministic_not_assessed_count": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "additionalProperties": false
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}
