@@ -4,13 +4,15 @@
 
 > 本节记录开发分支已实现的工程资产，不代表发布批准或实证效度通过。正式版本号仍为 0.0.1。
 
+- QA-02 加强 negative-control metamorphic invariance：除不触发硬 FAIL 外，四种语义保持变换必须保持 overall status、gate status/severity 与 metric values/statuses 不变。Run #2023（45892053327，head `49613acf6d540f5ef494335a45eebca65077a64b`）243/243 测试 PASS；8/8 deterministic mutations detected，4/4 negative controls 指标不变，0/4 false positives；artifact #15152600525（SHA-256 `bdc08d2a95efcffa5ec1c8bbaa43b9432c27e9b639b09795fcefb9c6e76125ef`）。这仍是合成实现敏感性验证，QA-02 保持 BLOCKED，M09–M12 NOT_ASSESSED。
+- 用户于 2026-11-27 决定暂缓独立专家评审；EX-03 与依赖其盲审/仲裁的 EX-07 调整为 DEFERRED。评审协议、Schema 和 Oracle 工具保留；12 条用例仍 NOT_RUN，科学效度结论不因此升级。
 - 建立 IDA 离线质量检查器、ERA Runtime Record 与统计分析器、机器可读报告 Schema 和跨字段验证器；DSH Pilot 导入器现强制校验 trace JSONL evidence manifest、SHA-256、case/run 身份与安全路径，并将 trace digest 写入 Runtime Record。
 - 建立 Capability 与 Regression 的用途专属分析设计；新增探索性 Rasch 1PL 与平衡 Person×Item G-study 分析器、报告 Schema 和方法边界文档；增加固定 seed 的 30-replication Rasch 1PL 参数恢复模拟与回归测试（26/30 有效，能力/题目难度平均相关约 0.867/0.961），以及 G-Theory D-study 单调性/系数边界和负方差失败安全测试；综合公式、权重和阈值保持 NOT_VALIDATED。
 - 建立专家内容效度盲评协议、评分记录 Schema、Judge 校准证据报告 Schema 与验证器；新增 manual/LLM Judge observations 导入器，绑定 suite/observations SHA-256、逐案 Gold/Judge evidence refs 和匿名 reviewer/adjudicator ID；支持重复 Judge 运行并按 case 聚合，避免伪重复。
 - 建立 Round 4 独立 Oracle 双盲评审包、提交比较器、hash-bound 执行前冻结门禁。
 - 增加 ERA 真实运行执行协议、架构与验收基线、外部 Benchmark 候选及许可限制登记。
 - 最新 Judge 校准接口代码验证：Run #1993（45802577224，精确 head 4067dba939a4e5171864c85cde413c46e934ee65），actionlint、正式 Skill 包、Benchmark、238/238 离线测试 PASS；Round 4 IDA/ERA contract PASS；Artifact 15108810359。该验证证明导入器/契约/测试通过，不证明任何真实 Judge 的经验有效性。
-- EX-05 因缺少 12-case 独立 Oracle freeze、额外真实运行授权/环境、多配置和版本配对数据，已明确调整为 BLOCKED；Issue #43 招募帖尚无独立评审者响应。
+- EX-05 因缺少 12-case 可审计独立 Gold、额外真实运行授权/环境、多配置和版本配对数据，保持 BLOCKED。独立专家评审与依赖其盲审/仲裁的 EX-07 已按用户决定暂缓（DEFERRED）；不再以 Issue #43 招募或等待报名作为当前执行路径。
 - IM-03 的 manual/LLM Judge 证据导入接口已实现，支持 held-out/blinded 独立 Gold、逐案证据、重复 Judge 运行及 case-level 非伪重复统计；由于尚无真实独立 Judge 校准样本，任务保持 BLOCKED，synthetic smoke 仍 NOT_VALIDATED。
 - IM-05 新增 Rasch infit/outfit 描述诊断、显式 NOT_ASSESSED DIF/measurement-invariance 输出，以及 G-Theory 参数恢复和 20×10/40×25/80×50 样本设计敏感性实验；Run #2002（45804426404）241/241 测试、三种模拟、真实 Round 4 Capability 报告契约 PASS。真实数据仅 1 configuration × 3 cases，Rasch/G-Theory/DIF/measurement invariance 均 NOT_ASSESSED，IM-05 保持 BLOCKED。
 - IM-07 Skill quality standard 2.0.0 与 16 个按需 references 已更新并通过 Skill package validator；正式 VERSION/frontmatter 仍为已发布的 0.0.1，待 v0.0.2 Release Gate 和明确发布批准后再升级，IM-07 当前 BLOCKED。
@@ -18,7 +20,7 @@
 - QA-03 Round 4 实际 Pilot 为 3/15，3/3 Agent/Process/Gold PASS，但仅 1 条 mutation fault、无重复/配对/成本、Judge NOT_RUN、Regression null、composite NOT_VALIDATED；12 条 NOT_RUN。production/pilot/adjudication jobs 均 SKIPPED，因真实环境/预算授权缺失 QA-03 保持 BLOCKED。
 - DOC-01 同步根 README、研发 README、CHANGELOG 和质量报告；文档已反映 G-Theory 模拟、IDA mutation 8/8 和真实 Pilot 3/15。正式 VERSION/frontmatter 保持 0.0.1，待所有 Release Gate 通过和明确批准后再升级，DOC-01 当前 BLOCKED。
 - EX-06 真实 Builder/DSH/Runner/独立 Oracle 证据规范化与 IDA/ERA 执行已完成；Run #1983（45800505196，精确 head d899ea3）230/230 离线测试与 Round 4 evidence Job PASS，Artifact 15105794918。该完成状态仅覆盖现有 3 条 Pilot 证据，不代表剩余用例或科学效度门禁完成。
-- 实证边界：15 条 Round 4 用例中仅 3 条真实 Pilot，12 条 NOT_RUN；独立 Gold Judge 校准仍 NOT_RUN（synthetic smoke 仅验证执行/报告契约）；IDA/ERA PARTIAL；综合分 NOT_VALIDATED。专家评审、Oracle 冻结、盲测缺陷实验、Capability/Regression 完整效标和公式独立验证仍未完成。
+- 实证边界：15 条 Round 4 用例中仅 3 条真实 Pilot，12 条 NOT_RUN；独立 Gold Judge 校准仍 NOT_RUN（synthetic smoke 仅验证执行/报告契约）；IDA/ERA PARTIAL；综合分 NOT_VALIDATED。专家评审与 12-case Oracle 盲审/仲裁暂缓（EX-03/EX-07=DEFERRED）；盲测语义缺陷、Capability/Regression 完整效标和公式独立验证仍未完成。
 - 发布限制：尚无 v0.0.2 Release Candidate、最终发布审查或用户发布批准；不得创建 v0.0.2 tag/release。
 
 ## 0.0.1 — 发布候选
