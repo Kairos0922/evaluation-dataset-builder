@@ -176,14 +176,15 @@ def _mutations():
         return manifest, cases, registry
 
     def m06(manifest, cases, registry):
-        cases[0]["source_refs"] = []
-        cases[0]["case_origin"] = "unknown"
-        cases[0]["information_gaps"] = [{
-            "gap_id": "GAP-001", "description": "Source origin is unknown.",
-            "affected_claims": ["task provenance"],
-            "required_evidence": ["independent source record"],
-            "responsible_role": "reviewer", "status": "OPEN"
-        }]
+        for index, case in enumerate(cases):
+            case["source_refs"] = []
+            case["case_origin"] = "unknown"
+            case["information_gaps"] = [{
+                "gap_id": f"GAP-{index + 1:03d}", "description": "Source origin is unknown.",
+                "affected_claims": ["task provenance"],
+                "required_evidence": ["independent source record"],
+                "responsible_role": "reviewer", "status": "OPEN"
+            }]
         return manifest, cases, registry
 
     def m07(manifest, cases, registry):
