@@ -59,7 +59,7 @@
 | QA-04 | 质量 | 完成综合公式独立验证；若证据不足则明确 NOT_VALIDATED | BLOCKED | 候选公式、验证 Schema/validator 和实验协议已建立；缺少独立专家效标、盲测缺陷、真实运行效标和冻结验证集。保持 composite NOT_VALIDATED/value=null。 |
 | P0-CI-01 | 工程 | 修复 CI #1807 中 Formula Validation Validator 对 datasets[].sample_count 的错误读取，并增加回归测试 | DONE | Schema 将 sample_count 定义在 split 层；验证器改为校验来源数据集非空并使用 split 总样本量；commit b6740f9（验证器）、a2dc04e（回归测试）；run #1808（45550108441）精确 head a2dc04e：actionlint、Skill 正式包、Benchmark 贯通样例 PASS，162/162 离线测试 PASS。Builder production / independent-validation jobs 按 PR 条件 SKIPPED |
 | CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | DONE | Run #1890（45606669627，精确 head d38d797cfd3476e0e28cb8155f599e70920bff13）完整验证 PASS：actionlint、正式 Skill 包、Benchmark、185/185 离线测试、Round 4 冻结证据导入/IDA/ERA/报告 JSON Schema 与 cross-field validation 全部 PASS；真实证据 artifact 15017663406。此前 Run #1885 在 validator 加入前 177/177 PASS；Run #1890 包含新增 Oracle validator 与 8 项测试。PR #38 Builder production / independent-validation / pilot Jobs 按范围保护 SKIPPED，不计作本次验证通过 |
-| DOC-01 | 文档 | 更新 README、CHANGELOG、版本和限制说明 | IN_PROGRESS | 已更新根 README、CHANGELOG、研发 README，补充 v0.0.2 未发布状态、实现现状和实证限制；VERSION 与正式 Skill metadata 暂保持 0.0.1，待发布候选阶段升级，避免未过门禁就宣称 0.0.2。 |
+| DOC-01 | 文档 | 更新 README、CHANGELOG、版本和限制说明 | BLOCKED | 根 README、研发 README、CHANGELOG、TASKS 与 quality-report 已同步至最新研发证据：Judge 导入管线、Rasch/G-Theory 探索性估计与模拟、IDA-M01–M08 controlled mutation、Round 4 3/15 Pilot 和真实数据不足边界均已说明；新增 mutation 与 capability 分析文档链接。Run #2011（45806101196，精确代码 head `9cb0e46cd78193a9419929f90c73817a0ac511c3`）243/243 测试、Skill package、actionlint、Benchmark、三种 G-Theory sample design、IDA mutation report、Round 4 IDA/ERA/Capability contract PASS。正式 VERSION 和 Skill frontmatter 仍为 0.0.1；不能在 Release Gate 未通过且未获明确发布批准前改为 0.0.2。解除条件：发布候选门禁全部通过并获得明确发布批准后，单独升级 VERSION/frontmatter 并完成 release verification。 |
 | REL-01 | 发布 | 建立发布候选 PR 并完成审查 | BLOCKED | 尚未满足独立评审、Oracle 冻结、完整运行效标、缺陷盲测和公式验证等适用门禁；PR #44 继续 Draft/Open，不转 Ready。 |
 | REL-02 | 发布 | 用户批准后创建 v0.0.2 Tag 和 GitHub Release | BLOCKED | 必须在 REL-01 审查通过后，由用户明确批准创建 tag/release；当前不得发布。 |
 
@@ -325,3 +325,9 @@
 - 12/15 条 NOT_RUN；所有 grader_outcome UNKNOWN，grader_validation NOT_RUN；pair_id、repeat_group_id、seed、cost_usd 缺失；Regression analysis 为 null；composite NOT_VALIDATED。Capability 只有 1 configuration × 3 cases，描述性 PARTIAL，Rasch/G-Theory NOT_ASSESSED。
 - Round 4 artifact #15110340499，ZIP SHA-256 `4fe6f5f2bf4de10f7befd4ad2a6a6a70a1b4293e84e0c9e15d5593bd109124ed`。
 - 生产运行、额外 Pilot、重复执行、独立 Judge/仲裁和 baseline/candidate 配对需要真实环境、预算与外部授权。相关 production/pilot/adjudication workflow jobs 均 SKIPPED；没有擅自触发收费或生产执行。QA-03 调整为 BLOCKED。
+
+
+### DOC-01 文档同步完成、正式版本号升级受发布门禁阻塞（2026-11-26）
+- 根 README 与研发 README 已同步当前 v0.0.2 分支状态、最新 IDA/ERA/Capability 证据、G-Theory 模拟、IDA mutation 结果和外部依赖限制；新增 controlled-mutation 与 Capability analysis 文档入口。
+- CHANGELOG、TASKS 和 quality-report 已记录 Run #2011 的 243/243 测试、8/8 deterministic mutation detection、0/4 negative-control false positives、G-Theory 20×10/40×25/80×50 敏感性实验和 Round 4 3/15 Pilot 状态。
+- 正式根 VERSION 与 Skill frontmatter metadata.version 保持 0.0.1，和已发布 Release 一致。v0.0.2 尚未达到发布条件，且未获发布批准；不得提前改写正式版本号、创建 tag/release 或合并 PR。DOC-01 调整为 BLOCKED，仅剩 release-stage version transition。

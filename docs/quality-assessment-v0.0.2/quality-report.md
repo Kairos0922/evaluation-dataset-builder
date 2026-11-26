@@ -24,8 +24,8 @@ v0.0.2 已完成需求基线、研究与方法论设计、IDA/ERA 核心工程�
 | 状态 | 数量 | 解释 |
 |---|---:|---|
 | DONE | 20 | 设计/工程任务已有可复核文档、代码或 CI 证据 |
-| IN_PROGRESS | 1 | 已有部分实现或部分真实证据，验收条件尚未全部满足 |
-| BLOCKED | 16 | 需要独立人员、外部许可/数据、Oracle 或用户发布批准 |
+| IN_PROGRESS | 0 | 已有部分实现或部分真实证据，验收条件尚未全部满足 |
+| BLOCKED | 17 | 需要独立人员、外部许可/数据、Oracle 或用户发布批准 |
 | TODO | 0 | 尚未启动的任务已转为明确阻塞状态，避免掩盖依赖 |
 | **合计** | **37** | |
 
@@ -298,3 +298,12 @@ Run #2011 re-imported the frozen Round 4 DSH evidence and passed IDA, ERA and Ca
 Artifact #15110340499, ZIP SHA-256 `4fe6f5f2bf4de10f7befd4ad2a6a6a70a1b4293e84e0c9e15d5593bd109124ed`.
 
 Production execution, the remaining 12 pilots, repeated runs, independent Judge/adjudication, paired baseline/candidate regression and cost collection require an authorized runtime, budget and external approval. The production/pilot/adjudication jobs were SKIPPED. No paid or production run was triggered without authorization. QA-03 remains BLOCKED.
+
+
+### DOC-01 Documentation and release-version boundary（2026-11-26）
+
+Root README, v0.0.2 development README, CHANGELOG, TASKS and quality-report now reflect the current implementation and evidence boundary: Judge evidence importer, exploratory Rasch/G-Theory estimators, G-Theory sample-size sensitivity, deterministic IDA mutation validation, 3/15 real Pilot runs, 12 NOT_RUN cases, NOT_RUN Judge validation, unavailable paired Regression evidence and unvalidated composite. The new offline mutation and Capability analysis reports are linked from the development README.
+
+Run #2011（[45806101196](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45806101196)，exact code head `9cb0e46cd78193a9419929f90c73817a0ac511c3`）passed 243/243 offline tests, actionlint, Skill package validation, Benchmark, three G-Theory design simulations, IDA mutation validation and Round 4 IDA/ERA/Capability report contracts.
+
+The root VERSION and Skill frontmatter metadata.version remain 0.0.1, matching the already published release. The formal version transition to 0.0.2 is intentionally blocked until all release gates pass and explicit release approval is obtained. No release tag, Release or merge was created.

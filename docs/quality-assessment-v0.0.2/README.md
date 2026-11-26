@@ -7,7 +7,7 @@
 - IDA：确定性离线检查器、报告 Schema 和跨字段验证器已实现；语义专家审查和内容效度实证未完成。
 - ERA：Runtime Record Schema、历史 Pilot 导入器、统计分析器和报告验证器已实现；现有真实证据仅 3/15 Pilot，完整运行验证未完成。
 - 综合分：未验证。当前不输出总分、权重或通过阈值。
-- Capability / Regression：已定义用途专属统计路径并提供部分分析实现；IRT/G-Theory 和完整 Regression 配对效标尚未完成。
+- Capability / Regression：已实现探索性 Rasch 1PL、双 facet G-study、Rasch infit/outfit 描述诊断、G-Theory 参数恢复与样本设计敏感性模拟；真实 Pilot 仅 1 configuration × 3 cases，Rasch/G-Theory 实际估计 NOT_ASSESSED，DIF/测量不变性 NOT_ASSESSED，Regression 缺少配对版本效标。
 
 ## 独立离线评价
 
@@ -138,7 +138,25 @@ python scripts/assess_runtime_quality.py \
 
 记录必须包含精确的数据集 SHA、Agent/Skill 目标版本、模型、Harness、环境、工具、运行状态、轨迹、结果、Agent/Process/Judge/Gold outcomes、故障注入信息和成本字段。
 
-分析器当前计算描述性通过率、Judge false pass/false fail/abstention、历史故障与变异检出、配对版本差异、McNemar exact p-value、重复运行不一致和成本画像。它不会自动执行 Agent，也不会把统计量解释为合格阈值。Capability 的 IRT、DIF、测量不变性和 G-Theory 仍需单独建模与验证。
+分析器当前计算描述性通过率、Judge false pass/false fail/abstention、历史故障与变异检出、配对版本差异、McNemar exact p-value、重复运行不一致和成本画像。它不会自动执行 Agent，也不会把统计量解释为合格阈值。ERA 分析器本身只提供描述性 Capability/Regression 汇总；独立的 `analyze_capability_measurement.py` 提供探索性 Rasch/G-Theory 估计与诊断。真实多配置数据不足以拟合；DIF、测量不变性和外部效标仍未验证。
+
+## 受控缺陷变异验证
+
+运行离线 IDA 的确定性缺陷敏感性实验：
+
+```bash
+python scripts/run_ida_mutation_validation.py --output artifacts/ida-mutation-validation.json
+```
+
+该实验覆盖 IDA-M01–M08 八种确定性结构/来源/覆盖缺陷及四种 negative controls；输出契约见 [ida-mutation-validation-report.schema.json](schemas/ida-mutation-validation-report.schema.json)，实验方法和边界见 [offline-evaluator-mutation-validation.md](offline-evaluator-mutation-validation.md)。8/8 检出只证明对这些合成变异算子的敏感性，不证明语义有效性；M09–M12 仍需独立专家/Oracle/污染审计。
+
+## Capability / G-Theory 参数恢复实验
+
+```bash
+python scripts/run_g_theory_parameter_recovery.py --persons 40 --items 25 --output artifacts/g-theory-parameter-recovery.json
+```
+
+实验报告契约见 [g-theory-monte-carlo-report.schema.json](schemas/g-theory-monte-carlo-report.schema.json)，方法和样本设计敏感性结果见 [capability-measurement-analysis.md](capability-measurement-analysis.md)。模拟仅支持 DGP 条件下的 observed-score 参数恢复，不构成真实 Skill 测量效度或普遍样本量门槛。
 
 ## 综合公式验证证据
 
@@ -164,4 +182,4 @@ python scripts/validate_formula_validation.py path/to/formula-validation-report.
 
 ## 当前 Round 4 证据边界
 
-最新精确验证 head 为 `8930dcc656288e1b6fd7bc672202bbec520b92b9`，Run #1930（45714388411）207/207 离线测试 PASS，Round 4 IDA/ERA 报告契约 PASS。该 Run 未启动新的 Builder production、independent-validation、Pilot 或 adjudication；它重新分析既有冻结证据。当前 15 条用例中 3 条真实 Pilot、12 条 NOT_RUN，IDA/ERA PARTIAL，Judge NOT_RUN，Regression 无配对，IRT/G-Theory 未拟合，综合分 NOT_VALIDATED。
+最新已完成完整工程验证的代码 head 为 `9cb0e46cd78193a9419929f90c73817a0ac511c3`，Run #2011（45806101196）243/243 离线测试 PASS，actionlint、Skill package、Benchmark、三种 G-Theory 样本设计模拟、IDA-M01–M08 controlled mutation、IDA/ERA/Capability report contract 均 PASS。该 Run 未启动新的 Builder production、independent-validation、Pilot 或 adjudication；它重新分析既有冻结证据。当前 15 条用例中 3 条真实 Pilot、12 条 NOT_RUN，IDA/ERA PARTIAL，Judge NOT_RUN，Regression 无配对，Capability 为 1 configuration × 3 cases，Rasch/G-Theory NOT_ASSESSED，DIF/测量不变性 NOT_ASSESSED，综合分 NOT_VALIDATED。

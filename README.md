@@ -12,9 +12,9 @@
 
 v0.0.2 正在独立分支 `feat/quality-assessment-v0.0.2` 开发，当前正式发布版本仍为 **0.0.1**。v0.0.2 尚未发布、尚未形成 Release Candidate，也不应将本分支视为可替代已发布版本的正式包。
 
-v0.0.2 的研发目标是建立通用 Agent / Skill 数据集的独立离线质量评价（IDA）与真实运行评价（ERA），分别支持 Capability 和 Regression。当前已有离线检查器、运行记录分析器、机器可读报告契约、Oracle 冻结工具、专家盲评协议和实验设计。最新已验证的工程状态及未完成门禁见 [v0.0.2 任务清单](docs/quality-assessment-v0.0.2/TASKS.md) 与 [研发质量报告](docs/quality-assessment-v0.0.2/quality-report.md)。
+v0.0.2 的研发目标是建立通用 Agent / Skill 数据集的独立离线质量评价（IDA）与真实运行评价（ERA），分别支持 Capability 和 Regression。当前已有离线检查器、运行记录分析器、机器可读报告契约、Oracle 冻结工具、专家盲评协议和实验设计。最新已验证的工程状态及未完成门禁见 [v0.0.2 任务清单](docs/quality-assessment-v0.0.2/TASKS.md)、[研发质量报告](docs/quality-assessment-v0.0.2/quality-report.md)、[IDA 受控变异验证](docs/quality-assessment-v0.0.2/offline-evaluator-mutation-validation.md) 与 [Capability 测量分析](docs/quality-assessment-v0.0.2/capability-measurement-analysis.md)。
 
-**重要限制：** 当前 IDA/ERA 实证结果仍为 PARTIAL；Round 4 数据集 15 条用例中仅 3 条有真实 Pilot 和独立 Gold Oracle，另外 12 条 NOT_RUN。Judge 校准的独立实证、专家内容效度、缺陷注入盲测、Regression 配对、IRT/G-Theory 和综合公式效度均未完成。综合分、固定权重和通过阈值保持关闭，不得把 CI/Schema PASS 解释为测量效度。
+**重要限制：** 当前 IDA/ERA 实证结果仍为 PARTIAL；Round 4 数据集 15 条用例中仅 3 条有真实 Pilot 和独立 Gold Oracle，另外 12 条 NOT_RUN。IDA-M01–M08 的 8/8 检出仅是合成确定性变异敏感性验证，不代表语义效度；M09–M12 尚未评估。Judge 校准的独立实证、专家内容效度、语义缺陷盲测、Regression 配对、DIF/测量不变性和综合公式效度均未完成。Rasch 1PL 与 G-Theory 探索性估计器及模拟参数恢复实验已实现，但真实 Round 4 只有 1 个配置 × 3 个用例，无法进行真实测量估计。综合分、固定权重和通过阈值保持关闭，不得把 CI/Schema PASS 解释为测量效度。
 
 ## 这个 Skill 是做什么的
 
