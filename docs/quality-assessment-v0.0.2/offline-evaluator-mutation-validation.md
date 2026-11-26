@@ -41,3 +41,8 @@ Negative controls now have a stronger deterministic contract. For each control, 
 The byte-level dataset digest is deliberately excluded because harmless serialization or identity transformations can change raw bytes. A control is counted as a false positive if it triggers a hard FAIL **or** changes the invariant metric projection. The report records both signatures and the boolean comparison, and the JSON Schema enforces those fields.
 
 This improves the test from “no hard FAIL” to “no hard FAIL and no change in measured gate/metric outputs” for the four authored controls. It does not enlarge the control sample, estimate a general false-positive rate, validate semantic equivalence for arbitrary transformations, or replace independent semantic review. The statistical result remains 0/4 with a wide Wilson interval.
+
+
+## Latest CI evidence (2026-11-27)
+
+Run #2023 on exact head `49613acf6d540f5ef494335a45eebca65077a64b` passed 243/243 offline tests and the controlled mutation experiment. Results: 8/8 deterministic mutation operators detected (Wilson 95% CI 0.676–1.000); 4/4 negative controls preserved the invariant metric projection; 0/4 false positives (Wilson 95% CI 0–0.490). This is a synthetic implementation-sensitivity result only, not a semantic-validity claim. Artifact #15152600525, ZIP SHA-256 `bdc08d2a95efcffa5ec1c8bbaa43b9432c27e9b639b09795fcefb9c6e76125ef`.

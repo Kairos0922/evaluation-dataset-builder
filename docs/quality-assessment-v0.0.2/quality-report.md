@@ -11,7 +11,7 @@
 
 v0.0.2 已完成需求基线、研究与方法论设计、IDA/ERA 核心工程实现、报告契约、确定性检查、Round 4 Oracle 执行前冻结工具、盲审资料包生成/比较工具、Judge 校准证据契约，以及架构/ERA 执行协议。
 
-**工程与契约层：阶段性通过。** 质量评估代码的最新完整实验验证仍以 Run #2011（head `9cb0e46cd78193a9419929f90c73817a0ac511c3`，243/243 离线测试）为准；随后 TASKS 台账更新后的 Run #2020（head `a4494182e35d75fee61d34beac60fff69e07f87f`）验证工作流 SUCCESS。Run #2020 是台账/文档提交的 CI 结果，不代表新增真实运行或科学效度证据。
+**工程与契约层：阶段性通过。** 最新完整验证为 Run #2023（head `49613acf6d540f5ef494335a45eebca65077a64b`）：actionlint、Skill package、Benchmark、243/243 离线测试、G-Theory 三种样本设计模拟、IDA controlled mutation 和 Round 4 real-evidence report contracts 全部 PASS。该 Run 没有启动生产 Builder、独立评审或新增 Pilot；不代表新增科学效度证据。
 
 **科学效度层：证据不足。** 当前真实 Round 4 数据只有 15 条用例中的 3 条完成 Pilot 和独立 Gold Oracle 判定；其余 12 条未运行。独立专家内容效度与 Round 4 Oracle 评审已按用户决定暂缓；Judge 独立校准、盲测语义缺陷识别、完整 Capability/Regression 效标和公式冻结验证仍未完成。暂缓不等于通过。
 
@@ -57,6 +57,7 @@ v0.0.2 已完成需求基线、研究与方法论设计、IDA/ERA 核心工程�
 | [#1944](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45721014232) | `122d38527a3af2e3d012598cbb6ac93b3b4ecfc0` | SUCCESS | **215/215** | #15070934643 |
 | [#1947](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45721216859) | `bca98059650afce9df752917553bcff98adeb91e` | SUCCESS | **215/215** | #15071653396 |
 | [#1983](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45800505196) | `d899ea3fab0b0f27a9d8fc1c57e78ade28492683` | SUCCESS | **230/230** | #15105794918 |
+| [#2023](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45892053327) | `49613acf6d540f5ef494335a45eebca65077a64b` | SUCCESS | **243/243** | #15152600525 (IDA mutation) |
 
 Run #1933 的 Round 4 artifact SHA-256：
 
@@ -93,7 +94,7 @@ Run #1933 中 Builder production、independent-validation、webapp-testing-pilot
 | P0 | Round 4 剩余 12 条 Oracle 未冻结（EX-07 DEFERRED） | 12 条继续 NOT_RUN；不能形成完整 15-case 运行效标 | 若未来重启该工作，先确认独立 Gold 来源、审查资源与授权，再通过 12-case hash-bound freeze |
 | P0 | 专家内容效度尚无真实评分（EX-03 DEFERRED） | 无 CVI/CVR/Aiken's V 或评分者一致性实证；当前不得声称内容效度已验证 | 本轮暂不推进；未来如重新启动，需另行确认专家资源、盲评与仲裁方案 |
 | P0 | Judge 无独立 Gold 校准实证 | 无法量化 Judge False Pass/False Fail、Abstention 和重复性 | 独立 Gold/held-out 校准集、盲法协议、Judge 报告及独立复核 |
-| P1 | 缺陷注入只有确定性单测 | 不能声称对盲测真实缺陷有检出效度 | 独立确认基线/变体、盲测、控制样本、按缺陷类别报告区间 |
+| P1 | IDA-M01–M08 仅完成合成确定性变异；M09–M12 语义类缺陷未评估 | 不能声称对真实盲测语义缺陷有检出效度 | 独立 Gold / 语义缺陷标签或未来重启独立评审；污染审计与 held-out 评估 |
 | P1 | Capability/Regression 真实效标不足 | 无完整能力矩阵、无配对 Regression、无跨 Agent/Skill 泛化证据 | 多配置真实运行、配对版本、历史故障与重复运行 |
 | P1 | 外部 Benchmark 数据资产授权未全部确认 | 不能安全导入/再分发/运行所有候选资产 | 锁定版本、逐文件许可、镜像/软件/服务授权、哈希和 Oracle |
 | P1 | 综合公式缺少独立开发/验证集 | 权重、阈值和标量分数没有科学依据 | 预注册、独立效标、分组隔离、冻结验证、敏感性和外部复现 |
@@ -326,3 +327,12 @@ The root VERSION and Skill frontmatter metadata.version remain 0.0.1, matching t
 - Negative control 只有在不触发硬 FAIL 且指标签名与基线完全一致时才判定 PASS；数据集原始字节 SHA 不纳入不变量比较，因为格式/身份变换可合法改变字节摘要。
 - 报告 Schema 新增 `invariant_metrics_preserved`、基线/观察签名和 `invariant_metric_failure_count`；单测断言四种控制全部保持指标不变。
 - 该改进增强的是四个预设控制的回归保护，不增加控制样本量，也不把 0/4 解释为一般误报率保证；语义有效性仍 NOT_ASSESSED。
+
+
+### Run #2023 — IDA metamorphic negative-control invariance（2026-11-27）
+
+- 精确 head `49613acf6d540f5ef494335a45eebca65077a64b` 的 Run #2023（[45892053327](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45892053327)）SUCCESS：243/243 tests，actionlint、Skill package、Benchmark、G-Theory sensitivity simulations、IDA mutation validation 和 Round 4 IDA/ERA/Capability contracts PASS。
+- 8/8 deterministic mutations detected（100%；Wilson 95% CI 0.676–1.000）。
+- 4/4 negative controls 保持 overall status、gate statuses/severity 和 metric values/statuses 不变；0/4 false positives，invariant metric failures 0/4。Wilson 95% CI for negative-control false-positive rate remains 0–0.490.
+- Artifact #15152600525，ZIP SHA-256 `bdc08d2a95efcffa5ec1c8bbaa43b9432c27e9b639b09795fcefb9c6e76125ef`.
+- Production Builder、independent-validation、Pilot 和 adjudication jobs 均 SKIPPED；该验证没有新增真实运行或独立语义标签。
