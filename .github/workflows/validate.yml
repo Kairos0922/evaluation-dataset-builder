@@ -1612,6 +1612,13 @@ jobs:
             --target-name "Anthropic webapp-testing Skill" \
             --evaluation-purpose capability
 
+      - name: 对真实 Pilot 运行 Capability / Rasch / G-Theory 诊断
+        run: |
+          set -euo pipefail
+          python scripts/analyze_capability_measurement.py \
+            --records artifacts/round4-runtime-records.jsonl \
+            --output artifacts/round4-capability-measurement-report.json
+
       - name: 核对报告边界与未完成证据
         run: |
           set -euo pipefail
@@ -1620,14 +1627,22 @@ jobs:
           from pathlib import Path
 
           from scripts.validate_quality_assessment import validate_report
+          from scripts.analyze_capability_measurement import validate_report as validate_capability_report
 
           ida = json.loads(Path("artifacts/round4-ida-report.json").read_text())
           era = json.loads(Path("artifacts/round4-era-report.json").read_text())
+          capability = json.loads(Path("artifacts/round4-capability-measurement-report.json").read_text())
           metadata = json.loads(Path("artifacts/round4-runtime-import-metadata.json").read_text())
 
           for label, report in (("IDA", ida), ("ERA", era)):
               errors = validate_report(report)
               assert not errors, f"{label} report contract validation failed: {errors}"
+          capability_errors = validate_capability_report(capability)
+          assert not capability_errors, f"Capability measurement report contract failed: {capability_errors}"
+          assert capability["evidence"]["input_record_count"] == 3
+          assert capability["dif"]["status"] == "NOT_ASSESSED"
+          assert capability["measurement_invariance"]["status"] == "NOT_ASSESSED"
+          print(f"Capability measurement status: {capability['overall_status']}; eligible persons/items: {capability['evidence']['eligible_person_count']}/{capability['evidence']['eligible_item_count']}.")
           print("PASS: IDA and ERA reports conform to their JSON Schemas and cross-field contracts.")
 
           assert ida["overall_status"] == "PARTIAL", ida["overall_status"]
@@ -1659,5 +1674,6 @@ jobs:
             artifacts/round4-source-registry.json
             artifacts/round4-ida-report.json
             artifacts/round4-era-report.json
+            artifacts/round4-capability-measurement-report.json
           if-no-files-found: warn
           retention-days: 90
