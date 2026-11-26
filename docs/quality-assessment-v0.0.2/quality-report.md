@@ -24,8 +24,8 @@ v0.0.2 已完成需求基线、研究与方法论设计、IDA/ERA 核心工程�
 | 状态 | 数量 | 解释 |
 |---|---:|---|
 | DONE | 20 | 设计/工程任务已有可复核文档、代码或 CI 证据 |
-| IN_PROGRESS | 7 | 已有部分实现或部分真实证据，验收条件尚未全部满足 |
-| BLOCKED | 10 | 需要独立人员、外部许可/数据、Oracle 或用户发布批准 |
+| IN_PROGRESS | 6 | 已有部分实现或部分真实证据，验收条件尚未全部满足 |
+| BLOCKED | 11 | 需要独立人员、外部许可/数据、Oracle 或用户发布批准 |
 | TODO | 0 | 尚未启动的任务已转为明确阻塞状态，避免掩盖依赖 |
 | **合计** | **37** | |
 
@@ -214,3 +214,12 @@ Run #1947（45721216859）在精确 head `bca98059650afce9df752917553bcff98adeb9
 - 精确 head `d899ea3fab0b0f27a9d8fc1c57e78ade28492683` 的 Run #1983（45800505196）SUCCESS：actionlint、正式 Skill 包、Benchmark、230/230 离线测试 PASS；Round 4 evidence Job SUCCESS，实际导入 3 条真实 Pilot 并运行 IDA/ERA；报告 Schema/cross-field contract PASS。
 - Artifact #15105794918，ZIP SHA-256 `0d703863f965f99e34f721c00895ada15acd25ef0495015d4492826407962e03`。
 - EX-06 标记 DONE 的严格含义是：当前实际存在的 Builder/DSH/Runner/独立 Oracle 冻结证据已安全规范化并完成 IDA/ERA 运行。数据集仍只有 3/15 Pilot，12 NOT_RUN，Judge NOT_RUN，composite NOT_VALIDATED；这些未完成科学效度工作不由 EX-06 的工程交付状态覆盖。
+
+
+### EX-05 Capability / Regression 真实效标实验阻塞状态（2026-11-26）
+
+- Issue #43 目前仅有项目方发布的独立盲审招募公告，没有独立评审者报名或提交；Round 4 剩余 12 条用例尚未完成双盲 Oracle 和第三方仲裁，EX-07 未解除。
+- 当前仅 WB-02、WB-10、WB-12 三条 Pilot，3/3 独立 Gold PASS；单一 Skill revision、单一模型配置、每 case 一次运行，不足以形成 Capability 多配置响应矩阵或估计 Agent/Task/Seed/Environment 方差，也没有同 case baseline/candidate Regression 配对。
+- Run #1983 的生产 Builder、independent validation、Pilot 和 adjudication jobs 均 SKIPPED。OpenRouter preflight 成功只说明预检步骤通过，不代表生产运行已执行或获得额外运行授权。
+- 因 EX-05 的核心验收需要 EX-07 独立 Oracle freeze、额外真实运行授权/环境和配对版本数据，任务状态调整为 BLOCKED。解除条件：完成独立盲审与仲裁、冻结 12-case Oracle、取得必要运行授权、完成多配置/重复/配对实验并归档原始证据。
+- 这不是把 3/3 Pilot 结果判为失败；它们仍是有限 Pilot 证据，不能外推为总体能力或回归效度。

@@ -42,7 +42,7 @@
 | EX-03 | 实验 | 完成专家内容效度与评分者一致性实验 | BLOCKED | 盲评协议、匿名评分 Schema、统计计划和招募公告已建立；Issue #43 目前只有招募公告，尚无独立评审者报名/评分。解除条件：两名独立评审者和独立仲裁者完成真实盲评并归档原始记录。 |
 | EX-04 | 实验 | 完成缺陷注入识别实验 | BLOCKED | 确定性变异算子和单测已建立，但没有独立确认的缺陷变体、盲测结果、误报/漏报和区间。解除条件：独立确认基线/变体、冻结标签与盲测评估。 |
 | EX-06 | 工程/实验 | 将真实 Builder、DSH Trace、Runner 和独立 Oracle 证据转换为规范 Runtime Record，并运行 IDA/ERA | DONE | 在现有冻结证据范围内完成：Builder/Pilot 原始证据导入、Runtime Record、IDA/ERA 分析、Schema/cross-field validator。新增 DSH JSONL 逐行解析、case/run 身份一致性检查、证据清单强制绑定、SHA-256 校验、路径穿越/符号链接逃逸防护，并将 trace_sha256 写入 Runtime Record Schema。代码提交 `e7245d2`，测试修正 `d899ea3`；Run #1983（45800505196，精确 head `d899ea3fab0b0f27a9d8fc1c57e78ade28492683`）230/230 离线测试 PASS，Round 4 real-evidence Job SUCCESS，Artifact 15105794918（ZIP SHA-256 `0d703863f965f99e34f721c00895ada15acd25ef0495015d4492826407962e03`）。该任务仅完成现有可用证据的规范化和分析：IDA/ERA 仍 PARTIAL，3/15 Pilot，12 NOT_RUN，Judge NOT_RUN，composite NOT_VALIDATED；剩余覆盖与效度任务由 EX-05/EX-07 等追踪。 |
-| EX-05 | 实验 | 完成 Capability / Regression 真实运行效标实验 | IN_PROGRESS | 已有三条真实 Skill Pilot（WB-02/WB-10/WB-12）和独立 Gold Oracle 3/3 PASS；数据集 15 条中 12 条 NOT_RUN。没有完整 Capability 响应矩阵、IRT/G-Theory 结果或同 case 版本配对 Regression；继续受 EX-07 Oracle 冻结和外部运行环境限制。 |
+| EX-05 | 实验 | 完成 Capability / Regression 真实运行效标实验 | BLOCKED | 已有三条真实 Skill Pilot（WB-02/WB-10/WB-12）和独立 Gold Oracle 3/3 PASS，但只有一个 Skill revision / 模型配置、每 case 单次运行；15 条中 12 条 NOT_RUN，无完整 Agent×Task×Seed×Environment 矩阵、无 IRT/G-Theory 适配数据、无同 case baseline/candidate Regression 配对。Issue #43 招募帖仍无独立评审者报名，EX-07 的 12-case Oracle freeze 未完成；Run #1983 的 production/Pilot jobs 均 SKIPPED。解除条件：两位独立评审者和第三位仲裁者完成 Oracle freeze；明确授权并完成多配置/重复运行及配对版本执行；归档独立 Gold 与原始 Trace。不得以现有 3/3 通过率代替能力效标。 |
 | EX-07 | 实验 | 为 Round 4 剩余 12 条用例建立独立 Gold Oracle 规则和执行前门禁 | BLOCKED | 独立 Oracle 计划、记录 Schema、A/B 盲审包生成器、比较器、hash-bound freeze manifest/validator 和测试均已实现。Issue #43 无评审者响应，盲审包未分发/回收，未产生独立仲裁；12 条保持 NOT_RUN，WB-15 Application outcome UNKNOWN。 |
 | SC-01 | 方案 | 冻结 v0.0.2 需求、架构和验收标准 | DONE | 新增 architecture-and-acceptance-baseline.md，定义模块边界、IDA/ERA 数据流、证据等级、关键不变量、用途分支、版本策略和分层验收矩阵；decision-log.md D-007 采纳，requirements.md 状态同步。 |
 | IM-01 | 实现 | 设计并实现 IDA 报告 Schema / 机器可读契约 | DONE | schemas/ida-report.schema.json；JSON 语法检查通过；commit f47905e |
@@ -277,3 +277,10 @@
 - 代码提交：`e7245d2d4725c5c2e07fcd0e68f63a56a19a07bb`；测试修正提交：`d899ea3fab0b0f27a9d8fc1c57e78ade28492683`。
 - Run #1983（45800505196）在精确 head `d899ea3fab0b0f27a9d8fc1c57e78ade28492683` 上 SUCCESS：actionlint、正式 Skill 包、Benchmark、230/230 离线测试 PASS；Round 4 evidence Job 成功导入 3 条真实 Pilot，IDA/ERA Schema 与 cross-field contract PASS；artifact #15105794918，ZIP SHA-256 `0d703863f965f99e34f721c00895ada15acd25ef0495015d4492826407962e03`。
 - 任务验收边界：EX-06 DONE 仅代表现有冻结 Builder/DSH/Runner/Oracle 证据已被安全规范化并完成 IDA/ERA 运行。结果仍为 IDA/ERA PARTIAL、15 条中 3 条 Pilot / 12 条 NOT_RUN、Judge NOT_RUN、composite NOT_VALIDATED；不表示完整 Capability/Regression 或科学效度验证完成。
+
+
+### EX-05 Capability / Regression 真实效标实验外部阻塞核查（2026-11-26）
+- 复核 GitHub Issue #43：目前仅有项目方发布的盲审招募公告，无独立评审者报名或提交；12-case Oracle freeze 尚不能执行，EX-07 前置条件未满足。
+- 现有真实数据仅 WB-02/WB-10/WB-12 三条 Pilot，独立 Oracle 3/3 PASS，但它们来自单一 Skill revision / 单一模型运行配置 / 每 case 一次运行；不能识别 Agent/Task/Seed/Environment 方差，也不能构成 Regression baseline/candidate 配对。
+- Run #1983（45800505196）中 production Builder、independent validation、Pilot、adjudication jobs 均 SKIPPED；OpenRouter preflight PASS 不等于生产执行授权，也没有新增运行样本。
+- 因主要验收条件依赖独立 Oracle freeze、额外运行环境/权限和多配置配对数据，EX-05 从 IN_PROGRESS 调整为 BLOCKED。解除条件见任务行；不降低实验标准、不用模拟数据冒充真实效标。
