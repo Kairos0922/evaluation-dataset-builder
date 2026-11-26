@@ -45,12 +45,16 @@ class JudgeCalibrationRunnerContractTests(unittest.TestCase):
 
     def test_runner_recomputes_false_pass_false_fail_and_abstention(self):
         results = self._results()
-        results[0]["gold_status"] = "FAIL"
-        results[0]["judge_status"] = "PASS"
-        results[1]["gold_status"] = "PASS"
-        results[1]["judge_status"] = "FAIL"
-        results[2]["gold_status"] = "UNKNOWN"
-        results[2]["judge_status"] = "UNKNOWN"
+        fail_index = next(i for i, item in enumerate(results) if item["gold_status"] == "FAIL")
+        pass_index = next(i for i, item in enumerate(results) if item["gold_status"] == "PASS")
+        unknown_index = next(i for i, item in enumerate(results) if item["gold_status"] == "UNKNOWN")
+        # Keep every other case non-abstaining so this fixture has exactly one abstention.
+        for item in results:
+            if item["gold_status"] == "UNKNOWN":
+                item["judge_status"] = "PASS"
+        results[fail_index]["judge_status"] = "PASS"
+        results[pass_index]["judge_status"] = "FAIL"
+        results[unknown_index]["judge_status"] = "UNKNOWN"
         report = build_contract_report(
             self.fixture, results,
             base_url="https://judge.example/v1",
