@@ -12,7 +12,9 @@
     "irt",
     "g_theory",
     "overall_status",
-    "limitations"
+    "limitations",
+    "dif",
+    "measurement_invariance"
   ],
   "properties": {
     "schema_version": {
@@ -131,7 +133,9 @@
               "ability_logit",
               "standard_error",
               "raw_score",
-              "item_count"
+              "item_count",
+              "infit_msq",
+              "outfit_msq"
             ],
             "properties": {
               "configuration_id": {
@@ -151,6 +155,14 @@
               "item_count": {
                 "type": "integer",
                 "minimum": 1
+              },
+              "infit_msq": {
+                "type": "number",
+                "minimum": 0
+              },
+              "outfit_msq": {
+                "type": "number",
+                "minimum": 0
               }
             },
             "additionalProperties": false
@@ -165,7 +177,9 @@
               "difficulty_logit",
               "standard_error",
               "information_by_theta",
-              "information_at_theta_zero"
+              "information_at_theta_zero",
+              "infit_msq",
+              "outfit_msq"
             ],
             "properties": {
               "case_id": {
@@ -201,6 +215,14 @@
               "information_at_theta_zero": {
                 "type": "number",
                 "minimum": 0
+              },
+              "infit_msq": {
+                "type": "number",
+                "minimum": 0
+              },
+              "outfit_msq": {
+                "type": "number",
+                "minimum": 0
               }
             },
             "additionalProperties": false
@@ -231,6 +253,43 @@
           "items": {
             "type": "string"
           }
+        },
+        "fit_diagnostics": {
+          "type": "object",
+          "required": [
+            "status",
+            "person_infit_mean_square",
+            "person_outfit_mean_square",
+            "item_infit_mean_square",
+            "item_outfit_mean_square",
+            "interpretation"
+          ],
+          "properties": {
+            "status": {
+              "const": "DESCRIPTIVE_ONLY"
+            },
+            "person_infit_mean_square": {
+              "type": "number",
+              "minimum": 0
+            },
+            "person_outfit_mean_square": {
+              "type": "number",
+              "minimum": 0
+            },
+            "item_infit_mean_square": {
+              "type": "number",
+              "minimum": 0
+            },
+            "item_outfit_mean_square": {
+              "type": "number",
+              "minimum": 0
+            },
+            "interpretation": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
         }
       },
       "additionalProperties": false
@@ -371,6 +430,40 @@
       "items": {
         "type": "string"
       }
+    },
+    "dif": {
+      "type": "object",
+      "required": [
+        "status",
+        "reason"
+      ],
+      "properties": {
+        "status": {
+          "const": "NOT_ASSESSED"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "measurement_invariance": {
+      "type": "object",
+      "required": [
+        "status",
+        "reason"
+      ],
+      "properties": {
+        "status": {
+          "const": "NOT_ASSESSED"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
     }
   },
   "additionalProperties": false

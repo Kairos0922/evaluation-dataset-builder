@@ -10,6 +10,7 @@ import argparse
 import hashlib
 import json
 import math
+import statistics
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -76,6 +77,21 @@ def _prepare_matrix(records: list[dict]) -> tuple[list[str], list[str], list[lis
     return persons, items, matrix, exclusions
 
 
+def _rasch_fit_mnsq(observed: list[int], expected: list[float]) -> dict:
+    residual_squares = [(actual - predicted) ** 2 for actual, predicted in zip(observed, expected)]
+    variances = [predicted * (1.0 - predicted) for predicted in expected]
+    information = sum(variances)
+    outfit_terms = [
+        residual / variance
+        for residual, variance in zip(residual_squares, variances)
+        if variance > 1e-12
+    ]
+    return {
+        "infit_msq": sum(residual_squares) / information if information > 1e-12 else 0.0,
+        "outfit_msq": statistics.mean(outfit_terms) if outfit_terms else 0.0,
+    }
+
+
 def fit_rasch_1pl(persons: list[str], items: list[str], matrix: list[list[int]],
                   max_iterations: int = 500, tolerance: float = 1e-7) -> dict:
     """Joint maximum-likelihood Rasch fit; refuses complete separation."""
@@ -125,17 +141,16 @@ def fit_rasch_1pl(persons: list[str], items: list[str], matrix: list[list[int]],
 
     person_results = []
     for index, person in enumerate(persons):
-        info = sum(
-            _sigmoid(theta[index] - difficulty[item]) *
-            (1.0 - _sigmoid(theta[index] - difficulty[item]))
-            for item in range(i_count)
-        )
+        expected = [_sigmoid(theta[index] - difficulty[item]) for item in range(i_count)]
+        info = sum(value * (1.0 - value) for value in expected)
+        fit = _rasch_fit_mnsq(matrix[index], expected)
         person_results.append({
             "configuration_id": person,
             "ability_logit": theta[index],
             "standard_error": 1.0 / math.sqrt(info) if info > 0 else None,
             "raw_score": sum(matrix[index]),
             "item_count": i_count,
+            **fit,
         })
 
     grid = [-2.0, -1.0, 0.0, 1.0, 2.0]
@@ -146,14 +161,16 @@ def fit_rasch_1pl(persons: list[str], items: list[str], matrix: list[list[int]],
             probability = _sigmoid(ability - difficulty[index])
             information_values.append(probability * (1.0 - probability))
         info_at_zero = information_values[2]
+        item_expected = [_sigmoid(theta[p] - difficulty[index]) for p in range(p_count)]
+        item_fit = _rasch_fit_mnsq(
+            [matrix[p][index] for p in range(p_count)], item_expected
+        )
+        item_information = sum(value * (1.0 - value) for value in item_expected)
         item_results.append({
             "case_id": item,
             "difficulty_logit": difficulty[index],
-            "standard_error": 1.0 / math.sqrt(sum(
-                _sigmoid(theta[p] - difficulty[index]) *
-                (1.0 - _sigmoid(theta[p] - difficulty[index]))
-                for p in range(p_count)
-            )),
+            "standard_error": 1.0 / math.sqrt(item_information),
+            **item_fit,
             "information_by_theta": [
                 {"theta": ability, "information": value}
                 for ability, value in zip(grid, information_values)
@@ -168,6 +185,14 @@ def fit_rasch_1pl(persons: list[str], items: list[str], matrix: list[list[int]],
         "iterations": iterations,
         "persons": person_results,
         "items": item_results,
+        "fit_diagnostics": {
+            "status": "DESCRIPTIVE_ONLY",
+            "person_infit_mean_square": statistics.mean(row["infit_msq"] for row in person_results),
+            "person_outfit_mean_square": statistics.mean(row["outfit_msq"] for row in person_results),
+            "item_infit_mean_square": statistics.mean(row["infit_msq"] for row in item_results),
+            "item_outfit_mean_square": statistics.mean(row["outfit_msq"] for row in item_results),
+            "interpretation": "Descriptive Rasch infit/outfit mean squares only; no universal cutoff or inferential fit decision is applied.",
+        },
         "test_information_by_theta": [
             {
                 "theta": ability,
@@ -180,7 +205,8 @@ def fit_rasch_1pl(persons: list[str], items: list[str], matrix: list[list[int]],
             for ability in grid
         ],
         "limitations": [
-            "Exploratory 1PL Rasch estimates only; no 2PL discrimination, multidimensional IRT, DIF, or formal fit diagnostics are implemented.",
+            "Exploratory 1PL Rasch estimates only; no 2PL discrimination, multidimensional IRT, DIF, or measurement-invariance tests are implemented.",
+            "Infit/outfit mean squares are descriptive diagnostics only; no universal cutoff, formal p-value, or model acceptance decision is applied.",
             "Joint maximum likelihood estimates can be biased in small samples; standard errors are local Fisher-information approximations.",
             "The person population is the supplied configuration set and must not be generalized beyond its declared scope.",
             "No universal sample-size threshold or validity claim is implied by successful convergence.",
