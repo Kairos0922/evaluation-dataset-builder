@@ -24,8 +24,8 @@ v0.0.2 已完成需求基线、研究与方法论设计、IDA/ERA 核心工程�
 | 状态 | 数量 | 解释 |
 |---|---:|---|
 | DONE | 20 | 设计/工程任务已有可复核文档、代码或 CI 证据 |
-| IN_PROGRESS | 3 | 已有部分实现或部分真实证据，验收条件尚未全部满足 |
-| BLOCKED | 14 | 需要独立人员、外部许可/数据、Oracle 或用户发布批准 |
+| IN_PROGRESS | 2 | 已有部分实现或部分真实证据，验收条件尚未全部满足 |
+| BLOCKED | 15 | 需要独立人员、外部许可/数据、Oracle 或用户发布批准 |
 | TODO | 0 | 尚未启动的任务已转为明确阻塞状态，避免掩盖依赖 |
 | **合计** | **37** | |
 
@@ -264,3 +264,20 @@ Run #1947（45721216859）在精确 head `bca98059650afce9df752917553bcff98adeb9
 - SKILL.md references all 16 on-demand reference assets directly. Package validator verifies exact reference inventory, no missing/extra files, no second-level reference dependency, valid Draft 2020-12 schemas and version consistency.
 - Run #2004（[45804838674](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45804838674)，exact head `013c351812b801554faa72fd360b208b9b553bb4`）passed actionlint, Skill package validation, Benchmark, 241/241 offline tests and Round 4 evidence analysis.
 - Root VERSION and SKILL frontmatter metadata.version remain 0.0.1, the already released package version. Upgrading to 0.0.2 before release gates and explicit approval would violate the release boundary. IM-07 is therefore BLOCKED only on the formal version transition; no tag, release or merge was created.
+
+
+### QA-02 Offline IDA evaluator controlled-mutation validation（2026-11-26）
+
+The new controlled mutation experiment executed eight deterministic defect operators and four negative controls. Every case regenerated an IDA report and validated the report contract.
+
+| Result | Observed | Uncertainty / interpretation |
+|---|---:|---|
+| Deterministic mutation detection | 8/8 (100%) | Wilson 95% CI: 0.676–1.000 |
+| Negative-control false positives | 0/4 (0%) | Wilson 95% CI: 0–0.490; four controls are far too few for a general false-positive guarantee |
+| Nondeterministic mutation classes | 4 NOT_ASSESSED | M09–M12 require experts, independent Gold/Oracle or contamination audit |
+
+Detected deterministic mutations: missing required field, duplicate case ID, manifest count mismatch, dataset ID mismatch, unresolved source reference, missing source references, exact duplicate payload and coverage declaration mismatch. Negative controls: formatting-only changes, consistent case ID rename, case order reversal and an unused source-registry entry.
+
+Run #2011（[45806101196](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45806101196)，exact head `9cb0e46cd78193a9419929f90c73817a0ac511c3`）passed 243/243 offline tests and uploaded mutation artifact #15108859637 (ZIP SHA-256 `bb45162be43dd87e2b0587e8d35ae80c2b4328870bc2689debf23a594d323a1e`).
+
+This establishes implementation sensitivity to the eight specified synthetic mutations only. It does not establish semantic content validity, construct validity, source claim support, Gold correctness, or contamination resistance. The actual Round 4 IDA report remains PARTIAL: G01 PASS, G02–G04 NOT_ASSESSED, G05/G07 UNKNOWN, composite NOT_VALIDATED. QA-02 remains BLOCKED pending independent blind expert review and external Oracle/contamination evidence.

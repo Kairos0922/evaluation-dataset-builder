@@ -54,7 +54,7 @@
 | IM-07 | 集成 | 更新 Skill 质量标准、按需加载引用和版本到 0.0.2 | BLOCKED | quality-standard.md/yaml 已更新为方法标准 2.0.0 / applies_to_release 0.0.2；IDA/ERA/Runtime Record/Formula Validation/Expert Review schemas 与 16 个 on-demand references 已纳入正式 Skill 目录，SKILL.md 逐项直接引用。Run #2004（45804838674，精确 head `013c351812b801554faa72fd360b208b9b553bb4`）validate_skill.py PASS、241/241 测试 PASS、Skill package validation PASS。根 VERSION 与 SKILL frontmatter metadata.version 均保持 0.0.1，这是已发布版本；不得在 v0.0.2 未通过 Release Gate、PR #44 未获批准前改写版本元数据。解除条件：所有发布门禁通过并获得明确发布批准，再由独立 release task 升级 VERSION/frontmatter 并验证精确候选。 |
 | IM-09 | 实现 | 比较候选综合公式并执行权重/聚合敏感性分析 | BLOCKED | 候选公式数学形式和比较协议已定义，但无独立开发集、专家效标、盲测缺陷和外部运行效标；当前不得估计权重/阈值或输出标量总分。 |
 | QA-01 | 质量 | 建立元评测数据、已知缺陷注入和专家盲评样本 | BLOCKED | 缺陷目录、专家协议、评分 Schema、Benchmark 候选登记已建立；缺少许可确认的参考数据快照、专家原始盲评、独立缺陷标签和数据切分。 |
-| QA-02 | 质量 | 完成离线评价器验证与报告 | IN_PROGRESS | 确定性 IDA 检查器、报告契约和离线测试持续通过；Run #1933 的完整 CI 215/215 PASS。语义内容效度、专家一致性和盲测缺陷识别尚未执行，不能判定评价器整体效度完成。 |
+| QA-02 | 验证 | 完成离线评估器验证并形成可复核报告 | BLOCKED | 工程敏感性验证已补强：新增可复现 controlled-mutation runner，按 catalog 运行 IDA-M01–M08 八种确定性缺陷与四种 negative controls，逐案重算 IDA report 并验证报告 Schema；Run #2011（45806101196，精确 head `9cb0e46cd78193a9419929f90c73817a0ac511c3`）243/243 离线测试 PASS，8/8 deterministic mutations detected（100%，Wilson 95% CI 0.676–1.000），0/4 negative controls false-positive（0%，Wilson 95% CI 0–0.490）；M09–M12 NOT_ASSESSED。Artifact #15108859637，ZIP SHA-256 `bb45162be43dd87e2b0587e8d35ae80c2b4328870bc2689debf23a594d323a1e`。真实 Round 4 IDA 为 PARTIAL，G01 PASS、G02–G04 NOT_ASSESSED、G05/G07 UNKNOWN、composite NOT_VALIDATED；缺独立专家内容效度、盲法语义缺陷评审、独立 Gold/Oracle 和污染审计。解锁条件：至少两名独立盲评专家/仲裁者提交标准化 review packet，完成 M09–M12 与真实数据评审；合成 mutation 通过不能代替语义有效性。 |
 | QA-03 | 质量 | 完成真实运行评价的端到端验证 | IN_PROGRESS | Run #1933 重新导入冻结证据并通过 IDA/ERA 报告 Schema 与 cross-field validation；IDA=PARTIAL（15 条），ERA=PARTIAL（3/15 Pilot），12 NOT_RUN，Judge NOT_RUN，无 Regression 配对，IRT/G-Theory 未拟合。 |
 | QA-04 | 质量 | 完成综合公式独立验证；若证据不足则明确 NOT_VALIDATED | BLOCKED | 候选公式、验证 Schema/validator 和实验协议已建立；缺少独立专家效标、盲测缺陷、真实运行效标和冻结验证集。保持 composite NOT_VALIDATED/value=null。 |
 | P0-CI-01 | 工程 | 修复 CI #1807 中 Formula Validation Validator 对 datasets[].sample_count 的错误读取，并增加回归测试 | DONE | Schema 将 sample_count 定义在 split 层；验证器改为校验来源数据集非空并使用 split 总样本量；commit b6740f9（验证器）、a2dc04e（回归测试）；run #1808（45550108441）精确 head a2dc04e：actionlint、Skill 正式包、Benchmark 贯通样例 PASS，162/162 离线测试 PASS。Builder production / independent-validation jobs 按 PR 条件 SKIPPED |
@@ -308,3 +308,12 @@
 - SKILL.md 明确按任务场景按需读取 16 个 references；validate_skill.py 检查引用集合与实际文件完全一致、无缺失/多余文件、无二级 reference 依赖、Schema Draft 2020-12 有效。
 - Run #2004（45804838674，精确 head `013c351812b801554faa72fd360b208b9b553bb4`）actionlint、Skill package validation、Benchmark、241/241 离线测试 PASS；Round 4 evidence analysis PASS。
 - 当前正式 Skill package VERSION 和 SKILL.md metadata.version 均为 0.0.1。由于 v0.0.2 尚未通过 Release Gate，且用户明确禁止擅自合并 PR/创建 Release，不升级正式版本元数据。IM-07 状态调整为 BLOCKED，解除条件是所有 Release Gate 通过并取得明确发布批准。
+
+
+### QA-02 离线 IDA 评估器确定性敏感性验证完成、语义验证外部阻塞（2026-11-26）
+- 新增 `scripts/run_ida_mutation_validation.py`，按 defect-mutation-catalog.yaml 对 IDA-M01–M08 运行八种确定性控制缺陷，并设置格式变化、Case ID 重命名、Case 顺序变化、未引用来源登记四种 negative controls。
+- 每个 mutation/control 都重新生成 IDA report，验证 IDA report Schema/cross-field contract，记录数据集 SHA-256、报告 SHA-256、预期信号、观察信号和结构错误。
+- Run #2011（45806101196，精确 head `9cb0e46cd78193a9419929f90c73817a0ac511c3`）：243/243 测试 PASS；8/8 确定性缺陷检出，Wilson 95% CI 0.676–1.000；0/4 negative-control false positive，Wilson 95% CI 0–0.490。Artifact #15108859637，ZIP SHA-256 `bb45162be43dd87e2b0587e8d35ae80c2b4328870bc2689debf23a594d323a1e`。
+- IDA-M09–M12（歧义任务、错误 Gold、构念错配、答案泄漏）仍 NOT_ASSESSED，必须依赖盲法专家、独立 Oracle 或污染审计。4 个 negative controls 样本量太小，不能将 0/4 解读为一般 false-positive rate 接近 0。
+- Round 4 真实数据 IDA 报告为 PARTIAL；G01 PASS，G02–G04 NOT_ASSESSED，G05/G07 UNKNOWN，composite NOT_VALIDATED。没有把结构性规则敏感性误报为内容效度。
+- QA-02 调整为 BLOCKED：自主工程验证与控制缺陷敏感性实验完成；解除条件是独立专家盲评、独立 Gold/Oracle、语义缺陷和泄漏审计结果导入并完成独立复核。
