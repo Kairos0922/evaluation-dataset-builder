@@ -54,7 +54,8 @@ v0.0.2 已完成需求基线、研究与方法论设计、IDA/ERA 核心工程�
 | [#1940](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45720639140) | `0f50a9cc9de97ec2778b026c34dfd69e2c1b8bf8` | SUCCESS | **215/215** | #15072316423 |
 | [#1941](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45720784376) | `3a99fcc0de3609971d6c701bade210251c77fd04` | SUCCESS | **215/215** | #15070789521 |
 | [#1944](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45721014232) | `122d38527a3af2e3d012598cbb6ac93b3b4ecfc0` | SUCCESS | **215/215** | #15070934643 |
-| [#1947](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45721216859) | `bca98059650afce9df752917553bcff98adeb91e` | SUCCESS | **215/215** | #15071653396 |\n| [#1983](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45800505196) | `d899ea3fab0b0f27a9d8fc1c57e78ade28492683` | SUCCESS | **230/230** | #15105794918 |
+| [#1947](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45721216859) | `bca98059650afce9df752917553bcff98adeb91e` | SUCCESS | **215/215** | #15071653396 |
+| [#1983](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45800505196) | `d899ea3fab0b0f27a9d8fc1c57e78ade28492683` | SUCCESS | **230/230** | #15105794918 |
 
 Run #1933 的 Round 4 artifact SHA-256：
 
