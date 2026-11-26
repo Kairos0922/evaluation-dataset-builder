@@ -38,7 +38,7 @@ v0.0.2 已完成需求基线、研究与方法论设计、IDA/ERA 核心工程�
 - **需求与架构：** requirements.md、decision-log.md D-001 至 D-007、architecture-and-acceptance-baseline.md。
 - **研究与方法：** research-evidence.md、methodology-design.md、methodology-matrix.md、metric-catalog.md、formula-validation-protocol.md、experimental-design.md。
 - **IDA：** `scripts/assess_dataset_quality.py`、IDA report Schema、质量报告契约验证器和测试。
-- **ERA：** Runtime Record / ERA report Schema、`scripts/import_dsh_pilot_records.py`、`scripts/assess_runtime_quality.py`、报告验证器和测试。
+- **ERA：** Runtime Record / ERA report Schema、`scripts/import_dsh_pilot_records.py`、`scripts/assess_runtime_quality.py`、报告验证器和测试。新增 `scripts/analyze_capability_measurement.py`，提供基于独立 Gold 的探索性 Rasch 1PL 与平衡 Person×Item G-study，输出题目/配置参数、信息函数、方差分量、G/Phi 与 D-study；并配套报告 Schema、说明文档和 5 项测试。
 - **Judge：** 专家评审协议与评分记录 Schema；新增 Judge Calibration Report Schema、`scripts/validate_judge_calibration.py` 和 8 项验证器契约测试。现已将 `tests/calibrate_judge.py` 接入该报告契约，生成 suite SHA/case IDs、Judge prompt/implementation SHA、运行身份、逐案结果和重算指标，并在落盘前调用验证器及 suite 哈希校验；新增 3 项执行脚本集成测试。synthetic smoke 被固定标记为 NOT_VALIDATED，不能冒充独立 Gold 校准。
 - **Round 4 Oracle：** 独立判定计划、Oracle Record Schema、A/B 盲审资料包生成器、提交 Schema、比较器、hash-bound Freeze Manifest Schema 和验证器。
 - **运行协议：** runtime-assessment-protocol.md 定义执行前冻结、失败归因、Judge/Gold 独立性、Capability/Regression 分支、重复和停止规则。
@@ -187,3 +187,13 @@ Run #1947（45721216859）在精确 head `bca98059650afce9df752917553bcff98adeb9
 - TASKS/质量报告/CHANGELOG 更新后的精确 head `5b108084f65cfb0e00b8552744267ccdc5e51f58` 由 Run #1961（45732037841）完整验证成功：actionlint、正式 Skill 包、Benchmark、218/218 离线测试和 Round 4 IDA/ERA 报告契约均 PASS。
 - Round 4 artifact #15077885154，SHA-256 `fd3187c4a98a158b2dfe7b63fd2594c2c30540ab94a2e429886c6c11e72be122`。Builder production / independent-validation / Pilot / adjudication jobs 均 SKIPPED。
 - 该验证确认 Judge runner 契约集成没有破坏既有 IDA/ERA 证据管线；但没有新增真实 Judge 校准、Oracle 或生产运行证据。
+
+
+### Capability 测量分析工程原型（2026-11-26）
+
+- 新增 `scripts/analyze_capability_measurement.py`，只使用有效运行且具备 independent_oracle / expert_adjudication Gold provenance 的 Agent 二元响应；严格要求单一数据集身份与完整平衡 Configuration×Case 设计，拒绝重复单元格和缺格。
+- Rasch 部分实现 1PL 联合最大似然探索性估计、配置能力位置、题目难度、局部 Fisher 信息标准误近似、题目信息和测试信息；完全分离或不收敛时返回 NOT_ASSESSED。
+- G-Theory 部分实现平衡 Person×Item 双 facet ANOVA 方法矩估计、Person/Item/Person×Item+Residual 方差分量、相对 G、绝对 Phi 和 D-study 题目数量规划。
+- 新增 `schemas/capability-measurement-report.schema.json`、`capability-measurement-analysis.md` 和 5 项单测。
+- **科学边界：** 当前仅为探索性估计原型；不实现 2PL/多维 IRT、DIF、Seed/Environment/Judge 多 facet、非平衡/重复设计或模型拟合诊断。没有独立 Gold 时输出 NOT_ASSESSED。成功估计不代表单维性、局部独立、测量不变性或构念效度成立，也不启用综合分。
+- IM-05 继续 IN_PROGRESS，待 CI 验收、Monte Carlo 参数恢复、真实数据精度验证和独立外部效标实验。
