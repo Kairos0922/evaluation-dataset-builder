@@ -21,7 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from scripts.assess_dataset_quality import build_report
-from scripts.validate_quality_assessment import validate_report
+from scripts.validate_quality_assessment import validate_report as validate_ida_report
 
 CATALOG_PATH = ROOT / "docs" / "quality-assessment-v0.0.2" / "defect-mutation-catalog.yaml"
 SCHEMA_PATH = ROOT / "docs" / "quality-assessment-v0.0.2" / "schemas" / "ida-mutation-validation-report.schema.json"
@@ -129,7 +129,7 @@ def _assess(manifest: dict, cases: list[dict], registry: dict, *, pretty: bool =
         report, structural_errors, duplicate_ids, coverage_errors, source_errors = build_report(
             manifest_path, cases_path, output_path, "both", registry_path
         )
-        contract_errors = validate_report(report)
+        contract_errors = validate_ida_report(report)
         if contract_errors:
             raise ValueError("IDA report contract errors: " + "; ".join(contract_errors))
         return report, {
