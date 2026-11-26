@@ -1,0 +1,293 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/docs/quality-assessment-v0.0.2/schemas/g-theory-monte-carlo-report.schema.json",
+  "title": "G-Theory Monte Carlo Parameter Recovery Report",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "report_id",
+    "created_at",
+    "evidence_level",
+    "simulation",
+    "scenarios",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.0.2"
+    },
+    "report_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "evidence_level": {
+      "const": "SIMULATION_ONLY"
+    },
+    "simulation": {
+      "type": "object",
+      "required": [
+        "seed",
+        "replications_per_scenario",
+        "persons_per_replication",
+        "items_per_replication",
+        "reference_draws_per_scenario",
+        "response_model",
+        "random_effects",
+        "estimand",
+        "coefficient_item_count"
+      ],
+      "properties": {
+        "seed": {
+          "type": "integer"
+        },
+        "replications_per_scenario": {
+          "type": "integer",
+          "minimum": 2
+        },
+        "persons_per_replication": {
+          "type": "integer",
+          "minimum": 5
+        },
+        "items_per_replication": {
+          "type": "integer",
+          "minimum": 5
+        },
+        "reference_draws_per_scenario": {
+          "type": "integer",
+          "minimum": 100
+        },
+        "response_model": {
+          "type": "string"
+        },
+        "random_effects": {
+          "type": "string"
+        },
+        "estimand": {
+          "type": "string"
+        },
+        "coefficient_item_count": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "parameters",
+          "reference",
+          "valid_replications",
+          "failed_replications",
+          "negative_component_rates",
+          "parameter_recovery",
+          "failed_replication_reasons"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "parameters": {
+            "type": "object",
+            "required": [
+              "name",
+              "intercept",
+              "person_sd",
+              "item_sd"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "intercept": {
+                "type": "number"
+              },
+              "person_sd": {
+                "type": "number",
+                "minimum": 0
+              },
+              "item_sd": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          },
+          "reference": {
+            "type": "object",
+            "required": [
+              "grand_mean",
+              "person_variance",
+              "item_variance",
+              "person_by_item_plus_residual_variance",
+              "residual_variance_raw",
+              "relative_G_coefficient",
+              "absolute_Phi_coefficient"
+            ],
+            "properties": {
+              "grand_mean": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "person_variance": {
+                "type": "number",
+                "minimum": 0
+              },
+              "item_variance": {
+                "type": "number",
+                "minimum": 0
+              },
+              "person_by_item_plus_residual_variance": {
+                "type": "number",
+                "minimum": 0
+              },
+              "residual_variance_raw": {
+                "type": "number"
+              },
+              "relative_G_coefficient": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "absolute_Phi_coefficient": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "valid_replications": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "failed_replications": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "negative_component_rates": {
+            "type": "object",
+            "required": [
+              "person",
+              "item"
+            ],
+            "properties": {
+              "person": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "item": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          "parameter_recovery": {
+            "type": "object",
+            "required": [
+              "person_variance_raw",
+              "item_variance_raw",
+              "person_by_item_plus_residual",
+              "relative_G_coefficient",
+              "absolute_Phi_coefficient"
+            ],
+            "properties": {
+              "person_variance_raw": {
+                "$ref": "#/$defs/metric"
+              },
+              "item_variance_raw": {
+                "$ref": "#/$defs/metric"
+              },
+              "person_by_item_plus_residual": {
+                "$ref": "#/$defs/metric"
+              },
+              "relative_G_coefficient": {
+                "$ref": "#/$defs/metric"
+              },
+              "absolute_Phi_coefficient": {
+                "$ref": "#/$defs/metric"
+              }
+            },
+            "additionalProperties": false
+          },
+          "failed_replication_reasons": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "replication",
+                "reason"
+              ],
+              "properties": {
+                "replication": {
+                  "type": "integer",
+                  "minimum": 0
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "$defs": {
+    "metric": {
+      "type": "object",
+      "required": [
+        "mean",
+        "bias",
+        "rmse",
+        "p2_5",
+        "median",
+        "p97_5"
+      ],
+      "properties": {
+        "mean": {
+          "type": "number"
+        },
+        "bias": {
+          "type": "number"
+        },
+        "rmse": {
+          "type": "number",
+          "minimum": 0
+        },
+        "p2_5": {
+          "type": "number"
+        },
+        "median": {
+          "type": "number"
+        },
+        "p97_5": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

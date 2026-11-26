@@ -82,3 +82,14 @@ python scripts/analyze_capability_measurement.py \
 ## 7. G-Theory 数值性质与失败安全测试
 
 离线测试另以固定 seed 的 crossed Configuration×Case 二元矩阵检查 D-study 的相对 G 与绝对 Phi 系数处于 [0,1] 且随题目数增加单调不减；另用小型退化矩阵检查负 raw 方差分量被保留、展示分量截断并发出警告。该测试验证实现的数值边界和失败可见性，不是已知总体方差参数下的 G-Theory 参数恢复实验。二元结果的潜在尺度方差分解仍需更合适的 GLMM/多 facet 模型及 Monte Carlo 研究。
+
+
+## 8. G-Theory Monte Carlo 参数恢复（模拟证据）
+
+新增 `scripts/run_g_theory_parameter_recovery.py`，以 Bernoulli(logit(intercept + person + item)) 的 crossed random-effects DGP 评估当前双 facet ANOVA method-of-moments 估计器。真值不由待测估计器自身生成：脚本使用独立的高规模 Monte Carlo 积分，计算 observed binary-score scale 上 Person / Item 协方差分量及剩余分量，再与有限样本估计比较。
+
+预注册默认设计：4 个情景（balanced moderate、low prevalence、low person variance、high item variance），每个情景 100 次重复、40 persons × 25 items，reference integration 1,000 × 1,000 draws，seed=9100。报告 raw Person/Item variance component 的 bias、RMSE、采样分布分位数、负方差分量发生率，以及 relative G / absolute Phi 系数恢复情况。
+
+**解释边界：** 真值是 observed binary-score scale 的方差分量，不是 logistic latent scale 参数；Person×Item 与 Bernoulli residual 仍混合。模拟只覆盖当前 additive logistic random-effects DGP 和平衡双 facet，不验证模型拟合、DIF、测量不变性或真实 Agent/Skill 外部效度。模拟重复分布分位数不是现实置信区间。证据等级固定为 SIMULATION_ONLY。
+
+运行：`python scripts/run_g_theory_parameter_recovery.py --output artifacts/g-theory-parameter-recovery.json`。
