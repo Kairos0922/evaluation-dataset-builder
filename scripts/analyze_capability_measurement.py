@@ -329,6 +329,14 @@ def analyze_records(records: list[dict], *, max_iterations: int = 500, tolerance
         },
         "irt": irt,
         "g_theory": g_study,
+        "dif": {
+            "status": "NOT_ASSESSED",
+            "reason": "No preregistered grouping variable and adequately sampled independent groups are present in the Runtime Record evidence.",
+        },
+        "measurement_invariance": {
+            "status": "NOT_ASSESSED",
+            "reason": "No multi-group held-out response matrix is available to test config/group invariance.",
+        },
         "overall_status": (
             "ESTIMATED_EXPLORATORY"
             if irt["status"] == "ESTIMATED_EXPLORATORY" or g_study["status"] == "ESTIMATED_EXPLORATORY"
