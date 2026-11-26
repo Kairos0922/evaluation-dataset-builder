@@ -18,6 +18,7 @@
 - BLOCKED：存在明确阻塞，必须记录原因和解除条件。
 - DONE：已完成，必须有可复核证据和 commit / run / artifact 引用。
 - NOT_APPLICABLE：经论证后确认不适用。
+- DEFERRED：经用户/项目决策暂缓，保留记录但不纳入当前执行队列；不代表完成或不适用。
 
 禁止只因文档已写或代码已提交就标记 DONE；任务验收标准必须全部满足。
 
@@ -39,7 +40,7 @@
 | FM-03 | 公式 | 建立独立效度验证实验与证明报告 | BLOCKED | 已有预注册/验证协议设计；缺少独立专家效标、盲测缺陷、真实运行效标和冻结验证集，当前不能执行确认性公式验证。解除条件见 QA-04 |
 | EX-01 | 实验 | 完成公式验证实验设计与样本量/效标规划 | DONE | experimental-design.md；定义 E0–E7 阶段、分组隔离、专家盲评、缺陷注入和真实运行方案；commit 4b2f0d3 |
 | EX-02 | 实验 | 建立独立参考数据集与缺陷注入样本 | BLOCKED | 已建立 IDA-M01–M12 / ERA-M01–M08 缺陷目录与确定性单测，并完成 AppWorld、AgentDojo、WebArena-Verified、OSWorld-Verified、GAIA、WorkArena 官方代码许可/访问限制桌面初筛。阻塞：尚无逐资产许可确认、锁定版本/哈希、合法数据快照、独立 Oracle 和盲测变体；代码许可证不代表任务数据/镜像/实例授权。 |
-| EX-03 | 实验 | 完成专家内容效度与评分者一致性实验 | BLOCKED | 盲评协议、匿名评分 Schema、统计计划和招募公告已建立；Issue #43 目前只有招募公告，尚无独立评审者报名/评分。解除条件：两名独立评审者和独立仲裁者完成真实盲评并归档原始记录。 |
+| EX-03 | 实验 | 完成专家内容效度与评分者一致性实验 | DEFERRED | 用户决定暂时取消独立专家评审任务；停止主动招募与盲评组织，不再将专家报名作为 v0.0.2 当前执行计划的推进路径。既有评审协议与 Schema 保留，但本任务延期，不视为已完成或不再需要；若未来重新启动，需重新确认评审资源、范围与预算。相关内容效度/独立效度证据继续明确标记为 NOT_ASSESSED / NOT_VALIDATED，不得用自动化测试或模型自评替代。 |
 | EX-04 | 实验 | 完成缺陷注入识别实验 | BLOCKED | 确定性变异算子和单测已建立，但没有独立确认的缺陷变体、盲测结果、误报/漏报和区间。解除条件：独立确认基线/变体、冻结标签与盲测评估。 |
 | EX-06 | 工程/实验 | 将真实 Builder、DSH Trace、Runner 和独立 Oracle 证据转换为规范 Runtime Record，并运行 IDA/ERA | DONE | 在现有冻结证据范围内完成：Builder/Pilot 原始证据导入、Runtime Record、IDA/ERA 分析、Schema/cross-field validator。新增 DSH JSONL 逐行解析、case/run 身份一致性检查、证据清单强制绑定、SHA-256 校验、路径穿越/符号链接逃逸防护，并将 trace_sha256 写入 Runtime Record Schema。代码提交 `e7245d2`，测试修正 `d899ea3`；Run #1983（45800505196，精确 head `d899ea3fab0b0f27a9d8fc1c57e78ade28492683`）230/230 离线测试 PASS，Round 4 real-evidence Job SUCCESS，Artifact 15105794918（ZIP SHA-256 `0d703863f965f99e34f721c00895ada15acd25ef0495015d4492826407962e03`）。该任务仅完成现有可用证据的规范化和分析：IDA/ERA 仍 PARTIAL，3/15 Pilot，12 NOT_RUN，Judge NOT_RUN，composite NOT_VALIDATED；剩余覆盖与效度任务由 EX-05/EX-07 等追踪。 |
 | EX-05 | 实验 | 完成 Capability / Regression 真实运行效标实验 | BLOCKED | 已有三条真实 Skill Pilot（WB-02/WB-10/WB-12）和独立 Gold Oracle 3/3 PASS，但只有一个 Skill revision / 模型配置、每 case 单次运行；15 条中 12 条 NOT_RUN，无完整 Agent×Task×Seed×Environment 矩阵、无 IRT/G-Theory 适配数据、无同 case baseline/candidate Regression 配对。Issue #43 招募帖仍无独立评审者报名，EX-07 的 12-case Oracle freeze 未完成；Run #1983 的 production/Pilot jobs 均 SKIPPED。解除条件：两位独立评审者和第三位仲裁者完成 Oracle freeze；明确授权并完成多配置/重复运行及配对版本执行；归档独立 Gold 与原始 Trace。不得以现有 3/3 通过率代替能力效标。 |
@@ -135,7 +136,7 @@
 
 ### 端到端推进与外部评审招募（2026-11-25）
 - 用户要求一次性完成所有任务。重新核对 Issue #43、PR #44、TASKS.md、Round 4 Oracle plan、盲审包指南和最新 CI。PR #44 当前 head 为 c84d94b8655e8df0deb8fef3b25b3d990353cb1d，Draft/Open/未合并；PR #38 未触碰。
-- 已在 Issue #43 发布独立评审招募说明（comment 7165679690）：招募两位互不交流的独立评审者，并说明资格、12-case 评审范围、UNKNOWN 规则、禁止协调、隐私和交付要求。发布时 Issue 尚无评论或志愿者；截至本次核查尚无评审提交或仲裁人选，因此 EX-03 / EX-07 的人工证据仍 BLOCKED。
+- 独立专家评审任务已按用户决定暂缓（EX-03=DEFERRED）。停止继续招募、催促报名或将评审者报名作为当前迭代的推进条件；原招募说明仅作为历史记录，不代表仍在招募。评审协议与 Schema 保留，未来如重新启动需另行决策。EX-03 不计为 DONE；所有依赖专家效标的科学效度主张继续保持 NOT_ASSESSED / NOT_VALIDATED。
 - 盲审包已经生成并通过哈希/结构检查，但本次没有公开上传盲审包，也没有把 coordinator-only crosswalk 暴露给评审者。待志愿者确认后再通过受控渠道分别分发 A/B 包。
 - 不会用同一模型伪装两名独立专家，不会自行生成 Gold 或假造真实用户/应用行为；这会破坏本项目 Issue #43 明确要求的独立效度证据。
 - 最新 CI Run #1926（45634060282）仍是本分支 TASKS 上次更新后精确代码 head 的有效证据：207/207 离线测试、正式包、Benchmark、actionlint、Round 4 IDA/ERA 报告契约 PASS；生产 Builder / 独立验证 / Pilot jobs SKIPPED。
@@ -175,7 +176,7 @@
 
 ### 任务质量审计报告（2026-11-26）
 - 新增 [quality-report.md](quality-report.md)，逐项汇总 37 项任务状态、工程交付、CI/Artifact 证据、IDA/ERA 真实结果、科学效度缺口和发布建议。
-- 任务表状态统计：19 DONE、8 IN_PROGRESS、10 BLOCKED、0 TODO。DONE 只表示该项设计/工程交付完成，不表示关联实证实验或发布门禁通过。
+- 任务表状态统计：20 DONE、0 IN_PROGRESS、16 BLOCKED、1 DEFERRED、0 TODO。DONE 只表示该项设计/工程交付完成，不表示关联实证实验或发布门禁通过。
 - 当前结论：工程验证通过，实证效度部分完成，发布门禁未通过。PR #44 保持 Draft/Open，不创建 v0.0.2 tag/release。
 
 
@@ -183,7 +184,7 @@
 - 最新报告/任务清单文档 head `87d3747444ddaa5e7391e202f7595121f1fa86a7` 对应 Run #1939（45720458350）Workflow SUCCESS：actionlint、正式 Skill 包、Benchmark、215/215 离线测试 PASS；Round 4 IDA/ERA 报告 Schema 与 cross-field contract PASS。
 - Round 4 artifact #15072186678，SHA-256 `be681dfd0a61be229e66b7953b3f02f66366d31d700b8e33755e3719df739b44`。IDA/ERA PARTIAL，15 条用例中 3 条 Pilot、12 条 NOT_RUN，Judge NOT_RUN，composite NOT_VALIDATED。
 - Builder production / independent-validation / Pilot / adjudication jobs 均 SKIPPED；本次没有新增真实运行或人工 Oracle 证据。
-- 最新任务质量报告见 `quality-report.md`；当前 37 项任务统计为 19 DONE、8 IN_PROGRESS、10 BLOCKED。PR #44 继续 Draft/Open。
+- 最新任务质量报告见 `quality-report.md`；共 56 项任务。PR #44 继续 Draft/Open。
 
 
 ### TASKS.md 最终审计记录 head 复验（2026-11-26）
@@ -196,7 +197,7 @@
 - 精确 head `3a99fcc0de3609971d6c701bade210251c77fd04` 对应 Run #1941（45720784376）Workflow SUCCESS：actionlint、正式 Skill 包、Benchmark、215/215 离线测试 PASS；Round 4 IDA/ERA Schema 与 cross-field contract PASS。
 - Round 4 artifact #15070789521，SHA-256 `729c0131446788b21a06aa280b8b75f48218e3e21e5b666a284ca9a59977c1e5`。IDA/ERA PARTIAL，15 条中 3 条 Pilot、12 条 NOT_RUN，Judge NOT_RUN，composite NOT_VALIDATED。
 - Builder production、independent-validation、Pilot、adjudication jobs 均 SKIPPED；本次未新增真实运行、独立评审或 Oracle freeze。
-- 当前任务质量报告：`quality-report.md`。37 项任务状态：19 DONE、8 IN_PROGRESS、10 BLOCKED、0 TODO。
+- 当前任务质量报告：`quality-report.md`。56 项任务状态：20 DONE、0 IN_PROGRESS、16 BLOCKED、1 DEFERRED、0 TODO。
 
 
 ### 最新质量报告提交 head 复验（2026-11-26）
@@ -308,6 +309,12 @@
 - SKILL.md 明确按任务场景按需读取 16 个 references；validate_skill.py 检查引用集合与实际文件完全一致、无缺失/多余文件、无二级 reference 依赖、Schema Draft 2020-12 有效。
 - Run #2004（45804838674，精确 head `013c351812b801554faa72fd360b208b9b553bb4`）actionlint、Skill package validation、Benchmark、241/241 离线测试 PASS；Round 4 evidence analysis PASS。
 - 当前正式 Skill package VERSION 和 SKILL.md metadata.version 均为 0.0.1。由于 v0.0.2 尚未通过 Release Gate，且用户明确禁止擅自合并 PR/创建 Release，不升级正式版本元数据。IM-07 状态调整为 BLOCKED，解除条件是所有 Release Gate 通过并取得明确发布批准。
+
+
+### 用户决策：暂缓独立专家评审（2026-11-26）
+- 用户明确决定暂时取消独立专家评审任务。EX-03 状态调整为 DEFERRED，而非 DONE 或 NOT_APPLICABLE；其评审协议、评分 Schema 和既有实现保留。
+- 停止把公开招募、等待报名或专家盲评组织作为当前迭代的执行路径；不再重复检查 Issue #43 是否有人报名。
+- 此决策仅暂缓专家评审工作，不构成科学效度验证通过，也不授权用 LLM 自评、内部自评、模拟或确定性单测替代独立证据。凡依赖独立专家效标的结论继续标记为 NOT_ASSESSED / NOT_VALIDATED；相关发布门禁不得因此自动放行。
 
 
 ### QA-02 离线 IDA 评估器确定性敏感性验证完成、语义验证外部阻塞（2026-11-26）
