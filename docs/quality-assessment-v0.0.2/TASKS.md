@@ -44,7 +44,7 @@
 | EX-04 | 实验 | 完成缺陷注入识别实验 | BLOCKED | 确定性变异算子和单测已建立，但没有独立确认的缺陷变体、盲测结果、误报/漏报和区间。解除条件：独立确认基线/变体、冻结标签与盲测评估。 |
 | EX-06 | 工程/实验 | 将真实 Builder、DSH Trace、Runner 和独立 Oracle 证据转换为规范 Runtime Record，并运行 IDA/ERA | DONE | 在现有冻结证据范围内完成：Builder/Pilot 原始证据导入、Runtime Record、IDA/ERA 分析、Schema/cross-field validator。新增 DSH JSONL 逐行解析、case/run 身份一致性检查、证据清单强制绑定、SHA-256 校验、路径穿越/符号链接逃逸防护，并将 trace_sha256 写入 Runtime Record Schema。代码提交 `e7245d2`，测试修正 `d899ea3`；Run #1983（45800505196，精确 head `d899ea3fab0b0f27a9d8fc1c57e78ade28492683`）230/230 离线测试 PASS，Round 4 real-evidence Job SUCCESS，Artifact 15105794918（ZIP SHA-256 `0d703863f965f99e34f721c00895ada15acd25ef0495015d4492826407962e03`）。该任务仅完成现有可用证据的规范化和分析：IDA/ERA 仍 PARTIAL，3/15 Pilot，12 NOT_RUN，Judge NOT_RUN，composite NOT_VALIDATED；剩余覆盖与效度任务由 EX-05/EX-07 等追踪。 |
 | EX-05 | 实验 | 完成 Capability / Regression 真实运行效标实验 | BLOCKED | 已有三条真实 Skill Pilot（WB-02/WB-10/WB-12）和独立 Gold Oracle 3/3 PASS，但只有一个 Skill revision / 模型配置、每 case 单次运行；15 条中 12 条 NOT_RUN，无完整 Agent×Task×Seed×Environment 矩阵、无 IRT/G-Theory 适配数据、无同 case baseline/candidate Regression 配对。Issue #43 招募帖仍无独立评审者报名，EX-07 的 12-case Oracle freeze 未完成；Run #1983 的 production/Pilot jobs 均 SKIPPED。解除条件：两位独立评审者和第三位仲裁者完成 Oracle freeze；明确授权并完成多配置/重复运行及配对版本执行；归档独立 Gold 与原始 Trace。不得以现有 3/3 通过率代替能力效标。 |
-| EX-07 | 实验 | 为 Round 4 剩余 12 条用例建立独立 Gold Oracle 规则和执行前门禁 | BLOCKED | 独立 Oracle 计划、记录 Schema、A/B 盲审包生成器、比较器、hash-bound freeze manifest/validator 和测试均已实现。Issue #43 无评审者响应，盲审包未分发/回收，未产生独立仲裁；12 条保持 NOT_RUN，WB-15 Application outcome UNKNOWN。 |
+| EX-07 | 实验 | 为 Round 4 剩余 12 条用例建立独立 Gold Oracle 规则和执行前门禁 | DEFERRED | 用户决定暂时取消独立专家评审/仲裁工作，因此暂停分发、回收和仲裁 12-case 盲审包；既有 A/B 盲审包生成器、比较器、hash-bound freeze manifest/validator 与测试保留。12 条仍为 NOT_RUN，WB-15 Application outcome UNKNOWN；不得把现有 Builder 结果当作独立 Gold。若未来重启，需重新确认独立评审者与仲裁资源。 |
 | SC-01 | 方案 | 冻结 v0.0.2 需求、架构和验收标准 | DONE | 新增 architecture-and-acceptance-baseline.md，定义模块边界、IDA/ERA 数据流、证据等级、关键不变量、用途分支、版本策略和分层验收矩阵；decision-log.md D-007 采纳，requirements.md 状态同步。 |
 | IM-01 | 实现 | 设计并实现 IDA 报告 Schema / 机器可读契约 | DONE | schemas/ida-report.schema.json；JSON 语法检查通过；commit f47905e |
 | IM-02 | 实现 | 实现独立离线评价器和确定性检查 | DONE | scripts/assess_dataset_quality.py 实现 Manifest/Case Schema、ID、来源注册表、覆盖一致性、分布、精确重复和报告契约检查；扩展身份错配、来源缺失/解析、覆盖不一致测试；run #1793 在精确 head 885444a 上 155 项测试 PASS |
@@ -312,7 +312,7 @@
 
 
 ### 用户决策：暂缓独立专家评审（2026-11-26）
-- 用户明确决定暂时取消独立专家评审任务。EX-03 状态调整为 DEFERRED，而非 DONE 或 NOT_APPLICABLE；其评审协议、评分 Schema 和既有实现保留。
+- 用户明确决定暂时取消独立专家评审/仲裁任务。EX-03 与依赖独立盲审的 EX-07 状态调整为 DEFERRED，而非 DONE 或 NOT_APPLICABLE；其评审协议、评分 Schema、盲审包生成器和既有实现保留。
 - 停止把公开招募、等待报名或专家盲评组织作为当前迭代的执行路径；不再重复检查 Issue #43 是否有人报名。
 - 此决策仅暂缓专家评审工作，不构成科学效度验证通过，也不授权用 LLM 自评、内部自评、模拟或确定性单测替代独立证据。凡依赖独立专家效标的结论继续标记为 NOT_ASSESSED / NOT_VALIDATED；相关发布门禁不得因此自动放行。
 
