@@ -117,10 +117,14 @@ def _assess(manifest: dict, cases: list[dict], registry: dict, *, pretty: bool =
         output_path = directory / "ida-report.json"
         indent = 2 if pretty else None
         manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=indent), encoding="utf-8")
-        cases_path.write_text(
-            "".join(json.dumps(case, ensure_ascii=False, indent=indent) + "\n" for case in cases),
-            encoding="utf-8"
-        )
+        case_lines = []
+        for case in cases:
+            if pretty:
+                rendered_case = json.dumps(case, ensure_ascii=False, separators=(",", ": "))
+            else:
+                rendered_case = json.dumps(case, ensure_ascii=False, separators=(",", ":"))
+            case_lines.append(rendered_case + "\n")
+        cases_path.write_text("".join(case_lines), encoding="utf-8")
         registry_path.write_text(json.dumps(registry, ensure_ascii=False, indent=indent), encoding="utf-8")
         report, structural_errors, duplicate_ids, coverage_errors, source_errors = build_report(
             manifest_path, cases_path, output_path, "both", registry_path
@@ -133,7 +137,12 @@ def _assess(manifest: dict, cases: list[dict], registry: dict, *, pretty: bool =
             "duplicate_case_ids": duplicate_ids,
             "coverage_errors": coverage_errors,
             "source_errors": source_errors,
-            "report_sha256": hashlib.sha256(output_path.read_bytes()).hexdigest(),
+            "report_sha256": hashlib.sha256(
+                json.dumps(
+                    {key: value for key, value in report.items() if key != "created_at"},
+                    ensure_ascii=False, sort_keys=True, separators=(",", ":")
+                ).encode("utf-8")
+            ).hexdigest(),
         }
 
 
