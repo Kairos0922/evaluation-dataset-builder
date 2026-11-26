@@ -248,17 +248,29 @@
       "type": "object",
       "required": [
         "case_count",
+        "observation_count",
+        "accuracy_unit",
         "adjudicable_count",
         "exact_matches",
         "false_passes",
         "false_fails",
         "abstentions",
-        "accuracy"
+        "abstention_unit",
+        "accuracy",
+        "repeat_disagreement_cases",
+        "repeat_agreement_rate"
       ],
       "properties": {
         "case_count": {
           "type": "integer",
           "minimum": 1
+        },
+        "observation_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "accuracy_unit": {
+          "const": "case"
         },
         "adjudicable_count": {
           "type": "integer",
@@ -280,11 +292,23 @@
           "type": "integer",
           "minimum": 0
         },
+        "abstention_unit": {
+          "const": "judgement"
+        },
         "accuracy": {
           "type": [
             "number",
             "null"
           ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "repeat_disagreement_cases": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "repeat_agreement_rate": {
+          "type": ["number", "null"],
           "minimum": 0,
           "maximum": 1
         }

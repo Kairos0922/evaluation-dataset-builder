@@ -15,6 +15,64 @@ ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = ROOT / "docs" / "quality-assessment-v0.0.2" / "schemas" / "judge-calibration-report.schema.json"
 
 
+def recompute_summary(results: list[dict], case_ids: list[str], repeats_per_case: int) -> dict:
+    """Summarize at case level; repeated judgments are not independent cases."""
+    grouped = {case_id: [] for case_id in case_ids}
+    for item in results:
+        case_id = item["case_id"]
+        if case_id not in grouped:
+            raise ValueError(f"result contains case_id outside frozen suite: {case_id}")
+        grouped[case_id].append(item)
+    if any(not rows for rows in grouped.values()):
+        raise ValueError("every frozen case must have at least one Judge observation")
+
+    adjudicable_count = 0
+    exact_matches = 0
+    false_passes = 0
+    false_fails = 0
+    abstentions = 0
+    disagreement_cases = 0
+    unanimous_cases = 0
+    for case_id, rows in grouped.items():
+        gold_labels = {row["gold_status"] for row in rows}
+        if len(gold_labels) != 1:
+            raise ValueError(f"Gold status changes across repeats for case_id {case_id}")
+        gold = next(iter(gold_labels))
+        judge_labels = [row["judge_status"] for row in rows]
+        counts = Counter(judge_labels)
+        highest = max(counts.values())
+        winners = [label for label, count in counts.items() if count == highest]
+        majority = winners[0] if len(winners) == 1 else "UNKNOWN"
+
+        abstentions += sum(label == "UNKNOWN" for label in judge_labels)
+        if len(set(judge_labels)) > 1:
+            disagreement_cases += 1
+        else:
+            unanimous_cases += 1
+        if gold in {"PASS", "FAIL"}:
+            adjudicable_count += 1
+            exact_matches += majority == gold
+            false_passes += gold == "FAIL" and "PASS" in judge_labels
+            false_fails += gold == "PASS" and "FAIL" in judge_labels
+
+    return {
+        "case_count": len(case_ids),
+        "observation_count": len(results),
+        "accuracy_unit": "case",
+        "adjudicable_count": adjudicable_count,
+        "exact_matches": exact_matches,
+        "false_passes": false_passes,
+        "false_fails": false_fails,
+        "abstentions": abstentions,
+        "abstention_unit": "judgement",
+        "accuracy": exact_matches / adjudicable_count if adjudicable_count else None,
+        "repeat_disagreement_cases": disagreement_cases,
+        "repeat_agreement_rate": (
+            unanimous_cases / len(case_ids) if repeats_per_case > 1 and case_ids else None
+        ),
+    }
+
+
 def validate_report(report: object, suite_path: Path | None = None) -> list[str]:
     if not isinstance(report, dict):
         return ["report root must be an object"]
@@ -50,31 +108,19 @@ def validate_report(report: object, suite_path: Path | None = None) -> list[str]
         errors.append("each dataset case must have exactly protocol.repeats_per_case observations")
     if any((item.get("repeat_index") or 1) > expected_repeats for item in results):
         errors.append("repeat_index exceeds protocol.repeats_per_case")
-    if summary["case_count"] != len(results):
-        errors.append("summary.case_count must equal results length")
-
-    adjudicable = [item for item in results if item["gold_status"] in {"PASS", "FAIL"}]
-    exact = sum(item["gold_status"] == item["judge_status"] for item in adjudicable)
-    false_passes = sum(item["gold_status"] == "FAIL" and item["judge_status"] == "PASS" for item in adjudicable)
-    false_fails = sum(item["gold_status"] == "PASS" and item["judge_status"] == "FAIL" for item in adjudicable)
-    abstentions = sum(item["judge_status"] == "UNKNOWN" for item in results)
-    accuracy = exact / len(adjudicable) if adjudicable else None
-    expected = {
-        "adjudicable_count": len(adjudicable),
-        "exact_matches": exact,
-        "false_passes": false_passes,
-        "false_fails": false_fails,
-        "abstentions": abstentions,
-        "accuracy": accuracy,
-    }
-    for key, value in expected.items():
-        actual = summary[key]
-        if isinstance(value, float):
-            if actual is None or abs(actual - value) > 1e-9:
-                errors.append(f"summary.{key} does not match recomputed value")
-        elif actual != value:
-            errors.append(f"summary.{key} expected {value}, got {actual}")
-
+    try:
+        expected = recompute_summary(results, dataset["case_ids"], expected_repeats)
+    except ValueError as exc:
+        errors.append(str(exc))
+        expected = None
+    if expected is not None:
+        for key, value in expected.items():
+            actual = summary[key]
+            if isinstance(value, float):
+                if actual is None or abs(actual - value) > 1e-9:
+                    errors.append(f"summary.{key} does not match recomputed value")
+            elif actual != value:
+                errors.append(f"summary.{key} expected {value}, got {actual}")
     if not judge["separate_from_subject"]:
         errors.append("Judge must be independent from the evaluated subject")
     if kind == "synthetic_smoke":

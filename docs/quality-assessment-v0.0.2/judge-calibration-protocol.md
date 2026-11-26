@@ -16,7 +16,7 @@ Before scoring, freeze the exact suite bytes and case IDs. For independent empir
 
 ## 3. Observation input
 
-The machine-readable input contract is schemas/judge-calibration-observations.schema.json. Each observation contains case_id, gold_status, judge_status, evidence_validated, output_sha256, gold_evidence_ref, judge_evidence_ref, and optional anonymous reviewer_id, adjudicator_id, and repeat_index. The number of rows per case must equal protocol.repeats_per_case; repeat_index uniquely identifies each repeated judgement. Repeated observations are counted as repeated Judge decisions, not as additional independent cases.
+The machine-readable input contract is schemas/judge-calibration-observations.schema.json. Each observation contains case_id, gold_status, judge_status, evidence_validated, output_sha256, gold_evidence_ref, judge_evidence_ref, and optional anonymous reviewer_id, adjudicator_id, and repeat_index. The number of rows per case must equal protocol.repeats_per_case; repeat_index uniquely identifies each repeated judgement. Repeated observations are counted as repeated Judge decisions, not as additional independent cases. The summary reports case_count and accuracy at the unique-case level, observation_count separately, and abstentions at the judgement level. Case-level accuracy uses the within-case majority label (ties become UNKNOWN); False Pass/False Fail are conservative case-level flags if any repeat makes that error. Repeat disagreement and agreement are reported separately.
 
 The Judge may be human or llm. For a human panel, use an offline endpoint label such as offline://manual-review and a non-identifying panel ID. For an LLM, record the provider, endpoint origin, model, prompt hash, and implementation hash.
 
@@ -28,7 +28,7 @@ Use scripts/import_judge_calibration_evidence.py with:
 - --output: destination report
 - --run-id and --commit-sha: optional execution identity
 
-The importer recomputes exact matches, adjudicable denominator, False Pass, False Fail, abstentions, and accuracy. It binds the source observation file by SHA-256 and validates the generated report against the frozen suite.
+The importer recomputes case-level majority accuracy, unique-case adjudicable denominator, conservative False Pass/False Fail flags, judgement-level abstentions, and within-case repeat agreement/disagreement. It binds the source observation file by SHA-256 and validates the generated report against the frozen suite.
 
 ## 5. Interpretation and safeguards
 

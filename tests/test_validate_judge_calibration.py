@@ -48,12 +48,17 @@ def base_report():
         ],
         "summary": {
             "case_count": 3,
+            "observation_count": 3,
+            "accuracy_unit": "case",
             "adjudicable_count": 2,
             "exact_matches": 1,
             "false_passes": 1,
             "false_fails": 0,
             "abstentions": 1,
-            "accuracy": 0.5
+            "abstention_unit": "judgement",
+            "accuracy": 0.5,
+            "repeat_disagreement_cases": 0,
+            "repeat_agreement_rate": None
         },
         "limitations": ["Synthetic smoke fixtures do not establish real-world Judge validity."]
     }
@@ -86,8 +91,11 @@ class JudgeCalibrationContractTests(unittest.TestCase):
                 repeated.append(row)
         report["results"] = repeated
         report["summary"].update({
-            "case_count": 6, "adjudicable_count": 4, "exact_matches": 2,
-            "false_passes": 2, "false_fails": 0, "abstentions": 2, "accuracy": 0.5
+            "case_count": 3, "observation_count": 6, "accuracy_unit": "case",
+            "adjudicable_count": 2, "exact_matches": 1,
+            "false_passes": 1, "false_fails": 0, "abstentions": 2,
+            "abstention_unit": "judgement", "accuracy": 0.5,
+            "repeat_disagreement_cases": 0, "repeat_agreement_rate": 1.0
         })
         self.assertEqual(validate_report(report), [])
 

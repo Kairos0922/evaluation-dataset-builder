@@ -49,6 +49,8 @@ class JudgeCalibrationImporterTests(unittest.TestCase):
                 report = build_report(source, suite_path, raw)
                 self.assertEqual(report["status"], "PARTIAL")
                 self.assertEqual(report["judge"]["judge_type"], judge_type)
+                self.assertEqual(report["summary"]["case_count"], 3)
+                self.assertEqual(report["summary"]["observation_count"], 3)
                 self.assertEqual(report["summary"]["adjudicable_count"], 2)
                 self.assertEqual(report["summary"]["false_passes"], 1)
                 self.assertEqual(report["summary"]["abstentions"], 1)
@@ -88,8 +90,15 @@ class JudgeCalibrationImporterTests(unittest.TestCase):
             report = build_report(source, suite_path, raw)
             self.assertEqual(len(report["results"]), 6)
             self.assertEqual(report["summary"]["case_count"], 6)
+            self.assertEqual(report["summary"]["case_count"], 3)
+            self.assertEqual(report["summary"]["observation_count"], 6)
+            self.assertEqual(report["summary"]["adjudicable_count"], 2)
+            self.assertEqual(report["summary"]["false_passes"], 1)
             self.assertEqual(report["summary"]["false_fails"], 1)
             self.assertEqual(report["summary"]["abstentions"], 2)
+            self.assertEqual(report["summary"]["accuracy"], 0.0)
+            self.assertEqual(report["summary"]["repeat_disagreement_cases"], 1)
+            self.assertAlmostEqual(report["summary"]["repeat_agreement_rate"], 2 / 3)
 
     def test_never_imports_empirical_gold_from_synthetic_fixture(self):
         with tempfile.TemporaryDirectory() as tmp:

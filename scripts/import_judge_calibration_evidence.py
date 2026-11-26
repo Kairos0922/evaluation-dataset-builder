@@ -20,7 +20,7 @@ from jsonschema import Draft202012Validator, FormatChecker
 ROOT = Path(__file__).resolve().parents[1]
 INPUT_SCHEMA = ROOT / "docs" / "quality-assessment-v0.0.2" / "schemas" / "judge-calibration-observations.schema.json"
 sys.path.insert(0, str(ROOT))
-from scripts.validate_judge_calibration import validate_report
+from scripts.validate_judge_calibration import recompute_summary, validate_report
 
 
 def sha256_bytes(raw: bytes) -> str:
@@ -103,17 +103,7 @@ def build_report(observations: dict, suite_path: Path, observations_bytes: bytes
         ) if key in item}
         row["repeat_index"] = item.get("repeat_index") or 1
         results.append(row)
-    adjudicable = [item for item in results if item["gold_status"] in {"PASS", "FAIL"}]
-    exact = sum(item["gold_status"] == item["judge_status"] for item in adjudicable)
-    summary = {
-        "case_count": len(results),
-        "adjudicable_count": len(adjudicable),
-        "exact_matches": exact,
-        "false_passes": sum(item["gold_status"] == "FAIL" and item["judge_status"] == "PASS" for item in adjudicable),
-        "false_fails": sum(item["gold_status"] == "PASS" and item["judge_status"] == "FAIL" for item in adjudicable),
-        "abstentions": sum(item["judge_status"] == "UNKNOWN" for item in results),
-        "accuracy": exact / len(adjudicable) if adjudicable else None,
-    }
+    summary = recompute_summary(results, case_ids, expected_repeats)
     protocol = dict(observations["protocol"])
     if run_id is not None:
         protocol["run_id"] = run_id

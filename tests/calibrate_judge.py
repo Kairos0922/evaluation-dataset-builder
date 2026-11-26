@@ -20,7 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "tests"))
 sys.path.insert(0, str(ROOT))
 import run_eval as runner
-from scripts.validate_judge_calibration import validate_report
+from scripts.validate_judge_calibration import recompute_summary, validate_report
 
 
 def sha256_bytes(value: bytes) -> str:
@@ -40,18 +40,7 @@ def build_contract_report(
     suite_path = ROOT / "tests" / "judge-calibration-cases.json"
     suite_bytes = suite_path.read_bytes()
     case_ids = [case["id"] for case in fixture["cases"]]
-    adjudicable = [item for item in results if item["gold_status"] in {"PASS", "FAIL"}]
-    exact = sum(item["gold_status"] == item["judge_status"] for item in adjudicable)
-    false_passes = sum(
-        item["gold_status"] == "FAIL" and item["judge_status"] == "PASS"
-        for item in adjudicable
-    )
-    false_fails = sum(
-        item["gold_status"] == "PASS" and item["judge_status"] == "FAIL"
-        for item in adjudicable
-    )
-    abstentions = sum(item["judge_status"] == "UNKNOWN" for item in results)
-    accuracy = exact / len(adjudicable) if adjudicable else None
+    summary = recompute_summary(results, case_ids, 1)
     judge_source = inspect.getsource(runner.judge_case).encode("utf-8")
     implementation = (ROOT / "tests" / "run_eval.py").read_bytes()
     commit = candidate_sha if len(candidate_sha) in {40, 64} else None
@@ -91,15 +80,7 @@ def build_contract_report(
             "commit_sha": commit,
         },
         "results": results,
-        "summary": {
-            "case_count": len(results),
-            "adjudicable_count": len(adjudicable),
-            "exact_matches": exact,
-            "false_passes": false_passes,
-            "false_fails": false_fails,
-            "abstentions": abstentions,
-            "accuracy": accuracy,
-        },
+        "summary": summary,
         "limitations": [
             "This suite uses synthetic fixture labels and is not independent Gold.",
             "A successful smoke run verifies only the bounded execution/evidence path; it does not establish empirical Judge validity.",
