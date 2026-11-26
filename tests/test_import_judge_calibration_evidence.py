@@ -89,7 +89,6 @@ class JudgeCalibrationImporterTests(unittest.TestCase):
             raw = json.dumps(source, sort_keys=True, separators=(",", ":")).encode()
             report = build_report(source, suite_path, raw)
             self.assertEqual(len(report["results"]), 6)
-            self.assertEqual(report["summary"]["case_count"], 6)
             self.assertEqual(report["summary"]["case_count"], 3)
             self.assertEqual(report["summary"]["observation_count"], 6)
             self.assertEqual(report["summary"]["adjudicable_count"], 2)
