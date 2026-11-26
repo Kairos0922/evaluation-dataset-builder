@@ -23,8 +23,8 @@ v0.0.2 已完成需求基线、研究与方法论设计、IDA/ERA 核心工程�
 
 | 状态 | 数量 | 解释 |
 |---|---:|---|
-| DONE | 19 | 设计/工程任务已有可复核文档、代码或 CI 证据 |
-| IN_PROGRESS | 8 | 已有部分实现或部分真实证据，验收条件尚未全部满足 |
+| DONE | 20 | 设计/工程任务已有可复核文档、代码或 CI 证据 |
+| IN_PROGRESS | 7 | 已有部分实现或部分真实证据，验收条件尚未全部满足 |
 | BLOCKED | 10 | 需要独立人员、外部许可/数据、Oracle 或用户发布批准 |
 | TODO | 0 | 尚未启动的任务已转为明确阻塞状态，避免掩盖依赖 |
 | **合计** | **37** | |
@@ -38,7 +38,7 @@ v0.0.2 已完成需求基线、研究与方法论设计、IDA/ERA 核心工程�
 - **需求与架构：** requirements.md、decision-log.md D-001 至 D-007、architecture-and-acceptance-baseline.md。
 - **研究与方法：** research-evidence.md、methodology-design.md、methodology-matrix.md、metric-catalog.md、formula-validation-protocol.md、experimental-design.md。
 - **IDA：** `scripts/assess_dataset_quality.py`、IDA report Schema、质量报告契约验证器和测试。
-- **ERA：** Runtime Record / ERA report Schema、`scripts/import_dsh_pilot_records.py`、`scripts/assess_runtime_quality.py`、报告验证器和测试。新增 `scripts/analyze_capability_measurement.py`，提供基于独立 Gold 的探索性 Rasch 1PL 与平衡 Person×Item G-study，输出题目/配置参数、信息函数、方差分量、G/Phi 与 D-study；并配套报告 Schema、说明文档和 5 项测试。
+- **ERA：** Runtime Record / ERA report Schema、`scripts/import_dsh_pilot_records.py`、`scripts/assess_runtime_quality.py`、报告验证器和测试。DSH trace importer 强制校验原始 JSONL evidence manifest、SHA-256、case/run identity 和安全路径，并将 trace digest 保存在规范 Runtime Record。新增 `scripts/analyze_capability_measurement.py`，提供基于独立 Gold 的探索性 Rasch 1PL 与平衡 Person×Item G-study，输出题目/配置参数、信息函数、方差分量、G/Phi 与 D-study；并配套报告 Schema、说明文档和 5 项测试。
 - **Judge：** 专家评审协议与评分记录 Schema；新增 Judge Calibration Report Schema、`scripts/validate_judge_calibration.py` 和 8 项验证器契约测试。现已将 `tests/calibrate_judge.py` 接入该报告契约，生成 suite SHA/case IDs、Judge prompt/implementation SHA、运行身份、逐案结果和重算指标，并在落盘前调用验证器及 suite 哈希校验；新增 3 项执行脚本集成测试。synthetic smoke 被固定标记为 NOT_VALIDATED，不能冒充独立 Gold 校准。
 - **Round 4 Oracle：** 独立判定计划、Oracle Record Schema、A/B 盲审资料包生成器、提交 Schema、比较器、hash-bound Freeze Manifest Schema 和验证器。
 - **运行协议：** runtime-assessment-protocol.md 定义执行前冻结、失败归因、Judge/Gold 独立性、Capability/Regression 分支、重复和停止规则。
@@ -54,7 +54,7 @@ v0.0.2 已完成需求基线、研究与方法论设计、IDA/ERA 核心工程�
 | [#1940](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45720639140) | `0f50a9cc9de97ec2778b026c34dfd69e2c1b8bf8` | SUCCESS | **215/215** | #15072316423 |
 | [#1941](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45720784376) | `3a99fcc0de3609971d6c701bade210251c77fd04` | SUCCESS | **215/215** | #15070789521 |
 | [#1944](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45721014232) | `122d38527a3af2e3d012598cbb6ac93b3b4ecfc0` | SUCCESS | **215/215** | #15070934643 |
-| [#1947](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45721216859) | `bca98059650afce9df752917553bcff98adeb91e` | SUCCESS | **215/215** | #15071653396 |
+| [#1947](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45721216859) | `bca98059650afce9df752917553bcff98adeb91e` | SUCCESS | **215/215** | #15071653396 |\n| [#1983](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45800505196) | `d899ea3fab0b0f27a9d8fc1c57e78ade28492683` | SUCCESS | **230/230** | #15105794918 |
 
 Run #1933 的 Round 4 artifact SHA-256：
 
@@ -204,3 +204,12 @@ Run #1947（45721216859）在精确 head `bca98059650afce9df752917553bcff98adeb9
 - 精确代码/测试 head `52093376778d428145e9b968df38ba54e9d26d4f` 的 Run #1968（45732528514）SUCCESS：actionlint、Skill 包、Benchmark、223/223 离线测试和 Round 4 IDA/ERA 报告契约全部 PASS；新增 5 项 Capability measurement tests 全部通过。artifact #15077900941，SHA-256 `6fbcc3496f66f2aad9bc2a2057b8380523b19d6c8cbb4fdacb85bf48c2f9ed5e`。
 - 包含 TASKS/质量报告/CHANGELOG 更新的精确 head `c1babc7ec9d51de6ac0c3cdb36232573c32f53bb` 由 Run #1972（45732657722）再次完整验证成功，223/223 测试通过；artifact #15077358259，SHA-256 `af22544c66e638472b91f9e2d0a85f237e916a44ee3ebe082b20c4a3c099ea57`。
 - 两个 Run 的生产 Builder、独立验证、Pilot 与 adjudication jobs 均 SKIPPED；这证明工程实现和契约测试通过，不证明已有足够独立 Gold 数据或 Rasch/G-Theory 模型适配效度。
+
+
+### EX-06 真实证据导入器完整性修复与验收（2026-11-26）
+
+- 修复前的 importer 会检查已声明 evidence_files 的哈希，但未强制 DSH trace 本身必须出现在清单中，也未将 trace digest 写入 Runtime Record。现在要求每条 Pilot 的 `dsh-events.jsonl` 被 runner evidence manifest 明确绑定并通过 SHA-256 验证；同时检查 JSONL 行结构、可用的 case_id/run_id、重复路径、路径穿越和符号链接逃逸。
+- Runtime Record Schema 新增可选 `trace_sha256`，真实导入时强制写入；导入 metadata 同步记录各 Pilot trace digest。
+- 精确 head `d899ea3fab0b0f27a9d8fc1c57e78ade28492683` 的 Run #1983（45800505196）SUCCESS：actionlint、正式 Skill 包、Benchmark、230/230 离线测试 PASS；Round 4 evidence Job SUCCESS，实际导入 3 条真实 Pilot 并运行 IDA/ERA；报告 Schema/cross-field contract PASS。
+- Artifact #15105794918，ZIP SHA-256 `0d703863f965f99e34f721c00895ada15acd25ef0495015d4492826407962e03`。
+- EX-06 标记 DONE 的严格含义是：当前实际存在的 Builder/DSH/Runner/独立 Oracle 冻结证据已安全规范化并完成 IDA/ERA 运行。数据集仍只有 3/15 Pilot，12 NOT_RUN，Judge NOT_RUN，composite NOT_VALIDATED；这些未完成科学效度工作不由 EX-06 的工程交付状态覆盖。

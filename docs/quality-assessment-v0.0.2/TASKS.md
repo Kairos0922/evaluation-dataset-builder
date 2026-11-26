@@ -41,7 +41,7 @@
 | EX-02 | 实验 | 建立独立参考数据集与缺陷注入样本 | BLOCKED | 已建立 IDA-M01–M12 / ERA-M01–M08 缺陷目录与确定性单测，并完成 AppWorld、AgentDojo、WebArena-Verified、OSWorld-Verified、GAIA、WorkArena 官方代码许可/访问限制桌面初筛。阻塞：尚无逐资产许可确认、锁定版本/哈希、合法数据快照、独立 Oracle 和盲测变体；代码许可证不代表任务数据/镜像/实例授权。 |
 | EX-03 | 实验 | 完成专家内容效度与评分者一致性实验 | BLOCKED | 盲评协议、匿名评分 Schema、统计计划和招募公告已建立；Issue #43 目前只有招募公告，尚无独立评审者报名/评分。解除条件：两名独立评审者和独立仲裁者完成真实盲评并归档原始记录。 |
 | EX-04 | 实验 | 完成缺陷注入识别实验 | BLOCKED | 确定性变异算子和单测已建立，但没有独立确认的缺陷变体、盲测结果、误报/漏报和区间。解除条件：独立确认基线/变体、冻结标签与盲测评估。 |
-| EX-06 | 工程/实验 | 将真实 Builder、DSH Trace、Runner 和独立 Oracle 证据转换为规范 Runtime Record，并运行 IDA/ERA | IN_PROGRESS | Builder/Pilot 原始证据导入器、Runtime Record、IDA/ERA 分析及报告 Schema/cross-field validator 已实现。Run #1933（45719605220，精确代码 head 878303fba7d4db75df979073d97c9d529b70d74e）报告契约 PASS；Artifact 15071077843。结果仍 IDA/ERA PARTIAL，3/15 Pilot，12 NOT_RUN，Judge NOT_RUN，composite NOT_VALIDATED。 |
+| EX-06 | 工程/实验 | 将真实 Builder、DSH Trace、Runner 和独立 Oracle 证据转换为规范 Runtime Record，并运行 IDA/ERA | DONE | 在现有冻结证据范围内完成：Builder/Pilot 原始证据导入、Runtime Record、IDA/ERA 分析、Schema/cross-field validator。新增 DSH JSONL 逐行解析、case/run 身份一致性检查、证据清单强制绑定、SHA-256 校验、路径穿越/符号链接逃逸防护，并将 trace_sha256 写入 Runtime Record Schema。代码提交 `e7245d2`，测试修正 `d899ea3`；Run #1983（45800505196，精确 head `d899ea3fab0b0f27a9d8fc1c57e78ade28492683`）230/230 离线测试 PASS，Round 4 real-evidence Job SUCCESS，Artifact 15105794918（ZIP SHA-256 `0d703863f965f99e34f721c00895ada15acd25ef0495015d4492826407962e03`）。该任务仅完成现有可用证据的规范化和分析：IDA/ERA 仍 PARTIAL，3/15 Pilot，12 NOT_RUN，Judge NOT_RUN，composite NOT_VALIDATED；剩余覆盖与效度任务由 EX-05/EX-07 等追踪。 |
 | EX-05 | 实验 | 完成 Capability / Regression 真实运行效标实验 | IN_PROGRESS | 已有三条真实 Skill Pilot（WB-02/WB-10/WB-12）和独立 Gold Oracle 3/3 PASS；数据集 15 条中 12 条 NOT_RUN。没有完整 Capability 响应矩阵、IRT/G-Theory 结果或同 case 版本配对 Regression；继续受 EX-07 Oracle 冻结和外部运行环境限制。 |
 | EX-07 | 实验 | 为 Round 4 剩余 12 条用例建立独立 Gold Oracle 规则和执行前门禁 | BLOCKED | 独立 Oracle 计划、记录 Schema、A/B 盲审包生成器、比较器、hash-bound freeze manifest/validator 和测试均已实现。Issue #43 无评审者响应，盲审包未分发/回收，未产生独立仲裁；12 条保持 NOT_RUN，WB-15 Application outcome UNKNOWN。 |
 | SC-01 | 方案 | 冻结 v0.0.2 需求、架构和验收标准 | DONE | 新增 architecture-and-acceptance-baseline.md，定义模块边界、IDA/ERA 数据流、证据等级、关键不变量、用途分支、版本策略和分层验收矩阵；decision-log.md D-007 采纳，requirements.md 状态同步。 |
@@ -268,3 +268,12 @@
 - 新增负方差分量回归测试，确认 raw method-of-moments 估计被保留、展示分量截断并显式发出警告。
 - Run #1980（45757275859）在精确代码 head `e195afdca502f5fcd10fffc7334d6f90ce115e7a` 上 SUCCESS：actionlint、正式 Skill 包、Benchmark、226/226 离线测试（含 Rasch Monte Carlo 与 G-Theory 新增测试）PASS；Round 4 IDA/ERA 报告契约 PASS。该 G-Theory 测试是数值性质/失败安全测试，不是 G-Theory 参数恢复或实证效度证明。
 - IM-05 仍 IN_PROGRESS：还缺 G-Theory Monte Carlo 参数恢复、正式模型拟合诊断、DIF/测量不变性及真实外部效标验证。
+
+
+### EX-06 真实证据导入与 IDA/ERA 运行完成（2026-11-26）
+- 强化 `scripts/import_dsh_pilot_records.py`：要求 runner 的 evidence_files manifest 明确包含 DSH `dsh-events.jsonl`，逐项验证 SHA-256；拒绝空清单、重复/不安全路径、路径穿越和符号链接逃逸；逐行解析 JSONL 并检查可用的 case_id/run_id 身份字段。
+- 将每条 Runtime Record 的 `trace_sha256` 纳入 `runtime-record.schema.json`，并将核验后的 DSH trace digest 写入记录及导入 metadata，形成从规范记录到原始轨迹的可复核绑定。
+- 新增 4 项导入器安全/完整性测试，覆盖 trace 哈希绑定、缺失 manifest、哈希错配和路径穿越；并验证 trace digest 输出。
+- 代码提交：`e7245d2d4725c5c2e07fcd0e68f63a56a19a07bb`；测试修正提交：`d899ea3fab0b0f27a9d8fc1c57e78ade28492683`。
+- Run #1983（45800505196）在精确 head `d899ea3fab0b0f27a9d8fc1c57e78ade28492683` 上 SUCCESS：actionlint、正式 Skill 包、Benchmark、230/230 离线测试 PASS；Round 4 evidence Job 成功导入 3 条真实 Pilot，IDA/ERA Schema 与 cross-field contract PASS；artifact #15105794918，ZIP SHA-256 `0d703863f965f99e34f721c00895ada15acd25ef0495015d4492826407962e03`。
+- 任务验收边界：EX-06 DONE 仅代表现有冻结 Builder/DSH/Runner/Oracle 证据已被安全规范化并完成 IDA/ERA 运行。结果仍为 IDA/ERA PARTIAL、15 条中 3 条 Pilot / 12 条 NOT_RUN、Judge NOT_RUN、composite NOT_VALIDATED；不表示完整 Capability/Regression 或科学效度验证完成。

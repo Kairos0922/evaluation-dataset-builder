@@ -96,3 +96,12 @@ Run #1847（精确 head `0366be3bad636051c1d7c2375874acb335650009`）：
 3. 单独设计多配置、多任务、重复运行和版本配对实验；不得用当前三条 Pilot 拟合 IRT 或 G-Theory。
 4. 获取独立 Judge 输出与专家标签后再评价 Judge。
 5. 在独立外部数据、盲评和缺陷注入证据到位前，保持综合公式 `NOT_VALIDATED`。
+
+
+## 6. DSH Trace provenance integrity（Run #1983）
+
+EX-06 的证据导入链路已补强：每个 Pilot 的 `runner-result.json` 必须包含 `evidence_files` manifest，且 manifest 必须对 `dsh-events.jsonl` 提供 SHA-256。导入器逐项校验文件摘要、拒绝路径穿越/重复路径/符号链接逃逸，逐行解析 JSONL，并在轨迹包含 `case_id` / `run_id` 时检查身份一致性。验证后的 trace SHA-256 写入 Runtime Record 的 `trace_sha256` 字段，并同步进入 import metadata。
+
+Run #1983（[45800505196](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45800505196)，精确 head `d899ea3fab0b0f27a9d8fc1c57e78ade28492683`）成功执行导入：3 条 Pilot 记录被规范化，12 条仍 NOT_RUN；IDA/ERA 报告契约通过。Artifact #15105794918，ZIP SHA-256 `0d703863f965f99e34f721c00895ada15acd25ef0495015d4492826407962e03`。
+
+该增强提高的是证据链完整性，不改变科学结论：IDA/ERA 仍 PARTIAL，Judge NOT_RUN，composite NOT_VALIDATED；不构成新增 Pilot 或外部效度验证。
