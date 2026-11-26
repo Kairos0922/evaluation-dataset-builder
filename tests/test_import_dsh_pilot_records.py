@@ -68,7 +68,7 @@ class ImportDshPilotRecordsTests(unittest.TestCase):
             trace = pilot_dir / "dsh-events.jsonl"
             trace.write_text(json.dumps({
                 "run_id": "run-WB-02", "case_id": "WB-02", "event": "completed"
-            }) + "\\n", encoding="utf-8")
+            }) + "\n", encoding="utf-8")
             digest = hashlib.sha256(trace.read_bytes()).hexdigest()
             runner = runner_result()
             runner["evidence_files"] = [{"path": "dsh-events.jsonl", "sha256": digest}]
@@ -77,7 +77,7 @@ class ImportDshPilotRecordsTests(unittest.TestCase):
     def test_trace_without_manifest_entry_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             pilot_dir = Path(directory)
-            (pilot_dir / "dsh-events.jsonl").write_text('{"event":"done"}\\n', encoding="utf-8")
+            (pilot_dir / "dsh-events.jsonl").write_text('{"event":"done"}\n', encoding="utf-8")
             runner = runner_result()
             runner["evidence_files"] = []
             with self.assertRaisesRegex(ValueError, "missing evidence_files manifest"):
@@ -86,7 +86,7 @@ class ImportDshPilotRecordsTests(unittest.TestCase):
     def test_trace_hash_mismatch_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             pilot_dir = Path(directory)
-            (pilot_dir / "dsh-events.jsonl").write_text('{"event":"done"}\\n', encoding="utf-8")
+            (pilot_dir / "dsh-events.jsonl").write_text('{"event":"done"}\n', encoding="utf-8")
             runner = runner_result()
             runner["evidence_files"] = [{"path": "dsh-events.jsonl", "sha256": "0" * 64}]
             with self.assertRaisesRegex(ValueError, "evidence hash mismatch"):
