@@ -13,7 +13,8 @@
 - EX-05 因缺少 12-case 独立 Oracle freeze、额外真实运行授权/环境、多配置和版本配对数据，已明确调整为 BLOCKED；Issue #43 招募帖尚无独立评审者响应。
 - IM-03 的 manual/LLM Judge 证据导入接口已实现，支持 held-out/blinded 独立 Gold、逐案证据、重复 Judge 运行及 case-level 非伪重复统计；由于尚无真实独立 Judge 校准样本，任务保持 BLOCKED，synthetic smoke 仍 NOT_VALIDATED。
 - IM-05 新增 Rasch infit/outfit 描述诊断、显式 NOT_ASSESSED DIF/measurement-invariance 输出，以及 G-Theory 参数恢复和 20×10/40×25/80×50 样本设计敏感性实验；Run #2002（45804426404）241/241 测试、三种模拟、真实 Round 4 Capability 报告契约 PASS。真实数据仅 1 configuration × 3 cases，Rasch/G-Theory/DIF/measurement invariance 均 NOT_ASSESSED，IM-05 保持 BLOCKED。
-- IM-07 Skill quality standard 2.0.0 与 16 个按需 references 已更新并通过 Skill package validator；正式 VERSION/frontmatter 仍为已发布的 0.0.1，待 v0.0.2 Release Gate 和明确发布批准后再升级，IM-07 当前 BLOCKED。\n- QA-02 新增 IDA-M01–M08 八种确定性缺陷和四种 negative controls 的受控变异实验；8/8 检出，Wilson 95% CI 0.676–1.000；0/4 negative-control false positive，Wilson 95% CI 0–0.490。M09–M12 仍 NOT_ASSESSED，缺独立专家语义评审/Oracle/污染审计，QA-02 保持 BLOCKED。Run #2011（45806101196）243/243 tests PASS，mutation artifact #15108859637。
+- IM-07 Skill quality standard 2.0.0 与 16 个按需 references 已更新并通过 Skill package validator；正式 VERSION/frontmatter 仍为已发布的 0.0.1，待 v0.0.2 Release Gate 和明确发布批准后再升级，IM-07 当前 BLOCKED。
+- QA-02 新增 IDA-M01–M08 八种确定性缺陷和四种 negative controls 的受控变异实验；8/8 检出，Wilson 95% CI 0.676–1.000；0/4 negative-control false positive，Wilson 95% CI 0–0.490。M09–M12 仍 NOT_ASSESSED，缺独立专家语义评审/Oracle/污染审计，QA-02 保持 BLOCKED。Run #2011（45806101196）243/243 tests PASS，mutation artifact #15108859637。
 - EX-06 真实 Builder/DSH/Runner/独立 Oracle 证据规范化与 IDA/ERA 执行已完成；Run #1983（45800505196，精确 head d899ea3）230/230 离线测试与 Round 4 evidence Job PASS，Artifact 15105794918。该完成状态仅覆盖现有 3 条 Pilot 证据，不代表剩余用例或科学效度门禁完成。
 - 实证边界：15 条 Round 4 用例中仅 3 条真实 Pilot，12 条 NOT_RUN；独立 Gold Judge 校准仍 NOT_RUN（synthetic smoke 仅验证执行/报告契约）；IDA/ERA PARTIAL；综合分 NOT_VALIDATED。专家评审、Oracle 冻结、盲测缺陷实验、Capability/Regression 完整效标和公式独立验证仍未完成。
 - 发布限制：尚无 v0.0.2 Release Candidate、最终发布审查或用户发布批准；不得创建 v0.0.2 tag/release。
