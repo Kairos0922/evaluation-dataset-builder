@@ -180,3 +180,10 @@ Run #1947（45721216859）在精确 head `bca98059650afce9df752917553bcff98adeb9
 - Round 4 real-evidence-assessment Job SUCCESS，IDA/ERA 报告 Schema 与 cross-field contract validation PASS；artifact #15077441739，SHA-256 `02e7d5a2386f0ea6e1f57a8382c6af64bd1f4a661f81e934cab569e74e4aa004`。
 - Builder production、independent-validation、Pilot、adjudication 等 Job 均 SKIPPED；没有新增生产执行、真实 Judge 校准、专家盲评或 Oracle freeze。
 - 该 CI 结果仅覆盖 head `f4d2cc2`。TASKS.md 与质量报告随后追加本次 Run 结果，形成新的文档提交；新文档 head 仍需精确 CI 复验。
+
+
+### 最新完整文档基线复验（Run #1961）
+
+- TASKS/质量报告/CHANGELOG 更新后的精确 head `5b108084f65cfb0e00b8552744267ccdc5e51f58` 由 Run #1961（45732037841）完整验证成功：actionlint、正式 Skill 包、Benchmark、218/218 离线测试和 Round 4 IDA/ERA 报告契约均 PASS。
+- Round 4 artifact #15077885154，SHA-256 `fd3187c4a98a158b2dfe7b63fd2594c2c30540ab94a2e429886c6c11e72be122`。Builder production / independent-validation / Pilot / adjudication jobs 均 SKIPPED。
+- 该验证确认 Judge runner 契约集成没有破坏既有 IDA/ERA 证据管线；但没有新增真实 Judge 校准、Oracle 或生产运行证据。
