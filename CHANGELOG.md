@@ -6,11 +6,11 @@
 
 - 建立 IDA 离线质量检查器、ERA Runtime Record 与统计分析器、机器可读报告 Schema 和跨字段验证器；DSH Pilot 导入器现强制校验 trace JSONL evidence manifest、SHA-256、case/run 身份与安全路径，并将 trace digest 写入 Runtime Record。
 - 建立 Capability 与 Regression 的用途专属分析设计；新增探索性 Rasch 1PL 与平衡 Person×Item G-study 分析器、报告 Schema 和方法边界文档；增加固定 seed 的 30-replication Rasch 1PL 参数恢复模拟与回归测试（26/30 有效，能力/题目难度平均相关约 0.867/0.961），以及 G-Theory D-study 单调性/系数边界和负方差失败安全测试；综合公式、权重和阈值保持 NOT_VALIDATED。
-- 建立专家内容效度盲评协议、评分记录 Schema、Judge 校准证据报告 Schema 与验证器；Judge 校准执行脚本已接入报告契约，输出数据集/Prompt/实现哈希、逐案结果和重算统计，并在落盘前进行契约校验。
+- 建立专家内容效度盲评协议、评分记录 Schema、Judge 校准证据报告 Schema 与验证器；新增 manual/LLM Judge observations 导入器，绑定 suite/observations SHA-256、逐案 Gold/Judge evidence refs 和匿名 reviewer/adjudicator ID；支持重复 Judge 运行并按 case 聚合，避免伪重复。
 - 建立 Round 4 独立 Oracle 双盲评审包、提交比较器、hash-bound 执行前冻结门禁。
 - 增加 ERA 真实运行执行协议、架构与验收基线、外部 Benchmark 候选及许可限制登记。
-- 最新代码/文档基线验证：Run #1972（45732657722，精确 head c1babc7ec9d51de6ac0c3cdb36232573c32f53bb），actionlint、正式 Skill 包、Benchmark、223/223 离线测试（含 Judge Calibration 与 Rasch/G-Theory 新增测试）PASS，Round 4 IDA/ERA 报告契约验证 PASS；Artifact 15077358259。此前 Run #1968 在测量分析代码 head 上同样以 223/223 测试通过。TASKS/质量报告随后追加 Run #1958 记录，文档 head 的最终复验待完成。
-- EX-05 因缺少 12-case 独立 Oracle freeze、额外真实运行授权/环境、多配置和版本配对数据，已明确调整为 BLOCKED；Issue #43 招募帖尚无独立评审者响应。
+- 最新 Judge 校准接口代码验证：Run #1993（45802577224，精确 head 4067dba939a4e5171864c85cde413c46e934ee65），actionlint、正式 Skill 包、Benchmark、238/238 离线测试 PASS；Round 4 IDA/ERA contract PASS；Artifact 15108810359。该验证证明导入器/契约/测试通过，不证明任何真实 Judge 的经验有效性。
+- EX-05 因缺少 12-case 独立 Oracle freeze、额外真实运行授权/环境、多配置和版本配对数据，已明确调整为 BLOCKED；Issue #43 招募帖尚无独立评审者响应。\n- IM-03 的 manual/LLM Judge 证据导入接口已实现，支持 held-out/blinded 独立 Gold、逐案证据、重复 Judge 运行及 case-level 非伪重复统计；由于尚无真实独立 Judge 校准样本，任务保持 BLOCKED，synthetic smoke 仍 NOT_VALIDATED。
 - EX-06 真实 Builder/DSH/Runner/独立 Oracle 证据规范化与 IDA/ERA 执行已完成；Run #1983（45800505196，精确 head d899ea3）230/230 离线测试与 Round 4 evidence Job PASS，Artifact 15105794918。该完成状态仅覆盖现有 3 条 Pilot 证据，不代表剩余用例或科学效度门禁完成。
 - 实证边界：15 条 Round 4 用例中仅 3 条真实 Pilot，12 条 NOT_RUN；独立 Gold Judge 校准仍 NOT_RUN（synthetic smoke 仅验证执行/报告契约）；IDA/ERA PARTIAL；综合分 NOT_VALIDATED。专家评审、Oracle 冻结、盲测缺陷实验、Capability/Regression 完整效标和公式独立验证仍未完成。
 - 发布限制：尚无 v0.0.2 Release Candidate、最终发布审查或用户发布批准；不得创建 v0.0.2 tag/release。

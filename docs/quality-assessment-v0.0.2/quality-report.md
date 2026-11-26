@@ -24,8 +24,8 @@ v0.0.2 已完成需求基线、研究与方法论设计、IDA/ERA 核心工程�
 | 状态 | 数量 | 解释 |
 |---|---:|---|
 | DONE | 20 | 设计/工程任务已有可复核文档、代码或 CI 证据 |
-| IN_PROGRESS | 6 | 已有部分实现或部分真实证据，验收条件尚未全部满足 |
-| BLOCKED | 11 | 需要独立人员、外部许可/数据、Oracle 或用户发布批准 |
+| IN_PROGRESS | 5 | 已有部分实现或部分真实证据，验收条件尚未全部满足 |
+| BLOCKED | 12 | 需要独立人员、外部许可/数据、Oracle 或用户发布批准 |
 | TODO | 0 | 尚未启动的任务已转为明确阻塞状态，避免掩盖依赖 |
 | **合计** | **37** | |
 
@@ -223,3 +223,11 @@ Run #1947（45721216859）在精确 head `bca98059650afce9df752917553bcff98adeb9
 - Run #1983 的生产 Builder、independent validation、Pilot 和 adjudication jobs 均 SKIPPED。OpenRouter preflight 成功只说明预检步骤通过，不代表生产运行已执行或获得额外运行授权。
 - 因 EX-05 的核心验收需要 EX-07 独立 Oracle freeze、额外真实运行授权/环境和配对版本数据，任务状态调整为 BLOCKED。解除条件：完成独立盲审与仲裁、冻结 12-case Oracle、取得必要运行授权、完成多配置/重复/配对实验并归档原始证据。
 - 这不是把 3/3 Pilot 结果判为失败；它们仍是有限 Pilot 证据，不能外推为总体能力或回归效度。
+
+
+### IM-03 Judge calibration interface and empirical blocker（2026-11-26）
+
+- 已实现 human/manual 与 LLM Judge 共用的独立校准导入管线：冻结 suite 哈希和完整 case coverage、independent Gold source、held-out/blinding 声明、Judge 身份哈希、逐案 Gold/Judge evidence refs、匿名 reviewer/adjudicator ID、source observation hash。
+- 支持 preregistered repeated Judge observations；accuracy 按唯一 case 计算，abstention 按 judgement 计数，重复分歧单独报告。case-level majority ties 映射为 UNKNOWN；False Pass/False Fail 采用保守 case-level 标记，避免将同一 case 的重复 Judge 输出当成独立样本。
+- Run #1993（[45802577224](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45802577224)，精确 head `4067dba939a4e5171864c85cde413c46e934ee65`）238/238 离线测试 PASS；Round 4 IDA/ERA contract PASS，Artifact #15108810359，ZIP SHA-256 `d899391a3603954a14959fe78568fed9e3b503c10959154a08dc022318686d9f`。
+- 仍无独立 held-out Gold Judge 校准集、真实人工/LLM Judge 观测或外部审计。Issue #43 招募帖没有独立评审者报名。当前 synthetic smoke 仍 NOT_VALIDATED；IM-03 因缺少外部校准证据调整为 BLOCKED。Importer/schema/tests 通过不等于 Judge 有效。
