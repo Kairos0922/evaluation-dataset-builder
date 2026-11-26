@@ -135,16 +135,24 @@ jobs:
         if: steps.scope.outputs.run_validation == 'true'
         run: python -m unittest discover -s tests -p "test_*.py" -v
 
-      - name: Run G-Theory Monte Carlo parameter-recovery experiment
+      - name: Run G-Theory Monte Carlo parameter-recovery experiment (40x25)
         if: steps.scope.outputs.run_validation == 'true'
-        run: python scripts/run_g_theory_parameter_recovery.py --output artifacts/g-theory-parameter-recovery.json
+        run: python scripts/run_g_theory_parameter_recovery.py --persons 40 --items 25 --output artifacts/g-theory-parameter-recovery-40x25.json
+
+      - name: Run G-Theory small-design sensitivity (20x10)
+        if: steps.scope.outputs.run_validation == 'true'
+        run: python scripts/run_g_theory_parameter_recovery.py --persons 20 --items 10 --output artifacts/g-theory-parameter-recovery-20x10.json
+
+      - name: Run G-Theory large-design sensitivity (80x50)
+        if: steps.scope.outputs.run_validation == 'true'
+        run: python scripts/run_g_theory_parameter_recovery.py --persons 80 --items 50 --output artifacts/g-theory-parameter-recovery-80x50.json
 
       - name: Upload G-Theory Monte Carlo evidence
         if: steps.scope.outputs.run_validation == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: g-theory-parameter-recovery
-          path: artifacts/g-theory-parameter-recovery.json
+          path: artifacts/g-theory-parameter-recovery-*.json
           if-no-files-found: error
           retention-days: 90
 
