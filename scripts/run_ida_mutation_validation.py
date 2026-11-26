@@ -199,11 +199,11 @@ def _mutations():
 
     return [
         ("IDA-M01", "missing_required_case_field", m01, lambda r: _metric(r, "IDA-STR-01")["status"] == "FAIL" and _gate(r, "G07_integrity_leakage") == "FAIL"),
-        ("IDA-M02", "duplicate_case_id", m02, lambda r: _gate(r, "G07_integrity_leakage") == "FAIL" and r["overall_status"] == "FAIL"),
-        ("IDA-M03", "manifest_case_count_mismatch", m03, lambda r: _gate(r, "G07_integrity_leakage") == "FAIL" and r["overall_status"] == "FAIL"),
-        ("IDA-M04", "case_dataset_id_mismatch", m04, lambda r: _gate(r, "G07_integrity_leakage") == "FAIL" and r["overall_status"] == "FAIL"),
-        ("IDA-M05", "unresolved_source_reference", m05, lambda r: _gate(r, "G01_source_provenance") == "FAIL" and r["overall_status"] == "FAIL"),
-        ("IDA-M06", "missing_source_reference", m06, lambda r: _gate(r, "G01_source_provenance") == "UNKNOWN" and r["overall_status"] == "PARTIAL"),
+        ("IDA-M02", "duplicate_case_id", m02, lambda r: (_metric(r, "IDA-STR-02")["value"] or 0) < 1 and _gate(r, "G07_integrity_leakage") == "FAIL" and r["overall_status"] == "FAIL"),
+        ("IDA-M03", "manifest_case_count_mismatch", m03, lambda r: _metric(r, "IDA-STR-02")["status"] == "FAIL" and _gate(r, "G07_integrity_leakage") == "FAIL" and r["overall_status"] == "FAIL"),
+        ("IDA-M04", "case_dataset_id_mismatch", m04, lambda r: _metric(r, "IDA-STR-02")["status"] == "FAIL" and _gate(r, "G07_integrity_leakage") == "FAIL" and r["overall_status"] == "FAIL"),
+        ("IDA-M05", "unresolved_source_reference", m05, lambda r: (_metric(r, "IDA-STR-03")["value"] or 0) < 1 and _gate(r, "G01_source_provenance") == "FAIL" and r["overall_status"] == "FAIL"),
+        ("IDA-M06", "missing_source_reference", m06, lambda r: _metric(r, "IDA-EVD-00")["value"] == 0 and _gate(r, "G01_source_provenance") == "UNKNOWN" and r["overall_status"] == "PARTIAL" and any(f["severity"] == "high" for f in r["findings"])),
         ("IDA-M07", "exact_duplicate_payload", m07, lambda r: (_metric(r, "IDA-RED-00")["value"] or 0) > 0 and any("exact duplicate" in f["description"] for f in r["findings"])),
         ("IDA-M08", "coverage_declaration_mismatch", m08, lambda r: _metric(r, "IDA-COV-00")["status"] == "MEASURED" and any(f["finding_id"].startswith("COVERAGE-") for f in r["findings"])),
     ]
