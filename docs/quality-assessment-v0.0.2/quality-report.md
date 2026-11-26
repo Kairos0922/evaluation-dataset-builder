@@ -24,8 +24,8 @@ v0.0.2 已完成需求基线、研究与方法论设计、IDA/ERA 核心工程�
 | 状态 | 数量 | 解释 |
 |---|---:|---|
 | DONE | 20 | 设计/工程任务已有可复核文档、代码或 CI 证据 |
-| IN_PROGRESS | 4 | 已有部分实现或部分真实证据，验收条件尚未全部满足 |
-| BLOCKED | 13 | 需要独立人员、外部许可/数据、Oracle 或用户发布批准 |
+| IN_PROGRESS | 3 | 已有部分实现或部分真实证据，验收条件尚未全部满足 |
+| BLOCKED | 14 | 需要独立人员、外部许可/数据、Oracle 或用户发布批准 |
 | TODO | 0 | 尚未启动的任务已转为明确阻塞状态，避免掩盖依赖 |
 | **合计** | **37** | |
 
@@ -256,3 +256,11 @@ Run #1947（45721216859）在精确 head `bca98059650afce9df752917553bcff98adeb9
 - 20×10 在这些条件下明显不稳定；40×25 在一般条件下较好，但低 Person 方差时仍有较高 RMSE 和 23% 负 raw Person 分量；80×50 改善明显，但低 Person 方差场景 RMSE 仍约 0.11。不能据此制定普遍样本量门槛，真实项目必须按预期方差结构和设计重新做 preregistered power/precision simulation。
 - Run #2002（[45804426404](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45804426404)，精确 head `61fd978f496a3eb2db00eeb89a4bf696b84ddbf5`）241/241 离线测试 PASS，三种样本设计模拟和 Round 4 真实 Capability 报告契约均 PASS。
 - Round 4 真实数据只有 1 configuration × 3 cases：Rasch 与 G-Theory 均 NOT_ASSESSED；DIF 与 measurement invariance NOT_ASSESSED。当前没有真实多组效度或外部 criterion 数据，IM-05 因此 BLOCKED。
+
+
+### IM-07 Skill packaging and release-version boundary（2026-11-26）
+
+- Method standard and machine-readable standard are updated inside the Skill package: standard version 2.0.0, applies to Evaluation Dataset Builder 0.0.2. IDA, ERA, Runtime Record, Formula Validation and Expert Review schemas are included.
+- SKILL.md references all 16 on-demand reference assets directly. Package validator verifies exact reference inventory, no missing/extra files, no second-level reference dependency, valid Draft 2020-12 schemas and version consistency.
+- Run #2004（[45804838674](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45804838674)，exact head `013c351812b801554faa72fd360b208b9b553bb4`）passed actionlint, Skill package validation, Benchmark, 241/241 offline tests and Round 4 evidence analysis.
+- Root VERSION and SKILL frontmatter metadata.version remain 0.0.1, the already released package version. Upgrading to 0.0.2 before release gates and explicit approval would violate the release boundary. IM-07 is therefore BLOCKED only on the formal version transition; no tag, release or merge was created.
