@@ -258,4 +258,5 @@
 - 新增 `tests/test_capability_measurement_monte_carlo.py`：执行 30 次 × 80 配置 × 25 用例的确定性模拟；门禁有效重复数及能力/难度相关、RMSE 范围，避免仅断言“算法能运行”。
 - 固定设计模拟：26/30 次可估计；能力与题目难度平均相关约 0.867/0.961，RMSE 约 0.492/0.268 logits。4 次失败因完全分离被 fail-closed。
 - 该证据等级仅为 SIMULATION_ONLY；分位数是模拟重复分布，不是现实置信区间，也不证明模型适配、DIF、测量不变性或外部效度。G-Theory 参数恢复仍未完成，因此 IM-05 保持 IN_PROGRESS。
-- 本轮实现提交：`bb7cc26378cdc262c5560f49f358a258a00de367`；等待 PR #44 精确 head 的 CI 复验后再记录测试验收结论。
+- 本轮实现提交：`bb7cc26378cdc262c5560f49f358a258a00de367`；TASKS 记录提交：`3acad40fb2ecb1846aa7619ad0905cebf92894bc`。
+- Run #1977（45756867922）在精确 head `3acad40fb2ecb1846aa7619ad0905cebf92894bc` 上 SUCCESS：actionlint、正式 Skill 包、Benchmark、224/224 离线测试（含 30-replication Monte Carlo 参数恢复测试）PASS；Round 4 IDA/ERA 报告 Schema/cross-field validation PASS；artifact #15088650704。真实数据仍为 IDA/ERA PARTIAL、15 条中 3 条 Pilot / 12 条 NOT_RUN、Judge NOT_RUN、composite NOT_VALIDATED。该 Run 的 Builder production / independent-validation / Pilot / adjudication jobs 均 SKIPPED。
