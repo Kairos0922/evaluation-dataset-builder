@@ -81,6 +81,19 @@ def validate_report(report: object, suite_path: Path | None = None) -> list[str]
             errors.append("independent_empirical requires independent Gold and a named held-out split")
         if not protocol["blinded"] or not protocol["independent_review"]:
             errors.append("independent_empirical requires blinded and independent review")
+        if judge.get("judge_type") not in {"human", "llm"}:
+            errors.append("independent_empirical requires judge_type human or llm")
+        for item in results:
+            if not item.get("evidence_validated"):
+                errors.append(f"independent_empirical case {item['case_id']} has unvalidated evidence")
+            if not item.get("gold_evidence_ref"):
+                errors.append(f"independent_empirical case {item['case_id']} lacks Gold evidence reference")
+            if not item.get("judge_evidence_ref"):
+                errors.append(f"independent_empirical case {item['case_id']} lacks Judge evidence reference")
+            if dataset["label_source"] == "independent_expert" and not item.get("reviewer_id"):
+                errors.append(f"independent expert case {item['case_id']} lacks anonymous reviewer_id")
+            if dataset["label_source"] == "adjudicated_oracle" and not item.get("adjudicator_id"):
+                errors.append(f"adjudicated case {item['case_id']} lacks anonymous adjudicator_id")
     if status == "VALIDATED_FOR_SCOPE" and kind != "independent_empirical":
         errors.append("VALIDATED_FOR_SCOPE is allowed only for independent_empirical evidence")
 

@@ -95,8 +95,30 @@ class JudgeCalibrationContractTests(unittest.TestCase):
             "held_out":True
         })
         report["protocol"].update({"blinded":True,"independent_review":True})
+        report["judge"]["judge_type"] = "llm"
+        for item in report["results"]:
+            item["evidence_validated"] = True
+            item["gold_evidence_ref"] = "oracle://"+item["case_id"]
+            item["judge_evidence_ref"] = "judge-run://"+item["case_id"]
+            item["adjudicator_id"] = "arbiter-anon-01"
         report["status"] = "VALIDATED_FOR_SCOPE"
         self.assertEqual(validate_report(report), [])
+
+    def test_empirical_claim_without_case_level_evidence_fails(self):
+        report = base_report()
+        report["calibration_kind"] = "independent_empirical"
+        report["dataset"].update({
+            "label_source":"adjudicated_oracle",
+            "independent_gold":True,
+            "split_id":"heldout-v1",
+            "held_out":True
+        })
+        report["protocol"].update({"blinded":True,"independent_review":True})
+        report["judge"]["judge_type"] = "human"
+        errors = validate_report(report)
+        self.assertTrue(any("lacks Gold evidence reference" in e for e in errors))
+        self.assertTrue(any("lacks Judge evidence reference" in e for e in errors))
+        self.assertTrue(any("lacks anonymous adjudicator_id" in e for e in errors))
 
     def test_empirical_claim_without_blinding_and_heldout_split_fails(self):
         report = base_report()

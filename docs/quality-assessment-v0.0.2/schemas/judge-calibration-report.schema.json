@@ -106,6 +106,9 @@
         "separate_from_subject"
       ],
       "properties": {
+        "judge_type": {
+          "enum": ["human", "llm"]
+        },
         "provider": {
           "type": "string",
           "minLength": 1
@@ -223,6 +226,19 @@
               "string",
               "null"
             ]
+          },
+          "judge_evidence_ref": {
+            "type": ["string", "null"]
+          },
+          "reviewer_id": {
+            "type": ["string", "null"]
+          },
+          "adjudicator_id": {
+            "type": ["string", "null"]
+          },
+          "repeat_index": {
+            "type": ["integer", "null"],
+            "minimum": 1
           }
         },
         "additionalProperties": false
@@ -274,6 +290,10 @@
         }
       },
       "additionalProperties": false
+    },
+    "source_observations_sha256": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
     },
     "limitations": {
       "type": "array",
