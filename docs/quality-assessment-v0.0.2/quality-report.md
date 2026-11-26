@@ -24,8 +24,8 @@ v0.0.2 已完成需求基线、研究与方法论设计、IDA/ERA 核心工程�
 | 状态 | 数量 | 解释 |
 |---|---:|---|
 | DONE | 20 | 设计/工程任务已有可复核文档、代码或 CI 证据 |
-| IN_PROGRESS | 2 | 已有部分实现或部分真实证据，验收条件尚未全部满足 |
-| BLOCKED | 15 | 需要独立人员、外部许可/数据、Oracle 或用户发布批准 |
+| IN_PROGRESS | 1 | 已有部分实现或部分真实证据，验收条件尚未全部满足 |
+| BLOCKED | 16 | 需要独立人员、外部许可/数据、Oracle 或用户发布批准 |
 | TODO | 0 | 尚未启动的任务已转为明确阻塞状态，避免掩盖依赖 |
 | **合计** | **37** | |
 
@@ -281,3 +281,20 @@ Detected deterministic mutations: missing required field, duplicate case ID, man
 Run #2011（[45806101196](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45806101196)，exact head `9cb0e46cd78193a9419929f90c73817a0ac511c3`）passed 243/243 offline tests and uploaded mutation artifact #15108859637 (ZIP SHA-256 `bb45162be43dd87e2b0587e8d35ae80c2b4328870bc2689debf23a594d323a1e`).
 
 This establishes implementation sensitivity to the eight specified synthetic mutations only. It does not establish semantic content validity, construct validity, source claim support, Gold correctness, or contamination resistance. The actual Round 4 IDA report remains PARTIAL: G01 PASS, G02–G04 NOT_ASSESSED, G05/G07 UNKNOWN, composite NOT_VALIDATED. QA-02 remains BLOCKED pending independent blind expert review and external Oracle/contamination evidence.
+
+
+### QA-03 End-to-end real runtime evidence（2026-11-26）
+
+Run #2011 re-imported the frozen Round 4 DSH evidence and passed IDA, ERA and Capability report schema/cross-field validation. The observed ERA evidence is partial:
+
+- 3/15 Pilot cases executed; 3/3 Agent outcomes PASS, 3/3 process outcomes PASS, 3/3 independent Gold outcomes PASS.
+- Only one mutation fault was injected (search-case-sensitive) and detected. The other two runs had no injected fault. This is insufficient to estimate fault detection, false-positive or generalization rates.
+- 12/15 cases remain NOT_RUN.
+- All three Judge outcomes are UNKNOWN; grader_validation is NOT_RUN.
+- pair_id, repeat_group_id, seed and cost_usd are missing; Regression analysis is null.
+- Capability evidence is one configuration × three cases and remains descriptive PARTIAL; Rasch/G-Theory are NOT_ASSESSED.
+- Composite remains NOT_VALIDATED.
+
+Artifact #15110340499, ZIP SHA-256 `4fe6f5f2bf4de10f7befd4ad2a6a6a70a1b4293e84e0c9e15d5593bd109124ed`.
+
+Production execution, the remaining 12 pilots, repeated runs, independent Judge/adjudication, paired baseline/candidate regression and cost collection require an authorized runtime, budget and external approval. The production/pilot/adjudication jobs were SKIPPED. No paid or production run was triggered without authorization. QA-03 remains BLOCKED.
