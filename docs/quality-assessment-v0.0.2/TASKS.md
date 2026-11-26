@@ -231,3 +231,9 @@
 - Round 4 real-evidence-assessment Job SUCCESS，Round 4 IDA/ERA 报告 Schema 与 cross-field contract validation PASS；artifact #15077441739，SHA-256 `02e7d5a2386f0ea6e1f57a8382c6af64bd1f4a661f81e934cab569e74e4aa004`。
 - Builder production、independent-validation、Pilot、adjudication 等 Job 均 SKIPPED；本轮没有新的真实 Builder 执行、Judge API 校准、独立评审或 Oracle freeze。
 - IM-03 仅完成执行脚本与报告契约的工程集成；独立 Gold/held-out/盲法实证校准仍未完成，IM-03 继续 IN_PROGRESS。
+
+
+### 最新 TASKS/质量报告/CHANGELOG 文档 head 复验（2026-11-26）
+- 精确 head `5b108084f65cfb0e00b8552744267ccdc5e51f58` 对应 Run #1961（45732037841）Workflow SUCCESS：actionlint、正式 Skill 包、Benchmark、218/218 离线测试和 Round 4 IDA/ERA 报告 Schema/cross-field contract validation 全部 PASS。
+- Round 4 artifact #15077885154，SHA-256 `fd3187c4a98a158b2dfe7b63fd2594c2c30540ab94a2e429886c6c11e72be122`。
+- Builder production、independent-validation、Pilot、adjudication 等受上游门禁保护的 Jobs 均 SKIPPED；本次没有新增生产执行或人工评审证据。Run #1961 仅证明当前代码和文档基线通过 CI。
