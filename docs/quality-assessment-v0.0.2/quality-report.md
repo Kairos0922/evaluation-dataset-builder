@@ -1,6 +1,6 @@
 # v0.0.2 任务质量报告
 
-**报告日期：** 2026-11-26  
+**报告日期：** 2026-11-27  
 **任务依据：** `docs/quality-assessment-v0.0.2/TASKS.md`  
 **工作分支：** `feat/quality-assessment-v0.0.2`  
 **需求 Issue：** [#43](https://github.com/Kairos0922/evaluation-dataset-builder/issues/43)  
@@ -11,9 +11,9 @@
 
 v0.0.2 已完成需求基线、研究与方法论设计、IDA/ERA 核心工程实现、报告契约、确定性检查、Round 4 Oracle 执行前冻结工具、盲审资料包生成/比较工具、Judge 校准证据契约，以及架构/ERA 执行协议。
 
-**工程与契约层：阶段性通过。** 最新代码验证 Run #1933 在精确代码 head `878303fba7d4db75df979073d97c9d529b70d74e` 上通过 actionlint、正式 Skill 包验证、Benchmark 贯通样例和 215/215 离线测试；Round 4 真实证据重新导入、IDA/ERA 报告 Schema 与 cross-field contract validation 通过。
+**工程与契约层：阶段性通过。** 质量评估代码的最新完整实验验证仍以 Run #2011（head `9cb0e46cd78193a9419929f90c73817a0ac511c3`，243/243 离线测试）为准；随后 TASKS 台账更新后的 Run #2020（head `a4494182e35d75fee61d34beac60fff69e07f87f`）验证工作流 SUCCESS。Run #2020 是台账/文档提交的 CI 结果，不代表新增真实运行或科学效度证据。
 
-**科学效度层：证据不足。** 当前真实 Round 4 数据只有 15 条用例中的 3 条完成 Pilot 和独立 Gold Oracle 判定；其余 12 条未运行。专家内容效度、Judge 独立校准、盲测缺陷识别、完整 Capability/Regression 效标和公式冻结验证均未完成。
+**科学效度层：证据不足。** 当前真实 Round 4 数据只有 15 条用例中的 3 条完成 Pilot 和独立 Gold Oracle 判定；其余 12 条未运行。独立专家内容效度与 Round 4 Oracle 评审已按用户决定暂缓；Judge 独立校准、盲测语义缺陷识别、完整 Capability/Regression 效标和公式冻结验证仍未完成。暂缓不等于通过。
 
 **发布准备度：不通过 / 暂不发布。** v0.0.2 尚未形成 Release Candidate；PR #44 继续 Draft/Open。不能把工程 CI 成功解释为测量效度通过。
 
@@ -25,7 +25,8 @@ v0.0.2 已完成需求基线、研究与方法论设计、IDA/ERA 核心工程�
 |---|---:|---|
 | DONE | 20 | 设计/工程任务已有可复核文档、代码或 CI 证据 |
 | IN_PROGRESS | 0 | 已有部分实现或部分真实证据，验收条件尚未全部满足 |
-| BLOCKED | 17 | 需要独立人员、外部许可/数据、Oracle 或用户发布批准 |
+| BLOCKED | 15 | 需要外部许可/数据、Gold/Oracle、真实运行授权或用户发布批准 |
+| DEFERRED | 2 | 独立专家评审与依赖其仲裁的 12-case Oracle 工作按用户决定暂缓，不计为完成 |
 | TODO | 0 | 尚未启动的任务已转为明确阻塞状态，避免掩盖依赖 |
 | **合计** | **37** | |
 
@@ -89,8 +90,8 @@ Run #1933 中 Builder production、independent-validation、webapp-testing-pilot
 
 | 优先级 | 发现 | 影响 | 解除条件 |
 |---|---|---|---|
-| P0 | 12 条 Round 4 Oracle 未冻结 | 无法安全执行剩余用例，也无法完成 15 条数据集的运行效标 | 两位独立盲审者、第三位独立仲裁者、12-case hash-bound freeze 通过 |
-| P0 | 专家内容效度尚无真实评分 | 无 CVI/CVR/Aiken's V 或评分者一致性实证 | 完成独立专家招募、盲评、仲裁并归档原始记录 |
+| P0 | Round 4 剩余 12 条 Oracle 未冻结（EX-07 DEFERRED） | 12 条继续 NOT_RUN；不能形成完整 15-case 运行效标 | 若未来重启该工作，先确认独立 Gold 来源、审查资源与授权，再通过 12-case hash-bound freeze |
+| P0 | 专家内容效度尚无真实评分（EX-03 DEFERRED） | 无 CVI/CVR/Aiken's V 或评分者一致性实证；当前不得声称内容效度已验证 | 本轮暂不推进；未来如重新启动，需另行确认专家资源、盲评与仲裁方案 |
 | P0 | Judge 无独立 Gold 校准实证 | 无法量化 Judge False Pass/False Fail、Abstention 和重复性 | 独立 Gold/held-out 校准集、盲法协议、Judge 报告及独立复核 |
 | P1 | 缺陷注入只有确定性单测 | 不能声称对盲测真实缺陷有检出效度 | 独立确认基线/变体、盲测、控制样本、按缺陷类别报告区间 |
 | P1 | Capability/Regression 真实效标不足 | 无完整能力矩阵、无配对 Regression、无跨 Agent/Skill 泛化证据 | 多配置真实运行、配对版本、历史故障与重复运行 |
@@ -165,7 +166,7 @@ Run #1947（45721216859）在精确 head `bca98059650afce9df752917553bcff98adeb9
 - Summary 由逐案结果重新计算 adjudicable denominator、exact matches、False Pass、False Fail、Abstention 和 accuracy；写出前调用正式 `validate_report()`，并校验 suite 哈希与 case IDs。
 - 新增 3 项执行脚本集成测试，覆盖 synthetic report 合约、错误类型计数和身份哈希。相关提交：`33bd883`、`bbb2d85`、`98f9e66`。
 - Run #1953（45731724029，head `98f9e66`）中 actionlint、正式 Skill 包和 Benchmark PASS；218 项离线测试中 217 PASS / 1 FAIL。唯一失败是集成测试对夹具中多个 UNKNOWN 的预期值写错，已在 commit `cd95707` 修复。修复后的精确文档/代码 head `f4d2cc2fadc2c8136a8c5d405a3d6a47eee5efb2` 由 Run #1958（45731888915）完整验证成功：actionlint、正式 Skill 包、Benchmark、218/218 离线测试和 Round 4 IDA/ERA 报告契约全部 PASS；artifact #15077441739，SHA-256 `02e7d5a2386f0ea6e1f57a8382c6af64bd1f4a661f81e934cab569e74e4aa004`。
-- **IM-03 仍 IN_PROGRESS。** 这次完成工程执行链路，不产生独立 Gold、盲法 held-out 样本、人工仲裁或真实 Judge 有效性结论；Round 4 Judge 仍为 NOT_RUN。
+- **IM-03 当前 BLOCKED。** 工程执行链路已完成，但没有独立 Gold、盲法 held-out 样本、真实 Judge 观测或独立审计；Round 4 Judge 仍为 NOT_RUN。
 
 
 ### 集成测试首轮失败与修复记录
@@ -197,7 +198,7 @@ Run #1947（45721216859）在精确 head `bca98059650afce9df752917553bcff98adeb9
 - G-Theory 部分实现平衡 Person×Item 双 facet ANOVA 方法矩估计、Person/Item/Person×Item+Residual 方差分量、相对 G、绝对 Phi 和 D-study 题目数量规划。
 - 新增 `schemas/capability-measurement-report.schema.json`、`capability-measurement-analysis.md` 和 5 项单测。
 - **科学边界：** 当前仅为探索性估计原型；不实现 2PL/多维 IRT、DIF、Seed/Environment/Judge 多 facet、非平衡/重复设计或模型拟合诊断。没有独立 Gold 时输出 NOT_ASSESSED。成功估计不代表单维性、局部独立、测量不变性或构念效度成立，也不启用综合分。
-- IM-05 继续 IN_PROGRESS，待 CI 验收、Monte Carlo 参数恢复、真实数据精度验证和独立外部效标实验。
+- IM-05 当前 BLOCKED：CI、Monte Carlo 参数恢复和分析器工程实现已完成；真实多配置/多组数据、DIF/测量不变性与外部效标仍未提供。
 
 
 ### Capability 测量原型 CI 证据
@@ -218,10 +219,10 @@ Run #1947（45721216859）在精确 head `bca98059650afce9df752917553bcff98adeb9
 
 ### EX-05 Capability / Regression 真实效标实验阻塞状态（2026-11-26）
 
-- Issue #43 目前仅有项目方发布的独立盲审招募公告，没有独立评审者报名或提交；Round 4 剩余 12 条用例尚未完成双盲 Oracle 和第三方仲裁，EX-07 未解除。
+- 独立专家评审与 12-case Oracle 盲审/仲裁已按用户决定暂缓（EX-03、EX-07=DEFERRED）；不再以 Issue #43 报名情况作为当前推进动作。原公告已标注暂停。
 - 当前仅 WB-02、WB-10、WB-12 三条 Pilot，3/3 独立 Gold PASS；单一 Skill revision、单一模型配置、每 case 一次运行，不足以形成 Capability 多配置响应矩阵或估计 Agent/Task/Seed/Environment 方差，也没有同 case baseline/candidate Regression 配对。
 - Run #1983 的生产 Builder、independent validation、Pilot 和 adjudication jobs 均 SKIPPED。OpenRouter preflight 成功只说明预检步骤通过，不代表生产运行已执行或获得额外运行授权。
-- 因 EX-05 的核心验收需要 EX-07 独立 Oracle freeze、额外真实运行授权/环境和配对版本数据，任务状态调整为 BLOCKED。解除条件：完成独立盲审与仲裁、冻结 12-case Oracle、取得必要运行授权、完成多配置/重复/配对实验并归档原始证据。
+- EX-05 仍 BLOCKED：EX-07 暂缓，12-case Oracle 不会在当前迭代中冻结；此外还缺真实运行授权/环境、多配置/重复运行和配对版本数据。若未来重启 Oracle 工作，需先确定独立 Gold 来源与审查资源。
 - 这不是把 3/3 Pilot 结果判为失败；它们仍是有限 Pilot 证据，不能外推为总体能力或回归效度。
 
 
@@ -230,7 +231,7 @@ Run #1947（45721216859）在精确 head `bca98059650afce9df752917553bcff98adeb9
 - 已实现 human/manual 与 LLM Judge 共用的独立校准导入管线：冻结 suite 哈希和完整 case coverage、independent Gold source、held-out/blinding 声明、Judge 身份哈希、逐案 Gold/Judge evidence refs、匿名 reviewer/adjudicator ID、source observation hash。
 - 支持 preregistered repeated Judge observations；accuracy 按唯一 case 计算，abstention 按 judgement 计数，重复分歧单独报告。case-level majority ties 映射为 UNKNOWN；False Pass/False Fail 采用保守 case-level 标记，避免将同一 case 的重复 Judge 输出当成独立样本。
 - Run #1993（[45802577224](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45802577224)，精确 head `4067dba939a4e5171864c85cde413c46e934ee65`）238/238 离线测试 PASS；Round 4 IDA/ERA contract PASS，Artifact #15108810359，ZIP SHA-256 `d899391a3603954a14959fe78568fed9e3b503c10959154a08dc022318686d9f`。
-- 仍无独立 held-out Gold Judge 校准集、真实人工/LLM Judge 观测或外部审计。Issue #43 招募帖没有独立评审者报名。当前 synthetic smoke 仍 NOT_VALIDATED；IM-03 因缺少外部校准证据调整为 BLOCKED。Importer/schema/tests 通过不等于 Judge 有效。
+- 仍无独立 held-out Gold Judge 校准集、真实人工/LLM Judge 观测或外部审计。独立专家评审已暂缓（EX-03=DEFERRED）；当前 synthetic smoke 仍 NOT_VALIDATED；IM-03 保持 BLOCKED。Importer/schema/tests 通过不等于 Judge 有效。
 
 
 ### IM-05 Capability / Regression measurement analysis（2026-11-26）
@@ -307,3 +308,13 @@ Root README, v0.0.2 development README, CHANGELOG, TASKS and quality-report now 
 Run #2011（[45806101196](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45806101196)，exact code head `9cb0e46cd78193a9419929f90c73817a0ac511c3`）passed 243/243 offline tests, actionlint, Skill package validation, Benchmark, three G-Theory design simulations, IDA mutation validation and Round 4 IDA/ERA/Capability report contracts.
 
 The root VERSION and Skill frontmatter metadata.version remain 0.0.1, matching the already published release. The formal version transition to 0.0.2 is intentionally blocked until all release gates pass and explicit release approval is obtained. No release tag, Release or merge was created.
+
+
+### 用户决策与任务基线更新（2026-11-27）
+
+- 用户决定暂时取消独立专家评审。EX-03（专家内容效度/评分者一致性）与依赖其双盲评审和仲裁的 EX-07（Round 4 剩余 12 条用例 Oracle 冻结）均标记为 DEFERRED；这表示暂缓，不是 DONE，也不是 NOT_APPLICABLE。
+- 已停止把 Issue #43 招募、等待报名和盲审包分发作为当前执行路径。原招募评论已更新为暂停说明。
+- 任务状态以 `TASKS.md` 当前台账为准：20 DONE、0 IN_PROGRESS、15 BLOCKED、2 DEFERRED、0 TODO（共 37 项）。
+- 独立专家证据缺失的科学边界不变：内容效度、语义缺陷标签、独立 Gold / Judge 校准与综合公式效度仍不得宣称通过；12 条用例继续 NOT_RUN，综合分继续 NOT_VALIDATED/value=null。
+- 当前仍可独立推进的工作限定为代码质量、可复现性、契约/安全测试、文档一致性和不需要伪造外部效标的工程验证。不得擅自触发收费/生产运行、合并 PR、升级正式版本或发布。
+- 台账最近一次 CI：Run #2020（[45843892531](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45843892531)，head `a4494182e35d75fee61d34beac60fff69e07f87f`）SUCCESS。该次验证覆盖台账更新，不代表新增科学效度证据。
