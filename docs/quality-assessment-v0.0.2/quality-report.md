@@ -39,7 +39,7 @@ v0.0.2 已完成需求基线、研究与方法论设计、IDA/ERA 核心工程�
 - **研究与方法：** research-evidence.md、methodology-design.md、methodology-matrix.md、metric-catalog.md、formula-validation-protocol.md、experimental-design.md。
 - **IDA：** `scripts/assess_dataset_quality.py`、IDA report Schema、质量报告契约验证器和测试。
 - **ERA：** Runtime Record / ERA report Schema、`scripts/import_dsh_pilot_records.py`、`scripts/assess_runtime_quality.py`、报告验证器和测试。
-- **Judge：** 专家评审协议与评分记录 Schema；新增 Judge Calibration Report Schema、`scripts/validate_judge_calibration.py` 和 8 项契约测试。该验证器重新计算分母、准确率、False Pass、False Fail 和 Abstention，校验 suite SHA/case IDs，并禁止 synthetic smoke 被标为 VALIDATED_FOR_SCOPE。
+- **Judge：** 专家评审协议与评分记录 Schema；新增 Judge Calibration Report Schema、`scripts/validate_judge_calibration.py` 和 8 项验证器契约测试。现已将 `tests/calibrate_judge.py` 接入该报告契约，生成 suite SHA/case IDs、Judge prompt/implementation SHA、运行身份、逐案结果和重算指标，并在落盘前调用验证器及 suite 哈希校验；新增 3 项执行脚本集成测试。synthetic smoke 被固定标记为 NOT_VALIDATED，不能冒充独立 Gold 校准。
 - **Round 4 Oracle：** 独立判定计划、Oracle Record Schema、A/B 盲审资料包生成器、提交 Schema、比较器、hash-bound Freeze Manifest Schema 和验证器。
 - **运行协议：** runtime-assessment-protocol.md 定义执行前冻结、失败归因、Judge/Gold 独立性、Capability/Regression 分支、重复和停止规则。
 - **外部 Benchmark：** external-benchmark-candidates.md 登记 AppWorld、AgentDojo、WebArena-Verified、OSWorld-Verified、GAIA、WorkArena，并区分代码许可证与数据/镜像/实例授权。
@@ -155,3 +155,13 @@ Run #1944（45721014232）在精确 head `122d38527a3af2e3d012598cbb6ac93b3b4ecf
 ### 最新文档/变更记录 head 复验
 
 Run #1947（45721216859）在精确 head `bca98059650afce9df752917553bcff98adeb91e` 上 Workflow SUCCESS：actionlint、正式 Skill 包、Benchmark、215/215 离线测试（含 8 项 Judge calibration contract tests）和 Round 4 IDA/ERA 报告契约全部 PASS。Round 4 artifact #15071653396，SHA-256 `153f702408de37fc4581e7441171b7f53916809be256563a89501c883f50bf80`。Builder production / independent-validation / Pilot / adjudication Jobs 均 SKIPPED；没有新增真实执行。
+
+
+### Judge Calibration 执行链路集成（2026-11-26）
+
+- 已完成 `tests/calibrate_judge.py` 到 v0.0.2 Judge Calibration Report Schema/validator 的接入；不再只输出旧版 ad-hoc JSON。
+- 新报告绑定校准 suite 原始字节 SHA-256、case IDs、Judge endpoint/model、Judge prompt SHA、Judge 实现 SHA、workflow run/commit 身份，并逐案记录 Gold/Judge 状态、证据验证标志与输出 SHA。
+- Summary 由逐案结果重新计算 adjudicable denominator、exact matches、False Pass、False Fail、Abstention 和 accuracy；写出前调用正式 `validate_report()`，并校验 suite 哈希与 case IDs。
+- 新增 3 项执行脚本集成测试，覆盖 synthetic report 合约、错误类型计数和身份哈希。相关提交：`33bd883`、`bbb2d85`、`98f9e66`。
+- PR #44 head `98f9e66f63a3c6c6d3343e8e704145b4e0a83488` 的 CI Run #1953（45731724029）已启动；TASKS 文档随后更新为 commit `52d3a1b`，因此需要对更新后的精确 head 再做 CI 复验。此处不提前宣称新增测试已通过。
+- **IM-03 仍 IN_PROGRESS。** 这次完成工程执行链路，不产生独立 Gold、盲法 held-out 样本、人工仲裁或真实 Judge 有效性结论；Round 4 Judge 仍为 NOT_RUN。
