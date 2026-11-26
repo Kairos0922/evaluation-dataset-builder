@@ -47,7 +47,7 @@
 | SC-01 | 方案 | 冻结 v0.0.2 需求、架构和验收标准 | DONE | 新增 architecture-and-acceptance-baseline.md，定义模块边界、IDA/ERA 数据流、证据等级、关键不变量、用途分支、版本策略和分层验收矩阵；decision-log.md D-007 采纳，requirements.md 状态同步。 |
 | IM-01 | 实现 | 设计并实现 IDA 报告 Schema / 机器可读契约 | DONE | schemas/ida-report.schema.json；JSON 语法检查通过；commit f47905e |
 | IM-02 | 实现 | 实现独立离线评价器和确定性检查 | DONE | scripts/assess_dataset_quality.py 实现 Manifest/Case Schema、ID、来源注册表、覆盖一致性、分布、精确重复和报告契约检查；扩展身份错配、来源缺失/解析、覆盖不一致测试；run #1793 在精确 head 885444a 上 155 项测试 PASS |
-| IM-03 | 实现 | 实现人工/LLM Judge 校准与证据记录接口 | IN_PROGRESS | 已将 tests/calibrate_judge.py 接入 v0.0.2 Judge Calibration Report 契约：输出 suite SHA/case IDs、Judge prompt/implementation SHA、运行/commit 身份、逐案 Gold/Judge 状态及重算指标；执行时调用 validate_report() 和 suite 哈希校验。新增 tests/test_calibrate_judge_contract.py 覆盖报告生成、False Pass/False Fail/Abstention 重算与身份哈希。提交 33bd883、bbb2d85、98f9e66；Run #1953（45731724029，head 98f9e66）执行 218 项测试时发现 1 项新增测试的 abstention 期望值错误（夹具含多个 UNKNOWN）；已修正为显式控制其余 UNKNOWN 的 Judge 输出，修复提交 cd95707，等待最新 head CI 复验。IM-03 仍 IN_PROGRESS：当前执行仍为 synthetic_smoke/NOT_VALIDATED，独立 Gold、盲法 held-out 校准与人工复核尚未开展。 |
+| IM-03 | 实现 | 实现人工/LLM Judge 校准与证据记录接口 | IN_PROGRESS | 已将 tests/calibrate_judge.py 接入 v0.0.2 Judge Calibration Report 契约：输出 suite SHA/case IDs、Judge prompt/implementation SHA、运行/commit 身份、逐案 Gold/Judge 状态及重算指标；执行时调用 validate_report() 和 suite 哈希校验。新增 tests/test_calibrate_judge_contract.py 覆盖报告生成、False Pass/False Fail/Abstention 重算与身份哈希。提交 33bd883、bbb2d85、98f9e66；Run #1953（45731724029，head 98f9e66）执行 218 项测试时发现 1 项新增测试的 abstention 期望值错误（夹具含多个 UNKNOWN）；已在 cd95707 修复。最新精确 head `f4d2cc2fadc2c8136a8c5d405a3d6a47eee5efb2` 的 Run #1958（45731888915）SUCCESS，actionlint、正式包、Benchmark、218/218 离线测试和 Round 4 IDA/ERA 报告契约均 PASS；artifact 15077441739，SHA-256 `02e7d5a2386f0ea6e1f57a8382c6af64bd1f4a661f81e934cab569e74e4aa004`。IM-03 仍 IN_PROGRESS：当前执行仍为 synthetic_smoke/NOT_VALIDATED，独立 Gold、盲法 held-out 校准与人工复核尚未开展。 |
 | IM-04 | 实现 | 实现 ERA 运行结果 Schema / 机器可读契约 | DONE | schemas/era-report.schema.json + schemas/runtime-record.schema.json；Skill references 已同步；精确数据集 SHA、Agent/模型/Harness/环境、Run/Trace、Judge、Capability/Regression 字段已定义；JSON 语法检查通过；commits ef7515c、5030629、f18e010 |
 | IM-05 | 实现 | 实现 Capability / Regression 统计分析模块 | IN_PROGRESS | assess_runtime_quality.py 已实现 Judge 混淆指标、Wilson CI、配对版本差异、McNemar exact、历史/变异故障检出、重复运行不一致和成本画像。IRT/G-Theory 估计、DIF/测量不变性和充分真实样本仍未完成。 |
 | IM-06 | 实现 | 实现公式验证证据 Schema 和独立验证器 | DONE | Schema、Skill reference、验证器及契约测试已实现；修复 split-level sample_count 契约错误；commit b6740f9 + a2dc04e；run #1808（45550108441）在 head a2dc04e 上 162 项测试 PASS。此状态仅表示报告结构/逻辑契约验证器完成，不代表公式实验有效 |
@@ -223,3 +223,11 @@
 - Run #1953（45731724029，head 98f9e66）actionlint、正式 Skill 包和 Benchmark PASS；离线测试运行 218 项，其中 217 PASS / 1 FAIL。失败点是新测试把包含多个 UNKNOWN 的原始夹具误当成只有一个弃权，属于测试预期错误，不是报告计算逻辑失败。
 - 已修正集成测试：按 Gold 状态定位 PASS/FAIL/UNKNOWN 案例，并将其他 UNKNOWN Gold 案例的 Judge 输出设置为非 UNKNOWN，从而构造可审计的单一 abstention 测试情形。修复 commit cd95707。
 - 当前 PR head `cd95707df7e6adf147b8f74098918c39e1452abc` 的 CI 尚未返回；在该精确 head 完整验证前，不标记新增集成测试通过。
+
+
+### Judge Calibration 集成修复后的完整 CI 验收（2026-11-26）
+- 最新完整 head `f4d2cc2fadc2c8136a8c5d405a3d6a47eee5efb2` 对应 Run #1958（45731888915）Workflow SUCCESS。
+- Validate Job：actionlint、正式 Skill 包、Benchmark 贯通样例、218/218 离线测试 PASS；新增 3 项 Judge runner integration tests 全部 PASS。
+- Round 4 real-evidence-assessment Job SUCCESS，Round 4 IDA/ERA 报告 Schema 与 cross-field contract validation PASS；artifact #15077441739，SHA-256 `02e7d5a2386f0ea6e1f57a8382c6af64bd1f4a661f81e934cab569e74e4aa004`。
+- Builder production、independent-validation、Pilot、adjudication 等 Job 均 SKIPPED；本轮没有新的真实 Builder 执行、Judge API 校准、独立评审或 Oracle freeze。
+- IM-03 仅完成执行脚本与报告契约的工程集成；独立 Gold/held-out/盲法实证校准仍未完成，IM-03 继续 IN_PROGRESS。
