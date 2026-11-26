@@ -10,7 +10,8 @@
 - 建立 Round 4 独立 Oracle 双盲评审包、提交比较器、hash-bound 执行前冻结门禁。
 - 增加 ERA 真实运行执行协议、架构与验收基线、外部 Benchmark 候选及许可限制登记。
 - 最新代码/文档基线验证：Run #1972（45732657722，精确 head c1babc7ec9d51de6ac0c3cdb36232573c32f53bb），actionlint、正式 Skill 包、Benchmark、223/223 离线测试（含 Judge Calibration 与 Rasch/G-Theory 新增测试）PASS，Round 4 IDA/ERA 报告契约验证 PASS；Artifact 15077358259。此前 Run #1968 在测量分析代码 head 上同样以 223/223 测试通过。TASKS/质量报告随后追加 Run #1958 记录，文档 head 的最终复验待完成。
-- EX-06 真实 Builder/DSH/Runner/独立 Oracle 证据规范化与 IDA/ERA 执行已完成；Run #1983（45800505196，精确 head d899ea3）230/230 离线测试与 Round 4 evidence Job PASS，Artifact 15105794918。该完成状态仅覆盖现有 3 条 Pilot 证据，不代表剩余用例或科学效度门禁完成。\n- 实证边界：15 条 Round 4 用例中仅 3 条真实 Pilot，12 条 NOT_RUN；独立 Gold Judge 校准仍 NOT_RUN（synthetic smoke 仅验证执行/报告契约）；IDA/ERA PARTIAL；综合分 NOT_VALIDATED。专家评审、Oracle 冻结、盲测缺陷实验、Capability/Regression 完整效标和公式独立验证仍未完成。
+- EX-06 真实 Builder/DSH/Runner/独立 Oracle 证据规范化与 IDA/ERA 执行已完成；Run #1983（45800505196，精确 head d899ea3）230/230 离线测试与 Round 4 evidence Job PASS，Artifact 15105794918。该完成状态仅覆盖现有 3 条 Pilot 证据，不代表剩余用例或科学效度门禁完成。
+- 实证边界：15 条 Round 4 用例中仅 3 条真实 Pilot，12 条 NOT_RUN；独立 Gold Judge 校准仍 NOT_RUN（synthetic smoke 仅验证执行/报告契约）；IDA/ERA PARTIAL；综合分 NOT_VALIDATED。专家评审、Oracle 冻结、盲测缺陷实验、Capability/Regression 完整效标和公式独立验证仍未完成。
 - 发布限制：尚无 v0.0.2 Release Candidate、最终发布审查或用户发布批准；不得创建 v0.0.2 tag/release。
 
 ## 0.0.1 — 发布候选
