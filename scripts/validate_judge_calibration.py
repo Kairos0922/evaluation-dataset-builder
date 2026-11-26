@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 import hashlib
 import json
 import sys
@@ -38,10 +39,17 @@ def validate_report(report: object, suite_path: Path | None = None) -> list[str]
     status = report["status"]
 
     ids = [item["case_id"] for item in results]
-    if len(ids) != len(set(ids)):
-        errors.append("results contain duplicate case_id values")
+    repeat_pairs = [(item["case_id"], item.get("repeat_index") or 1) for item in results]
+    if len(repeat_pairs) != len(set(repeat_pairs)):
+        errors.append("results contain duplicate case_id/repeat_index pairs")
     if set(ids) != set(dataset["case_ids"]):
         errors.append("dataset.case_ids must exactly match results.case_id values")
+    repeat_counts = Counter(ids)
+    expected_repeats = protocol["repeats_per_case"]
+    if any(repeat_counts[case_id] != expected_repeats for case_id in dataset["case_ids"]):
+        errors.append("each dataset case must have exactly protocol.repeats_per_case observations")
+    if any((item.get("repeat_index") or 1) > expected_repeats for item in results):
+        errors.append("repeat_index exceeds protocol.repeats_per_case")
     if summary["case_count"] != len(results):
         errors.append("summary.case_count must equal results length")
 

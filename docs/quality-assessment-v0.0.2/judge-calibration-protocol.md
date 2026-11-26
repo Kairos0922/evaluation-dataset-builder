@@ -16,7 +16,7 @@ Before scoring, freeze the exact suite bytes and case IDs. For independent empir
 
 ## 3. Observation input
 
-The machine-readable input contract is schemas/judge-calibration-observations.schema.json. Each observation contains case_id, gold_status, judge_status, evidence_validated, output_sha256, gold_evidence_ref, judge_evidence_ref, and optional anonymous reviewer_id, adjudicator_id, and repeat_index.
+The machine-readable input contract is schemas/judge-calibration-observations.schema.json. Each observation contains case_id, gold_status, judge_status, evidence_validated, output_sha256, gold_evidence_ref, judge_evidence_ref, and optional anonymous reviewer_id, adjudicator_id, and repeat_index. The number of rows per case must equal protocol.repeats_per_case; repeat_index uniquely identifies each repeated judgement. Repeated observations are counted as repeated Judge decisions, not as additional independent cases.
 
 The Judge may be human or llm. For a human panel, use an offline endpoint label such as offline://manual-review and a non-identifying panel ID. For an LLM, record the provider, endpoint origin, model, prompt hash, and implementation hash.
 

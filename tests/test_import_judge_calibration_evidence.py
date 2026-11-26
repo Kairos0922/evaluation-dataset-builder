@@ -72,6 +72,25 @@ class JudgeCalibrationImporterTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "exactly one row per frozen suite"):
                 build_report(source, suite_path, raw)
 
+    def test_supports_preregistered_repeated_judge_runs_per_case(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            suite_path, source, _ = make_fixture(Path(tmp))
+            source["protocol"]["repeats_per_case"] = 2
+            repeated = []
+            for item in source["observations"]:
+                first = dict(item, repeat_index=1)
+                second = dict(item, repeat_index=2)
+                if item["case_id"] == "JC01":
+                    second["judge_status"] = "FAIL"
+                repeated.extend([first, second])
+            source["observations"] = repeated
+            raw = json.dumps(source, sort_keys=True, separators=(",", ":")).encode()
+            report = build_report(source, suite_path, raw)
+            self.assertEqual(len(report["results"]), 6)
+            self.assertEqual(report["summary"]["case_count"], 6)
+            self.assertEqual(report["summary"]["false_fails"], 1)
+            self.assertEqual(report["summary"]["abstentions"], 2)
+
     def test_never_imports_empirical_gold_from_synthetic_fixture(self):
         with tempfile.TemporaryDirectory() as tmp:
             suite_path, source, raw = make_fixture(Path(tmp))

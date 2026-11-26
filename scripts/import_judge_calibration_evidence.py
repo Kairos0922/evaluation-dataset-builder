@@ -8,6 +8,7 @@ VALIDATED_FOR_SCOPE; independent validation remains a separate decision.
 from __future__ import annotations
 
 import argparse
+from collections import Counter
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -57,11 +58,22 @@ def build_report(observations: dict, suite_path: Path, observations_bytes: bytes
         raise ValueError("dataset.suite_id does not match frozen suite")
     suite_ids = [case.get("id") for case in suite.get("cases", []) if isinstance(case, dict)]
     case_ids = dataset["case_ids"]
-    result_ids = [item["case_id"] for item in observations["observations"]]
+    observation_rows = observations["observations"]
+    result_ids = [item["case_id"] for item in observation_rows]
     if len(suite_ids) != len(set(suite_ids)) or set(case_ids) != set(suite_ids) or len(case_ids) != len(suite_ids):
         raise ValueError("dataset.case_ids must exactly match unique frozen suite case IDs")
-    if len(result_ids) != len(set(result_ids)) or set(result_ids) != set(case_ids):
-        raise ValueError("observations must contain exactly one row per frozen suite case_id")
+    repeat_counts = Counter(result_ids)
+    expected_repeats = observations["protocol"]["repeats_per_case"]
+    if set(result_ids) != set(case_ids) or any(repeat_counts[case_id] != expected_repeats for case_id in case_ids):
+        raise ValueError("observations must contain exactly protocol.repeats_per_case rows per frozen suite case_id")
+    repeat_pairs = []
+    for item in observation_rows:
+        repeat_index = item.get("repeat_index") or 1
+        if not isinstance(repeat_index, int) or repeat_index < 1 or repeat_index > expected_repeats:
+            raise ValueError("repeat_index must be within protocol.repeats_per_case")
+        repeat_pairs.append((item["case_id"], repeat_index))
+    if len(repeat_pairs) != len(set(repeat_pairs)):
+        raise ValueError("duplicate case_id/repeat_index observation pair")
 
     kind = observations["calibration_kind"]
     if kind == "synthetic_smoke":
@@ -85,8 +97,9 @@ def build_report(observations: dict, suite_path: Path, observations_bytes: bytes
         row = {key: item.get(key) for key in (
             "case_id", "gold_status", "judge_status", "evidence_validated",
             "output_sha256", "gold_evidence_ref", "judge_evidence_ref",
-            "reviewer_id", "adjudicator_id", "repeat_index",
+            "reviewer_id", "adjudicator_id",
         ) if key in item}
+        row["repeat_index"] = item.get("repeat_index") or 1
         results.append(row)
     adjudicable = [item for item in results if item["gold_status"] in {"PASS", "FAIL"}]
     exact = sum(item["gold_status"] == item["judge_status"] for item in adjudicable)

@@ -72,8 +72,24 @@ class JudgeCalibrationContractTests(unittest.TestCase):
         report = base_report()
         report["results"][2]["case_id"] = "JC02"
         errors = validate_report(report)
-        self.assertTrue(any("duplicate case_id" in e for e in errors))
+        self.assertTrue(any("duplicate case_id/repeat_index" in e for e in errors))
         self.assertTrue(any("exactly match" in e for e in errors))
+
+    def test_repeated_judge_observations_are_counted_without_pseudoduplicate_case_ids(self):
+        report = base_report()
+        report["protocol"]["repeats_per_case"] = 2
+        repeated = []
+        for item in report["results"]:
+            for repeat_index in (1, 2):
+                row = copy.deepcopy(item)
+                row["repeat_index"] = repeat_index
+                repeated.append(row)
+        report["results"] = repeated
+        report["summary"].update({
+            "case_count": 6, "adjudicable_count": 4, "exact_matches": 2,
+            "false_passes": 2, "false_fails": 0, "abstentions": 2, "accuracy": 0.5
+        })
+        self.assertEqual(validate_report(report), [])
 
     def test_synthetic_fixture_cannot_be_marked_validated(self):
         report = base_report()
