@@ -50,7 +50,7 @@ def _prepare_matrix(records: list[dict]) -> tuple[list[str], list[str], list[lis
         eligible.append(record)
 
     if not eligible:
-        raise ValueError("no valid binary Agent outcomes with independent Gold provenance")
+        return [], [], [], exclusions
 
     persons = sorted({item["configuration_id"] for item in eligible})
     items = sorted({item["case_id"] for item in eligible})
@@ -279,8 +279,12 @@ def analyze_records(records: list[dict], *, max_iterations: int = 500, tolerance
     if len(dataset_ids) != 1 or len(dataset_hashes) != 1:
         raise ValueError("all records must bind to one dataset identity and SHA-256")
     persons, items, matrix, exclusions = _prepare_matrix(records)
-    irt = fit_rasch_1pl(persons, items, matrix, max_iterations, tolerance)
-    g_study = estimate_g_theory(persons, items, matrix)
+    if persons and items:
+        irt = fit_rasch_1pl(persons, items, matrix, max_iterations, tolerance)
+        g_study = estimate_g_theory(persons, items, matrix)
+    else:
+        irt = _not_assessed("No eligible valid binary Agent outcomes with independent Gold provenance.")
+        g_study = _not_assessed("No eligible valid binary Agent outcomes with independent Gold provenance.")
     raw = json.dumps(records, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return {
         "schema_version": "0.0.2",
