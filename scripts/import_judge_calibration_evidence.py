@@ -140,9 +140,9 @@ def main() -> int:
         source, raw = load_json(args.observations)
         report = build_report(source, args.suite, raw, run_id=args.run_id, commit_sha=args.commit_sha)
     except (OSError, UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
-        parser.exit(2, f"FAIL: {exc}\\n")
+        parser.exit(2, f"FAIL: {exc}\n")
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+    args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"Imported {len(report['results'])} Judge observations; status={report['status']}; accuracy={report['summary']['accuracy']}.")
     return 0
 
