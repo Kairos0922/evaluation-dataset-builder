@@ -6,11 +6,11 @@
 
 - 建立 IDA 离线质量检查器、ERA Runtime Record 与统计分析器、机器可读报告 Schema 和跨字段验证器。
 - 建立 Capability 与 Regression 的用途专属分析设计；综合公式、权重和阈值保持 NOT_VALIDATED。
-- 建立专家内容效度盲评协议、评分记录 Schema、Judge 校准证据报告 Schema 与验证器。
+- 建立专家内容效度盲评协议、评分记录 Schema、Judge 校准证据报告 Schema 与验证器；Judge 校准执行脚本已接入报告契约，输出数据集/Prompt/实现哈希、逐案结果和重算统计，并在落盘前进行契约校验。
 - 建立 Round 4 独立 Oracle 双盲评审包、提交比较器、hash-bound 执行前冻结门禁。
 - 增加 ERA 真实运行执行协议、架构与验收基线、外部 Benchmark 候选及许可限制登记。
-- 最新可核验 CI：Run #1947（45721216859，精确 head bca98059650afce9df752917553bcff98adeb91e），actionlint、正式 Skill 包、Benchmark、215/215 离线测试（含 8 项 Judge calibration contract tests）PASS，Round 4 IDA/ERA 报告契约验证 PASS；Artifact 15071653396。
-- 实证边界：15 条 Round 4 用例中仅 3 条真实 Pilot，12 条 NOT_RUN；Judge NOT_RUN；IDA/ERA PARTIAL；综合分 NOT_VALIDATED。专家评审、Oracle 冻结、盲测缺陷实验、Capability/Regression 完整效标和公式独立验证仍未完成。
+- 最新代码验证：Run #1958（45731888915，精确 head f4d2cc2fadc2c8136a8c5d405a3d6a47eee5efb2），actionlint、正式 Skill 包、Benchmark、218/218 离线测试（含 8 项 Judge validator tests 与 3 项 runner integration tests）PASS，Round 4 IDA/ERA 报告契约验证 PASS；Artifact 15077441739。TASKS/质量报告随后追加 Run #1958 记录，文档 head 的最终复验待完成。
+- 实证边界：15 条 Round 4 用例中仅 3 条真实 Pilot，12 条 NOT_RUN；独立 Gold Judge 校准仍 NOT_RUN（synthetic smoke 仅验证执行/报告契约）；IDA/ERA PARTIAL；综合分 NOT_VALIDATED。专家评审、Oracle 冻结、盲测缺陷实验、Capability/Regression 完整效标和公式独立验证仍未完成。
 - 发布限制：尚无 v0.0.2 Release Candidate、最终发布审查或用户发布批准；不得创建 v0.0.2 tag/release。
 
 ## 0.0.1 — 发布候选
