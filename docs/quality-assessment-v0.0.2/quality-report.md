@@ -163,5 +163,12 @@ Run #1947（45721216859）在精确 head `bca98059650afce9df752917553bcff98adeb9
 - 新报告绑定校准 suite 原始字节 SHA-256、case IDs、Judge endpoint/model、Judge prompt SHA、Judge 实现 SHA、workflow run/commit 身份，并逐案记录 Gold/Judge 状态、证据验证标志与输出 SHA。
 - Summary 由逐案结果重新计算 adjudicable denominator、exact matches、False Pass、False Fail、Abstention 和 accuracy；写出前调用正式 `validate_report()`，并校验 suite 哈希与 case IDs。
 - 新增 3 项执行脚本集成测试，覆盖 synthetic report 合约、错误类型计数和身份哈希。相关提交：`33bd883`、`bbb2d85`、`98f9e66`。
-- PR #44 head `98f9e66f63a3c6c6d3343e8e704145b4e0a83488` 的 CI Run #1953（45731724029）已启动；TASKS 文档随后更新为 commit `52d3a1b`，因此需要对更新后的精确 head 再做 CI 复验。此处不提前宣称新增测试已通过。
+- Run #1953（45731724029，head `98f9e66`）中 actionlint、正式 Skill 包和 Benchmark PASS；218 项离线测试中 217 PASS / 1 FAIL。唯一失败是集成测试对夹具中多个 UNKNOWN 的预期值写错，已在 commit `cd95707` 修复，并将失败与修复过程记录到 TASKS.md（commit `6a3f2f5`）。修复后的精确 head 尚待 CI 复验；不提前宣称新增测试已通过。
 - **IM-03 仍 IN_PROGRESS。** 这次完成工程执行链路，不产生独立 Gold、盲法 held-out 样本、人工仲裁或真实 Judge 有效性结论；Round 4 Judge 仍为 NOT_RUN。
+
+
+### 集成测试首轮失败与修复记录
+
+- 首轮 Run #1953 的唯一失败发生在测试 `test_runner_recomputes_false_pass_false_fail_and_abstention`：原测试没有考虑夹具里存在多个 Gold=UNKNOWN 的 case，因此实际 Judge UNKNOWN 数为 2，而断言写成 1。
+- 修复后的测试显式控制非目标 UNKNOWN case 的 Judge 输出，确保该测试只包含一个 Judge abstention，同时仍分别覆盖 False Pass、False Fail 和 Gold UNKNOWN 排除于 adjudicable denominator 的规则。修复提交 `cd95707`；TASKS 记录提交 `6a3f2f5`。
+- 该修复只改变测试夹具构造，不改变校准统计定义或生产逻辑。最新文档提交 head 仍需重新通过完整 CI，才能确认修复验收。
