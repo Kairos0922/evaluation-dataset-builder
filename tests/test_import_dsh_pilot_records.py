@@ -1,6 +1,12 @@
+import hashlib
+import json
+from pathlib import Path
+import tempfile
 import unittest
 
-from scripts.import_dsh_pilot_records import build_runtime_record, dataset_digest, runner_is_valid
+from scripts.import_dsh_pilot_records import (
+    build_runtime_record, dataset_digest, runner_is_valid, verify_pilot_evidence
+)
 
 
 def runner_result(case_id="WB-02", mutations=None):
@@ -56,6 +62,44 @@ def oracle_case(case_id="WB-02", mutation_detected=True):
 
 
 class ImportDshPilotRecordsTests(unittest.TestCase):
+    def test_trace_must_be_hash_bound_and_valid_jsonl(self):
+        with tempfile.TemporaryDirectory() as directory:
+            pilot_dir = Path(directory)
+            trace = pilot_dir / "dsh-events.jsonl"
+            trace.write_text(json.dumps({
+                "run_id": "run-WB-02", "case_id": "WB-02", "event": "completed"
+            }) + "\\n", encoding="utf-8")
+            digest = hashlib.sha256(trace.read_bytes()).hexdigest()
+            runner = runner_result()
+            runner["evidence_files"] = [{"path": "dsh-events.jsonl", "sha256": digest}]
+            self.assertEqual(verify_pilot_evidence(pilot_dir, runner)["dsh-events.jsonl"], digest)
+
+    def test_trace_without_manifest_entry_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            pilot_dir = Path(directory)
+            (pilot_dir / "dsh-events.jsonl").write_text('{"event":"done"}\\n', encoding="utf-8")
+            runner = runner_result()
+            runner["evidence_files"] = []
+            with self.assertRaisesRegex(ValueError, "missing evidence_files manifest"):
+                verify_pilot_evidence(pilot_dir, runner)
+
+    def test_trace_hash_mismatch_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            pilot_dir = Path(directory)
+            (pilot_dir / "dsh-events.jsonl").write_text('{"event":"done"}\\n', encoding="utf-8")
+            runner = runner_result()
+            runner["evidence_files"] = [{"path": "dsh-events.jsonl", "sha256": "0" * 64}]
+            with self.assertRaisesRegex(ValueError, "evidence hash mismatch"):
+                verify_pilot_evidence(pilot_dir, runner)
+
+    def test_trace_path_traversal_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            pilot_dir = Path(directory)
+            runner = runner_result()
+            runner["evidence_files"] = [{"path": "../outside.jsonl", "sha256": "0" * 64}]
+            with self.assertRaisesRegex(ValueError, "unsafe evidence path"):
+                verify_pilot_evidence(pilot_dir, runner)
+
     def test_dataset_digest_is_versioned_and_deterministic(self):
         first = dataset_digest(b'{"dataset_id":"d"}', b'{"case_id":"c"}\n')
         second = dataset_digest(b'{"dataset_id":"d"}', b'{"case_id":"c"}\n')
@@ -83,6 +127,10 @@ class ImportDshPilotRecordsTests(unittest.TestCase):
         self.assertEqual(record["cost"]["total_tokens"], 350)
         self.assertEqual(record["cost"]["model_steps"], 4)
         self.assertIsNone(record["cost"]["cost_usd"])
+        record_with_trace = build_runtime_record(
+            "WB-02", runner, oracle, "wb-core", "a" * 64, trace_sha256="b" * 64
+        )
+        self.assertEqual(record_with_trace["trace_sha256"], "b" * 64)
 
     def test_clean_fixture_has_no_injected_fault(self):
         record = build_runtime_record(

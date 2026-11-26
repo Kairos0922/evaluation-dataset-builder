@@ -69,6 +69,7 @@
     "repeat_group_id": { "type": ["string", "null"] },
     "started_at": { "type": "string", "format": "date-time" },
     "trace_ref": { "type": ["string", "null"] },
+    "trace_sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
     "result_ref": { "type": ["string", "null"] },
     "outcomes": {
       "type": "object",

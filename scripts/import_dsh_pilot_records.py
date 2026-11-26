@@ -42,17 +42,61 @@ def load_jsonl(path: Path) -> list[dict]:
     return cases
 
 
-def verify_pilot_evidence(pilot_dir: Path, runner: dict) -> None:
-    for item in runner.get("evidence_files", []):
+def verify_trace_jsonl(trace_path: Path, runner: dict) -> None:
+    event_count = 0
+    for line_number, line in enumerate(trace_path.read_text(encoding="utf-8").splitlines(), start=1):
+        if not line.strip():
+            raise ValueError(f"blank DSH trace line {line_number} for {runner['case_id']}")
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"invalid DSH trace JSON at line {line_number}: {exc}") from exc
+        if not isinstance(event, dict):
+            raise ValueError(f"DSH trace line {line_number} is not an object")
+        if event.get("case_id") not in (None, runner.get("case_id")):
+            raise ValueError(f"DSH trace case_id mismatch at line {line_number}")
+        if event.get("run_id") not in (None, runner.get("run_id")):
+            raise ValueError(f"DSH trace run_id mismatch at line {line_number}")
+        event_count += 1
+    if event_count == 0:
+        raise ValueError(f"DSH trace is empty for {runner['case_id']}")
+
+
+def verify_pilot_evidence(pilot_dir: Path, runner: dict) -> dict[str, str]:
+    evidence_files = runner.get("evidence_files")
+    if not isinstance(evidence_files, list) or not evidence_files:
+        raise ValueError(f"missing evidence_files manifest for {runner['case_id']}")
+
+    root = pilot_dir.resolve()
+    verified: dict[str, str] = {}
+    for item in evidence_files:
+        if not isinstance(item, dict) or not isinstance(item.get("path"), str):
+            raise ValueError(f"invalid evidence manifest entry for {runner['case_id']}")
         relative = Path(item["path"])
         if relative.is_absolute() or ".." in relative.parts:
             raise ValueError(f"unsafe evidence path for {runner['case_id']}: {relative}")
+        if relative.as_posix() in verified:
+            raise ValueError(f"duplicate evidence path for {runner['case_id']}: {relative}")
+        expected = item.get("sha256")
+        if not isinstance(expected, str) or not re.fullmatch(r"[a-fA-F0-9]{64}", expected):
+            raise ValueError(f"invalid evidence SHA-256 for {runner['case_id']}: {relative}")
         path = pilot_dir / relative
-        if not path.is_file():
-            raise ValueError(f"missing evidence file for {runner['case_id']}: {relative}")
-        observed = sha256_file(path)
-        if observed != item["sha256"]:
+        try:
+            resolved = path.resolve(strict=True)
+        except FileNotFoundError as exc:
+            raise ValueError(f"missing evidence file for {runner['case_id']}: {relative}") from exc
+        if not resolved.is_relative_to(root) or not resolved.is_file():
+            raise ValueError(f"evidence path escapes pilot directory for {runner['case_id']}: {relative}")
+        observed = sha256_file(resolved)
+        if observed != expected:
             raise ValueError(f"evidence hash mismatch for {runner['case_id']}: {relative}")
+        verified[relative.as_posix()] = observed
+
+    trace_name = "dsh-events.jsonl"
+    if trace_name not in verified:
+        raise ValueError(f"DSH trace is not SHA-256-bound in evidence_files for {runner['case_id']}")
+    verify_trace_jsonl(pilot_dir / trace_name, runner)
+    return verified
 
 
 def runner_is_valid(runner: dict, oracle_case: dict) -> bool:
@@ -81,6 +125,7 @@ def build_runtime_record(
     dataset_id: str,
     dataset_sha256: str,
     evidence_ref_prefix: str = "file://",
+    trace_sha256: str | None = None,
 ) -> dict:
     usage = runner.get("trace", {}).get("usage", {})
     totals = usage.get("usage_totals", {})
@@ -114,7 +159,7 @@ def build_runtime_record(
     if oracle_verdict not in {"pass", "fail", "unknown"}:
         oracle_verdict = "unknown"
 
-    return {
+    record = {
         "record_version": "0.0.2",
         "run_id": runner["run_id"],
         "dataset_id": dataset_id,
@@ -178,6 +223,11 @@ def build_runtime_record(
             "cost_usd": None
         }
     }
+    if trace_sha256 is not None:
+        if not re.fullmatch(r"[a-fA-F0-9]{64}", trace_sha256):
+            raise ValueError("trace_sha256 must be a 64-character hexadecimal digest")
+        record["trace_sha256"] = trace_sha256
+    return record
 
 
 def import_evidence(
@@ -263,8 +313,11 @@ def import_evidence(
         target_match = re.search(r"commit ([a-fA-F0-9]{40})", target_text)
         if not target_match or runner.get("webapp_testing_skill_commit") != target_match.group(1):
             raise ValueError(f"pilot {case_id} target revision does not match the Builder-authored case")
-        verify_pilot_evidence(pilot_dir, runner)
-        records.append(build_runtime_record(case_id, runner, oracle_case, manifest["dataset_id"], dataset_sha))
+        evidence_hashes = verify_pilot_evidence(pilot_dir, runner)
+        records.append(build_runtime_record(
+            case_id, runner, oracle_case, manifest["dataset_id"], dataset_sha,
+            trace_sha256=evidence_hashes["dsh-events.jsonl"],
+        ))
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
     output_path.write_text("".join(json.dumps(record, ensure_ascii=False) + "\n" for record in records), encoding="utf-8")
@@ -288,6 +341,9 @@ def import_evidence(
         "independent_validation_source_refs_verified": replay.get("source_evidence_refs_verified"),
         "pilot_case_ids": selected_ids,
         "pilot_case_count": len(records),
+        "pilot_trace_sha256": {
+            record["case_id"]: record["trace_sha256"] for record in records
+        },
         "unexecuted_case_count": len(cases) - len(records),
         "oracle_status": oracle.get("status"),
         "oracle_passed_cases": oracle.get("passed_cases"),
