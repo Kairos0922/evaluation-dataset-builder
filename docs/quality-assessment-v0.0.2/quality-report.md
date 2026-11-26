@@ -197,3 +197,10 @@ Run #1947（45721216859）在精确 head `bca98059650afce9df752917553bcff98adeb9
 - 新增 `schemas/capability-measurement-report.schema.json`、`capability-measurement-analysis.md` 和 5 项单测。
 - **科学边界：** 当前仅为探索性估计原型；不实现 2PL/多维 IRT、DIF、Seed/Environment/Judge 多 facet、非平衡/重复设计或模型拟合诊断。没有独立 Gold 时输出 NOT_ASSESSED。成功估计不代表单维性、局部独立、测量不变性或构念效度成立，也不启用综合分。
 - IM-05 继续 IN_PROGRESS，待 CI 验收、Monte Carlo 参数恢复、真实数据精度验证和独立外部效标实验。
+
+
+### Capability 测量原型 CI 证据
+
+- 精确代码/测试 head `52093376778d428145e9b968df38ba54e9d26d4f` 的 Run #1968（45732528514）SUCCESS：actionlint、Skill 包、Benchmark、223/223 离线测试和 Round 4 IDA/ERA 报告契约全部 PASS；新增 5 项 Capability measurement tests 全部通过。artifact #15077900941，SHA-256 `6fbcc3496f66f2aad9bc2a2057b8380523b19d6c8cbb4fdacb85bf48c2f9ed5e`。
+- 包含 TASKS/质量报告/CHANGELOG 更新的精确 head `c1babc7ec9d51de6ac0c3cdb36232573c32f53bb` 由 Run #1972（45732657722）再次完整验证成功，223/223 测试通过；artifact #15077358259，SHA-256 `af22544c66e638472b91f9e2d0a85f237e916a44ee3ebe082b20c4a3c099ea57`。
+- 两个 Run 的生产 Builder、独立验证、Pilot 与 adjudication jobs 均 SKIPPED；这证明工程实现和契约测试通过，不证明已有足够独立 Gold 数据或 Rasch/G-Theory 模型适配效度。
