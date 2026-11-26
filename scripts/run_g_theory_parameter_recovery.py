@@ -20,10 +20,11 @@ import sys
 
 from jsonschema import Draft202012Validator, FormatChecker
 
-from scripts.analyze_capability_measurement import _sigmoid, estimate_g_theory
-
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+
+from scripts.analyze_capability_measurement import _sigmoid, estimate_g_theory
+
 SCHEMA_PATH = ROOT / "docs" / "quality-assessment-v0.0.2" / "schemas" / "g-theory-monte-carlo-report.schema.json"
 
 SCENARIOS = [
