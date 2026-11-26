@@ -120,6 +120,9 @@
           "control",
           "status",
           "false_positive",
+          "invariant_metrics_preserved",
+          "baseline_metric_signature",
+          "observed_metric_signature",
           "overall_status",
           "G01_source_provenance",
           "G07_integrity_leakage",
@@ -145,6 +148,17 @@
           },
           "false_positive": {
             "type": "boolean"
+          },
+          "invariant_metrics_preserved": {
+            "type": "boolean"
+          },
+          "baseline_metric_signature": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{64}$"
+          },
+          "observed_metric_signature": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{64}$"
           },
           "overall_status": {
             "enum": [
@@ -247,6 +261,7 @@
         "deterministic_detection_rate_interval",
         "negative_control_count",
         "false_positive_control_count",
+        "invariant_metric_failure_count",
         "negative_control_false_positive_rate",
         "negative_control_false_positive_rate_interval",
         "non_deterministic_not_assessed_count"
@@ -308,6 +323,10 @@
           "minimum": 0
         },
         "false_positive_control_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "invariant_metric_failure_count": {
           "type": "integer",
           "minimum": 0
         },

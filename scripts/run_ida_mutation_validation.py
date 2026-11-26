@@ -210,6 +210,18 @@ def _mutations():
     ]
 
 
+def _invariant_metric_signature(report: dict) -> str:
+    """Hash the outcome/gate/metric projection, excluding byte-level dataset identity."""
+    projection = {
+        "overall_status": report["overall_status"],
+        "gate_results": report["gate_results"],
+        "metric_results": report["metric_results"],
+    }
+    return hashlib.sha256(
+        json.dumps(projection, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+
+
 def _controls():
     def unchanged(manifest, cases, registry):
         return manifest, cases, registry
@@ -230,6 +242,12 @@ def _controls():
 
 def run_validation() -> dict:
     catalog = yaml.safe_load(CATALOG_PATH.read_text(encoding="utf-8"))
+    baseline_cases = [
+        sample_case("CASE-001", "COV-001", "Tool selection A"),
+        sample_case("CASE-002", "COV-002", "Tool selection B"),
+    ]
+    baseline_report, _ = _assess(sample_manifest(), baseline_cases, sample_registry())
+    baseline_metric_signature = _invariant_metric_signature(baseline_report)
     catalog_items = {
         item["mutation_id"]: item
         for item in catalog["mutation_classes"]["independent_dataset_assessment"]
@@ -265,12 +283,22 @@ def run_validation() -> dict:
         registry = sample_registry()
         mutated_manifest, mutated_cases, mutated_registry = mutate(manifest, cases, registry)
         report, evidence = _assess(mutated_manifest, mutated_cases, mutated_registry, pretty=pretty)
-        false_positive = report["overall_status"] == "FAIL" or _gate(report, "G07_integrity_leakage") == "FAIL" or _gate(report, "G01_source_provenance") == "FAIL"
+        observed_metric_signature = _invariant_metric_signature(report)
+        invariant_metrics_preserved = observed_metric_signature == baseline_metric_signature
+        false_positive = (
+            report["overall_status"] == "FAIL"
+            or _gate(report, "G07_integrity_leakage") == "FAIL"
+            or _gate(report, "G01_source_provenance") == "FAIL"
+            or not invariant_metrics_preserved
+        )
         control_results.append({
             "control_id": control_id,
             "control": name,
             "status": "FAIL" if false_positive else "PASS",
             "false_positive": false_positive,
+            "invariant_metrics_preserved": invariant_metrics_preserved,
+            "baseline_metric_signature": baseline_metric_signature,
+            "observed_metric_signature": observed_metric_signature,
             "overall_status": report["overall_status"],
             "G01_source_provenance": _gate(report, "G01_source_provenance"),
             "G07_integrity_leakage": _gate(report, "G07_integrity_leakage"),
@@ -308,6 +336,7 @@ def run_validation() -> dict:
             "deterministic_detection_rate_interval": wilson_interval(detected, len(deterministic_results)),
             "negative_control_count": len(control_results),
             "false_positive_control_count": false_positives,
+            "invariant_metric_failure_count": sum(not item["invariant_metrics_preserved"] for item in control_results),
             "negative_control_false_positive_rate": false_positives / len(control_results) if control_results else None,
             "negative_control_false_positive_rate_interval": wilson_interval(false_positives, len(control_results)),
             "non_deterministic_not_assessed_count": len(nondeterministic),
@@ -316,6 +345,7 @@ def run_validation() -> dict:
             "All mutations and controls are synthetic, authored fixtures; the experiment is not blind and does not estimate performance on real datasets.",
             "The 8/8 detection rate is implementation sensitivity to these exact deterministic mutation operators only.",
             "The 0/4 negative-control false-positive rate has a very wide interval and is not a general false-positive guarantee.",
+            "Negative controls additionally require unchanged overall status, gate results and metric results; this is a metamorphic invariant check, not evidence of semantic validity.",
             "IDA-M09 through IDA-M12 remain NOT_ASSESSED because they require independent experts, an independent Oracle, or contamination audit.",
             "No result validates construct validity, source claim support, the composite formula, weights, or thresholds.",
         ],

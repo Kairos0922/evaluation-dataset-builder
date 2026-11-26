@@ -28,3 +28,16 @@ Artifact #15108859637, ZIP SHA-256: bb45162be43dd87e2b0587e8d35ae80c2b4328870bc2
 This result tests deterministic implementation sensitivity to the exact synthetic mutation operators. It is not a blind experiment and the 4 negative controls are too few to estimate a general false-positive rate. It does not test semantic ambiguity, construct alignment, independent Gold correctness, source claim support, or answer leakage. Those require independent expert review, independent Oracle evidence and contamination audits.
 
 The real Round 4 IDA result remains PARTIAL: G01 PASS, G02–G04 NOT_ASSESSED, G05/G07 UNKNOWN and composite NOT_VALIDATED. Do not upgrade QA-02 until independent review evidence is imported and audited.
+
+
+## Metamorphic invariance check (2026-11-27)
+
+Negative controls now have a stronger deterministic contract. For each control, the runner compares a SHA-256 signature of the baseline and transformed report projection:
+
+- overall status;
+- all gate results;
+- all metric results.
+
+The byte-level dataset digest is deliberately excluded because harmless serialization or identity transformations can change raw bytes. A control is counted as a false positive if it triggers a hard FAIL **or** changes the invariant metric projection. The report records both signatures and the boolean comparison, and the JSON Schema enforces those fields.
+
+This improves the test from “no hard FAIL” to “no hard FAIL and no change in measured gate/metric outputs” for the four authored controls. It does not enlarge the control sample, estimate a general false-positive rate, validate semantic equivalence for arbitrary transformations, or replace independent semantic review. The statistical result remains 0/4 with a wide Wilson interval.

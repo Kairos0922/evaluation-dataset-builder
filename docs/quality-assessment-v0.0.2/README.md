@@ -148,7 +148,7 @@ python scripts/assess_runtime_quality.py \
 python scripts/run_ida_mutation_validation.py --output artifacts/ida-mutation-validation.json
 ```
 
-该实验覆盖 IDA-M01–M08 八种确定性结构/来源/覆盖缺陷及四种 negative controls；输出契约见 [ida-mutation-validation-report.schema.json](schemas/ida-mutation-validation-report.schema.json)，实验方法和边界见 [offline-evaluator-mutation-validation.md](offline-evaluator-mutation-validation.md)。8/8 检出只证明对这些合成变异算子的敏感性，不证明语义有效性；M09–M12 仍需独立专家/Oracle/污染审计。
+该实验覆盖 IDA-M01–M08 八种确定性结构/来源/覆盖缺陷及四种 negative controls；negative controls 除检查不触发硬失败外，还逐项验证 overall status、gate results 和 metric results 与基线完全一致（metamorphic invariance）；输出契约见 [ida-mutation-validation-report.schema.json](schemas/ida-mutation-validation-report.schema.json)，实验方法和边界见 [offline-evaluator-mutation-validation.md](offline-evaluator-mutation-validation.md)。8/8 检出只证明对这些合成变异算子的敏感性，不证明语义有效性；M09–M12 仍需独立专家/Oracle/污染审计。
 
 ## Capability / G-Theory 参数恢复实验
 

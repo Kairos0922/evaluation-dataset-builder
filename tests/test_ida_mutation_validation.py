@@ -14,10 +14,13 @@ class IDAMutationValidationTests(unittest.TestCase):
         self.assertEqual(summary["deterministic_detection_rate"], 1.0)
         self.assertEqual(summary["negative_control_count"], 4)
         self.assertEqual(summary["false_positive_control_count"], 0)
+        self.assertEqual(summary["invariant_metric_failure_count"], 0)
         self.assertEqual(summary["negative_control_false_positive_rate"], 0.0)
         self.assertEqual(summary["non_deterministic_not_assessed_count"], 4)
         self.assertTrue(all(item["status"] == "PASS" for item in report["deterministic_mutations"]))
         self.assertTrue(all(item["status"] == "PASS" for item in report["negative_controls"]))
+        self.assertTrue(all(item["invariant_metrics_preserved"] for item in report["negative_controls"]))
+        self.assertTrue(all(item["baseline_metric_signature"] == item["observed_metric_signature"] for item in report["negative_controls"]))
         self.assertTrue(all(item["status"] == "NOT_ASSESSED" for item in report["non_deterministic_mutations"]))
 
     def test_report_identity_is_reproducible_for_fixed_mutations(self):

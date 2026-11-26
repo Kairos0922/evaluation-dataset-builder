@@ -318,3 +318,11 @@ The root VERSION and Skill frontmatter metadata.version remain 0.0.1, matching t
 - 独立专家证据缺失的科学边界不变：内容效度、语义缺陷标签、独立 Gold / Judge 校准与综合公式效度仍不得宣称通过；12 条用例继续 NOT_RUN，综合分继续 NOT_VALIDATED/value=null。
 - 当前仍可独立推进的工作限定为代码质量、可复现性、契约/安全测试、文档一致性和不需要伪造外部效标的工程验证。不得擅自触发收费/生产运行、合并 PR、升级正式版本或发布。
 - 台账最近一次 CI：Run #2020（[45843892531](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45843892531)，head `a4494182e35d75fee61d34beac60fff69e07f87f`）SUCCESS。该次验证覆盖台账更新，不代表新增科学效度证据。
+
+
+### QA-02 negative-control metamorphic invariance strengthening（2026-11-27）
+
+- 在既有四种 negative controls 上增加基线签名比较：对 overall status、全部 gate results 和全部 metric results 生成规范化 SHA-256 签名。
+- Negative control 只有在不触发硬 FAIL 且指标签名与基线完全一致时才判定 PASS；数据集原始字节 SHA 不纳入不变量比较，因为格式/身份变换可合法改变字节摘要。
+- 报告 Schema 新增 `invariant_metrics_preserved`、基线/观察签名和 `invariant_metric_failure_count`；单测断言四种控制全部保持指标不变。
+- 该改进增强的是四个预设控制的回归保护，不增加控制样本量，也不把 0/4 解释为一般误报率保证；语义有效性仍 NOT_ASSESSED。
