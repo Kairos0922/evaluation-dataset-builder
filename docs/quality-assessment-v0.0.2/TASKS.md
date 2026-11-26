@@ -347,3 +347,13 @@
 - Run #2023（45892053327，精确 head `49613acf6d540f5ef494335a45eebca65077a64b`）SUCCESS：actionlint、Skill package、Benchmark、243/243 tests、G-Theory 20×10/40×25/80×50、IDA controlled mutation、Round 4 real-evidence contract 均 PASS。
 - 8/8 deterministic mutations detected（Wilson 95% CI 0.676–1.000）；0/4 negative-control false positives（Wilson 95% CI 0–0.490）；invariant metric failures 0/4。Artifact #15152600525，ZIP SHA-256 `bdc08d2a95efcffa5ec1c8bbaa43b9432c27e9b639b09795fcefb9c6e76125ef`。
 - QA-02 仍 BLOCKED：此结果仅证明对八种指定合成变异的实现敏感性，以及四种预设语义保持变换下的指标不变性；不证明真实语义缺陷检出、构念效度、Gold 正确性或污染抵抗能力。IDA-M09–M12 继续 NOT_ASSESSED。
+
+
+### 本轮任务收敛审计（2026-11-27）
+
+- 已复核本任务清单全部 37 项：20 DONE、15 BLOCKED、2 DEFERRED；没有将 BLOCKED/DEFERRED 改写为 DONE。
+- 最近一次完整 PR workflow：Run #2025（45892463427），在精确 head `7b4ffa5ae8f0b9232ef1b8392d9863b22b6871a4` 上 SUCCESS。该 Run 验证的是该提交对应的 CI 工作流，不代表任何被跳过的生产执行或外部实证任务完成。
+- 本分支可由现有代码、合成夹具、离线测试和文档独立完成的工程工作已完成并保留对应证据；剩余 BLOCKED 项均有明确外部解除条件：独立 Gold/语义标签与污染审计、合法且锁定的参考数据资产、真实多配置/重复/配对 Agent 运行及预算/环境授权、独立 Judge 校准数据、独立开发/验证集，以及正式发布门禁。
+- EX-03 与 EX-07 继续 DEFERRED，遵循用户暂缓独立专家评审的决定；不招募、不分发盲审包、不等待报名。
+- 当前阻塞任务：FM-03、EX-02、EX-04、EX-05、IM-03、IM-05、IM-07、IM-09、QA-01、QA-02、QA-03、QA-04、DOC-01、REL-01、REL-02。各项不得仅因工程接口、模拟、Schema 或 CI 通过而解除。
+- 版本元数据仍为 0.0.1；PR #44 仍保持 Draft/Open。未执行 merge、tag 或 Release。v0.0.2 只有在对应实证门禁满足并取得必要发布批准后才能发布。
