@@ -2,7 +2,7 @@ import json
 import unittest
 from pathlib import Path
 
-from tests.calibrate_judge import build_contract_report
+from calibrate_judge import build_contract_report
 from scripts.validate_judge_calibration import validate_report
 
 
