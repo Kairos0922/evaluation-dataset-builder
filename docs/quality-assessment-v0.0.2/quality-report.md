@@ -163,7 +163,7 @@ Run #1947（45721216859）在精确 head `bca98059650afce9df752917553bcff98adeb9
 - 新报告绑定校准 suite 原始字节 SHA-256、case IDs、Judge endpoint/model、Judge prompt SHA、Judge 实现 SHA、workflow run/commit 身份，并逐案记录 Gold/Judge 状态、证据验证标志与输出 SHA。
 - Summary 由逐案结果重新计算 adjudicable denominator、exact matches、False Pass、False Fail、Abstention 和 accuracy；写出前调用正式 `validate_report()`，并校验 suite 哈希与 case IDs。
 - 新增 3 项执行脚本集成测试，覆盖 synthetic report 合约、错误类型计数和身份哈希。相关提交：`33bd883`、`bbb2d85`、`98f9e66`。
-- Run #1953（45731724029，head `98f9e66`）中 actionlint、正式 Skill 包和 Benchmark PASS；218 项离线测试中 217 PASS / 1 FAIL。唯一失败是集成测试对夹具中多个 UNKNOWN 的预期值写错，已在 commit `cd95707` 修复，并将失败与修复过程记录到 TASKS.md（commit `6a3f2f5`）。修复后的精确 head 尚待 CI 复验；不提前宣称新增测试已通过。
+- Run #1953（45731724029，head `98f9e66`）中 actionlint、正式 Skill 包和 Benchmark PASS；218 项离线测试中 217 PASS / 1 FAIL。唯一失败是集成测试对夹具中多个 UNKNOWN 的预期值写错，已在 commit `cd95707` 修复。修复后的精确文档/代码 head `f4d2cc2fadc2c8136a8c5d405a3d6a47eee5efb2` 由 Run #1958（45731888915）完整验证成功：actionlint、正式 Skill 包、Benchmark、218/218 离线测试和 Round 4 IDA/ERA 报告契约全部 PASS；artifact #15077441739，SHA-256 `02e7d5a2386f0ea6e1f57a8382c6af64bd1f4a661f81e934cab569e74e4aa004`。
 - **IM-03 仍 IN_PROGRESS。** 这次完成工程执行链路，不产生独立 Gold、盲法 held-out 样本、人工仲裁或真实 Judge 有效性结论；Round 4 Judge 仍为 NOT_RUN。
 
 
@@ -172,3 +172,11 @@ Run #1947（45721216859）在精确 head `bca98059650afce9df752917553bcff98adeb9
 - 首轮 Run #1953 的唯一失败发生在测试 `test_runner_recomputes_false_pass_false_fail_and_abstention`：原测试没有考虑夹具里存在多个 Gold=UNKNOWN 的 case，因此实际 Judge UNKNOWN 数为 2，而断言写成 1。
 - 修复后的测试显式控制非目标 UNKNOWN case 的 Judge 输出，确保该测试只包含一个 Judge abstention，同时仍分别覆盖 False Pass、False Fail 和 Gold UNKNOWN 排除于 adjudicable denominator 的规则。修复提交 `cd95707`；TASKS 记录提交 `6a3f2f5`。
 - 该修复只改变测试夹具构造，不改变校准统计定义或生产逻辑。最新文档提交 head 仍需重新通过完整 CI，才能确认修复验收。
+
+
+### 修复后精确 head 的完整 CI 结果
+
+- Run #1958（45731888915）在精确 head `f4d2cc2fadc2c8136a8c5d405a3d6a47eee5efb2` 上 Workflow SUCCESS；actionlint、正式 Skill 包、Benchmark、218/218 离线测试全部通过，新增 3 项 Judge runner integration tests 均 PASS。
+- Round 4 real-evidence-assessment Job SUCCESS，IDA/ERA 报告 Schema 与 cross-field contract validation PASS；artifact #15077441739，SHA-256 `02e7d5a2386f0ea6e1f57a8382c6af64bd1f4a661f81e934cab569e74e4aa004`。
+- Builder production、independent-validation、Pilot、adjudication 等 Job 均 SKIPPED；没有新增生产执行、真实 Judge 校准、专家盲评或 Oracle freeze。
+- 该 CI 结果仅覆盖 head `f4d2cc2`。TASKS.md 与质量报告随后追加本次 Run 结果，形成新的文档提交；新文档 head 仍需精确 CI 复验。
