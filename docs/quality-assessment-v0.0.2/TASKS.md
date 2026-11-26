@@ -176,7 +176,7 @@
 
 ### 任务质量审计报告（2026-11-26）
 - 新增 [quality-report.md](quality-report.md)，逐项汇总 37 项任务状态、工程交付、CI/Artifact 证据、IDA/ERA 真实结果、科学效度缺口和发布建议。
-- 任务表状态统计：20 DONE、0 IN_PROGRESS、16 BLOCKED、1 DEFERRED、0 TODO。DONE 只表示该项设计/工程交付完成，不表示关联实证实验或发布门禁通过。
+- 任务表状态统计：20 DONE、0 IN_PROGRESS、15 BLOCKED、2 DEFERRED、0 TODO。DONE 只表示该项设计/工程交付完成，不表示关联实证实验或发布门禁通过。
 - 当前结论：工程验证通过，实证效度部分完成，发布门禁未通过。PR #44 保持 Draft/Open，不创建 v0.0.2 tag/release。
 
 
@@ -184,7 +184,7 @@
 - 最新报告/任务清单文档 head `87d3747444ddaa5e7391e202f7595121f1fa86a7` 对应 Run #1939（45720458350）Workflow SUCCESS：actionlint、正式 Skill 包、Benchmark、215/215 离线测试 PASS；Round 4 IDA/ERA 报告 Schema 与 cross-field contract PASS。
 - Round 4 artifact #15072186678，SHA-256 `be681dfd0a61be229e66b7953b3f02f66366d31d700b8e33755e3719df739b44`。IDA/ERA PARTIAL，15 条用例中 3 条 Pilot、12 条 NOT_RUN，Judge NOT_RUN，composite NOT_VALIDATED。
 - Builder production / independent-validation / Pilot / adjudication jobs 均 SKIPPED；本次没有新增真实运行或人工 Oracle 证据。
-- 最新任务质量报告见 `quality-report.md`；共 56 项任务。PR #44 继续 Draft/Open。
+- 最新任务质量报告见 `quality-report.md`；当前共 37 项任务。PR #44 继续 Draft/Open。
 
 
 ### TASKS.md 最终审计记录 head 复验（2026-11-26）
@@ -197,7 +197,7 @@
 - 精确 head `3a99fcc0de3609971d6c701bade210251c77fd04` 对应 Run #1941（45720784376）Workflow SUCCESS：actionlint、正式 Skill 包、Benchmark、215/215 离线测试 PASS；Round 4 IDA/ERA Schema 与 cross-field contract PASS。
 - Round 4 artifact #15070789521，SHA-256 `729c0131446788b21a06aa280b8b75f48218e3e21e5b666a284ca9a59977c1e5`。IDA/ERA PARTIAL，15 条中 3 条 Pilot、12 条 NOT_RUN，Judge NOT_RUN，composite NOT_VALIDATED。
 - Builder production、independent-validation、Pilot、adjudication jobs 均 SKIPPED；本次未新增真实运行、独立评审或 Oracle freeze。
-- 当前任务质量报告：`quality-report.md`。56 项任务状态：20 DONE、0 IN_PROGRESS、16 BLOCKED、1 DEFERRED、0 TODO。
+- 当前任务质量报告：`quality-report.md`。37 项任务状态：20 DONE、0 IN_PROGRESS、15 BLOCKED、2 DEFERRED、0 TODO。
 
 
 ### 最新质量报告提交 head 复验（2026-11-26）
