@@ -24,8 +24,8 @@ v0.0.2 已完成需求基线、研究与方法论设计、IDA/ERA 核心工程�
 | 状态 | 数量 | 解释 |
 |---|---:|---|
 | DONE | 20 | 设计/工程任务已有可复核文档、代码或 CI 证据 |
-| IN_PROGRESS | 5 | 已有部分实现或部分真实证据，验收条件尚未全部满足 |
-| BLOCKED | 12 | 需要独立人员、外部许可/数据、Oracle 或用户发布批准 |
+| IN_PROGRESS | 4 | 已有部分实现或部分真实证据，验收条件尚未全部满足 |
+| BLOCKED | 13 | 需要独立人员、外部许可/数据、Oracle 或用户发布批准 |
 | TODO | 0 | 尚未启动的任务已转为明确阻塞状态，避免掩盖依赖 |
 | **合计** | **37** | |
 
@@ -231,3 +231,28 @@ Run #1947（45721216859）在精确 head `bca98059650afce9df752917553bcff98adeb9
 - 支持 preregistered repeated Judge observations；accuracy 按唯一 case 计算，abstention 按 judgement 计数，重复分歧单独报告。case-level majority ties 映射为 UNKNOWN；False Pass/False Fail 采用保守 case-level 标记，避免将同一 case 的重复 Judge 输出当成独立样本。
 - Run #1993（[45802577224](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45802577224)，精确 head `4067dba939a4e5171864c85cde413c46e934ee65`）238/238 离线测试 PASS；Round 4 IDA/ERA contract PASS，Artifact #15108810359，ZIP SHA-256 `d899391a3603954a14959fe78568fed9e3b503c10959154a08dc022318686d9f`。
 - 仍无独立 held-out Gold Judge 校准集、真实人工/LLM Judge 观测或外部审计。Issue #43 招募帖没有独立评审者报名。当前 synthetic smoke 仍 NOT_VALIDATED；IM-03 因缺少外部校准证据调整为 BLOCKED。Importer/schema/tests 通过不等于 Judge 有效。
+
+
+### IM-05 Capability / Regression measurement analysis（2026-11-26）
+
+- Rasch 1PL 增加 person/item infit 与 outfit mean-square 描述诊断；没有使用未经验证的统一阈值。DIF 和 measurement invariance 在输出中明确为 NOT_ASSESSED。
+- G-Theory 参数恢复实验在 4 个 logistic crossed-random-effects DGP 情景下各运行 100 次，并比较 20×10、40×25、80×50 三种设计。所有结果均是 observed binary-score scale 的模拟参数恢复，不能解释为 latent logistic variance 或真实 Skill 人群的置信区间。
+
+| 设计 | 场景 | G bias / RMSE | Phi bias / RMSE | raw Person/Item 负分量率 |
+|---|---|---:|---:|---:|
+| 20×10 | balanced moderate | -0.0410 / 0.1827 | -0.0381 / 0.1794 | 2% / 10% |
+| 20×10 | low prevalence | -0.1102 / 0.2292 | -0.1088 / 0.2246 | 8% / 16% |
+| 20×10 | low person variance | +0.0501 / 0.1697 | +0.0487 / 0.1638 | 41% / 10% |
+| 20×10 | high item variance | -0.0240 / 0.1794 | -0.0167 / 0.1723 | 4% / 1% |
+| 40×25 | balanced moderate | -0.0011 / 0.0602 | -0.0003 / 0.0611 | 0% / 0% |
+| 40×25 | low prevalence | -0.0403 / 0.0966 | -0.0398 / 0.0972 | 0% / 2% |
+| 40×25 | low person variance | -0.0101 / 0.1490 | -0.0088 / 0.1433 | 23% / 0% |
+| 40×25 | high item variance | -0.0178 / 0.0835 | -0.0154 / 0.0883 | 0% / 0% |
+| 80×50 | balanced moderate | +0.0038 / 0.0283 | +0.0044 / 0.0294 | 0% / 0% |
+| 80×50 | low prevalence | -0.0257 / 0.0452 | -0.0259 / 0.0458 | 0% / 0% |
+| 80×50 | low person variance | -0.0112 / 0.1103 | -0.0097 / 0.1072 | 2% / 0% |
+| 80×50 | high item variance | -0.0039 / 0.0292 | -0.0033 / 0.0322 | 0% / 0% |
+
+- 20×10 在这些条件下明显不稳定；40×25 在一般条件下较好，但低 Person 方差时仍有较高 RMSE 和 23% 负 raw Person 分量；80×50 改善明显，但低 Person 方差场景 RMSE 仍约 0.11。不能据此制定普遍样本量门槛，真实项目必须按预期方差结构和设计重新做 preregistered power/precision simulation。
+- Run #2002（[45804426404](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45804426404)，精确 head `61fd978f496a3eb2db00eeb89a4bf696b84ddbf5`）241/241 离线测试 PASS，三种样本设计模拟和 Round 4 真实 Capability 报告契约均 PASS。
+- Round 4 真实数据只有 1 configuration × 3 cases：Rasch 与 G-Theory 均 NOT_ASSESSED；DIF 与 measurement invariance NOT_ASSESSED。当前没有真实多组效度或外部 criterion 数据，IM-05 因此 BLOCKED。

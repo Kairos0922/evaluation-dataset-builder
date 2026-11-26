@@ -93,3 +93,33 @@ python scripts/analyze_capability_measurement.py \
 **解释边界：** 真值是 observed binary-score scale 的方差分量，不是 logistic latent scale 参数；Person×Item 与 Bernoulli residual 仍混合。模拟只覆盖当前 additive logistic random-effects DGP 和平衡双 facet，不验证模型拟合、DIF、测量不变性或真实 Agent/Skill 外部效度。模拟重复分布分位数不是现实置信区间。证据等级固定为 SIMULATION_ONLY。
 
 运行：`python scripts/run_g_theory_parameter_recovery.py --output artifacts/g-theory-parameter-recovery.json`。
+
+
+## 9. G-Theory 参数恢复与样本设计敏感性（Run #2002）
+
+Run #2002（[45804426404](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45804426404)，精确代码 head `61fd978f496a3eb2db00eeb89a4bf696b84ddbf5`）以固定 seed 9100、每场景 100 次重复、1,000×1,000 reference integration，对四种 Bernoulli logistic crossed-random-effects 情景分别比较 20×10、40×25、80×50 的 Person×Item 设计。G-Theory JSON Schema validation 和 CI artifact 上传均成功；artifact #15107584570，ZIP SHA-256 `c9e7f8f7788439932e88658318c1cd9fbf39a415ac141ad7fce115618a3db90b`。
+
+| 设计 | 场景 | Relative G bias / RMSE | Absolute Phi bias / RMSE | raw Person/Item 负分量率 |
+|---|---|---:|---:|---:|
+| 20×10 | balanced moderate | -0.0410 / 0.1827 | -0.0381 / 0.1794 | 2% / 10% |
+| 20×10 | low prevalence | -0.1102 / 0.2292 | -0.1088 / 0.2246 | 8% / 16% |
+| 20×10 | low person variance | +0.0501 / 0.1697 | +0.0487 / 0.1638 | 41% / 10% |
+| 20×10 | high item variance | -0.0240 / 0.1794 | -0.0167 / 0.1723 | 4% / 1% |
+| 40×25 | balanced moderate | -0.0011 / 0.0602 | -0.0003 / 0.0611 | 0% / 0% |
+| 40×25 | low prevalence | -0.0403 / 0.0966 | -0.0398 / 0.0972 | 0% / 2% |
+| 40×25 | low person variance | -0.0101 / 0.1490 | -0.0088 / 0.1433 | 23% / 0% |
+| 40×25 | high item variance | -0.0178 / 0.0835 | -0.0154 / 0.0883 | 0% / 0% |
+| 80×50 | balanced moderate | +0.0038 / 0.0283 | +0.0044 / 0.0294 | 0% / 0% |
+| 80×50 | low prevalence | -0.0257 / 0.0452 | -0.0259 / 0.0458 | 0% / 0% |
+| 80×50 | low person variance | -0.0112 / 0.1103 | -0.0097 / 0.1072 | 2% / 0% |
+| 80×50 | high item variance | -0.0039 / 0.0292 | -0.0033 / 0.0322 | 0% / 0% |
+
+**Interpretation:** small 20×10 designs show large coefficient RMSE and frequent negative raw variance components. 40×25 improves typical scenarios but remains unstable when the Person component is small. 80×50 substantially improves recovery in balanced/moderate, low-prevalence and high-item-variance conditions, yet low-person-variance RMSE remains around 0.11. This supports design-specific simulation rather than a universal minimum sample-size rule.
+
+The empirical reference components are approximated by an independent Monte Carlo integral on the observed binary-score scale. They are not latent logistic-scale parameters. Replication quantiles are sampling-distribution summaries, not confidence intervals. The model still conflates Person×Item interaction with Bernoulli residual and does not model Seed, Environment or Judge facets.
+
+## 10. Capability analysis of the available Round 4 real Pilot evidence
+
+Run #2002 also passed the Capability measurement report contract against the actual three imported Runtime Records. The observed design is **1 configuration × 3 cases**. Rasch 1PL is NOT_ASSESSED (requires at least 3 persons and 3 items in this exploratory implementation); G-Theory is NOT_ASSESSED (requires at least 2 persons and 2 items). DIF and measurement invariance are NOT_ASSESSED because no preregistered group variable or multi-group held-out matrix exists. This is an explicit data sufficiency result, not a zero score.
+
+The real-evidence artifact is #15108548510, ZIP SHA-256 `d02e9557b071febdac9bc93e53b4306727033e35a0394492ad498e36c9615e1b`.
