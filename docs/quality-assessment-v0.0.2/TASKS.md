@@ -237,3 +237,11 @@
 - 精确 head `5b108084f65cfb0e00b8552744267ccdc5e51f58` 对应 Run #1961（45732037841）Workflow SUCCESS：actionlint、正式 Skill 包、Benchmark、218/218 离线测试和 Round 4 IDA/ERA 报告 Schema/cross-field contract validation 全部 PASS。
 - Round 4 artifact #15077885154，SHA-256 `fd3187c4a98a158b2dfe7b63fd2594c2c30540ab94a2e429886c6c11e72be122`。
 - Builder production、independent-validation、Pilot、adjudication 等受上游门禁保护的 Jobs 均 SKIPPED；本次没有新增生产执行或人工评审证据。Run #1961 仅证明当前代码和文档基线通过 CI。
+
+
+### Capability 测量分析器工程原型（2026-11-26）
+- 新增 `scripts/analyze_capability_measurement.py`：仅纳入有效运行且有 independent_oracle / expert_adjudication Gold 来源的二元 Agent 结果；要求单一数据集身份、完整平衡 Configuration×Case 设计，拒绝重复单元格和缺失单元格。
+- 实现探索性 Rasch 1PL 联合最大似然估计（配置能力位置、题目难度、局部信息近似标准误、题目/测试信息曲线），并对完全分离、不收敛和信息退化 fail-closed。
+- 实现平衡双 facet Person×Item G-study 方法矩估计、Person/Item/Person×Item+Residual 方差分量、相对 G、绝对 Phi 和 D-study 题目数量画像；负方差分量保留 raw 估计并明确警告。
+- 新增报告 Schema `schemas/capability-measurement-report.schema.json`、方法/边界说明 `capability-measurement-analysis.md` 和 `tests/test_analyze_capability_measurement.py`（5 项测试）。
+- 工程估计器不证明模型假设或构念效度；不支持 2PL、多维 IRT、DIF、多 facet Seed/Environment/Judge、非平衡或重复测量设计。缺少 independent Gold 时输出 NOT_ASSESSED，不以 0 代替缺失。IM-05 保持 IN_PROGRESS，等待 CI 与真实数据/参数恢复验证。
