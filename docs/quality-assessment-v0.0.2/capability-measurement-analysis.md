@@ -77,3 +77,8 @@ python scripts/analyze_capability_measurement.py \
 运行：`python scripts/run_capability_measurement_monte_carlo.py --output artifacts/rasch-recovery.json`。
 
 **解释边界：** 该模拟只验证在正确指定的单维 Rasch 1PL 数据生成模型下的参数恢复行为；它不是对真实 Agent/Skill 能力构念、单维性、局部独立、DIF、测量不变性或 G-Theory 模型的验证。G-Theory 的二元观测方差分解尚无独立参数恢复实验。IM-05 继续 IN_PROGRESS。
+
+
+## 7. G-Theory 数值性质与失败安全测试
+
+离线测试另以固定 seed 的 crossed Configuration×Case 二元矩阵检查 D-study 的相对 G 与绝对 Phi 系数处于 [0,1] 且随题目数增加单调不减；另用小型退化矩阵检查负 raw 方差分量被保留、展示分量截断并发出警告。该测试验证实现的数值边界和失败可见性，不是已知总体方差参数下的 G-Theory 参数恢复实验。二元结果的潜在尺度方差分解仍需更合适的 GLMM/多 facet 模型及 Monte Carlo 研究。

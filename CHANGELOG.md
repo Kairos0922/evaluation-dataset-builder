@@ -5,7 +5,7 @@
 > 本节记录开发分支已实现的工程资产，不代表发布批准或实证效度通过。正式版本号仍为 0.0.1。
 
 - 建立 IDA 离线质量检查器、ERA Runtime Record 与统计分析器、机器可读报告 Schema 和跨字段验证器。
-- 建立 Capability 与 Regression 的用途专属分析设计；新增探索性 Rasch 1PL 与平衡 Person×Item G-study 分析器、报告 Schema 和方法边界文档；增加固定 seed 的 30-replication Rasch 1PL 参数恢复模拟与回归测试（26/30 有效，能力/题目难度平均相关约 0.867/0.961）；综合公式、权重和阈值保持 NOT_VALIDATED。
+- 建立 Capability 与 Regression 的用途专属分析设计；新增探索性 Rasch 1PL 与平衡 Person×Item G-study 分析器、报告 Schema 和方法边界文档；增加固定 seed 的 30-replication Rasch 1PL 参数恢复模拟与回归测试（26/30 有效，能力/题目难度平均相关约 0.867/0.961），以及 G-Theory D-study 单调性/系数边界和负方差失败安全测试；综合公式、权重和阈值保持 NOT_VALIDATED。
 - 建立专家内容效度盲评协议、评分记录 Schema、Judge 校准证据报告 Schema 与验证器；Judge 校准执行脚本已接入报告契约，输出数据集/Prompt/实现哈希、逐案结果和重算统计，并在落盘前进行契约校验。
 - 建立 Round 4 独立 Oracle 双盲评审包、提交比较器、hash-bound 执行前冻结门禁。
 - 增加 ERA 真实运行执行协议、架构与验收基线、外部 Benchmark 候选及许可限制登记。

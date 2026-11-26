@@ -261,3 +261,10 @@
 - 本轮实现提交：`bb7cc26378cdc262c5560f49f358a258a00de367`；TASKS 记录提交：`3acad40fb2ecb1846aa7619ad0905cebf92894bc`。
 - Run #1977（45756867922）在精确 head `3acad40fb2ecb1846aa7619ad0905cebf92894bc` 上 SUCCESS：actionlint、正式 Skill 包、Benchmark、224/224 离线测试（含 30-replication Monte Carlo 参数恢复测试）PASS；Round 4 IDA/ERA 报告 Schema/cross-field validation PASS；artifact #15088650704。真实数据仍为 IDA/ERA PARTIAL、15 条中 3 条 Pilot / 12 条 NOT_RUN、Judge NOT_RUN、composite NOT_VALIDATED。该 Run 的 Builder production / independent-validation / Pilot / adjudication jobs 均 SKIPPED。
 - 更新任务台账后的精确 head `2979a43652b6f0548769c5e81458d8cfa35f496c` 由 Run #1978（45757021210）Workflow SUCCESS 再次验证：actionlint、正式 Skill 包、Benchmark、224/224 离线测试和 Round 4 IDA/ERA 报告契约 PASS；Round 4 artifact 需以 Run #1978 的 artifact 清单为准。Builder production / independent-validation / Pilot / adjudication jobs 均 SKIPPED。
+
+
+### G-Theory D-study 诊断性测试（2026-11-26）
+- 新增确定性 crossed Configuration×Case 二元响应测试，检查 D-study 相对 G 与绝对 Phi 系数在增加题目数时有界且单调不减。
+- 新增负方差分量回归测试，确认 raw method-of-moments 估计被保留、展示分量截断并显式发出警告。
+- Run #1980（45757275859）在精确代码 head `e195afdca502f5fcd10fffc7334d6f90ce115e7a` 上 SUCCESS：actionlint、正式 Skill 包、Benchmark、226/226 离线测试（含 Rasch Monte Carlo 与 G-Theory 新增测试）PASS；Round 4 IDA/ERA 报告契约 PASS。该 G-Theory 测试是数值性质/失败安全测试，不是 G-Theory 参数恢复或实证效度证明。
+- IM-05 仍 IN_PROGRESS：还缺 G-Theory Monte Carlo 参数恢复、正式模型拟合诊断、DIF/测量不变性及真实外部效标验证。
