@@ -65,6 +65,8 @@ def build_report(observations: dict, suite_path: Path, observations_bytes: bytes
     repeat_counts = Counter(result_ids)
     expected_repeats = observations["protocol"]["repeats_per_case"]
     if set(result_ids) != set(case_ids) or any(repeat_counts[case_id] != expected_repeats for case_id in case_ids):
+        if expected_repeats == 1:
+            raise ValueError("observations must contain exactly one row per frozen suite case_id")
         raise ValueError("observations must contain exactly protocol.repeats_per_case rows per frozen suite case_id")
     repeat_pairs = []
     for item in observation_rows:
