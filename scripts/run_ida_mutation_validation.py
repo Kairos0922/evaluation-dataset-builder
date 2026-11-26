@@ -214,8 +214,22 @@ def _invariant_metric_signature(report: dict) -> str:
     """Hash the outcome/gate/metric projection, excluding byte-level dataset identity."""
     projection = {
         "overall_status": report["overall_status"],
-        "gate_results": report["gate_results"],
-        "metric_results": report["metric_results"],
+        "gate_results": [
+            {
+                "gate_id": item["gate_id"],
+                "status": item["status"],
+                "severity": item["severity"],
+            }
+            for item in report["gate_results"]
+        ],
+        "metric_results": [
+            {
+                key: item.get(key)
+                for key in ("metric_id", "status", "value", "unit", "numerator", "denominator", "interval")
+                if key in item
+            }
+            for item in report["metric_results"]
+        ],
     }
     return hashlib.sha256(
         json.dumps(projection, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")

@@ -19,7 +19,11 @@ class IDAMutationValidationTests(unittest.TestCase):
         self.assertEqual(summary["non_deterministic_not_assessed_count"], 4)
         self.assertTrue(all(item["status"] == "PASS" for item in report["deterministic_mutations"]))
         self.assertTrue(all(item["status"] == "PASS" for item in report["negative_controls"]))
-        self.assertTrue(all(item["invariant_metrics_preserved"] for item in report["negative_controls"]))
+        self.assertEqual(
+            [item["control_id"] for item in report["negative_controls"] if not item["invariant_metrics_preserved"]],
+            [],
+            "negative controls changed measured outcomes",
+        )
         self.assertTrue(all(item["baseline_metric_signature"] == item["observed_metric_signature"] for item in report["negative_controls"]))
         self.assertTrue(all(item["status"] == "NOT_ASSESSED" for item in report["non_deterministic_mutations"]))
 
