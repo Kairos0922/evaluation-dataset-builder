@@ -172,3 +172,11 @@ class JudgeCalibrationContractTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StrictJsonConstantTests(unittest.TestCase):
+    def test_rejects_non_standard_json_numeric_constants(self):
+        from scripts.validate_judge_calibration import _reject_json_constant
+        for token in ("NaN", "Infinity", "-Infinity"):
+            with self.subTest(token=token), self.assertRaisesRegex(ValueError, "invalid JSON numeric constant"):
+                _reject_json_constant(token)
