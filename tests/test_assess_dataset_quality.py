@@ -265,5 +265,47 @@ class OfflineDatasetAssessmentTests(unittest.TestCase):
             self.assertEqual(validate_report(report), [])
 
 
+    def test_malformed_nested_collections_are_reported_without_crashing(self):
+        case = sample_case()
+        case["coverage_tags"] = ["not-an-object"]
+        case["source_refs"] = ["not-an-object"]
+        case["scenario_bucket"] = [{"unhashable": "value"}]
+        case["grading"] = ["not-an-object"]
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            manifest_path, cases_path, output_path = self.write_inputs(
+                directory, sample_manifest(), [case]
+            )
+            registry_path = directory / "sources.json"
+            registry_path.write_text(json.dumps({
+                "sources": [{
+                    "source_id": "SRC-001",
+                    "source_type": "synthetic_scenario",
+                    "title": "Synthetic tool-use exercise"
+                }]
+            }), encoding="utf-8")
+            report, structural_errors, _, _, source_errors = build_report(
+                manifest_path, cases_path, output_path, "both", registry_path
+            )
+            self.assertTrue(structural_errors)
+            self.assertTrue(source_errors)
+            self.assertEqual(report["overall_status"], "FAIL")
+            self.assertEqual(validate_report(report), [])
+
+    def test_wrong_collection_field_types_are_reported_without_crashing(self):
+        case = sample_case()
+        case["coverage_tags"] = "not-a-list"
+        case["source_refs"] = "not-a-list"
+        case["scenario_bucket"] = {"not": "a-list"}
+        case["grading"] = []
+        with tempfile.TemporaryDirectory() as tmp:
+            report, structural_errors, _, _, _ = self.run_assessment(
+                Path(tmp), sample_manifest(), [case]
+            )
+            self.assertTrue(structural_errors)
+            self.assertEqual(report["overall_status"], "FAIL")
+            self.assertEqual(validate_report(report), [])
+
+
 if __name__ == "__main__":
     unittest.main()
