@@ -11,6 +11,10 @@ import tempfile
 import zipfile
 from pathlib import Path
 
+def _reject_json_constant(token: str):
+    raise ValueError(f"invalid JSON numeric constant: {token}")
+
+
 EXPECTED_DATASET_SHA256 = "000d38b110b60eae902f86737ea6bd1368f98c6632c42a47bb9470a4a08bfc45"
 TARGET_CASE_IDS = {
     "WB-01", "WB-03", "WB-04", "WB-05", "WB-06", "WB-07",
@@ -49,8 +53,8 @@ def load_cases(dataset_path: Path, expected_dataset_sha256: str | None = EXPECTE
         if not line.strip():
             continue
         try:
-            item = json.loads(line)
-        except json.JSONDecodeError as exc:
+            item = json.loads(line, parse_constant=_reject_json_constant)
+        except (json.JSONDecodeError, ValueError) as exc:
             raise ValueError(f"invalid dataset JSONL at line {line_no}: {exc}") from exc
         case_id = item.get("case_id")
         if not isinstance(case_id, str) or not case_id:
