@@ -3,12 +3,6 @@ name: Package v0.0.2 Release Candidate
 on:
   pull_request:
     branches: ["main"]
-    paths:
-      - "VERSION"
-      - "skills/evaluation-dataset-builder/**"
-      - "scripts/validate_skill.py"
-      - "RELEASE-NOTES-0.0.2.md"
-      - ".github/workflows/package-release-candidate.yml"
 
 permissions:
   contents: read
