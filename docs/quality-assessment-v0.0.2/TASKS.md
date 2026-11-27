@@ -8,7 +8,7 @@
 - 基线：main（v0.0.1 已发布）
 - 当前版本：0.0.1
 - 目标版本：0.0.2
-- 当前状态：IN_PROGRESS
+- 当前状态：自主工程任务已完成（非发布版本；实证验证与发布工作不在本迭代范围）
 - 最后更新：2026-11-27
 
 ## 状态定义
@@ -22,7 +22,10 @@
 
 禁止只因文档已写或代码已提交就标记 DONE；任务验收标准必须全部满足。
 
-## 阶段与任务
+## 当前执行任务
+
+> 本表只保留本次迭代决定实际执行并已完成的自主工程任务。经用户决定移出当前范围的外部依赖任务已从任务表删除；其历史证据、未验证边界和原始阻塞原因保留在下方归档记录及 `decision-log.md`，不代表相关科学验证已经通过。
+
 
 | ID | 阶段 | 任务 | 状态 | 完成条件 / 证据 |
 |---|---|---|---|---|
@@ -37,36 +40,19 @@
 | DS-04 | 设计 | 设计 Regression 专属评价与统计方案 | DONE | 已定义同 case/config/environment/seed 配对、转移表、McNemar exact/Bootstrap、历史故障与 Mutation 分开、关键门禁及 Flakiness；真实故障集效度由 EX-05 跟踪。 |
 | FM-01 | 公式 | 定义构念蓝图、指标类型和候选公式模型族 | DONE | methodology-design.md §3、§5；formula-validation-protocol.md §2、§5；commit f84ef13 + b6cd238 |
 | FM-02 | 公式 | 设计公式构建、权重来源、阈值选择与敏感性分析协议 | DONE | formula-validation-protocol.md 已定义候选模型族、规范性/经验性/混合权重来源、训练/验证隔离、损失驱动阈值、敏感性/稳健性分析和验证结论状态。具体预注册参数必须绑定独立数据集与外部效标，属于 FM-03。 |
-| FM-03 | 公式 | 建立独立效度验证实验与证明报告 | BLOCKED | 已有预注册/验证协议设计；缺少独立专家效标、盲测缺陷、真实运行效标和冻结验证集，当前不能执行确认性公式验证。解除条件见 QA-04 |
 | EX-01 | 实验 | 完成公式验证实验设计与样本量/效标规划 | DONE | experimental-design.md；定义 E0–E7 阶段、分组隔离、专家盲评、缺陷注入和真实运行方案；commit 4b2f0d3 |
-| EX-02 | 实验 | 建立独立参考数据集与缺陷注入样本 | BLOCKED | 已建立 IDA-M01–M12 / ERA-M01–M08 缺陷目录与确定性单测，并完成 AppWorld、AgentDojo、WebArena-Verified、OSWorld-Verified、GAIA、WorkArena 官方代码许可/访问限制桌面初筛。阻塞：尚无逐资产许可确认、锁定版本/哈希、合法数据快照、独立 Oracle 和盲测变体；代码许可证不代表任务数据/镜像/实例授权。 |
-| EX-03 | 实验 | 完成专家内容效度与评分者一致性实验 | DEFERRED | 用户决定暂时取消独立专家评审任务；停止主动招募与盲评组织，不再将专家报名作为 v0.0.2 当前执行计划的推进路径。既有评审协议与 Schema 保留，但本任务延期，不视为已完成或不再需要；若未来重新启动，需重新确认评审资源、范围与预算。相关内容效度/独立效度证据继续明确标记为 NOT_ASSESSED / NOT_VALIDATED，不得用自动化测试或模型自评替代。 |
-| EX-04 | 实验 | 完成缺陷注入识别实验 | BLOCKED | 确定性变异算子和单测已建立，但没有独立确认的缺陷变体、盲测结果、误报/漏报和区间。解除条件：独立确认基线/变体、冻结标签与盲测评估。 |
 | EX-06 | 工程/实验 | 将真实 Builder、DSH Trace、Runner 和独立 Oracle 证据转换为规范 Runtime Record，并运行 IDA/ERA | DONE | 在现有冻结证据范围内完成：Builder/Pilot 原始证据导入、Runtime Record、IDA/ERA 分析、Schema/cross-field validator。新增 DSH JSONL 逐行解析、case/run 身份一致性检查、证据清单强制绑定、SHA-256 校验、路径穿越/符号链接逃逸防护，并将 trace_sha256 写入 Runtime Record Schema。代码提交 `e7245d2`，测试修正 `d899ea3`；Run #1983（45800505196，精确 head `d899ea3fab0b0f27a9d8fc1c57e78ade28492683`）230/230 离线测试 PASS，Round 4 real-evidence Job SUCCESS，Artifact 15105794918（ZIP SHA-256 `0d703863f965f99e34f721c00895ada15acd25ef0495015d4492826407962e03`）。该任务仅完成现有可用证据的规范化和分析：IDA/ERA 仍 PARTIAL，3/15 Pilot，12 NOT_RUN，Judge NOT_RUN，composite NOT_VALIDATED；剩余覆盖与效度任务由 EX-05/EX-07 等追踪。 |
-| EX-05 | 实验 | 完成 Capability / Regression 真实运行效标实验 | BLOCKED | 已有三条真实 Skill Pilot（WB-02/WB-10/WB-12）和独立 Gold Oracle 3/3 PASS，但只有一个 Skill revision / 模型配置、每 case 单次运行；15 条中 12 条 NOT_RUN，无完整 Agent×Task×Seed×Environment 矩阵、无 IRT/G-Theory 适配数据、无同 case baseline/candidate Regression 配对。EX-07 已按用户决定 DEFERRED，当前不再组织专家盲审；剩余 12 条缺少可用独立 Gold Oracle，且未获执行授权；Run #1983 的 production/Pilot jobs 均 SKIPPED。解除条件：另行确定合法、可审计的独立 Gold 来源或重新启动 Oracle 审查；取得明确运行授权并完成多配置/重复运行及配对版本执行；归档独立 Gold 与原始 Trace。不得以现有 3/3 通过率代替能力效标。 |
-| EX-07 | 实验 | 为 Round 4 剩余 12 条用例建立独立 Gold Oracle 规则和执行前门禁 | DEFERRED | 用户决定暂时取消独立专家评审/仲裁工作，因此暂停分发、回收和仲裁 12-case 盲审包；既有 A/B 盲审包生成器、比较器、hash-bound freeze manifest/validator 与测试保留。12 条仍为 NOT_RUN，WB-15 Application outcome UNKNOWN；不得把现有 Builder 结果当作独立 Gold。若未来重启，需重新确认独立评审者与仲裁资源。 |
 | SC-01 | 方案 | 冻结 v0.0.2 需求、架构和验收标准 | DONE | 新增 architecture-and-acceptance-baseline.md，定义模块边界、IDA/ERA 数据流、证据等级、关键不变量、用途分支、版本策略和分层验收矩阵；decision-log.md D-007 采纳，requirements.md 状态同步。 |
 | IM-01 | 实现 | 设计并实现 IDA 报告 Schema / 机器可读契约 | DONE | schemas/ida-report.schema.json；JSON 语法检查通过；commit f47905e |
 | IM-02 | 实现 | 实现独立离线评价器和确定性检查 | DONE | scripts/assess_dataset_quality.py 实现 Manifest/Case Schema、ID、来源注册表、覆盖一致性、分布、精确重复和报告契约检查；扩展身份错配、来源缺失/解析、覆盖不一致测试；run #1793 在精确 head 885444a 上 155 项测试 PASS |
-| IM-03 | 实现/实验 | 实现人工/LLM Judge 校准与证据记录接口并完成独立校准 | BLOCKED | 工程接口已实现：新增 manual/LLM observations Schema、独立证据导入器、case-level Gold/Judge refs、reviewer/adjudicator 匿名 ID、source observations SHA-256、held-out/blinding 校验；支持 preregistered repeated Judge runs，并以唯一 case 为 accuracy 分母、judgement 为 abstention 分母，报告重复分歧，避免伪重复。False Pass/False Fail 按 case 保守计数。提交 `eb793ba`、`fd6125a`、`4067dba`；Run #1993（45802577224，精确 head `4067dba939a4e5171864c85cde413c46e934ee65`）238/238 离线测试 PASS，Round 4 IDA/ERA contract PASS，Artifact 15108810359。外部校准仍 NOT_RUN：独立专家评审已按用户决定 DEFERRED；目前没有可用的独立 Gold held-out Judge 校准集、真实人工/LLM Judge 观测和独立审计。解除条件：未来若重启独立专家评审，取得专家/仲裁 Gold 与盲法 held-out 数据；或先确定其他合法且独立的 Gold 来源；再运行与 Subject 分离的人工或 LLM Judge，提交逐案证据和重复记录，并经独立审计；导入器成功或 Schema PASS 不得升级为 VALIDATED_FOR_SCOPE。 |
 | IM-04 | 实现 | 实现 ERA 运行结果 Schema / 机器可读契约 | DONE | schemas/era-report.schema.json + schemas/runtime-record.schema.json；Skill references 已同步；精确数据集 SHA、Agent/模型/Harness/环境、Run/Trace、Judge、Capability/Regression 字段已定义；JSON 语法检查通过；commits ef7515c、5030629、f18e010 |
-| IM-05 | 实现 | 实现 Capability / Regression 统计分析模块并验证测量性质 | BLOCKED | 工程与模拟验证已推进：ERA Judge/Regression 指标、Wilson CI、配对版本差异/McNemar exact、历史/变异故障检出、重复运行不一致、成本画像已实现；Capability Rasch 1PL 与双 facet G-study 已实现，新增 Rasch 1PL 30-rep Monte Carlo（26/30 有效；能力/难度平均相关约 0.867/0.961）和 G-Theory 100-rep × 4 DGP × 3 sample design 参数恢复。新增 Rasch infit/outfit 描述诊断；DIF 与测量不变性在报告中显式 NOT_ASSESSED。Run #2002（45804426404，精确 head `61fd978f496a3eb2db00eeb89a4bf696b84ddbf5`）241/241 离线测试 PASS；20×10、40×25、80×50 三种设计模拟均 PASS；真实 Round 4 记录 Capability 分析契约 PASS，但实际只有 1 个 configuration × 3 cases，Rasch/G-Theory 均 NOT_ASSESSED。G-Theory artifact #15107584570（ZIP SHA-256 `c9e7f8f7788439932e88658318c1cd9fbf39a415ac141ad7fce115618a3db90b`）；真实 Capability/IDA/ERA artifact #15108548510（ZIP SHA-256 `d02e9557b071febdac9bc93e53b4306727033e35a0394492ad498e36c9615e1b`）。仍缺真实多配置/多组 held-out 数据、DIF/测量不变性、真实外部效标与配对版本 Regression 证据；这些依赖外部运行和独立 Gold，不得将模拟结果当作真实有效性。 |
 | IM-06 | 实现 | 实现公式验证证据 Schema 和独立验证器 | DONE | Schema、Skill reference、验证器及契约测试已实现；修复 split-level sample_count 契约错误；commit b6740f9 + a2dc04e；run #1808（45550108441）在 head a2dc04e 上 162 项测试 PASS。此状态仅表示报告结构/逻辑契约验证器完成，不代表公式实验有效 |
-| IM-07 | 集成 | 更新 Skill 质量标准、按需加载引用和版本到 0.0.2 | BLOCKED | quality-standard.md/yaml 已更新为方法标准 2.0.0 / applies_to_release 0.0.2；IDA/ERA/Runtime Record/Formula Validation/Expert Review schemas 与 16 个 on-demand references 已纳入正式 Skill 目录，SKILL.md 逐项直接引用。Run #2004（45804838674，精确 head `013c351812b801554faa72fd360b208b9b553bb4`）validate_skill.py PASS、241/241 测试 PASS、Skill package validation PASS。根 VERSION 与 SKILL frontmatter metadata.version 均保持 0.0.1，这是已发布版本；不得在 v0.0.2 未通过 Release Gate、PR #44 未获批准前改写版本元数据。解除条件：所有发布门禁通过并获得明确发布批准，再由独立 release task 升级 VERSION/frontmatter 并验证精确候选。 |
-| IM-09 | 实现 | 比较候选综合公式并执行权重/聚合敏感性分析 | BLOCKED | 候选公式数学形式和比较协议已定义，但无独立开发集、专家效标、盲测缺陷和外部运行效标；当前不得估计权重/阈值或输出标量总分。 |
-| QA-01 | 质量 | 建立元评测数据、已知缺陷注入和专家盲评样本 | BLOCKED | 缺陷目录、专家协议、评分 Schema、Benchmark 候选登记已建立；专家盲评任务暂缓（EX-03=DEFERRED）；仍缺许可确认的参考数据快照、独立缺陷标签和数据切分。 |
-| QA-02 | 验证 | 完成离线评估器验证并形成可复核报告 | BLOCKED | 工程敏感性验证已补强：新增可复现 controlled-mutation runner，按 catalog 运行 IDA-M01–M08 八种确定性缺陷与四种 negative controls，逐案重算 IDA report 并验证报告 Schema；新增 metamorphic invariant 比较，要求 negative controls 的 overall status、gate results、metric results 与基线完全一致；Run #2023（45892053327，精确 head `49613acf6d540f5ef494335a45eebca65077a64b`）SUCCESS，243/243 测试 PASS；8/8 deterministic mutations detected，4/4 negative controls 指标保持不变、0/4 false positives；artifact #15152600525（ZIP SHA-256 `bdc08d2a95efcffa5ec1c8bbaa43b9432c27e9b639b09795fcefb9c6e76125ef`）；Run #2011（45806101196，精确 head `9cb0e46cd78193a9419929f90c73817a0ac511c3`）243/243 离线测试 PASS，8/8 deterministic mutations detected（100%，Wilson 95% CI 0.676–1.000），0/4 negative controls false-positive（0%，Wilson 95% CI 0–0.490）；M09–M12 NOT_ASSESSED。Artifact #15108859637，ZIP SHA-256 `bb45162be43dd87e2b0587e8d35ae80c2b4328870bc2689debf23a594d323a1e`。真实 Round 4 IDA 为 PARTIAL，G01 PASS、G02–G04 NOT_ASSESSED、G05/G07 UNKNOWN、composite NOT_VALIDATED；缺独立语义缺陷标签、独立 Gold/Oracle 和污染审计；专家内容效度评审已暂缓（EX-03=DEFERRED）。解锁条件：通过合法、可审计的独立 Gold / 语义缺陷标注或未来重新启动专家评审，完成 M09–M12 与真实数据评审；合成 mutation 通过不能代替语义有效性。 |
-| QA-03 | 质量 | 完成真实运行评价的端到端验证 | BLOCKED | Run #2011（45806101196）Round 4 重新导入冻结 DSH 证据并通过 IDA/ERA/Capability report Schema 与 cross-field validation；真实 ERA=PARTIAL，3/15 Pilot（3/3 Agent PASS、3/3 Process PASS、3/3 independent Gold PASS），12/15 NOT_RUN；其中仅 1 个 mutation fault（search-case-sensitive）且 detected=1/1，另外 2 个非注入 Pilot，样本不足以估计故障检出率。单一 configuration，seed/repeat_group_id/pair_id/cost_usd 均缺失；Judge grader_outcome 全为 UNKNOWN、grader_validation=NOT_RUN，Regression analysis=null，composite=NOT_VALIDATED。Capability 仅描述性 PARTIAL，1 config × 3 cases，Rasch/G-Theory NOT_ASSESSED。Artifact #15110340499，ZIP SHA-256 `4fe6f5f2bf4de10f7befd4ad2a6a6a70a1b4293e84e0c9e15d5593bd109124ed`。解锁条件：获得真实执行环境与预算授权，完成余下 12 个 Pilot、重复运行、独立 Judge/仲裁、paired baseline/candidate regression 和成本采集；当前 workflow 的 production/pilot/adjudication jobs 均 SKIPPED，未擅自启动收费或生产运行。 |
-| QA-04 | 质量 | 完成综合公式独立验证；若证据不足则明确 NOT_VALIDATED | BLOCKED | 候选公式、验证 Schema/validator 和实验协议已建立；缺少独立专家效标、盲测缺陷、真实运行效标和冻结验证集。保持 composite NOT_VALIDATED/value=null。 |
 | P0-ROBUST-01 | 工程 | 加固 IDA 对畸形嵌套字段的失败安全处理并增加回归测试 | DONE | 修复 coverage_tags/source_refs/scenario_bucket/grading/manifest coverage 结构异常导致的统计阶段未处理异常；非法 source registry ID 明确拒绝；新增 3 项回归测试。Run #2034（45916033576，精确 head ee0e03bbc0731acf4ca814a4d4a8b113f0ecad88）SUCCESS，246/246 离线测试 PASS；IDA controlled-mutation 与 Round 4 IDA/ERA/Capability report contracts PASS。该任务仅为工程鲁棒性，不代表语义效度验证。 |
 | P0-ROBUST-02 | 工程 | 全仓库 JSON 输入严格解析与非有限数值拒绝 | DONE | 对 IDA/ERA/Capability/Formula/Judge/Target Runtime/Round 4 Oracle/盲审/DSH 导入、Skill 校验及 release evidence 解析路径统一拒绝 JSON 标准外的 NaN/Infinity；报告验证器递归拒绝非有限数值。新增 JSONL 回归测试。Run #2065（45947894476，精确 head `2b238f9a18482f10429d9b04180952b89735675f`）SUCCESS，validate 与 Round 4 real-evidence assessment jobs PASS；生产运行、独立评审、Pilot、adjudication 仍按授权边界 SKIPPED。 |
 | P0-CI-01 | 工程 | 修复 CI #1807 中 Formula Validation Validator 对 datasets[].sample_count 的错误读取，并增加回归测试 | DONE | Schema 将 sample_count 定义在 split 层；验证器改为校验来源数据集非空并使用 split 总样本量；commit b6740f9（验证器）、a2dc04e（回归测试）；run #1808（45550108441）精确 head a2dc04e：actionlint、Skill 正式包、Benchmark 贯通样例 PASS，162/162 离线测试 PASS。Builder production / independent-validation jobs 按 PR 条件 SKIPPED |
 | CI-01 | 工程 | 增加 CI、Schema、单测和端到端离线验收 | DONE | Run #1890（45606669627，精确 head d38d797cfd3476e0e28cb8155f599e70920bff13）完整验证 PASS：actionlint、正式 Skill 包、Benchmark、185/185 离线测试、Round 4 冻结证据导入/IDA/ERA/报告 JSON Schema 与 cross-field validation 全部 PASS；真实证据 artifact 15017663406。此前 Run #1885 在 validator 加入前 177/177 PASS；Run #1890 包含新增 Oracle validator 与 8 项测试。PR #38 Builder production / independent-validation / pilot Jobs 按范围保护 SKIPPED，不计作本次验证通过 |
-| DOC-01 | 文档 | 更新 README、CHANGELOG、版本和限制说明 | BLOCKED | 根 README、研发 README、CHANGELOG、TASKS 与 quality-report 已同步至最新研发证据：Judge 导入管线、Rasch/G-Theory 探索性估计与模拟、IDA-M01–M08 controlled mutation、Round 4 3/15 Pilot 和真实数据不足边界均已说明；新增 mutation 与 capability 分析文档链接。Run #2011（45806101196，精确代码 head `9cb0e46cd78193a9419929f90c73817a0ac511c3`）243/243 测试、Skill package、actionlint、Benchmark、三种 G-Theory sample design、IDA mutation report、Round 4 IDA/ERA/Capability contract PASS。正式 VERSION 和 Skill frontmatter 仍为 0.0.1；不能在 Release Gate 未通过且未获明确发布批准前改为 0.0.2。解除条件：发布候选门禁全部通过并获得明确发布批准后，单独升级 VERSION/frontmatter 并完成 release verification。 |
-| REL-01 | 发布 | 建立发布候选 PR 并完成审查 | BLOCKED | 尚未满足独立评审、Oracle 冻结、完整运行效标、缺陷盲测和公式验证等适用门禁；PR #44 继续 Draft/Open，不转 Ready。 |
-| REL-02 | 发布 | 用户批准后创建 v0.0.2 Tag 和 GitHub Release | BLOCKED | 必须在 REL-01 审查通过后，由用户明确批准创建 tag/release；当前不得发布。 |
 
-## 外部依赖与阻塞
+## 历史证据与未验证边界（归档，不属于当前任务队列）
 
 - PR #38 已关闭。历史 run #1662 的 skipped 状态已被后续 Round 4 证据取代，不再作为当前阻塞依据。
 - Builder 原始输出来自 run #44959366258 / artifact #14729741906；该 production Job 结论为 failure（启发式误报），但 Builder 输出 artifact 已产生。独立验证 run #44968128127 PASS，冻结产出复验 run #45291624154 PASS。只有在此限定下，认定“正式 Builder 输出 + 独立 Validator PASS”前置条件满足；不把 Builder Job 说成 PASS。
@@ -432,3 +418,13 @@
 - 新增回归测试覆盖 IDA/ERA JSONL、DSH JSONL、Round 4 冻结数据、Judge observations 和各报告验证器的非法常量拒绝。
 - Run #2065（[45947894476](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45947894476)，精确 head `2b238f9a18482f10429d9b04180952b89735675f`）SUCCESS：validate job PASS，Round 4 real-evidence assessment job PASS。Production Builder、Pilot、independent validation、adjudication 与 upstream asset audit 未执行/按 workflow 条件 SKIPPED；本次只验证代码、离线测试和已有冻结证据。
 - 该任务属于工程输入健壮性与标准兼容性，不代表构念效度、语义效度、独立 Gold 正确性或综合分有效性已验证；QA-02、QA-03、QA-04 等原有状态不变。
+
+
+### D-009 当前迭代范围收缩：移除全部外部依赖任务（2026-11-27）
+
+- 用户明确要求：将依赖外部条件、当前无法由项目自主解决的任务从当前任务清单中清除。
+- 因此从上方当前执行任务表移除以下 17 项：FM-03、EX-02、EX-03、EX-04、EX-05、EX-07、IM-03、IM-05、IM-07、IM-09、QA-01、QA-02、QA-03、QA-04、DOC-01、REL-01、REL-02。
+- 这是一项明确的产品/迭代范围收缩，不是将任务标记为 DONE 或 NOT_APPLICABLE。它们不再属于当前 v0.0.2 执行范围；历史研究、已完成工程子组件、真实数据状态、科学限制和发布门禁证据继续留档。
+- 已完成的自主工程能力仍以代码、测试、Schema、报告和历史 CI 证据保留；不得将其扩张解释为独立效度、语义效度、Gold 正确性、Judge 校准、真实 Capability/Regression 效度或综合分有效性已验证。
+- 当前表中保留的任务均为 DONE；本次没有合并 PR #44、修改正式版本号、创建 tag/release，也没有触发收费或生产运行。
+- D-009 取代 D-008 中“外部依赖任务继续保留在任务表”的要求；D-008 关于停止招募、停止等待、停止外部触发和发布边界的要求继续有效。
