@@ -399,6 +399,20 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn("git push origin refs/tags/v0.0.2", workflow)
         self.assertIn("gh release create v0.0.2", workflow)
 
+    def test_v0_0_2_candidate_package_workflow_builds_runtime_only_exact_sha_archive(self):
+        workflow = (ROOT / ".github" / "workflows" / "package-release-candidate.yml").read_text(encoding="utf-8")
+        self.assertIn("pull_request:", workflow)
+        self.assertIn("github.event.pull_request.head.sha", workflow)
+        self.assertIn("python scripts/validate_skill.py", workflow)
+        self.assertIn("evaluation-dataset-builder-0.0.2.zip", workflow)
+        self.assertIn("EXPECTED_SKILL_FILES", workflow)
+        self.assertIn("Archive content mismatch", workflow)
+        self.assertIn("skill-package-candidate-", workflow)
+        self.assertIn("actions/upload-artifact@v4", workflow)
+        self.assertIn("contents: read", workflow)
+        self.assertNotIn("gh release create", workflow)
+        self.assertNotIn("git push", workflow)
+
     def test_v0_0_2_release_notes_disclose_evidence_boundaries(self):
         notes = (ROOT / "RELEASE-NOTES-0.0.2.md").read_text(encoding="utf-8")
         gate = (ROOT / "RELEASE-GATE-0.0.2.md").read_text(encoding="utf-8")
