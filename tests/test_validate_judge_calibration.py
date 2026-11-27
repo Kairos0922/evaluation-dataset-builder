@@ -65,6 +65,12 @@ def base_report():
 
 
 class JudgeCalibrationContractTests(unittest.TestCase):
+    def test_non_finite_accuracy_is_rejected(self):
+        report = base_report()
+        report["summary"]["accuracy"] = float("nan")
+        errors = validate_report(report)
+        self.assertTrue(any("non-finite numeric value" in error for error in errors))
+
     def test_synthetic_smoke_contract_passes_but_remains_not_validated(self):
         self.assertEqual(validate_report(base_report()), [])
 
