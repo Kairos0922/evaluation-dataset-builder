@@ -104,3 +104,12 @@
 - 测试新增对 v0.0.1 旧发布触发器清理、v0.0.2 手动发布工作流 SHA/Tree/CI/版本门禁及发布说明证据限制的契约断言。
 - 本次完整 CI 中 production Builder、独立评审、Pilot、adjudication 与 upstream asset audit 按条件 SKIPPED；没有新增真实运行或独立 Gold。
 - 工作流已通过静态/CI 验证，但尚未触发；正式 VERSION/frontmatter 仍 0.0.1，PR #44 未合并，v0.0.2 Tag/Release 未创建。
+
+
+## D-011：在发布准备阶段同步 0.0.2 候选版本元数据（不构成发布批准）
+
+- 日期：2026-11-27
+- 状态：已采纳
+- 决策：依据用户“准备发布 0.0.2”的指令，将工作分支 VERSION 与 Skill frontmatter metadata.version 同步更新为 0.0.2，以便对真实候选包执行版本一致性验证。
+- 范围：该变更仅存在于 feat/quality-assessment-v0.0.2 分支；main 上正式稳定版本仍为 0.0.1，直到 PR 经批准合并。分支元数据升级不代表 Release Candidate 已冻结，也不代表已授权合并、创建 Tag 或 GitHub Release。
+- 后续门禁：必须对包含 0.0.2 版本元数据的最终精确 head 执行完整 CI；用户仍需单独批准 PR 合并与正式发布。
