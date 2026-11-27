@@ -6,8 +6,9 @@
 - 工作分支: `feat/trajectory-driven-v0.0.3`
 - 基线: `main` / v0.0.2
 - 开发 PR: [#52](https://github.com/Kairos0922/evaluation-dataset-builder/pull/52)（Draft）
-- 最近一次完整 CI 验证：Run #2124 / 46083024909，commit `2b86993473f261ffffa5b48a1535a989c599b23b`（早于本轮融合文档和 adapter 代码）
-- 当前 adapter 验证 HEAD：`60b6d8b2d6abb0850134a67f368afcc1c295de2d`（CI 待完成）
+- 最近一次完整 CI 验证：Run #2137 / 46084740955，commit `e98df48dc2f8545a558f0cd0430aab4274cd48c0`，validate 与 v0.0.2 release-candidate package 均 PASS
+- 轨迹→Case→IDA 端到端步骤：Run #2137 steps 9–13 全部 PASS；已归档 `trajectory-to-ida-integration` artifact（90 天）
+- 真实 Builder production / independent validation / Pilot 等受保护任务按条件 SKIPPED；没有真实轨迹或真实 Pilot 结论
 - 状态: IN_PROGRESS
 - 版本原则: 不修改 v0.0.2 历史结果；不把合成样例当作实证。
 
@@ -31,12 +32,15 @@
 | V03-05 | 实现 | 实现安全的轨迹候选导入与确定性校验 | DONE | `scripts/discover_trajectory_candidates.py` 先验证授权/脱敏来源再读取规范化事件；合成 CLI 端到端步骤 Run #2124 PASS |
 | V03-06 | 实现 | 实现来源、资格审查、切片和重建证据的契约校验 | DONE | `scripts/validate_trajectory_assets.py` 跨记录门禁；Run #2124 完整 validate job PASS。该项是契约校验，不代表语义资格审查自动化 |
 | V03-07 | 实现 | 实现环境重建的独立 Runner / Manifest 工作流 | DEFERRED | 接口对照发现现有 Case `execution_requirements`、Manifest 和 Runtime Record 已承载主要执行约束；暂不另建 Runner/Manifest。若端到端案例证明字段不足，再提出最小扩展 |
-| V03-08 | 集成 | 将审查后的轨迹候选映射到现有 Case / Manifest，并复用 IDA / ERA | IN_PROGRESS | 接口对照已完成；Case draft adapter 已实现，正在增加 IDA CLI 端到端验证 |
+| V03-08 | 集成 | 将审查后的轨迹候选映射到现有 Case / Manifest，并复用 IDA / ERA | IN_PROGRESS | Case 草稿转换和 IDA 已打通；仍需完成无轨迹回归与 ERA clean-run / Runtime Record 接入，不能将 IDA 贯通等同于 ERA 完成 |
 | V03-09 | 验证 | 建立 SYNTHETIC 端到端样例和对抗性测试 | DONE | Run #2124：候选发现 CLI、v0.0.3 资产链贯通样例、离线测试全部 PASS；仅证明工程契约，不代表真实轨迹有效性 |
-| V03-10 | 验证 | 完成 CI、正式 Skill 包、全量离线测试 | IN_PROGRESS | Run #2124（精确 commit `2b86993`）：actionlint、正式包、Benchmark 样例、轨迹发现、v0.0.3 贯通、离线测试、G-Theory 模拟、IDA mutation 均 PASS；该次 PR CI 中 Builder production / independent validation / Pilot / Round 4 evidence jobs 按保护条件 SKIPPED。架构文档新提交后需重新验证 |
+| V03-10 | 验证 | 完成 CI、正式 Skill 包、全量离线测试 | DONE | Run #2137（commit `e98df48`）：actionlint、正式 Skill 包、Benchmark、轨迹发现、v0.0.3 证据链、Case adapter、IDA CLI 与报告验证、全量离线测试、G-Theory 模拟、IDA mutation 均 PASS。受保护的 Builder production / independent validation / Pilot jobs 按条件 SKIPPED，不属于本项通过证据 |
 | V03-11 | 实证 | 在明确授权的真实轨迹、独立 Oracle 和运行资源下开展 Pilot | BLOCKED | 当前无获准真实轨迹输入与新的独立 Pilot 授权；保持 BLOCKED，不以合成样例替代 |
 | V03-12 | 架构集成 | 对照 v0.0.2 Case / Manifest / Runtime Record / IDA / ERA，确定复用边界 | DONE | `integration-contract-map.md`，commit `68f421f9555e841b0b0540e4fca415cb4d785e59`；基于 main 分支正式 Schema 和 Skill 流程逐项对照 |
-| V03-13 | 集成实现 | 实现经过审查的 Candidate / Slice → 现有 Case 草稿转换器 | IN_PROGRESS | `scripts/build_case_draft_from_slice.py` 已实现；测试覆盖来源追溯、缺少 expected_behavior、上下文不完整和来源字段覆盖；CI 待新 HEAD 验证。下一步补充现有 IDA CLI 端到端读取与无轨迹流程回归 |
+| V03-13 | 集成实现 | 实现经过审查的 Candidate / Slice → 现有 Case 草稿转换器并接入 IDA | DONE | `scripts/build_case_draft_from_slice.py`；4 项专项测试；Run #2137 steps 11–12 PASS：输出符合 main 的 Case Schema，现有 `assess_dataset_quality.py` 成功消费，`validate_quality_assessment.py` 验证报告通过；G01 source provenance=PASS，构念/可解性保持 NOT_ASSESSED，综合分 NOT_VALIDATED |
+
+| V03-14 | 回归 | 验证无轨迹输入时原有 Builder / IDA 工作流保持可用 | TODO | v0.0.2 正式 Skill 包与全量离线测试在 Run #2137 PASS；仍需增加一条不含 trace 来源的既有 Case/数据集 IDA smoke test，证明可选轨迹入口不会改变原有路径 |
+| V03-15 | 验证 | 归档轨迹→Case→IDA 端到端证据 | DONE | Run #2137 step 13 PASS；GitHub Actions artifact `trajectory-to-ida-integration`，包含 Case draft、JSONL 与 IDA report，保留 90 天 |
 
 ## 融合原则
 
