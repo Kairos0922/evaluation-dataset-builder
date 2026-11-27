@@ -470,3 +470,4 @@
 - **任务统计：** 当前执行范围内 22/22 自主工程任务 DONE；D-009 移出的 17 项外部依赖任务仍不计为 DONE，相关真实效度限制继续有效。
 - **科学证据状态没有因发布改变：** Round 4 为 3/15 Pilot、12 NOT_RUN；IDA/ERA PARTIAL；Judge 校准 NOT_RUN；Regression 无有效配对数据；综合分 NOT_VALIDATED / null；IDA M09–M12 NOT_ASSESSED；平台兼容性未认证。
 - 本节覆盖并取代本文件较早阶段记录中“PR #44 Draft/Open、main 版本 0.0.1、尚未创建 Tag/Release”等发布前状态；这些历史记录保留为时间线，不再代表当前状态。
+- 发布后自动化边界审计：Run #45972440390（DSH L4 Mutation Discrimination）曾由上游 L3 完成事件自动启动；在独立 Judge 凭证预检阶段因未配置 `EVAL_JUDGE_API_KEY` / `GROQ_API_KEY` 而失败，L4 评测步骤被 SKIPPED，工作流明确记录未发送 Judge 请求。该实验依赖外部 Judge 凭证，不属于 D-009 自主执行范围。PR #49 已移除自动 `workflow_run` 触发，改为仅手动 `workflow_dispatch` 且必须显式 `confirm_execute=true`（默认 false），并通过精确 PR head CI；不代表 L4 实证已完成。
