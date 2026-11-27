@@ -1,0 +1,28 @@
+{
+  "schema_version": "0.0.3",
+  "qualification_id": "qual-synthetic-001",
+  "candidate_id": "cand-synthetic-001",
+  "attribution": "agent_decision",
+  "decision_context": {
+    "critical_event_ref": "evt-004",
+    "available_information_refs": [
+      "evt-001",
+      "evt-002"
+    ],
+    "could_reasonably_avoid_error": "yes",
+    "post_hoc_requirement_added": false,
+    "rationale": "Illustrative evidence, not a real capability finding."
+  },
+  "task_contract": {
+    "input_identifiable": true,
+    "deliverable_identifiable": true,
+    "quality_criteria_identifiable": true,
+    "criteria_description": "Synthetic fixture criteria."
+  },
+  "environment_health": "healthy",
+  "evidence_sufficiency": "sufficient_for_candidate",
+  "review_status": "qualified",
+  "reviewer_id": "synthetic-reviewer",
+  "reviewed_at": "2026-11-28T12:02:00Z",
+  "rationale": "SYNTHETIC / ILLUSTRATIVE_ONLY."
+}
