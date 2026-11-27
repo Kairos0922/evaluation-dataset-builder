@@ -179,7 +179,10 @@ def coverage_summary(manifest: dict, cases: list[dict]):
                 if isinstance(tag, dict) and tag.get("dimension") == dimension
             )
         })
-    declared_dimensions = {item.get("dimension") for item in dimensions if isinstance(item.get("dimension"), str)}
+    declared_dimensions = {
+        item.get("dimension") for item in dimensions
+        if isinstance(item, dict) and isinstance(item.get("dimension"), str)
+    }
     for dimension, item_ids in sorted(actual.items()):
         if dimension not in declared_dimensions:
             declared.append({
@@ -188,8 +191,9 @@ def coverage_summary(manifest: dict, cases: list[dict]):
                 "declared_covered": None,
                 "observed_unique_coverage_items": len(item_ids),
                 "observed_case_tag_count": sum(
-                    1 for case in cases for tag in case.get("coverage_tags", [])
-                    if tag.get("dimension") == dimension
+                    1 for case in cases
+                    for tag in (case.get("coverage_tags", []) if isinstance(case.get("coverage_tags", []), list) else [])
+                    if isinstance(tag, dict) and tag.get("dimension") == dimension
                 )
             })
             inconsistencies.append(f"{dimension}: case tags contain a dimension not declared in manifest")
