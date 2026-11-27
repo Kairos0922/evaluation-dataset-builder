@@ -11,7 +11,10 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator, FormatChecker
 
-from scripts.validate_trajectory_assets import validate_assets
+try:
+    from scripts.validate_trajectory_assets import validate_assets
+except ModuleNotFoundError:  # direct script execution puts scripts/ on sys.path
+    from validate_trajectory_assets import validate_assets
 
 ROOT = Path(__file__).resolve().parents[1]
 EVENT_SCHEMA_PATH = ROOT / "schemas" / "v0.0.3" / "trajectory-event.schema.json"
