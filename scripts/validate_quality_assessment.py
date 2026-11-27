@@ -23,7 +23,7 @@ NON_NUMERIC_STATUSES = {
 
 def _schema_errors(report: dict, assessment_type: str) -> list[str]:
     schema_path = SCHEMAS[assessment_type]
-    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+    schema = json.loads(schema_path.read_text(encoding="utf-8"), parse_constant=_reject_json_constant)
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema, format_checker=FormatChecker())
     errors = sorted(validator.iter_errors(report), key=lambda e: list(e.absolute_path))
