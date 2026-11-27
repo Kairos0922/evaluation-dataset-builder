@@ -399,6 +399,15 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn("git push origin refs/tags/v0.0.2", workflow)
         self.assertIn("gh release create v0.0.2", workflow)
 
+    def test_v0_0_2_release_notes_disclose_evidence_boundaries(self):
+        notes = (ROOT / "RELEASE-NOTES-0.0.2.md").read_text(encoding="utf-8")
+        gate = (ROOT / "RELEASE-GATE-0.0.2.md").read_text(encoding="utf-8")
+        for required in ("12 条", "PARTIAL", "NOT_RUN", "NOT_VALIDATED", "综合分"):
+            self.assertIn(required, notes)
+        self.assertIn("不证明", notes)
+        self.assertIn("范围", gate)
+        self.assertIn("不得把范围移除解释为科学验证通过", gate)
+
     def test_manual_behavior_workflow_is_exact_sha_and_flash_only(self):
         workflow = (ROOT / ".github" / "workflows" / "behavioral-eval.yml").read_text(encoding="utf-8")
         source = (ROOT / "tests" / "run_eval.py").read_text(encoding="utf-8")
