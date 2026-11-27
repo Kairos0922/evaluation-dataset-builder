@@ -336,3 +336,10 @@ The root VERSION and Skill frontmatter metadata.version remain 0.0.1, matching t
 - 4/4 negative controls 保持 overall status、gate statuses/severity 和 metric values/statuses 不变；0/4 false positives，invariant metric failures 0/4。Wilson 95% CI for negative-control false-positive rate remains 0–0.490.
 - Artifact #15152600525，ZIP SHA-256 `bdc08d2a95efcffa5ec1c8bbaa43b9432c27e9b639b09795fcefb9c6e76125ef`.
 - Production Builder、independent-validation、Pilot 和 adjudication jobs 均 SKIPPED；该验证没有新增真实运行或独立语义标签。
+
+
+### IDA malformed-input robustness hardening（2026-11-27）
+
+A code audit found that malformed nested collection fields could pass through schema-error collection and then raise an uncaught exception in later descriptive calculations. The offline evaluator now defensively handles malformed `coverage_tags`, `source_refs`, `scenario_bucket`, `grading.criteria`, and manifest coverage dimensions; invalid source registry identifiers are rejected explicitly. Three regression tests were added for malformed nested members, wrong collection types, and malformed manifest coverage dimensions.
+
+This is an engineering robustness change only. The exact commits have not yet produced an observable CI run or status check, so the work remains IN_PROGRESS and the new tests are not reported as passing. No empirical-validity or composite-score status changes.
