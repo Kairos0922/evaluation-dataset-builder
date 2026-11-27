@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 from pathlib import Path
 import sys
 
@@ -13,7 +14,27 @@ ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = ROOT / "docs" / "quality-assessment-v0.0.2" / "schemas" / "formula-validation.schema.json"
 
 
+def _reject_json_constant(token: str):
+    raise ValueError(f"invalid JSON numeric constant: {token}")
+
+
+def _non_finite_number_paths(value, path: str = "<root>") -> list[str]:
+    if isinstance(value, float) and not math.isfinite(value):
+        return [path]
+    if isinstance(value, dict):
+        return [found for key, child in value.items()
+                for found in _non_finite_number_paths(child, f"{path}.{key}")]
+    if isinstance(value, list):
+        return [found for index, child in enumerate(value)
+                for found in _non_finite_number_paths(child, f"{path}[{index}]")]
+    return []
+
+
 def validate_formula_validation_report(report: dict) -> list[str]:
+    non_finite_paths = _non_finite_number_paths(report)
+    if non_finite_paths:
+        return [f"non-finite numeric value is not valid JSON at {path}" for path in non_finite_paths]
+
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema, format_checker=FormatChecker())
@@ -139,7 +160,7 @@ def main() -> int:
     parser.add_argument("report", type=Path, help="Formula validation report JSON")
     args = parser.parse_args()
     try:
-        report = json.loads(args.report.read_text(encoding="utf-8"))
+        report = json.loads(args.report.read_text(encoding="utf-8"), parse_constant=_reject_json_constant)
         errors = validate_formula_validation_report(report)
     except Exception as exc:
         print(f"FAIL: {exc}", file=sys.stderr)
