@@ -412,3 +412,13 @@
 - Run #2036 SUCCESS：actionlint、Skill package、Benchmark、246/246 离线测试、G-Theory 三种设计模拟、IDA controlled mutation 与 Round 4 IDA/ERA/Capability report contracts 均 PASS。
 - Artifacts：Round 4 #15162063803、IDA mutation #15162118788、G-Theory #15161964062。production Builder、independent validation、Pilot、adjudication、upstream asset audit 均 SKIPPED；没有新增生产运行、Pilot 或独立 Gold。
 - 本次仅校正 run 编号，不改变 38 项任务状态（21 DONE、15 BLOCKED、2 DEFERRED），也不改变 3/15 Pilot、12 NOT_RUN、Judge NOT_RUN、composite NOT_VALIDATED 的证据边界。
+
+
+### D-008 执行范围收敛（2026-11-27）
+
+- 用户明确要求：真正剩余任务中，团队可自主完成的继续完成；依赖外部的任务全部不做。
+- 因此当前自主执行队列仅包括可由仓库现有代码、冻结证据和离线环境完成的工程修复、测试、契约/静态检查、证据复现和文档一致性审计。
+- 外部依赖任务清单：FM-03、EX-02、EX-03、EX-04、EX-05、EX-07、IM-03 的独立校准、IM-05 的真实测量验证、IM-07 的正式版本升级、IM-09、QA-01、QA-02 的语义/Gold 验证、QA-03 的新增真实运行、QA-04、DOC-01 的正式版本转换、REL-01、REL-02。全部停止执行，不招募、不等待、不触发第三方数据/运行/审计或发布流程；原状态 BLOCKED / DEFERRED 保留，不删除、不伪装完成。
+- 已完成的工程子组件继续保留其 DONE 证据；工程接口或模拟不能解除实证门禁。若后续发现新的可完全自主完成的子任务，继续直接执行并更新本清单。
+- 版本仍为 0.0.1；PR #44 仍 Draft/Open；不执行 merge、tag、Release 或收费/生产运行。
+- 本决策不改变 3/15 Pilot、12 NOT_RUN、Judge NOT_RUN、IDA M09–M12 NOT_ASSESSED、composite NOT_VALIDATED 的事实状态。
