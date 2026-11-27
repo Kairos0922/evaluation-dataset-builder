@@ -1,7 +1,7 @@
 # v0.0.2 发布门禁（范围收缩版）
 
 **适用版本：** 0.0.2  
-**文档状态：** 发布准备基线，尚未批准发布  
+**文档状态：** 已执行；v0.0.2 正式发布于 2026-11-27  
 **批准边界：** 本门禁通过不自动合并 PR、创建 Tag 或发布 GitHub Release。
 
 ## 1. 发布定位与范围
@@ -49,3 +49,11 @@
 - 不得把 CI、Schema、模拟或合成变异结果解释为真实效度。
 - 不得重新启用外部评审招募、外部数据获取、收费模型调用或生产运行。
 - 未取得明确批准，不得合并 PR、创建 Tag、创建/编辑 GitHub Release。
+
+## 6. 正式发布执行结果（2026-11-27）
+
+- PR #44 已合并；候选 SHA `4362ab14e01e7b694851eef95877f238f7e2d8cc` 与 merge commit `f6b722ca630dacf0fa73bacba110cff1fafff0f` 的 Git tree 一致。
+- PR #45 修复了发布执行路径；正式发布工作流 [Run #45972007647](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45972007647) SUCCESS。
+- Tag `v0.0.2` 已创建并指向 `f6b722ca630dacf0fa73bacba110cff1fafff0f`；GitHub Release 已发布：[v0.0.2](https://github.com/Kairos0922/evaluation-dataset-builder/releases/tag/v0.0.2)。
+- 正式资产：Skill ZIP（44,025 bytes，SHA-256 `a7de57496e9beeb7b776361d712af81a6b0a6c7ed42bd900d95d8c08081c7fc4`）和 `RELEASE-NOTES-0.0.2.md`。
+- 发布后审计保留本文件的原始门禁标准及科学限制，不将 17 项范围外任务或未验证实证条件记作通过。
