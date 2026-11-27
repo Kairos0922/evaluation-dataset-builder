@@ -101,14 +101,20 @@ def check_source_references(cases: list[dict], registry: dict | None):
         return "UNKNOWN", 0, 0, ["No independent source registry was supplied."]
     references = []
     for case in cases:
-        for source in case.get("source_refs", []):
+        source_refs = case.get("source_refs", [])
+        if not isinstance(source_refs, list):
+            continue  # Schema validation records the malformed field; keep assessment deterministic.
+        for source in source_refs:
             references.append((case.get("case_id", "<unknown>"), source))
     if not references:
         return "UNKNOWN", 0, 0, ["No case-level source references were supplied."]
     unresolved = []
     for case_id, source in references:
+        if not isinstance(source, dict):
+            unresolved.append(f"{case_id}: source reference must be an object")
+            continue
         source_id = source.get("source_id")
-        registered = registry.get(source_id)
+        registered = registry.get(source_id) if isinstance(source_id, str) else None
         if not source_id or registered is None:
             unresolved.append(f"{case_id}: unresolved source_id {source_id!r}")
             continue
@@ -124,15 +130,26 @@ def check_source_references(cases: list[dict], registry: dict | None):
 def coverage_summary(manifest: dict, cases: list[dict]):
     actual = defaultdict(set)
     for case in cases:
-        for tag in case.get("coverage_tags", []):
+        tags = case.get("coverage_tags", [])
+        if not isinstance(tags, list):
+            continue  # The case Schema reports the type error; malformed tags must not crash assessment.
+        for tag in tags:
+            if not isinstance(tag, dict):
+                continue
             dimension = tag.get("dimension")
             item_id = tag.get("coverage_item_id")
-            if dimension and item_id:
+            if isinstance(dimension, str) and dimension and isinstance(item_id, str) and item_id:
                 actual[dimension].add(item_id)
 
     declared = []
     inconsistencies = []
-    for item in manifest.get("coverage", {}).get("dimensions", []):
+    coverage = manifest.get("coverage", {})
+    dimensions = coverage.get("dimensions", []) if isinstance(coverage, dict) else []
+    if not isinstance(dimensions, list):
+        dimensions = []
+    for item in dimensions:
+        if not isinstance(item, dict):
+            continue
         dimension = item.get("dimension")
         if not dimension:
             continue
@@ -144,7 +161,7 @@ def coverage_summary(manifest: dict, cases: list[dict]):
             inconsistencies.append(
                 f"{dimension}: manifest covered={covered}, observed unique coverage_item_id={actual_count}"
             )
-        if isinstance(total, int) and total > 0 and isinstance(covered, int) and rate is not None:
+        if isinstance(total, int) and not isinstance(total, bool) and total > 0 and isinstance(covered, int) and not isinstance(covered, bool) and isinstance(rate, (int, float)) and not isinstance(rate, bool):
             expected_rate = covered / total
             if abs(rate - expected_rate) > 1e-9:
                 inconsistencies.append(
@@ -158,12 +175,13 @@ def coverage_summary(manifest: dict, cases: list[dict]):
             "declared_covered": covered,
             "observed_unique_coverage_items": actual_count,
             "observed_case_tag_count": sum(
-                1 for case in cases for tag in case.get("coverage_tags", [])
-                if tag.get("dimension") == dimension
+                1 for case in cases for tag in (case.get("coverage_tags", []) if isinstance(case.get("coverage_tags", []), list) else [])
+                if isinstance(tag, dict) and tag.get("dimension") == dimension
             )
         })
+    declared_dimensions = {item.get("dimension") for item in dimensions if isinstance(item.get("dimension"), str)}
     for dimension, item_ids in sorted(actual.items()):
-        if dimension not in {item.get("dimension") for item in manifest.get("coverage", {}).get("dimensions", [])}:
+        if dimension not in declared_dimensions:
             declared.append({
                 "dimension": dimension,
                 "declared_total": None,
@@ -222,7 +240,7 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, evalu
     case_id_counts = Counter(valid_case_ids)
     duplicate_ids = sorted(case_id for case_id, count in case_id_counts.items() if count > 1)
     dataset_mismatches = [
-        case.get("case_id", "<missing-id>")
+        str(case.get("case_id", "<missing-id>"))
         for case in cases if case.get("dataset_id") != dataset_id
     ]
     fingerprints = Counter(canonical_case_fingerprint(case) for case in cases)
@@ -232,12 +250,15 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, evalu
     scenario_counts = Counter(
         bucket
         for case in cases
-        for bucket in case.get("scenario_bucket", [])
+        for bucket in (case.get("scenario_bucket", []) if isinstance(case.get("scenario_bucket", []), list) else [])
+        if isinstance(bucket, str)
     )
     source_case_count = sum(bool(case.get("source_refs")) for case in cases)
     criteria_count = sum(
         len(case.get("grading", {}).get("criteria", []))
         for case in cases
+        if isinstance(case.get("grading"), dict)
+        and isinstance(case.get("grading", {}).get("criteria", []), list)
     )
     coverage, coverage_errors = coverage_summary(manifest, cases)
     registry = load_source_registry(source_registry_path)
@@ -334,7 +355,7 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, evalu
             "description": f"{len(cases) - source_case_count} case(s) have no source_refs.",
             "evidence_refs": evidence_refs,
             "affected_case_ids": [
-                case.get("case_id", "<missing-id>")
+                str(case.get("case_id", "<missing-id>"))
                 for case in cases if not case.get("source_refs")
             ],
             "recommendation": "补充可追溯来源或明确的合成/推断来源，并说明其适用边界。"
