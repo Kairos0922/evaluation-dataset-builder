@@ -1,0 +1,42 @@
+{
+  "dataset_id": "dataset-synthetic-001",
+  "version": "0.0.3-synthetic",
+  "evaluation_target": "illustrative agent",
+  "purpose": "CI-only synthetic integration test for trajectory-to-Case ingestion; not an empirical benchmark",
+  "scope": {
+    "included": [
+      "SYNTHETIC single-case trace-derived example"
+    ],
+    "excluded": [
+      "real Agent performance claims",
+      "construct validity",
+      "ground-truth validity",
+      "runtime effectiveness"
+    ]
+  },
+  "source_refs": [
+    "src-synthetic-001"
+  ],
+  "case_count": 1,
+  "coverage": {
+    "universe_definition": "One synthetic illustrative capability tag used only to exercise the existing IDA contract.",
+    "dimensions": [
+      {
+        "dimension": "capability",
+        "total": 1,
+        "covered": 1,
+        "coverage_rate": 1,
+        "uncovered": []
+      }
+    ]
+  },
+  "quality_status": "candidate",
+  "execution_status": "DESIGN_ONLY",
+  "limitations": [
+    "SYNTHETIC / ILLUSTRATIVE_ONLY",
+    "No real trace, model run, independent Oracle, or human expert validation."
+  ],
+  "assumptions": [
+    "The case fields are hand-authored fixture values solely to test schema and pipeline integration."
+  ]
+}
