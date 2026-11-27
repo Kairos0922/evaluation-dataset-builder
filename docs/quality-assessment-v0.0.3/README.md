@@ -40,4 +40,4 @@ Run #2124（commit `2b86993473f261ffffa5b48a1535a989c599b23b`）已通过 action
 
 ## 交付阶段
 
-详见 [TASKS.md](TASKS.md)。当前重点是实现经审查的 Candidate / Slice 到现有 Case 的转换，并使用现有 IDA CLI 验证输出；不是继续扩张独立 trajectory 模块。
+详见 [TASKS.md](TASKS.md)。当前已实现 Candidate / Qualification / Slice 到现有 Case Schema 的草稿转换器（`scripts/build_case_draft_from_slice.py`），并加入来源追溯、缺失字段拒绝和上下文闭包测试。下一步是在 CI 中验证转换结果可被现有 IDA CLI 消费，再补充无轨迹输入的原有 Builder 流程回归；不是继续扩张独立 trajectory 模块。
