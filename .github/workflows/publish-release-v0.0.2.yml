@@ -1,0 +1,98 @@
+name: Publish v0.0.2
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_publish:
+        description: Explicitly approve publishing v0.0.2 after all gates pass
+        required: true
+        type: boolean
+        default: false
+      release_pr_number:
+        description: Merged release candidate PR number
+        required: true
+        type: string
+        default: "44"
+      candidate_sha:
+        description: Exact reviewed PR head SHA
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  pull-requests: read
+  actions: read
+
+jobs:
+  verify-and-publish:
+    if: inputs.confirm_publish == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Verify explicit approval, merged PR, exact SHA and tree identity
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_PR_NUMBER: ${{ inputs.release_pr_number }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_PR_NUMBER" =~ ^[1-9][0-9]*$ ]]
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          PR_JSON="$(gh api "repos/$GITHUB_REPOSITORY/pulls/$RELEASE_PR_NUMBER")"
+          test "$(jq -r '.merged' <<<"$PR_JSON")" = "true"
+          test "$(jq -r '.state' <<<"$PR_JSON")" = "closed"
+          test "$(jq -r '.base.ref' <<<"$PR_JSON")" = "main"
+          test "$(jq -r '.head.sha' <<<"$PR_JSON")" = "$CANDIDATE_SHA"
+          MERGE_SHA="$(jq -r '.merge_commit_sha' <<<"$PR_JSON")"
+          test "$MERGE_SHA" = "$GITHUB_SHA"
+          git fetch --no-tags origin "$CANDIDATE_SHA"
+          CANDIDATE_TREE="$(git rev-parse "$CANDIDATE_SHA^{tree}")"
+          MERGE_TREE="$(git rev-parse "$MERGE_SHA^{tree}")"
+          test "$CANDIDATE_TREE" = "$MERGE_TREE"
+          CHECKS="$(gh api "repos/$GITHUB_REPOSITORY/commits/$CANDIDATE_SHA/check-runs")"
+          jq -e '[.check_runs[] | select(.name == "validate" and .status == "completed" and .conclusion == "success")] | length > 0' <<<"$CHECKS"
+          jq -e '[.check_runs[] | select(.name == "round4-real-evidence-assessment" and .status == "completed" and .conclusion == "success")] | length > 0' <<<"$CHECKS"
+          test "$(cat VERSION)" = "0.0.2"
+          echo "Verified candidate=$CANDIDATE_SHA merge=$MERGE_SHA tree=$MERGE_TREE"
+
+      - name: Install validation dependencies
+        run: python -m pip install --disable-pip-version-check -r .github/requirements-ci.txt
+
+      - name: Validate package, benchmark and tests
+        run: |
+          set -euo pipefail
+          python scripts/validate_skill.py
+          python tests/benchmark/validate_benchmark.py tests/benchmark/fixtures/refund-valid.json --strict
+          python -m unittest discover -s tests -p "test_*.py" -v
+
+      - name: Validate GitHub Actions workflow syntax
+        run: |
+          set -euo pipefail
+          go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+          "$HOME/go/bin/actionlint" -color
+
+      - name: Build the runtime-only Skill archive
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          cd skills
+          zip -qr ../artifacts/evaluation-dataset-builder-0.0.2.zip evaluation-dataset-builder
+
+      - name: Create immutable v0.0.2 tag and GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          if git ls-remote --exit-code --tags origin refs/tags/v0.0.2 >/dev/null 2>&1; then
+            echo "Tag v0.0.2 already exists; refusing to move or overwrite it."
+            exit 1
+          fi
+          git tag v0.0.2 "$GITHUB_SHA"
+          git push origin refs/tags/v0.0.2
+          gh release create v0.0.2 artifacts/evaluation-dataset-builder-0.0.2.zip RELEASE-NOTES-0.0.2.md --title "Evaluation Dataset Builder v0.0.2" --notes-file RELEASE-NOTES-0.0.2.md --verify-tag
