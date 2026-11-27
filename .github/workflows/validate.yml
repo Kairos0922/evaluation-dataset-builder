@@ -166,6 +166,41 @@ jobs:
             --output artifacts/case-draft.synthetic.json
           python -m unittest discover -s tests -p "test_build_case_draft_from_slice.py" -v
 
+      - name: 将轨迹来源 Case 接入现有 IDA 并验证报告契约
+        if: steps.scope.outputs.run_validation == 'true'
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          case = json.loads(Path("artifacts/case-draft.synthetic.json").read_text(encoding="utf-8"))
+          Path("artifacts/cases.synthetic.jsonl").write_text(
+              json.dumps(case, ensure_ascii=False, separators=(",", ":")) + "\\n",
+              encoding="utf-8",
+          )
+          PY
+          python scripts/assess_dataset_quality.py \
+            --manifest tests/fixtures/v0.0.3/dataset-manifest.synthetic.json \
+            --cases artifacts/cases.synthetic.jsonl \
+            --source-registry tests/fixtures/v0.0.3/source-registry.synthetic.json \
+            --evaluation-purpose capability \
+            --output artifacts/ida-report.synthetic.json
+          python scripts/validate_quality_assessment.py --report artifacts/ida-report.synthetic.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path("artifacts/ida-report.synthetic.json").read_text(encoding="utf-8"))
+          gates = {gate["gate_id"]: gate["status"] for gate in report["gate_results"]}
+          assert report["overall_status"] == "PARTIAL", report["overall_status"]
+          assert report["evidence_sufficiency"]["status"] == "partial"
+          assert gates["G01_source_provenance"] == "PASS", gates
+          assert gates["G02_construct_alignment"] == "NOT_ASSESSED", gates
+          assert gates["G03_task_solvability"] == "NOT_ASSESSED", gates
+          assert report["composite"]["status"] == "NOT_VALIDATED"
+          assert report["composite"]["value"] is None
+          print("PASS: existing IDA consumed the trajectory-derived Case; provenance resolved; semantic validity remains explicitly unassessed.")
+          PY
+
       - name: 运行离线测试
         if: steps.scope.outputs.run_validation == 'true'
         run: python -m unittest discover -s tests -p "test_*.py" -v
