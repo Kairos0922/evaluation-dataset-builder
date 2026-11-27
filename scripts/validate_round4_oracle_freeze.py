@@ -156,7 +156,7 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
-        schema = json.loads(args.schema.read_text(encoding="utf-8"))
+        schema = load_json(args.schema)
         Draft202012Validator.check_schema(schema)
         manifest = load_json(args.manifest)
         reviewer_a = load_json(args.reviewer_a)
@@ -164,10 +164,7 @@ def main() -> int:
         comparison_report = load_json(args.comparison_report)
         crosswalk = load_crosswalk(args.crosswalk)
 
-        pair_errors = validate_pair(reviewer_a, reviewer_b, json.loads(
-            (ROOT / "docs/quality-assessment-v0.0.2/schemas/round4-blind-review-submission.schema.json")
-            .read_text(encoding="utf-8")
-        ))
+        pair_errors = validate_pair(reviewer_a, reviewer_b, load_json(ROOT / "docs/quality-assessment-v0.0.2/schemas/round4-blind-review-submission.schema.json"))
         if pair_errors:
             print("Oracle freeze validation FAILED:")
             for error in pair_errors:
