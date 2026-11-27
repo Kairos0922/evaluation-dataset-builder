@@ -1,6 +1,13 @@
 # 版本变更记录
 
-## 0.0.2 — Unreleased（研发中）
+## 0.0.2 — Unreleased（发布准备中；尚未形成 Release Candidate）
+
+- 当前自主工程任务 22/22 DONE；17 项外部依赖事项依据 D-009 移出当前迭代范围，不计为完成。
+- 新增 0.0.2 收缩版发布门禁与发布准备审计：RELEASE-GATE-0.0.2.md、RELEASE-PREP-0.0.2.md。
+- 过程产物审计未发现可安全删除的已跟踪临时文件；测试夹具、协议和历史证据继续保留，安装包严格按 Skill 白名单构建。
+- 当前真实证据仍为 IDA/ERA PARTIAL、3/15 Pilot、12 NOT_RUN、Judge NOT_RUN、Regression 无配对、综合分 NOT_VALIDATED。范围收缩不代表科学验证通过。
+- 当前正式版本仍为 0.0.1；0.0.2 版本元数据、发布工作流适配、最终精确 head CI 和发布批准尚未完成。
+
 
 > 本节记录开发分支已实现的工程资产，不代表发布批准或实证效度通过。正式版本号仍为 0.0.1。
 - 最新 PR head 验证：Run #2036（workflow run ID 45916212402，执行 head `93dce24092908d8f569804d2c14c7372339b26b1`）SUCCESS，actionlint、Skill package、Benchmark、246/246 离线测试、G-Theory 三种设计模拟、IDA controlled mutation 和 Round 4 IDA/ERA/Capability contracts PASS。Run 编号已按 GitHub API 正式 run_number 校正；本次没有新增生产运行或独立 Gold。
