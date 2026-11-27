@@ -111,3 +111,16 @@ This release does not claim that each documented host's installation, discovery,
 ## v0.0.2 发布准备状态（2026-11-27）
 
 v0.0.2 正在独立分支 feat/quality-assessment-v0.0.2 准备。当前 22 项自主工程任务全部完成；该分支的 VERSION 与 Skill frontmatter 已同步为候选 0.0.2，main 上正式稳定版本仍为 0.0.1。0.0.2 的范围收缩、工程交付、真实证据限制和发布门禁见 [RELEASE-PREP-0.0.2.md](RELEASE-PREP-0.0.2.md) 与 [RELEASE-GATE-0.0.2.md](RELEASE-GATE-0.0.2.md)。本节不是 0.0.2 Release Notes，也不代表发布批准。
+
+
+## v0.0.2 正式发布
+
+**状态：** 已于 2026-11-27 正式发布。Git Tag `v0.0.2` 指向核心功能合并提交 `f6b722ca630dacf0fa73bacba110cff1fafff0f`；候选 PR #44 已合并，发布执行机制 PR #45 已合并。
+
+- [GitHub Release v0.0.2](https://github.com/Kairos0922/evaluation-dataset-builder/releases/tag/v0.0.2)
+- [正式 Skill 安装包](https://github.com/Kairos0922/evaluation-dataset-builder/releases/download/v0.0.2/evaluation-dataset-builder-0.0.2.zip)
+- [正式发布工作流 Run #45972007647](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45972007647)
+
+安装包大小 44,025 bytes，SHA-256：`a7de57496e9beeb7b776361d712af81a6b0a6c7ed42bd900d95d8c08081c7fc4`。发布内容、范围和限制以 [RELEASE-NOTES-0.0.2.md](RELEASE-NOTES-0.0.2.md) 为准。
+
+本次发布不改变质量证据结论：Round 4 仍为 3/15 Pilot、12 NOT_RUN；IDA/ERA PARTIAL；Judge 独立校准 NOT_RUN；Regression 无配对数据；综合分 NOT_VALIDATED / null；四种宿主仍未完成逐平台认证。17 项外部依赖事项按 D-009 移出当前迭代，不计为已完成。
