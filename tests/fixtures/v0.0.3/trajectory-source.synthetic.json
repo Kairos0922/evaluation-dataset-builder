@@ -1,0 +1,21 @@
+{
+  "schema_version": "0.0.3",
+  "source_id": "src-synthetic-001",
+  "source_kind": "synthetic_fixture",
+  "authorization": {
+    "status": "synthetic_only",
+    "scope": "CI-only illustrative example; not derived from a real user session"
+  },
+  "redaction_status": "no_sensitive_content_attested",
+  "artifact": {
+    "uri": "fixture://v0.0.3/trace.json",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "media_type": "application/json",
+    "byte_length": 512
+  },
+  "created_at": "2026-11-28T12:00:00Z",
+  "host": "synthetic-host",
+  "agent_id": "illustrative-agent",
+  "model_id": "illustrative-model",
+  "notes": "SYNTHETIC / ILLUSTRATIVE_ONLY; never cite as empirical evidence."
+}
