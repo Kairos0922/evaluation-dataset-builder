@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://evaluation-dataset-builder.local/schemas/v0.0.3/task-candidate.schema.json",
+  "title": "Trajectory-derived Task Candidate",
+  "description": "A discovery lead requiring human or independent qualification; discovery signals are not defect verdicts.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "candidate_id",
+    "source_id",
+    "discovery_signals",
+    "evidence_refs",
+    "status",
+    "created_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.0.3"
+    },
+    "candidate_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]*$"
+    },
+    "source_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "discovery_signals": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "user_correction",
+          "rework_or_revision",
+          "multi_turn_interaction",
+          "long_horizon_execution",
+          "material_output_change",
+          "explicit_failure_feedback",
+          "clear_input_and_deliverable"
+        ]
+      }
+    },
+    "evidence_refs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "event_start",
+          "event_end",
+          "description"
+        ],
+        "properties": {
+          "event_start": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "event_end": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 256
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        }
+      }
+    },
+    "status": {
+      "enum": [
+        "discovered",
+        "under_review",
+        "qualified",
+        "rejected",
+        "unknown"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "priority_rationale": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 2000
+    },
+    "reviewer_notes": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 4000
+    }
+  }
+}
