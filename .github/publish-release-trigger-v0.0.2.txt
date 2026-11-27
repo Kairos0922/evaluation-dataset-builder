@@ -1,0 +1,4 @@
+# One-shot release approval for the already-approved v0.0.2 candidate.
+confirm_publish=true
+release_pr_number=44
+candidate_sha=4362ab14e01e7b694851eef95877f238f7e2d8cc
