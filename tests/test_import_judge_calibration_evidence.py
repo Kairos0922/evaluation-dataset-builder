@@ -118,3 +118,13 @@ class JudgeCalibrationImporterTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class StrictJsonInputTests(unittest.TestCase):
+    def test_observation_loader_rejects_non_standard_numeric_constants(self):
+        from scripts.import_judge_calibration_evidence import load_json
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "observations.json"
+            path.write_text('{"score":NaN}', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "invalid JSON numeric constant"):
+                load_json(path)
