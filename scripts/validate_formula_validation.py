@@ -35,7 +35,7 @@ def validate_formula_validation_report(report: dict) -> list[str]:
     if non_finite_paths:
         return [f"non-finite numeric value is not valid JSON at {path}" for path in non_finite_paths]
 
-    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"), parse_constant=_reject_json_constant)
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema, format_checker=FormatChecker())
     errors = []
