@@ -149,6 +149,23 @@ jobs:
           python scripts/validate_trajectory_assets.py --source tests/fixtures/v0.0.3/trajectory-source.synthetic.json --candidate tests/fixtures/v0.0.3/task-candidate.synthetic.json --qualification tests/fixtures/v0.0.3/failure-qualification.synthetic.json --slice tests/fixtures/v0.0.3/task-slice.synthetic.json --reconstruction tests/fixtures/v0.0.3/environment-reconstruction.synthetic.json
           python -m unittest discover -s tests -p "test_validate_trajectory_assets.py" -v
 
+      - name: 将审查后的合成切片映射到现有 Case Schema
+        if: steps.scope.outputs.run_validation == 'true'
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/build_case_draft_from_slice.py
+          mkdir -p artifacts
+          python scripts/build_case_draft_from_slice.py \
+            --source tests/fixtures/v0.0.3/trajectory-source.synthetic.json \
+            --candidate tests/fixtures/v0.0.3/task-candidate.synthetic.json \
+            --qualification tests/fixtures/v0.0.3/failure-qualification.synthetic.json \
+            --slice tests/fixtures/v0.0.3/task-slice.synthetic.json \
+            --case-fields tests/fixtures/v0.0.3/case-fields.synthetic.json \
+            --source-title "Synthetic trace source" \
+            --source-authority "Synthetic CI fixture authority" \
+            --output artifacts/case-draft.synthetic.json
+          python -m unittest discover -s tests -p "test_build_case_draft_from_slice.py" -v
+
       - name: 运行离线测试
         if: steps.scope.outputs.run_validation == 'true'
         run: python -m unittest discover -s tests -p "test_*.py" -v
