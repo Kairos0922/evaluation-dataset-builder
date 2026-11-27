@@ -124,6 +124,10 @@ class TrajectoryAssetValidationTests(unittest.TestCase):
         chain[1]["unreviewed_score"] = 99
         self.assertTrue(any("Additional properties" in e for e in self.validate(chain)))
 
+    def test_non_object_root_fails_without_exception(self):
+        errors = validate_assets(source=[])
+        self.assertTrue(any("root must be an object" in error for error in errors))
+
     def test_non_finite_number_is_rejected(self):
         chain = list(valid_chain())
         chain[4]["resource_limits"]["cpu"] = float("inf")
