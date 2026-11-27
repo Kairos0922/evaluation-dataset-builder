@@ -72,7 +72,7 @@
 
 ## 6. 发布前仍需完成的仓库内工作
 
-1. 验证新增 .github/workflows/publish-release-v0.0.2.yml：Run #2095（45968288724，精确 head f9aa8822bf55458e76087ee9658c75bf96956226）已通过 actionlint、Skill package、Benchmark、265/265 离线测试、G-Theory 三种设计模拟、IDA controlled mutation 和 Round 4 IDA/ERA/Capability contracts；工作流仅 workflow_dispatch，confirm_publish 默认 false，并核验 PR 合并、候选 SHA、tree identity、精确 CI 与 VERSION。
+1. 验证新增 .github/workflows/publish-release-v0.0.2.yml：Run #2099（45968646417，精确 head 7e7bb5c4b59b35e9eeebd2efb3aa64d42043a022）已通过 actionlint、Skill package、Benchmark、266/266 离线测试、G-Theory 三种设计模拟、IDA controlled mutation 和 Round 4 IDA/ERA/Capability contracts；工作流仅 workflow_dispatch，confirm_publish 默认 false，并核验 PR 合并、候选 SHA、tree identity、精确 CI 与 VERSION。
 2. 已在 PR 分支将 VERSION 与 Skill frontmatter 同步为 0.0.2，并同步 README、CHANGELOG、RELEASE.md；main 正式版本仍是 0.0.1。
 3. 新增 package-release-candidate.yml，在每次 PR 更新时按精确 head 构建 Skill ZIP，并校验归档只含 17 个运行时白名单文件；当前候选 ZIP artifact 已生成，包内无脚本、测试、CI 或研究过程文件。
 4. 对最终提交继续执行完整 CI，并核对最新精确 SHA 的候选包 artifact。
