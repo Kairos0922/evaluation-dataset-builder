@@ -15,9 +15,9 @@
 | 外部依赖任务 | 17 项按用户决定移出当前范围，不作为 DONE |
 | PR #44 | Draft / Open / 未合并 |
 | 当前正式版本 | 0.0.1 |
-| 0.0.2 版本元数据 | 尚未升级 |
+| 0.0.2 版本元数据 | PR 分支 VERSION 与 Skill frontmatter 已同步为 0.0.2；main 稳定版本仍为 0.0.1 |
 | 0.0.2 专属发布门禁 | 已建立；新增受显式确认保护的手动发布工作流，Run #2080 已通过 actionlint 和完整 CI |
-| 精确当前 head CI | Run #2067 SUCCESS，head 5192144a497bdfede1d45c5d39dd2cdf187cd9a4 |
+| 最近完整 CI | Run #2083 SUCCESS，head a8071fd68c708bffcc1979518b74982552008bee；其后 VERSION/frontmatter 已升级为候选 0.0.2，需在最终 head 重新验证 |
 | Release Candidate | 尚未批准/冻结 |
 | Tag / GitHub Release | 未创建 |
 
@@ -73,7 +73,7 @@
 ## 6. 发布前仍需完成的仓库内工作
 
 1. 验证新增 .github/workflows/publish-release-v0.0.2.yml：Run #2080（45966113423，精确 head 6d75987763bb4a6e3a89b425e865faa288a9d0cc）已通过 actionlint、Skill package、Benchmark、263/263 离线测试、G-Theory 三种设计模拟、IDA controlled mutation 和 Round 4 IDA/ERA/Capability contracts；工作流仅 workflow_dispatch，confirm_publish 默认 false，并核验 PR 合并、候选 SHA、tree identity、精确 CI 与 VERSION。
-2. 依据用户确认的收缩版发布范围，准备并同步版本元数据、README、CHANGELOG、RELEASE.md 和正式 Skill frontmatter。
+2. 已在 PR 分支将 VERSION 与 Skill frontmatter 同步为 0.0.2，并同步 README、CHANGELOG、RELEASE.md；main 正式版本仍是 0.0.1。
 3. 将所有最终文档与代码提交到 PR #44，并对精确候选 SHA 执行完整 CI。
 4. 审查正式 Skill 包内容和发布 ZIP，确保只含运行时白名单资产。
 5. 用户批准后再合并、打 Tag 和发布；本次准备阶段不执行这些不可逆发布动作。
@@ -82,6 +82,6 @@
 
 当前判定：**NOT READY — release candidate not frozen**。0.0.2 专属手动发布工作流已创建并通过 Run #2080 的 actionlint/完整 CI；该工作流本身未触发，也未创建 Tag/Release。VERSION 与 Skill frontmatter 仍为 0.0.1，RC 尚未冻结。
 
-原因不是当前 22 项自主工程任务未完成，而是 0.0.2 专属发布自动化尚待 CI 验证，正式版本元数据尚未转换，最终候选 SHA 尚未完成发布审查。当前科学限制必须作为产品范围说明披露，不得被版本准备工作抹除。
+原因不是当前 22 项自主工程任务未完成，而是版本元数据更新后的最终精确 head CI 尚未完成，最终候选 SHA 尚未冻结/审查，且用户尚未批准合并与发布。当前科学限制必须作为产品范围说明披露，不得被版本准备工作抹除。
 
 下一步按 RELEASE-GATE-0.0.2.md 执行。
