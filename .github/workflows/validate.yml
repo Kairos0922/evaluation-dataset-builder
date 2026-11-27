@@ -131,6 +131,16 @@ jobs:
         if: steps.scope.outputs.run_validation == 'true' && hashFiles('tests/benchmark/fixtures/refund-valid.json') != ''
         run: python tests/benchmark/validate_benchmark.py tests/benchmark/fixtures/refund-valid.json --strict
 
+      - name: 从合成轨迹事件发现候选任务
+        if: steps.scope.outputs.run_validation == 'true'
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/discover_trajectory_candidates.py
+          mkdir -p artifacts
+          python scripts/discover_trajectory_candidates.py --events tests/fixtures/v0.0.3/trajectory-events.synthetic.jsonl --source-id src-synthetic-001 --output artifacts/trajectory-candidates.synthetic.jsonl
+          python -c "import json; rows=[json.loads(x) for x in open('artifacts/trajectory-candidates.synthetic.jsonl', encoding='utf-8') if x.strip()]; assert len(rows)==1 and rows[0]['status']=='discovered'; print('PASS: one synthetic candidate discovered')"
+          python -m unittest discover -s tests -p "test_discover_trajectory_candidates.py" -v
+
       - name: 验证 v0.0.3 轨迹驱动贯通样例
         if: steps.scope.outputs.run_validation == 'true'
         run: |
