@@ -12,6 +12,10 @@ import sys
 
 from jsonschema import Draft202012Validator, FormatChecker
 
+def _reject_json_constant(token: str):
+    raise ValueError(f"invalid JSON numeric constant: {token}")
+
+
 ROOT = Path(__file__).resolve().parents[1]
 SKILL_REFERENCES = ROOT / "skills" / "evaluation-dataset-builder" / "references"
 MANIFEST_SCHEMA = SKILL_REFERENCES / "dataset-manifest-schema.json"
@@ -20,7 +24,7 @@ SCHEMA_CACHE = {}
 
 
 def load_json(path: Path):
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(path.read_text(encoding="utf-8"), parse_constant=_reject_json_constant)
 
 
 def validate_schema(instance, schema_path: Path) -> list[str]:
@@ -45,8 +49,8 @@ def load_jsonl(path: Path) -> tuple[list[dict], list[str]]:
             errors.append(f"line {line_number}: blank JSONL line")
             continue
         try:
-            value = json.loads(line)
-        except json.JSONDecodeError as exc:
+            value = json.loads(line, parse_constant=_reject_json_constant)
+        except (json.JSONDecodeError, ValueError) as exc:
             errors.append(f"line {line_number}: invalid JSON: {exc}")
             continue
         if not isinstance(value, dict):
@@ -218,7 +222,7 @@ def metric(metric_id, status, value, unit, evidence_refs, limitations, numerator
 def build_report(manifest_path: Path, cases_path: Path, output_path: Path, evaluation_purpose: str, source_registry_path: Path | None = None):
     manifest_bytes = manifest_path.read_bytes()
     cases_bytes = cases_path.read_bytes()
-    manifest = json.loads(manifest_bytes.decode("utf-8"))
+    manifest = json.loads(manifest_bytes.decode("utf-8"), parse_constant=_reject_json_constant)
     cases, parse_errors = load_jsonl(cases_path)
     manifest_errors = validate_schema(manifest, MANIFEST_SCHEMA)
     case_errors = []
