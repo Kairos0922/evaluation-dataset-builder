@@ -78,7 +78,7 @@ def validate_assets(
         except (OSError, ValueError, TypeError) as exc:
             errors.append(f"{kind}: cannot load or validate schema: {exc}")
 
-    if source is not None:
+    if isinstance(source, dict):
         auth = source.get("authorization", {})
         if auth.get("status") in {"not_authorized", "unknown"}:
             errors.append("source: explicit authorization or user-provided provenance is required")
@@ -89,11 +89,11 @@ def validate_assets(
         if source.get("source_kind") != "synthetic_fixture" and auth.get("status") == "synthetic_only":
             errors.append("source: synthetic_only authorization is valid only for synthetic_fixture")
 
-    if candidate is not None and source is not None:
+    if isinstance(candidate, dict) and isinstance(source, dict):
         if candidate.get("source_id") != source.get("source_id"):
             errors.append("candidate: source_id does not match trajectory source")
 
-    if qualification is not None and candidate is not None:
+    if isinstance(qualification, dict) and isinstance(candidate, dict):
         if qualification.get("candidate_id") != candidate.get("candidate_id"):
             errors.append("qualification: candidate_id does not match candidate")
         if qualification.get("review_status") == "qualified":
@@ -114,12 +114,12 @@ def validate_assets(
             if qualification.get("evidence_sufficiency") != "sufficient_for_candidate":
                 errors.append("qualification: qualified status requires sufficient evidence")
 
-    if task_slice is not None:
-        if candidate is not None and task_slice.get("candidate_id") != candidate.get("candidate_id"):
+    if isinstance(task_slice, dict):
+        if isinstance(candidate, dict) and task_slice.get("candidate_id") != candidate.get("candidate_id"):
             errors.append("slice: candidate_id does not match candidate")
-        if source is not None and task_slice.get("source_id") != source.get("source_id"):
+        if isinstance(source, dict) and task_slice.get("source_id") != source.get("source_id"):
             errors.append("slice: source_id does not match trajectory source")
-        if qualification is not None:
+        if isinstance(qualification, dict):
             if task_slice.get("qualification_id") != qualification.get("qualification_id"):
                 errors.append("slice: qualification_id does not match qualification")
             if task_slice.get("status") == "ready_for_reconstruction" and qualification.get("review_status") != "qualified":
@@ -130,7 +130,7 @@ def validate_assets(
             if task_slice.get("leakage_review") != "passed":
                 errors.append("slice: ready_for_reconstruction requires passed leakage review")
 
-    if reconstruction is not None and task_slice is not None:
+    if isinstance(reconstruction, dict) and isinstance(task_slice, dict):
         if reconstruction.get("slice_id") != task_slice.get("slice_id"):
             errors.append("reconstruction: slice_id does not match task slice")
         if reconstruction.get("readiness") == "ready_for_review":
