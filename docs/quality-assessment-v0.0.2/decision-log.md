@@ -113,3 +113,11 @@
 - 决策：依据用户“准备发布 0.0.2”的指令，将工作分支 VERSION 与 Skill frontmatter metadata.version 同步更新为 0.0.2，以便对真实候选包执行版本一致性验证。
 - 范围：该变更仅存在于 feat/quality-assessment-v0.0.2 分支；main 上正式稳定版本仍为 0.0.1，直到 PR 经批准合并。分支元数据升级不代表 Release Candidate 已冻结，也不代表已授权合并、创建 Tag 或 GitHub Release。
 - 后续门禁：必须对包含 0.0.2 版本元数据的最终精确 head 执行完整 CI；用户仍需单独批准 PR 合并与正式发布。
+
+
+### D-011 验证结果补充（2026-11-27）
+
+- VERSION 与 Skill frontmatter 均已设为 0.0.2（仅候选分支）；README 明确区分 0.0.1 main 稳定版与 0.0.2 未发布候选。
+- Run #2089（45967184024，精确 head `71acd49be6a65754f048a147723b1e40c660bbf6`）SUCCESS：actionlint、正式 Skill 包、Benchmark、264/264 离线测试、G-Theory 三种设计模拟、IDA controlled mutation、Round 4 IDA/ERA/Capability contracts PASS。
+- 本次生产 Builder、独立评审、Pilot、adjudication 与 upstream audit 按授权/条件 SKIPPED；无新增生产运行或独立 Gold。
+- 该候选版本尚未合并、打 Tag 或发布；发布工作流仅为已验证配置，未被触发。
