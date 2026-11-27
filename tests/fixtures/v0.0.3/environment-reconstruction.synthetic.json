@@ -1,0 +1,43 @@
+{
+  "schema_version": "0.0.3",
+  "reconstruction_id": "recon-synthetic-001",
+  "slice_id": "slice-synthetic-001",
+  "initial_state": [
+    {
+      "artifact_ref": "fixture://v0.0.3/input.json",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "purpose": "Synthetic initial state."
+    }
+  ],
+  "dependencies": [
+    {
+      "name": "python",
+      "version": "3.12"
+    }
+  ],
+  "tools": [
+    {
+      "name": "local-fixture-runner",
+      "version": "1.0",
+      "contract_ref": "fixture://v0.0.3/tool-contract.json"
+    }
+  ],
+  "permissions": [
+    "read fixture workspace"
+  ],
+  "resource_limits": {
+    "timeout_seconds": 60,
+    "action_budget": 10,
+    "network_policy": "disabled",
+    "cpu": "1",
+    "memory_mb": 512
+  },
+  "reset_and_cleanup": {
+    "reset_strategy": "Fresh temporary workspace per run.",
+    "cleanup_strategy": "Delete temporary workspace after run.",
+    "side_effects_reviewed": true
+  },
+  "reconstruction_diff": [],
+  "readiness": "ready_for_review",
+  "notes": "SYNTHETIC / ILLUSTRATIVE_ONLY; not a production environment."
+}
