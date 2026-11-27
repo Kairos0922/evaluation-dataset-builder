@@ -5,6 +5,7 @@
 - GitHub Issue: [#51](https://github.com/Kairos0922/evaluation-dataset-builder/issues/51)
 - 工作分支: `feat/trajectory-driven-v0.0.3`
 - 基线: `main` / v0.0.2
+- 开发 PR: [#52](https://github.com/Kairos0922/evaluation-dataset-builder/pull/52)（Draft，CI 验证中）
 - 状态: IN_PROGRESS
 - 版本原则: 不修改 v0.0.2 历史结果；不把合成样例当作实证。
 
@@ -21,15 +22,15 @@
 
 | ID | 阶段 | 任务 | 状态 | 验收证据 |
 |---|---|---|---|---|
-| V03-01 | 基线 | 建立 v0.0.3 版本边界、架构和任务台账 | IN_PROGRESS | 本目录文档、Issue #51 |
-| V03-02 | 契约 | 定义轨迹来源/授权/身份与候选任务 Schema | TODO | JSON Schema、正反例测试 |
-| V03-03 | 契约 | 定义失败资格审查与任务切片 Schema | TODO | JSON Schema、边界测试 |
-| V03-04 | 契约 | 定义环境重建 Manifest Schema | TODO | JSON Schema、完整性测试 |
-| V03-05 | 实现 | 实现安全的轨迹候选导入与确定性校验 | TODO | CLI、单元测试、负向测试 |
+| V03-01 | 基线 | 建立 v0.0.3 版本边界、架构和任务台账 | DONE | README.md、architecture.md、TASKS.md、trajectory-discovery-playbook.md；PR #52 |
+| V03-02 | 契约 | 定义轨迹来源/授权/身份与候选任务 Schema | IN_PROGRESS | schemas/v0.0.3/trajectory-source.schema.json、task-candidate.schema.json；待 CI 验证 |
+| V03-03 | 契约 | 定义失败资格审查与任务切片 Schema | IN_PROGRESS | schemas/v0.0.3/failure-qualification.schema.json、task-slice.schema.json；待 CI 验证 |
+| V03-04 | 契约 | 定义环境重建 Manifest Schema | IN_PROGRESS | schemas/v0.0.3/environment-reconstruction.schema.json；待 CI 验证 |
+| V03-05 | 实现 | 实现安全的轨迹候选导入与确定性校验 | IN_PROGRESS | scripts/validate_trajectory_assets.py；tests/test_validate_trajectory_assets.py；待 CI 验证 |
 | V03-06 | 实现 | 实现资格审查/切片契约校验和证据引用校验 | TODO | CLI、单元测试 |
 | V03-07 | 实现 | 实现环境重建清单校验与差异记录 | TODO | CLI、单元测试 |
 | V03-08 | 集成 | 将新证据以独立报告/证据引用方式接入 IDA / ERA | TODO | 集成测试、历史兼容测试 |
-| V03-09 | 验证 | 建立 SYNTHETIC 端到端样例和对抗性测试 | TODO | 明确标注的样例、测试报告 |
+| V03-09 | 验证 | 建立 SYNTHETIC 端到端样例和对抗性测试 | IN_PROGRESS | tests/fixtures/v0.0.3/*.synthetic.json；CLI 与 13 项测试已接入 CI，待结果 |
 | V03-10 | 验证 | 完成 CI、正式 Skill 包、全量离线测试 | TODO | 精确 HEAD 的 CI run |
 | V03-11 | 实证 | 在有明确授权的真实轨迹、独立 Oracle 和运行资源时开展 Pilot | BLOCKED | 授权、脱敏、冻结清单、真实运行证据；未具备时保持 BLOCKED |
 
