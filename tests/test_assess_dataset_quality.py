@@ -307,5 +307,17 @@ class OfflineDatasetAssessmentTests(unittest.TestCase):
             self.assertEqual(validate_report(report), [])
 
 
+    def test_malformed_manifest_coverage_dimensions_do_not_crash(self):
+        manifest = sample_manifest()
+        manifest["coverage"] = {"dimensions": [["not-an-object"]]}
+        with tempfile.TemporaryDirectory() as tmp:
+            report, structural_errors, _, _, _ = self.run_assessment(
+                Path(tmp), manifest, [sample_case()]
+            )
+            self.assertTrue(structural_errors)
+            self.assertEqual(report["overall_status"], "FAIL")
+            self.assertEqual(validate_report(report), [])
+
+
 if __name__ == "__main__":
     unittest.main()
