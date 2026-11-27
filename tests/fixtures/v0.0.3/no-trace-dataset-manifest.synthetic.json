@@ -1,0 +1,38 @@
+{
+  "dataset_id": "dataset-synthetic-no-trace-001",
+  "version": "0.0.3-synthetic",
+  "evaluation_target": "illustrative agent",
+  "purpose": "CI-only non-trajectory regression fixture proving the existing Case-to-IDA path does not require trajectory ingestion.",
+  "scope": {
+    "included": [
+      "SYNTHETIC one-case non-trajectory dataset"
+    ],
+    "excluded": [
+      "real Agent capability claims",
+      "construct validity",
+      "runtime effectiveness"
+    ]
+  },
+  "source_refs": [
+    "src-synthetic-no-trace-001"
+  ],
+  "case_count": 1,
+  "coverage": {
+    "universe_definition": "One synthetic capability tag for no-trace IDA compatibility smoke testing.",
+    "dimensions": [
+      {
+        "dimension": "capability",
+        "total": 1,
+        "covered": 1,
+        "coverage_rate": 1,
+        "uncovered": []
+      }
+    ]
+  },
+  "quality_status": "candidate",
+  "execution_status": "DESIGN_ONLY",
+  "limitations": [
+    "SYNTHETIC / ILLUSTRATIVE_ONLY",
+    "No real business source, trajectory, Agent run, or independent Oracle."
+  ]
+}
