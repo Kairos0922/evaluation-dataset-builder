@@ -1,0 +1,53 @@
+{
+  "schema_version": "0.0.3",
+  "slice_id": "slice-synthetic-001",
+  "candidate_id": "cand-synthetic-001",
+  "qualification_id": "qual-synthetic-001",
+  "source_id": "src-synthetic-001",
+  "trace_boundary": {
+    "start_event_ref": "evt-002",
+    "end_event_ref": "evt-006",
+    "boundary_rationale": "Isolate one decision and its direct outcome."
+  },
+  "initial_context": {
+    "context_refs": [
+      "evt-001"
+    ],
+    "closure_review": "complete",
+    "omitted_context_rationale": "No omitted task-critical information in this synthetic example."
+  },
+  "task": {
+    "instruction": "SYNTHETIC: produce a valid local JSON summary from the supplied fixture.",
+    "inputs": [
+      "fixture input.json"
+    ],
+    "deliverables": [
+      "summary.json"
+    ],
+    "constraints": [
+      "Use only supplied fixture data."
+    ],
+    "prohibited_side_effects": [
+      "No network access",
+      "No external writes"
+    ]
+  },
+  "capability_hypotheses": [
+    "constraint following"
+  ],
+  "evaluation_contract": {
+    "grading_mode": "hybrid",
+    "criteria_refs": [
+      "criterion-synthetic-001"
+    ],
+    "acceptable_variants": [
+      "Semantically equivalent JSON output."
+    ],
+    "unknown_conditions": [
+      "Fixture evidence missing."
+    ]
+  },
+  "leakage_review": "passed",
+  "status": "ready_for_reconstruction",
+  "notes": "SYNTHETIC / ILLUSTRATIVE_ONLY."
+}
