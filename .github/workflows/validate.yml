@@ -201,6 +201,18 @@ jobs:
           print("PASS: existing IDA consumed the trajectory-derived Case; provenance resolved; semantic validity remains explicitly unassessed.")
           PY
 
+      - name: Archive trajectory-to-IDA integration evidence
+        if: steps.scope.outputs.run_validation == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: trajectory-to-ida-integration
+          path: |
+            artifacts/case-draft.synthetic.json
+            artifacts/cases.synthetic.jsonl
+            artifacts/ida-report.synthetic.json
+          if-no-files-found: error
+          retention-days: 90
+
       - name: 运行离线测试
         if: steps.scope.outputs.run_validation == 'true'
         run: python -m unittest discover -s tests -p "test_*.py" -v
