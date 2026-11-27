@@ -6,8 +6,8 @@
 - 工作分支: `feat/trajectory-driven-v0.0.3`
 - 基线: `main` / v0.0.2
 - 开发 PR: [#52](https://github.com/Kairos0922/evaluation-dataset-builder/pull/52)（Draft）
-- 最近一次完整 CI 验证：Run #2137 / 46084740955，commit `e98df48dc2f8545a558f0cd0430aab4274cd48c0`，validate 与 v0.0.2 release-candidate package 均 PASS
-- 轨迹→Case→IDA 端到端步骤：Run #2137 steps 9–13 全部 PASS；已归档 `trajectory-to-ida-integration` artifact（90 天）
+- 最近一次完整 CI 验证：Run #2145 / 46085287197，commit `de21c723dc0c50a2116a1f31b58951558d8b1a96`，validate 与 v0.0.2 release-candidate package 均 PASS
+- 轨迹→Case→IDA 与无轨迹回归：Run #2145 steps 9–14 全部 PASS；已归档轨迹 Case、无轨迹 Case 和两份 IDA report 到 `trajectory-to-ida-integration` artifact（90 天）
 - 真实 Builder production / independent validation / Pilot 等受保护任务按条件 SKIPPED；没有真实轨迹或真实 Pilot 结论
 - 状态: IN_PROGRESS
 - 版本原则: 不修改 v0.0.2 历史结果；不把合成样例当作实证。
@@ -39,8 +39,8 @@
 | V03-12 | 架构集成 | 对照 v0.0.2 Case / Manifest / Runtime Record / IDA / ERA，确定复用边界 | DONE | `integration-contract-map.md`，commit `68f421f9555e841b0b0540e4fca415cb4d785e59`；基于 main 分支正式 Schema 和 Skill 流程逐项对照 |
 | V03-13 | 集成实现 | 实现经过审查的 Candidate / Slice → 现有 Case 草稿转换器并接入 IDA | DONE | `scripts/build_case_draft_from_slice.py`；4 项专项测试；Run #2137 steps 11–12 PASS：输出符合 main 的 Case Schema，现有 `assess_dataset_quality.py` 成功消费，`validate_quality_assessment.py` 验证报告通过；G01 source provenance=PASS，构念/可解性保持 NOT_ASSESSED，综合分 NOT_VALIDATED |
 
-| V03-14 | 回归 | 验证无轨迹输入时原有 Builder / IDA 工作流保持可用 | TODO | v0.0.2 正式 Skill 包与全量离线测试在 Run #2137 PASS；仍需增加一条不含 trace 来源的既有 Case/数据集 IDA smoke test，证明可选轨迹入口不会改变原有路径 |
-| V03-15 | 验证 | 归档轨迹→Case→IDA 端到端证据 | DONE | Run #2137 step 13 PASS；GitHub Actions artifact `trajectory-to-ida-integration`，包含 Case draft、JSONL 与 IDA report，保留 90 天 |
+| V03-14 | 回归 | 验证无轨迹输入时原有 Builder / IDA 工作流保持可用 | DONE | Run #2145 step 13 PASS：不含 trajectory-specific 字段的 `synthetic_gap_fill` Case 直接通过现有 IDA CLI；source provenance PASS，构念效度仍 NOT_ASSESSED。v0.0.2 Skill package 与全量离线测试同次 CI PASS。该合成 smoke test 证明接口兼容，不代表真实业务有效性 |
+| V03-15 | 验证 | 归档轨迹→Case→IDA 及无轨迹回归证据 | DONE | Run #2145 step 14 PASS；GitHub Actions artifact `trajectory-to-ida-integration`，包含轨迹 Case draft、轨迹 JSONL、轨迹 IDA report、无轨迹 IDA report，保留 90 天 |
 
 ## 融合原则
 
