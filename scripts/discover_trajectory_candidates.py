@@ -11,6 +11,8 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator, FormatChecker
 
+from scripts.validate_trajectory_assets import validate_assets
+
 ROOT = Path(__file__).resolve().parents[1]
 EVENT_SCHEMA_PATH = ROOT / "schemas" / "v0.0.3" / "trajectory-event.schema.json"
 CANDIDATE_SCHEMA_PATH = ROOT / "schemas" / "v0.0.3" / "task-candidate.schema.json"
@@ -156,15 +158,19 @@ def discover_candidates(
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--events", required=True, type=Path, help="Redacted normalized trajectory JSONL")
-    parser.add_argument("--source-id", required=True, help="Existing authorized trajectory source_id")
+    parser.add_argument("--source", required=True, type=Path, help="Authorized and redaction-reviewed trajectory source JSON")
     parser.add_argument("--output", required=True, type=Path, help="Output candidate JSONL path")
     parser.add_argument("--candidate-prefix", default="candidate")
     parser.add_argument("--min-turns", type=int, default=4, help="Heuristic signal only; does not gate qualification")
     args = parser.parse_args()
 
     try:
+        source = json.loads(args.source.read_text(encoding="utf-8"), parse_constant=reject_constant)
+        source_errors = validate_assets(source=source)
+        if source_errors:
+            raise ValueError("trajectory source is not eligible for discovery: " + "; ".join(source_errors))
         events = read_events(args.events)
-        candidates = discover_candidates(events, args.source_id, args.candidate_prefix, args.min_turns)
+        candidates = discover_candidates(events, source["source_id"], args.candidate_prefix, args.min_turns)
         args.output.parent.mkdir(parents=True, exist_ok=True)
         with args.output.open("w", encoding="utf-8", newline="\n") as stream:
             for candidate in candidates:
