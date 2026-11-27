@@ -1,0 +1,153 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://evaluation-dataset-builder.local/schemas/v0.0.3/trajectory-event.schema.json",
+  "title": "Normalized Trajectory Event",
+  "description": "Privacy-minimized event index for authorized, redacted traces. Raw messages and credentials are not embedded.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "event_id",
+    "session_id",
+    "sequence",
+    "actor",
+    "event_type",
+    "timestamp"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 256
+    },
+    "sequence": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "actor": {
+      "enum": [
+        "user",
+        "assistant",
+        "tool",
+        "system"
+      ]
+    },
+    "event_type": {
+      "enum": [
+        "user_message",
+        "assistant_message",
+        "tool_call",
+        "tool_result",
+        "artifact_created",
+        "user_feedback"
+      ]
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "feedback_kind": {
+      "enum": [
+        "correction",
+        "unsatisfied",
+        "rework_requested",
+        "approval",
+        "other"
+      ]
+    },
+    "artifact_ref": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "artifact_sha256": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "revision_of": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048
+    },
+    "task_marker": {
+      "enum": [
+        "task_input",
+        "deliverable",
+        "constraint",
+        "none"
+      ]
+    },
+    "content_ref": {
+      "type": "string",
+      "maxLength": 2048
+    },
+    "redacted_excerpt_ref": {
+      "type": "string",
+      "maxLength": 2048
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "user_feedback"
+          }
+        },
+        "required": [
+          "event_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "actor": {
+            "const": "user"
+          },
+          "feedback_kind": {
+            "enum": [
+              "correction",
+              "unsatisfied",
+              "rework_requested",
+              "approval",
+              "other"
+            ]
+          }
+        },
+        "required": [
+          "feedback_kind"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "artifact_created"
+          }
+        },
+        "required": [
+          "event_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "actor": {
+            "enum": [
+              "assistant",
+              "tool",
+              "system"
+            ]
+          }
+        },
+        "required": [
+          "artifact_ref",
+          "artifact_sha256"
+        ]
+      }
+    }
+  ]
+}
