@@ -16,7 +16,7 @@
 | PR #44 | Draft / Open / 未合并 |
 | 当前正式版本 | 0.0.1 |
 | 0.0.2 版本元数据 | PR 分支 VERSION 与 Skill frontmatter 已同步为 0.0.2；main 稳定版本仍为 0.0.1 |
-| 0.0.2 专属发布门禁 | 已建立；新增受显式确认保护的手动发布工作流，Run #2089 已通过 actionlint 和完整 CI |
+| 0.0.2 专属发布门禁 | 已建立；手动发布工作流和精确 SHA 包构建工作流均通过 CI |
 | 最近完整 CI | Run #2083 SUCCESS，head a8071fd68c708bffcc1979518b74982552008bee；其后 VERSION/frontmatter 已升级为候选 0.0.2，Run #2089 已在版本元数据更新后的精确候选 head 上完成完整验证 |
 | Release Candidate | 尚未批准/冻结 |
 | Tag / GitHub Release | 未创建 |
@@ -72,16 +72,16 @@
 
 ## 6. 发布前仍需完成的仓库内工作
 
-1. 验证新增 .github/workflows/publish-release-v0.0.2.yml：Run #2089（45967184024，精确 head 71acd49be6a65754f048a147723b1e40c660bbf6）已通过 actionlint、Skill package、Benchmark、264/264 离线测试、G-Theory 三种设计模拟、IDA controlled mutation 和 Round 4 IDA/ERA/Capability contracts；工作流仅 workflow_dispatch，confirm_publish 默认 false，并核验 PR 合并、候选 SHA、tree identity、精确 CI 与 VERSION。
+1. 验证新增 .github/workflows/publish-release-v0.0.2.yml：Run #2095（45968288724，精确 head f9aa8822bf55458e76087ee9658c75bf96956226）已通过 actionlint、Skill package、Benchmark、265/265 离线测试、G-Theory 三种设计模拟、IDA controlled mutation 和 Round 4 IDA/ERA/Capability contracts；工作流仅 workflow_dispatch，confirm_publish 默认 false，并核验 PR 合并、候选 SHA、tree identity、精确 CI 与 VERSION。
 2. 已在 PR 分支将 VERSION 与 Skill frontmatter 同步为 0.0.2，并同步 README、CHANGELOG、RELEASE.md；main 正式版本仍是 0.0.1。
-3. 将所有最终文档与代码提交到 PR #44，并对精确候选 SHA 执行完整 CI。
-4. 审查正式 Skill 包内容和发布 ZIP，确保只含运行时白名单资产。
+3. 新增 package-release-candidate.yml，在每次 PR 更新时按精确 head 构建 Skill ZIP，并校验归档只含 17 个运行时白名单文件；当前候选 ZIP artifact 已生成，包内无脚本、测试、CI 或研究过程文件。
+4. 对最终提交继续执行完整 CI，并核对最新精确 SHA 的候选包 artifact。
 5. 用户批准后再合并、打 Tag 和发布；本次准备阶段不执行这些不可逆发布动作。
 
 ## 7. 发布判定
 
-当前判定：**NOT READY — release candidate not frozen**。0.0.2 专属手动发布工作流已创建并通过 Run #2089 的 actionlint/完整 CI；该工作流本身未触发，也未创建 Tag/Release。PR 分支 VERSION 与 Skill frontmatter 已同步为 0.0.2；main 稳定版本仍为 0.0.1，RC 尚未获用户批准冻结。
+当前判定：**READY FOR FINAL REVIEW — NOT PUBLISHED**。Run #2095 已对精确 head 完成 265/265 测试、actionlint、Skill 包验证、Benchmark、G-Theory 模拟、IDA mutation 和 Round 4 IDA/ERA/Capability contracts；package workflow 已生成仅含 17 个运行时文件的 exact-SHA ZIP。手动发布 workflow 已通过 actionlint/CI，但未触发。PR 分支 VERSION/frontmatter 已同步为 0.0.2，main 稳定版本仍为 0.0.1。
 
-原因不是当前 22 项自主工程任务未完成，而是版本元数据更新后的最终精确 head CI 尚未完成，最终候选 SHA 尚未冻结/审查，且用户尚未批准合并与发布。当前科学限制必须作为产品范围说明披露，不得被版本准备工作抹除。
+尚未发布的原因是 PR #44 仍为 Draft/Open，尚未取得最终合并/发布批准；当前精确候选已具备工程验证和可下载的 Skill 包 artifact。当前科学限制必须作为产品范围说明披露，不得被版本准备工作抹除。
 
 下一步按 RELEASE-GATE-0.0.2.md 执行。
