@@ -1,0 +1,129 @@
+version: "0.0.2"
+purpose: "Meta-evaluation catalog for testing whether IDA and ERA detect known defect classes."
+interpretation:
+  - "This catalog validates implementation sensitivity and expected signal routing."
+  - "Passing mutation tests does not prove construct validity, external validity, or a universal composite score."
+  - "Synthetic mutations must never be reported as real Builder output or real Agent runtime evidence."
+mutation_classes:
+  independent_dataset_assessment:
+    - mutation_id: IDA-M01
+      defect: missing_required_case_field
+      deterministic: true
+      expected_signals: ["IDA-STR-01=FAIL", "G07_integrity_leakage=FAIL", "overall_status=FAIL"]
+      method: "Remove one required Case Schema field."
+      limitation: "Detects schema omission only; does not detect semantically incomplete content."
+    - mutation_id: IDA-M02
+      defect: duplicate_case_id
+      deterministic: true
+      expected_signals: ["IDA-STR-02<1", "G07_integrity_leakage=FAIL", "overall_status=FAIL"]
+      method: "Assign the same case_id to two distinct records."
+      limitation: "Does not detect semantic duplicates with different IDs."
+    - mutation_id: IDA-M03
+      defect: manifest_case_count_mismatch
+      deterministic: true
+      expected_signals: ["IDA-STR-02.status=FAIL", "G07_integrity_leakage=FAIL", "overall_status=FAIL"]
+      method: "Change manifest.case_count without changing the JSONL record count."
+      limitation: "Does not assess whether the declared task universe is complete."
+    - mutation_id: IDA-M04
+      defect: case_dataset_id_mismatch
+      deterministic: true
+      expected_signals: ["IDA-STR-02.status=FAIL", "G07_integrity_leakage=FAIL", "overall_status=FAIL"]
+      method: "Change one case.dataset_id to a different dataset identifier."
+      limitation: "Only tests identifier consistency."
+    - mutation_id: IDA-M05
+      defect: unresolved_source_reference
+      deterministic: true
+      expected_signals: ["IDA-STR-03<1", "G01_source_provenance=FAIL", "overall_status=FAIL"]
+      method: "Use a source_id absent from the independent source registry."
+      limitation: "A resolvable reference does not prove source authenticity or claim support."
+    - mutation_id: IDA-M06
+      defect: missing_source_reference
+      deterministic: true
+      expected_signals: ["IDA-EVD-00=0", "G01_source_provenance=UNKNOWN", "high_finding"]
+      method: "Use case_origin=unknown with a documented information_gaps entry and an empty source_refs array."
+      limitation: "Absence is detectable; source sufficiency and authenticity require review."
+    - mutation_id: IDA-M07
+      defect: exact_duplicate_payload
+      deterministic: true
+      expected_signals: ["IDA-RED-00>0", "medium_finding"]
+      method: "Duplicate a case payload while assigning a new case_id."
+      limitation: "Exact JSON duplication is not a semantic redundancy detector."
+    - mutation_id: IDA-M08
+      defect: coverage_declaration_mismatch
+      deterministic: true
+      expected_signals: ["IDA-COV-00=MEASURED", "coverage_consistency_finding"]
+      method: "Change declared covered count or coverage_rate without changing case coverage_tags."
+      limitation: "Internal consistency does not prove completeness of the coverage universe."
+    - mutation_id: IDA-M09
+      defect: ambiguous_task_text
+      deterministic: false
+      expected_signals: ["expert_review_required"]
+      method: "Introduce conflicting or underspecified task language."
+      limitation: "Requires blinded human review or independently calibrated semantic assessment."
+    - mutation_id: IDA-M10
+      defect: incorrect_ground_truth
+      deterministic: false
+      expected_signals: ["oracle_or_expert_disagreement"]
+      method: "Replace a verified expected result with an incorrect one."
+      limitation: "Cannot be detected by schema validation alone."
+    - mutation_id: IDA-M11
+      defect: construct_mismatch
+      deterministic: false
+      expected_signals: ["construct_validity_review_required"]
+      method: "Add nuisance requirements unrelated to the declared target capability."
+      limitation: "Requires a declared construct and expert content-validity review."
+    - mutation_id: IDA-M12
+      defect: answer_leakage
+      deterministic: false
+      expected_signals: ["contamination_audit_required"]
+      method: "Insert a direct answer or hidden shortcut into task-visible resources."
+      limitation: "Requires adversarial inspection and/or held-out execution."
+  empirical_runtime_assessment:
+    - mutation_id: ERA-M01
+      defect: grader_false_pass
+      deterministic: true
+      expected_signals: ["ERA-GRD-01>0"]
+      method: "Provide a gold-fail run with grader_outcome=pass."
+      limitation: "Requires an independent gold label."
+    - mutation_id: ERA-M02
+      defect: grader_false_fail
+      deterministic: true
+      expected_signals: ["ERA-GRD-02>0"]
+      method: "Provide a gold-pass run with grader_outcome=fail."
+      limitation: "Requires an independent gold label."
+    - mutation_id: ERA-M03
+      defect: grader_abstention
+      deterministic: true
+      expected_signals: ["ERA-GRD-03>0"]
+      method: "Provide a gold-labeled run with grader_outcome=abstain."
+      limitation: "Abstention must not be recoded as fail."
+    - mutation_id: ERA-M04
+      defect: paired_regression
+      deterministic: true
+      expected_signals: ["REG-03.baseline_pass_to_candidate_fail>0"]
+      method: "Pair a baseline pass with a candidate fail using the same case, model, environment and seed."
+      limitation: "Requires valid pair_id and matched protocol."
+    - mutation_id: ERA-M05
+      defect: historical_fault_escape
+      deterministic: true
+      expected_signals: ["REG-01<1"]
+      method: "Provide a historical injected fault with detected=false."
+      limitation: "Fault labels must be independently verified and representative."
+    - mutation_id: ERA-M06
+      defect: mutation_fault_escape
+      deterministic: true
+      expected_signals: ["REG-02<1"]
+      method: "Provide a mutation injected run with detected=false."
+      limitation: "Mutation score is not a substitute for real fault detection."
+    - mutation_id: ERA-M07
+      defect: repeated_run_disagreement
+      deterministic: true
+      expected_signals: ["REG-06>0"]
+      method: "Provide discordant pass/fail outcomes in the same repeat_group_id."
+      limitation: "Does not attribute variance to Agent, environment or Judge."
+    - mutation_id: ERA-M08
+      defect: failure_not_exposed
+      deterministic: true
+      expected_signals: ["ERA-RUN-05<1", "REG-07<1"]
+      method: "Provide an injected known fault with failure_exposed=false."
+      limitation: "Requires an independently established fault condition."

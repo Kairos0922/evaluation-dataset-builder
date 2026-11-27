@@ -1,0 +1,330 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/docs/quality-assessment-v0.0.2/schemas/judge-calibration-report.schema.json",
+  "title": "Judge Calibration Evidence Report",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "report_id",
+    "created_at",
+    "calibration_kind",
+    "status",
+    "dataset",
+    "judge",
+    "protocol",
+    "results",
+    "summary",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.0.2"
+    },
+    "report_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "calibration_kind": {
+      "enum": [
+        "synthetic_smoke",
+        "independent_empirical"
+      ]
+    },
+    "status": {
+      "enum": [
+        "NOT_VALIDATED",
+        "PARTIAL",
+        "VALIDATED_FOR_SCOPE",
+        "REJECTED"
+      ]
+    },
+    "dataset": {
+      "type": "object",
+      "required": [
+        "suite_id",
+        "suite_sha256",
+        "case_ids",
+        "label_source",
+        "independent_gold",
+        "split_id",
+        "held_out"
+      ],
+      "properties": {
+        "suite_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "suite_sha256": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{64}$"
+        },
+        "case_ids": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "label_source": {
+          "enum": [
+            "synthetic_fixture",
+            "independent_expert",
+            "adjudicated_oracle",
+            "historical_incident"
+          ]
+        },
+        "independent_gold": {
+          "type": "boolean"
+        },
+        "split_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "held_out": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "judge": {
+      "type": "object",
+      "required": [
+        "provider",
+        "endpoint_origin",
+        "model_id",
+        "model_revision",
+        "prompt_sha256",
+        "implementation_sha256",
+        "separate_from_subject"
+      ],
+      "properties": {
+        "judge_type": {
+          "enum": ["human", "llm"]
+        },
+        "provider": {
+          "type": "string",
+          "minLength": 1
+        },
+        "endpoint_origin": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model_revision": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "prompt_sha256": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{64}$"
+        },
+        "implementation_sha256": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{64}$"
+        },
+        "separate_from_subject": {
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "protocol": {
+      "type": "object",
+      "required": [
+        "blinded",
+        "independent_review",
+        "repeats_per_case",
+        "abstention_policy",
+        "run_id",
+        "commit_sha"
+      ],
+      "properties": {
+        "blinded": {
+          "type": "boolean"
+        },
+        "independent_review": {
+          "type": "boolean"
+        },
+        "repeats_per_case": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "abstention_policy": {
+          "type": "string",
+          "minLength": 1
+        },
+        "run_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "commit_sha": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^([a-fA-F0-9]{40}|[a-fA-F0-9]{64})$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "results": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "case_id",
+          "gold_status",
+          "judge_status",
+          "evidence_validated",
+          "output_sha256",
+          "gold_evidence_ref"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "gold_status": {
+            "enum": [
+              "PASS",
+              "FAIL",
+              "UNKNOWN"
+            ]
+          },
+          "judge_status": {
+            "enum": [
+              "PASS",
+              "FAIL",
+              "UNKNOWN"
+            ]
+          },
+          "evidence_validated": {
+            "type": "boolean"
+          },
+          "output_sha256": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{64}$"
+          },
+          "gold_evidence_ref": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "judge_evidence_ref": {
+            "type": ["string", "null"]
+          },
+          "reviewer_id": {
+            "type": ["string", "null"]
+          },
+          "adjudicator_id": {
+            "type": ["string", "null"]
+          },
+          "repeat_index": {
+            "type": ["integer", "null"],
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": [
+        "case_count",
+        "observation_count",
+        "accuracy_unit",
+        "adjudicable_count",
+        "exact_matches",
+        "false_passes",
+        "false_fails",
+        "abstentions",
+        "abstention_unit",
+        "accuracy",
+        "repeat_disagreement_cases",
+        "repeat_agreement_rate"
+      ],
+      "properties": {
+        "case_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "observation_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "accuracy_unit": {
+          "const": "case"
+        },
+        "adjudicable_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "exact_matches": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "false_passes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "false_fails": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "abstentions": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "abstention_unit": {
+          "const": "judgement"
+        },
+        "accuracy": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 1
+        },
+        "repeat_disagreement_cases": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "repeat_agreement_rate": {
+          "type": ["number", "null"],
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "source_observations_sha256": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

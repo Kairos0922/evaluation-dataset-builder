@@ -1,0 +1,138 @@
+# v0.0.2 设计决策记录
+
+## D-001：两条评价路径必须独立
+
+- 日期：2026-11-25
+- 状态：已采纳
+- 决策：独立离线评价（IDA）与真实环境运行评价（ERA）分别报告，不合并为一个未区分的分数。
+- 原因：离线检查不能提供真实 Agent 表现、Judge 准确性、运行重复性或故障检出率；运行结果也不能替代来源和构念审查。
+- 影响：报告、Schema、验证器和测试必须区分两类评价。
+
+## D-002：Capability 与 Regression 使用不同的用途专属统计
+
+- 日期：2026-11-25
+- 状态：已采纳
+- 决策：同一数据集可声明两种用途，但必须分别给出统计目标和用途专属结果。
+- 原因：Capability 关注能力估计、题目区分、测量信息和不确定性；Regression 关注版本配对变化、已知缺陷检出、误放行/误报和重复性。
+- 影响：不得用统一通过率或固定题目比例代表两种用途。
+
+## D-003：0.0.1 固定权重和等级阈值不作为已验证公式继承
+
+- 日期：2026-11-25
+- 状态：已采纳
+- 决策：保留 v0.0.1 历史文件和发布证据；v0.0.2 重新构建指标、聚合、权重和阈值的验证论证。
+- 原因：当前仓库未提供固定权重和阈值经过独立效度/预测效度/敏感性验证的证据。
+- 影响：在完成实验前，综合分必须标记为候选或 NOT_VALIDATED。
+
+## D-004：综合分必须通过效度论证，不以可计算性代替证明
+
+- 日期：2026-11-25
+- 状态：已采纳
+- 决策：以构念定义、专家内容效度、评分者一致性、受控缺陷注入、外部运行效标、独立验证、敏感性和泛化实验验证公式。
+- 原因：复合指标的权重、归一化和聚合均包含方法选择；数学形式本身不能证明测量解释有效。
+- 影响：新增独立公式验证协议；验证失败时允许不发布总分。
+
+## D-005：任务状态必须在仓库中持续更新
+
+- 日期：2026-11-25
+- 状态：已采纳
+- 决策：TASKS.md 是唯一进度事实来源；每项任务完成后更新状态和证据链接。
+- 原因：保证跨会话、跨执行阶段的可持续跟踪和审计。
+- 影响：每个阶段的提交必须包含对应的任务状态更新。
+
+## D-006：不改写 PR #38 历史证据
+
+- 日期：2026-11-25
+- 状态：已采纳
+- 决策：0.0.2 在独立分支推进；不关闭或覆盖 PR #38，不重跑其已完成的 Builder / Pilot / Oracle。
+- 原因：保持历史证据可追溯，避免把本次质量评价研究与先前 Builder 验收混淆。
+- 影响：所有 0.0.2 代码、文档和实验使用独立文件和精确 SHA 绑定。
+
+
+## D-007：冻结 v0.0.2 工程架构与验收解释基线
+
+- 日期：2026-11-26
+- 状态：已采纳
+- 决策：采用 `architecture-and-acceptance-baseline.md` 作为 v0.0.2 的工程架构和验收解释基线；采用 `runtime-assessment-protocol.md` 作为 ERA 执行协议基线。
+- 原因：需求、方法论、Schema、分析器和发布门禁需要统一的数据流、责任边界、失败归因和证据等级，避免将离线检查、真实运行、专家判断和效度结论混为一谈。
+- 影响：IDA 与 ERA 分离；Capability 与 Regression 分别报告；Judge/Gold 必须独立；关键门禁不可补偿；无证据时保持 NOT_RUN / UNKNOWN / NOT_VALIDATED。该决策冻结的是工程/验收定义，不代表实证实验通过或发布获批。
+
+
+## D-008：当前迭代仅执行自主可完成工作，外部依赖任务全部停止
+
+- 日期：2026-11-27
+- 状态：已采纳
+- 决策：当前 v0.0.2 执行范围仅包含可由现有仓库、现有代码、现有冻结证据和离线环境独立完成的工程工作。所有依赖外部人员、独立评审/仲裁、外部 Gold/Oracle、第三方数据资产许可与快照、外部审计、额外真实运行环境/预算/授权或用户发布批准的任务，当前一律不执行、不招募、不等待、不触发。
+- 适用任务：FM-03、EX-02、EX-03、EX-04、EX-05、EX-07、IM-03 的独立校准部分、IM-05 的真实测量验证部分、IM-07 的正式版本升级部分、IM-09、QA-01、QA-02 的语义/Gold 部分、QA-03 的新增真实运行部分、QA-04、DOC-01 的正式版本转换部分、REL-01、REL-02。
+- 状态规则：这些任务保留 BLOCKED / DEFERRED 及其原始验收要求，不伪装为 DONE 或 NOT_APPLICABLE，也不从任务清单删除；它们退出当前自主执行队列。其工程子组件如已可独立完成，仍可继续维护，但不能解除对应实证/发布门禁。
+- 自主工作范围：现有代码缺陷修复、离线测试、Schema/契约验证、静态检查、现有冻结证据的可复现分析、文档准确性/一致性和工程安全审计。不得生成或伪造外部实证数据。
+- 发布边界：不合并 PR #44，不创建 tag/release，不改正式 VERSION 或 Skill frontmatter 版本，不触发收费或生产运行。
+- 影响：该决策是执行范围收敛，不是科学验收标准降低；IDA/ERA 的 PARTIAL、NOT_ASSESSED、NOT_RUN 和 composite NOT_VALIDATED 结论保持原样。
+
+
+## D-009：当前迭代范围收缩，清除全部外部依赖任务
+
+- 日期：2026-11-27
+- 状态：已采纳
+- 决策：将所有依赖外部人员、独立评审/仲裁、外部 Gold/Oracle、第三方数据许可与快照、外部审计、额外真实运行环境/预算/授权或用户发布批准的任务，从 v0.0.2 当前任务清单和交付范围中移除。
+- 移除任务：FM-03、EX-02、EX-03、EX-04、EX-05、EX-07、IM-03、IM-05、IM-07、IM-09、QA-01、QA-02、QA-03、QA-04、DOC-01、REL-01、REL-02。
+- 原因：用户明确要求清除当前无法由项目自主解决的外部依赖任务，不再将其作为本迭代待办、阻塞项或延期项。
+- 记录规则：移除不等于 DONE 或 NOT_APPLICABLE。历史协议、工程实现、CI 证据、真实数据覆盖缺口及科学限制继续保留在归档文档中；任何报告不得把缺失证据描述为验证通过。
+- 影响：TASKS.md 当前任务表仅保留已完成的自主工程任务；D-008 中停止招募、等待、外部触发及不擅自发布/生产运行的边界继续有效，但其“外部任务保留在任务表”的要求由本决策取代。当前迭代范围收缩不自动批准合并 PR、修改正式版本、创建 tag 或 Release。
+
+## D-010：建立 v0.0.2 收缩版发布准备基线（尚未批准发布）
+
+- 日期：2026-11-27
+- 状态：已采纳（仅发布准备）
+- 决策：在 D-009 已确定的范围内，建立 v0.0.2 专属发布门禁和发布准备审计。版本定位为质量评价工程能力增强版本；必须披露 IDA/ERA PARTIAL、Pilot 3/15、12 NOT_RUN、Judge NOT_RUN、无 Regression 配对、综合分 NOT_VALIDATED，以及宿主未认证等限制。
+- 发布范围：交付现有 Skill 运行时能力和已完成的离线工程工具/契约；研究协议、脚本、测试、CI 和过程证据不自动进入 Skill 安装包。
+- 版本边界：在 0.0.2 Release Candidate 尚未冻结、发布工作流尚未适配且用户未明确批准前，VERSION 与 Skill frontmatter 暂保持 0.0.1；不合并 PR、不创建 Tag/Release、不触发收费模型调用或生产运行。
+- 影响：新增 RELEASE-GATE-0.0.2.md 和 RELEASE-PREP-0.0.2.md；更新 TASKS、quality-report、README、CHANGELOG 与 RELEASE.md 的当前状态。现有 v0.0.1 发布工作流/验证器不得直接用于 0.0.2。
+- 解释：本决策仅授权准备发布资料与执行仓库内安全审计，不构成降低科学证据标准或最终发布批准。
+
+### D-010 执行补充：发布自动化准备与旧触发器清理
+
+- 新增 .github/workflows/publish-release-v0.0.2.yml：仅 workflow_dispatch，confirm_publish 默认 false；执行前要求 PR #44 已合并、PR head SHA 与用户提供 candidate SHA 完全一致、merge commit 与当前 main 精确一致、候选 tree 与合并 tree 一致、候选精确 SHA 的 validate 与 round4-real-evidence-assessment checks 成功，并重新运行包验证、Benchmark、离线测试和 actionlint。
+- 新增 RELEASE-NOTES-0.0.2.md 发布说明草案。该文件明确披露当前证据限制。
+- 删除过时 .github/publish-release-trigger.txt；将旧 v0.0.1 发布工作流从 push/path trigger 改为仅手动且必须 confirm_publish=true，避免旧版本发布流程因 trigger 文件更新意外运行。
+- 本次未触发发布工作流、未升级 VERSION/frontmatter、未合并 PR、未创建 Tag/Release。新工作流需通过精确 head CI 后方可视为发布自动化准备完成。
+
+
+### D-010 验证结果补充（2026-11-27）
+
+- Run #2080（45966113423，精确 head `6d75987763bb4a6e3a89b425e865faa288a9d0cc`）SUCCESS：actionlint、正式 Skill 包、Benchmark、263/263 离线测试、G-Theory 三种设计模拟、IDA controlled mutation、Round 4 IDA/ERA/Capability contracts 全部 PASS。
+- 测试新增对 v0.0.1 旧发布触发器清理、v0.0.2 手动发布工作流 SHA/Tree/CI/版本门禁及发布说明证据限制的契约断言。
+- 本次完整 CI 中 production Builder、独立评审、Pilot、adjudication 与 upstream asset audit 按条件 SKIPPED；没有新增真实运行或独立 Gold。
+- 工作流已通过静态/CI 验证，但尚未触发；正式 VERSION/frontmatter 仍 0.0.1，PR #44 未合并，v0.0.2 Tag/Release 未创建。
+
+
+## D-011：在发布准备阶段同步 0.0.2 候选版本元数据（不构成发布批准）
+
+- 日期：2026-11-27
+- 状态：已采纳
+- 决策：依据用户“准备发布 0.0.2”的指令，将工作分支 VERSION 与 Skill frontmatter metadata.version 同步更新为 0.0.2，以便对真实候选包执行版本一致性验证。
+- 范围：该变更仅存在于 feat/quality-assessment-v0.0.2 分支；main 上正式稳定版本仍为 0.0.1，直到 PR 经批准合并。分支元数据升级不代表 Release Candidate 已冻结，也不代表已授权合并、创建 Tag 或 GitHub Release。
+- 后续门禁：必须对包含 0.0.2 版本元数据的最终精确 head 执行完整 CI；用户仍需单独批准 PR 合并与正式发布。
+
+
+### D-011 验证结果补充（2026-11-27）
+
+- VERSION 与 Skill frontmatter 均已设为 0.0.2（仅候选分支）；README 明确区分 0.0.1 main 稳定版与 0.0.2 未发布候选。
+- Run #2089（45967184024，精确 head `71acd49be6a65754f048a147723b1e40c660bbf6`）SUCCESS：actionlint、正式 Skill 包、Benchmark、264/264 离线测试、G-Theory 三种设计模拟、IDA controlled mutation、Round 4 IDA/ERA/Capability contracts PASS。
+- 本次生产 Builder、独立评审、Pilot、adjudication 与 upstream audit 按授权/条件 SKIPPED；无新增生产运行或独立 Gold。
+- 该候选版本尚未合并、打 Tag 或发布；发布工作流仅为已验证配置，未被触发。
+
+
+### D-011 发布候选包构建补充（2026-11-27）
+
+- 新增 package-release-candidate.yml，每次 PR 更新均从 PR head SHA checkout，执行 validate_skill.py，构建 Skill ZIP，并用 EXPECTED_SKILL_FILES 精确比较归档内容；只上传 CI artifact，不创建 Release。
+- Package run #3（45968288702）SUCCESS，artifact #15184151507，17 个运行时文件，ZIP 44,025 bytes，artifact 名称绑定 head f9aa8822bf55458e76087ee9658c75bf96956226。
+- Run #2095（45968288724，精确 head f9aa8822bf55458e76087ee9658c75bf96956226）SUCCESS：actionlint、正式 Skill 包、Benchmark、265/265 离线测试、G-Theory 三种设计模拟、IDA controlled mutation、Round 4 IDA/ERA/Capability contracts PASS。
+- 该 artifact 是 PR 候选包，不是正式 Release 资产；PR 仍 Draft/Open，未合并、未打 Tag、未发布。
+
+
+### D-011 最终精确候选 head 复验（2026-11-27）
+
+- 当前候选 head `7e7bb5c4b59b35e9eeebd2efb3aa64d42043a022` 的 Run #2099（45968646417）SUCCESS：actionlint、Skill package、Benchmark、266/266 离线测试、G-Theory 三种设计模拟、IDA controlled mutation、Round 4 IDA/ERA/Capability contracts PASS。
+- Package run #7（45968646244）在同一精确 head 上生成 artifact #15183069447，17 个运行时文件，ZIP 44,025 bytes，严格匹配 EXPECTED_SKILL_FILES。
+- 受授权边界保护的生产 Builder、Pilot、独立评审和 adjudication jobs 均未执行。候选包仅供审查，正式发布工作流未触发。

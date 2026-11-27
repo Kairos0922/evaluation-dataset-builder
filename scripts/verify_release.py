@@ -34,7 +34,11 @@ def api_request(path, token, binary=False):
     )
     with urllib.request.urlopen(request, timeout=60) as response:
         body = response.read()
-    return body if binary else json.loads(body.decode("utf-8"))
+    return body if binary else json.loads(body.decode("utf-8"), parse_constant=_reject_json_constant)
+
+
+def _reject_json_constant(token):
+    raise ValueError(f"invalid JSON numeric constant: {token}")
 
 
 def require(condition, message):
@@ -221,7 +225,7 @@ def main():
         report_name = next((name for name in zf.namelist()
                             if name.endswith("eval-report.json")), None)
         require(report_name is not None, "The artifact ZIP does not contain eval-report.json.")
-        report = json.loads(zf.read(report_name).decode("utf-8"))
+        report = json.loads(zf.read(report_name).decode("utf-8"), parse_constant=_reject_json_constant)
     verify_report(report, candidate_sha, run_id)
 
     artifact_path = Path("artifacts/eval-report.json")

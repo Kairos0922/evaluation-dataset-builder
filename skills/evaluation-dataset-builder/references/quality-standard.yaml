@@ -1,29 +1,114 @@
 standard:
-  name: 高质量评测数据集标准
-  version: 1.0.0
-scoring:
-  scale: [1, 5]
-  weights:
-    business_fidelity: 15       # 业务贴合度
-    capability_alignment: 15   # 能力对齐度
-    scenario_coverage: 15      # 场景覆盖度
-    risk_coverage: 15           # 风险覆盖度
-    case_validity: 10           # 用例有效性
-    case_decidability: 15       # 用例可判定性
-    diagnostic_power: 5         # 诊断能力
-    case_uniqueness: 5          # 用例独特性
-    traceability_maintainability: 5 # 可追溯性与可维护性
-  thresholds:
-    approved: 4.5
-    usable: 3.8
-  critical_gates: [G1_evidence_fidelity, G2_objective_alignment, G3_expected_behavior, G4_grading_contract_validity, G5_safety_compliance, G6_feasibility, G7_integrity]
-checks:
-  case_level:
-    - {key: G1_evidence_fidelity, severity: critical, method: hybrid} # 证据与业务依据
-    - {key: G2_objective_alignment, severity: critical, method: semantic_review} # 目标对齐
-    - {key: G3_expected_behavior, severity: critical, method: hybrid} # 预期行为
-    - {key: G4_grading_contract_validity, severity: critical, method: hybrid} # 判定契约有效性
-    - {key: G5_safety_compliance, severity: critical, method: policy_review} # 安全与合规
-    - {key: G6_feasibility, severity: critical, method: hybrid} # 执行可行性
-    - {key: G7_integrity, severity: critical, method: deterministic_and_semantic} # 数据完整性
-  dataset_level: [business_model_traceability, objective_coverage, capability_coverage, scenario_coverage, gap_priority_coverage, risk_coverage, complexity_distribution, provenance_distribution, synthetic_case_labeling, observable_assertion_coverage, trace_evidence_coverage, semantic_duplicate_rate, grading_contract_consistency, execution_readiness, change_impact_traceability, heldout_independence]
+  id: agent-skill-dataset-quality
+  name: 通用 Agent / Skill 评测数据集质量评价标准
+  version: 2.0.0
+  applies_to_release: 0.0.2
+  status: methodology_standard
+  targets:
+    - agent
+    - skill
+    - agent_with_skill
+  purposes:
+    - capability
+    - regression
+    - both
+
+assessment_paths:
+  independent:
+    id: IDA
+    name: Independent Dataset Assessment
+    report_schema: ida-report.schema.json
+    requires_agent_execution: false
+    runtime_metrics_allowed: false
+    dimensions:
+      - construct_alignment
+      - task_validity
+      - provenance_ground_truth
+      - rubric_decidability
+      - coverage_representativeness
+      - diversity_redundancy
+      - leakage_independence
+      - execution_readiness_maintainability
+  runtime:
+    id: ERA
+    name: Empirical Runtime Assessment
+    report_schema: era-report.schema.json
+    run_record_schema: runtime-record.schema.json
+    requires_agent_execution: true
+    requires_exact_version_binding: true
+    shared_dimensions:
+      - grader_validity
+      - run_validity
+      - outcome_process_evidence
+      - uncertainty_reliability
+      - reproducibility_cost
+    capability_metrics:
+      - observed_item_pass_rate_profile
+      - item_difficulty
+      - item_discrimination
+      - test_information
+      - conditional_measurement_error
+      - ability_estimate_stability
+      - differential_item_functioning
+      - external_capability_validity
+    regression_metrics:
+      - historical_fault_detection
+      - mutation_detection
+      - paired_regression_delta
+      - critical_regression_escape
+      - regression_false_pass_false_fail
+      - flakiness
+      - failure_exposure
+      - fault_diagnosis
+      - cost_per_detected_fault
+
+critical_gates:
+  - G01_source_provenance
+  - G02_construct_alignment
+  - G03_task_solvability
+  - G04_ground_truth_validity
+  - G05_rubric_validity
+  - G06_safety_authorization
+  - G07_integrity_leakage
+  - G08_runtime_auditability
+
+statuses:
+  - PASS
+  - FAIL
+  - MEASURED
+  - UNKNOWN
+  - NOT_RUN
+  - NOT_ASSESSED
+  - NOT_APPLICABLE
+  - NOT_VALIDATED
+
+evidence_sufficiency:
+  - sufficient_for_scope
+  - partial
+  - insufficient
+  - not_assessed
+
+composite:
+  enabled_by_default: false
+  status: NOT_VALIDATED
+  value: null
+  weights: null
+  thresholds: null
+  candidate_models:
+    - gate_profile
+    - weighted_arithmetic
+    - weighted_geometric
+    - non_compensatory_bottleneck
+    - purpose_specific
+    - latent_variable_if_assumptions_hold
+  validation_protocol: https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/docs/quality-assessment-v0.0.2/formula-validation-protocol.md
+  validation_report_schema: formula-validation.schema.json
+  validation_experiments: https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/docs/quality-assessment-v0.0.2/experimental-design.md
+
+governance:
+  metric_catalog: https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/docs/quality-assessment-v0.0.2/metric-catalog.md
+  methodology: https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/docs/quality-assessment-v0.0.2/methodology-design.md
+  research_evidence: https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/docs/quality-assessment-v0.0.2/research-evidence.md
+  no_unvalidated_thresholds: true
+  no_compensation_for_critical_gate_failure: true
+  report_evidence_sufficiency_separately: true

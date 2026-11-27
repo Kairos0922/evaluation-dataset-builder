@@ -1,0 +1,470 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/docs/quality-assessment-v0.0.2/schemas/capability-measurement-report.schema.json",
+  "title": "Exploratory Capability Measurement Report",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "report_id",
+    "created_at",
+    "dataset",
+    "evidence",
+    "irt",
+    "g_theory",
+    "overall_status",
+    "limitations",
+    "dif",
+    "measurement_invariance"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.0.2"
+    },
+    "report_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "dataset": {
+      "type": "object",
+      "required": [
+        "dataset_id",
+        "sha256"
+      ],
+      "properties": {
+        "dataset_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-fA-F0-9]{64}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "input_record_count",
+        "eligible_person_count",
+        "eligible_item_count",
+        "eligible_observation_count",
+        "label_source",
+        "person_ids",
+        "item_ids",
+        "excluded_records"
+      ],
+      "properties": {
+        "input_record_count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "eligible_person_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "eligible_item_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "eligible_observation_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "label_source": {
+          "const": "independent_gold_only"
+        },
+        "person_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "item_ids": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "excluded_records": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "irt": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "ESTIMATED_EXPLORATORY",
+            "NOT_ASSESSED"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "model": {
+          "type": "string"
+        },
+        "converged": {
+          "type": "boolean"
+        },
+        "iterations": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "persons": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "configuration_id",
+              "ability_logit",
+              "standard_error",
+              "raw_score",
+              "item_count",
+              "infit_msq",
+              "outfit_msq"
+            ],
+            "properties": {
+              "configuration_id": {
+                "type": "string"
+              },
+              "ability_logit": {
+                "type": "number"
+              },
+              "standard_error": {
+                "type": "number",
+                "minimum": 0
+              },
+              "raw_score": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "item_count": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "infit_msq": {
+                "type": "number",
+                "minimum": 0
+              },
+              "outfit_msq": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "case_id",
+              "difficulty_logit",
+              "standard_error",
+              "information_by_theta",
+              "information_at_theta_zero",
+              "infit_msq",
+              "outfit_msq"
+            ],
+            "properties": {
+              "case_id": {
+                "type": "string"
+              },
+              "difficulty_logit": {
+                "type": "number"
+              },
+              "standard_error": {
+                "type": "number",
+                "minimum": 0
+              },
+              "information_by_theta": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "theta",
+                    "information"
+                  ],
+                  "properties": {
+                    "theta": {
+                      "type": "number"
+                    },
+                    "information": {
+                      "type": "number",
+                      "minimum": 0
+                    }
+                  },
+                  "additionalProperties": false
+                }
+              },
+              "information_at_theta_zero": {
+                "type": "number",
+                "minimum": 0
+              },
+              "infit_msq": {
+                "type": "number",
+                "minimum": 0
+              },
+              "outfit_msq": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "test_information_by_theta": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "theta",
+              "information"
+            ],
+            "properties": {
+              "theta": {
+                "type": "number"
+              },
+              "information": {
+                "type": "number",
+                "minimum": 0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "fit_diagnostics": {
+          "type": "object",
+          "required": [
+            "status",
+            "person_infit_mean_square",
+            "person_outfit_mean_square",
+            "item_infit_mean_square",
+            "item_outfit_mean_square",
+            "interpretation"
+          ],
+          "properties": {
+            "status": {
+              "const": "DESCRIPTIVE_ONLY"
+            },
+            "person_infit_mean_square": {
+              "type": "number",
+              "minimum": 0
+            },
+            "person_outfit_mean_square": {
+              "type": "number",
+              "minimum": 0
+            },
+            "item_infit_mean_square": {
+              "type": "number",
+              "minimum": 0
+            },
+            "item_outfit_mean_square": {
+              "type": "number",
+              "minimum": 0
+            },
+            "interpretation": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "g_theory": {
+      "type": "object",
+      "required": [
+        "status"
+      ],
+      "properties": {
+        "status": {
+          "enum": [
+            "ESTIMATED_EXPLORATORY",
+            "NOT_ASSESSED"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "design": {
+          "type": "string"
+        },
+        "person_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "item_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "observation_count": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "variance_components": {
+          "type": "object",
+          "properties": {
+            "person": {
+              "type": "number",
+              "minimum": 0
+            },
+            "item": {
+              "type": "number",
+              "minimum": 0
+            },
+            "person_by_item_plus_residual": {
+              "type": "number",
+              "minimum": 0
+            },
+            "raw_person_component": {
+              "type": "number"
+            },
+            "raw_item_component": {
+              "type": "number"
+            }
+          },
+          "additionalProperties": false
+        },
+        "coefficients": {
+          "type": "object",
+          "properties": {
+            "relative_G_coefficient": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 1
+            },
+            "absolute_Phi_coefficient": {
+              "type": [
+                "number",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 1
+            }
+          },
+          "additionalProperties": false
+        },
+        "d_study": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "planned_item_count",
+              "relative_G_coefficient",
+              "absolute_Phi_coefficient"
+            ],
+            "properties": {
+              "planned_item_count": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "relative_G_coefficient": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 1
+              },
+              "absolute_Phi_coefficient": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "warnings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "limitations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "overall_status": {
+      "enum": [
+        "ESTIMATED_EXPLORATORY",
+        "NOT_ASSESSED"
+      ]
+    },
+    "limitations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "dif": {
+      "type": "object",
+      "required": [
+        "status",
+        "reason"
+      ],
+      "properties": {
+        "status": {
+          "const": "NOT_ASSESSED"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "measurement_invariance": {
+      "type": "object",
+      "required": [
+        "status",
+        "reason"
+      ],
+      "properties": {
+        "status": {
+          "const": "NOT_ASSESSED"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

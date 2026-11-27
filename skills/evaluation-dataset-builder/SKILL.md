@@ -3,7 +3,7 @@ name: evaluation-dataset-builder
 description: 为 Agent、Skill、API、工作流和其他软件系统规划、生成、审查、修复和维护评测数据集。当用户需要设计评测方案、构建业务场景与评测用例、制定用例判定标准和覆盖矩阵，或更新既有评测数据集时使用。
 license: MIT
 metadata:
-  version: "0.0.1"
+  version: "0.0.2"
 ---
 
 # 评测数据集构建 Skill
@@ -156,7 +156,12 @@ approved 不代表 EXECUTION_VERIFIED。不得把设计完成、结构校验通�
 - 定义覆盖全集、统计覆盖率、排序缺口：读取 `references/coverage-design-guideline.md`。
 - 核实资料权威性、区分真实案例与合成补缺：读取 `references/source-and-evidence-policy.md`。
 - 设计用例判定契约、通过/失败条件和证据要求：读取 `references/grader-guidelines.md`。
-- 执行质量审查、计算质量分或判断验收等级：读取 `references/quality-standard.md`；需要机器可读权重、阈值或门禁配置时，再读取 `references/quality-standard.yaml`。
+- 执行质量审查或判断验收状态：读取 `references/quality-standard.md`；需要机器可读的 IDA/ERA 评价路径、关键门禁、指标分组、证据状态和综合分验证状态时，再读取 `references/quality-standard.yaml`。当前标准不提供未经验证的固定权重或通过阈值；没有独立验证证据时，不得输出已验证综合分。
 - 生成或校验用例、数据集清单：分别读取 `references/dataset-schema.json` 和 `references/dataset-manifest-schema.json`。
 - 需要统一术语、状态或机器字段定义：读取 `references/terminology.md`。
+- 生成独立离线评价报告：读取 `references/ida-report.schema.json`。
+- 生成真实环境运行评价报告：读取 `references/era-report.schema.json`。
+- 规范化真实运行轨迹记录：读取 `references/runtime-record.schema.json`。
+- 记录综合质量公式的独立验证证据：读取 `references/formula-validation.schema.json`。
+- 记录专家盲评与仲裁的匿名评分数据：读取 `references/expert-review-record.schema.json`，保留原始评分，不在记录层写入聚合结论。
 - 业务规则、来源、目标或判定标准发生变化：读取 `references/change-impact-and-repair.md`。

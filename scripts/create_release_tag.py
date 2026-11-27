@@ -10,6 +10,10 @@ import io
 import hashlib
 from pathlib import Path
 
+
+def _reject_json_constant(token):
+    raise ValueError(f"invalid JSON numeric constant: {token}")
+
 from verify_release import (
     API,
     PR_NUMBER,
@@ -35,7 +39,7 @@ def api_write(path, token, payload):
         method="POST",
     )
     with urllib.request.urlopen(request, timeout=60) as response:
-        return json.loads(response.read().decode("utf-8"))
+        return json.loads(response.read().decode("utf-8"), parse_constant=_reject_json_constant)
 
 
 def report_from_run(repo, token, run_id, candidate_sha):
@@ -58,7 +62,7 @@ def report_from_run(repo, token, run_id, candidate_sha):
         name = next((item for item in zf.namelist()
                      if item.endswith("eval-report.json")), None)
         require(name is not None, "Artifact ZIP does not contain eval-report.json.")
-        report = json.loads(zf.read(name).decode("utf-8"))
+        report = json.loads(zf.read(name).decode("utf-8"), parse_constant=_reject_json_constant)
     verify_report(report, candidate_sha, run_id)
     return report, artifact
 
@@ -74,7 +78,7 @@ def _zip_entry(zip_file, suffix):
 
 
 def _zip_json(zip_file, suffix):
-    return json.loads(_zip_entry(zip_file, suffix).decode("utf-8"))
+    return json.loads(_zip_entry(zip_file, suffix).decode("utf-8"), parse_constant=_reject_json_constant)
 
 
 def _artifact_archive(repo, token, run_id, artifact_id, expected_name):
@@ -313,7 +317,7 @@ def validate_builder_evidence_payloads(evidence):
         )
     delete_audit = evidence["delete_guard_audit"]
     delete_entries = [
-        json.loads(line) for line in delete_audit.decode("utf-8").splitlines()
+        json.loads(line, parse_constant=_reject_json_constant) for line in delete_audit.decode("utf-8").splitlines()
         if line.strip()
     ]
     require(
@@ -382,7 +386,7 @@ def skill_package_tree_signature(repo, commit_sha, token):
 def verify_builder_evidence(repo, token, builder_pr_number, release_candidate_sha):
     index_path = Path(__file__).resolve().parents[1] / "docs" / "release-evidence" / "round4-evidence-index.json"
     require(index_path.is_file(), "The immutable Round 4 evidence index is missing.")
-    index = json.loads(index_path.read_text(encoding="utf-8"))
+    index = json.loads(index_path.read_text(encoding="utf-8"), parse_constant=_reject_json_constant)
     require(int(index.get("builder_pr_number", 0)) == int(builder_pr_number),
             "Evidence index Builder PR number mismatch.")
 

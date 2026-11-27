@@ -1,0 +1,191 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/docs/quality-assessment-v0.0.2/schemas/expert-review-record.schema.json",
+  "title": "Expert Review Record",
+  "description": "One anonymized expert rating for one dataset item and one review dimension. Store raw ratings; do not replace them with aggregate scores.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "review_id",
+    "dataset_id",
+    "dataset_version",
+    "dataset_sha256",
+    "item_id",
+    "item_sha256",
+    "reviewer_id",
+    "reviewer_profile",
+    "review_round",
+    "review_stage",
+    "rating_dimension",
+    "rating_scale",
+    "rating",
+    "rationale",
+    "blind_status",
+    "adjudication_status",
+    "protocol_version",
+    "protocol_sha256",
+    "reviewed_at"
+  ],
+  "properties": {
+    "review_id": {
+      "type": "string",
+      "pattern": "^ER-[A-Za-z0-9_-]+$"
+    },
+    "dataset_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dataset_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "dataset_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "item_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "item_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "reviewer_id": {
+      "type": "string",
+      "pattern": "^R-[A-Za-z0-9_-]+$",
+      "description": "Pseudonymous reviewer identifier. Do not store reviewer name, email, or direct identifiers."
+    },
+    "reviewer_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "expertise_domains", "experience_band", "conflict_of_interest"],
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": ["academic_researcher", "practitioner", "domain_expert", "evaluation_engineer", "safety_reviewer", "other"]
+        },
+        "expertise_domains": {
+          "type": "array",
+          "items": {"type": "string", "minLength": 1},
+          "minItems": 1,
+          "uniqueItems": true
+        },
+        "experience_band": {
+          "type": "string",
+          "enum": ["lt_2_years", "2_to_5_years", "6_to_10_years", "gt_10_years"]
+        },
+        "conflict_of_interest": {
+          "type": "string",
+          "enum": ["none_declared", "disclosed", "recused"]
+        }
+      }
+    },
+    "review_round": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "review_stage": {
+      "type": "string",
+      "enum": ["blind_review", "adjudication"]
+    },
+    "rating_dimension": {
+      "type": "string",
+      "enum": [
+        "relevance",
+        "representativeness",
+        "clarity",
+        "necessity",
+        "observability",
+        "construct_alignment",
+        "task_solvability",
+        "ground_truth_support",
+        "rubric_alignment",
+        "safety_authorization",
+        "risk_coverage"
+      ]
+    },
+    "rating_scale": {
+      "type": "string",
+      "enum": ["four_point", "necessity_three_level"]
+    },
+    "rating": {
+      "oneOf": [
+        {"type": "integer", "minimum": 1, "maximum": 4},
+        {"type": "string", "enum": ["essential", "useful_not_essential", "not_necessary"]}
+      ]
+    },
+    "rationale": {
+      "type": "string",
+      "minLength": 10
+    },
+    "evidence_refs": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "missing_evidence": {
+      "type": "array",
+      "items": {"type": "string", "minLength": 1},
+      "uniqueItems": true
+    },
+    "blind_status": {
+      "type": "boolean"
+    },
+    "adjudication_status": {
+      "type": "string",
+      "enum": ["not_applicable", "pending", "accepted", "modified", "rejected", "needs_more_evidence"]
+    },
+    "protocol_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "protocol_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "reviewed_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "reviewer_confidence": {
+      "type": "string",
+      "enum": ["low", "medium", "high"]
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"rating_dimension": {"const": "necessity"}}, "required": ["rating_dimension"]},
+      "then": {
+        "properties": {
+          "rating_scale": {"const": "necessity_three_level"},
+          "rating": {"type": "string", "enum": ["essential", "useful_not_essential", "not_necessary"]}
+        }
+      },
+      "else": {
+        "properties": {
+          "rating_scale": {"const": "four_point"},
+          "rating": {"type": "integer", "minimum": 1, "maximum": 4}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"review_stage": {"const": "blind_review"}}, "required": ["review_stage"]},
+      "then": {
+        "properties": {
+          "blind_status": {"const": true},
+          "adjudication_status": {"const": "not_applicable"}
+        }
+      },
+      "else": {
+        "properties": {
+          "blind_status": {"type": "boolean"},
+          "adjudication_status": {"enum": ["pending", "accepted", "modified", "rejected", "needs_more_evidence"]}
+        }
+      }
+    }
+  ]
+}

@@ -11,6 +11,10 @@ import urllib.error
 import urllib.request
 from typing import Any
 
+def _reject_json_constant(token: str):
+    raise ValueError(f"invalid JSON numeric constant: {token}")
+
+
 DEFAULT_BASE_URL = "https://api.deepseek.com"
 DEFAULT_MODEL_ID = "deepseek-flash"
 
@@ -68,7 +72,7 @@ def fetch_model_metadata(
     )
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
-            payload = json.loads(response.read().decode("utf-8"))
+            payload = json.loads(response.read().decode("utf-8"), parse_constant=_reject_json_constant)
     except urllib.error.HTTPError as exc:
         raise RuntimeError(f"DeepSeek model metadata request failed with HTTP {exc.code}") from None
     except urllib.error.URLError as exc:

@@ -1,0 +1,280 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/skills/evaluation-dataset-builder/references/era-report.schema.json",
+  "title": "Empirical Runtime Assessment Report",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "assessment_id",
+    "assessment_type",
+    "created_at",
+    "dataset",
+    "evaluation_purpose",
+    "target",
+    "runtime_protocol",
+    "runs",
+    "grader_validation",
+    "metric_results",
+    "evidence_sufficiency",
+    "composite",
+    "findings",
+    "limitations"
+  ],
+  "properties": {
+    "schema_version": { "const": "0.0.2" },
+    "assessment_id": { "type": "string", "minLength": 1 },
+    "assessment_type": { "const": "empirical_runtime_assessment" },
+    "created_at": { "type": "string", "format": "date-time" },
+    "dataset": {
+      "type": "object",
+      "required": ["dataset_id", "version", "sha256"],
+      "properties": {
+        "dataset_id": { "type": "string", "minLength": 1 },
+        "version": { "type": "string", "minLength": 1 },
+        "sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" }
+      },
+      "additionalProperties": false
+    },
+    "evaluation_purpose": { "enum": ["capability", "regression", "both"] },
+    "target": {
+      "type": "object",
+      "required": ["target_type", "name", "version", "revision"],
+      "properties": {
+        "target_type": { "enum": ["agent", "skill", "agent_with_skill"] },
+        "name": { "type": "string", "minLength": 1 },
+        "version": { "type": ["string", "null"] },
+        "revision": { "type": ["string", "null"] }
+      },
+      "additionalProperties": false
+    },
+    "runtime_protocol": {
+      "type": "object",
+      "required": ["protocol_id", "model", "harness", "environment", "tool_versions", "execution_parameters"],
+      "properties": {
+        "protocol_id": { "type": "string", "minLength": 1 },
+        "model": {
+          "type": "object",
+          "required": ["provider", "model_id"],
+          "properties": {
+            "provider": { "type": "string", "minLength": 1 },
+            "model_id": { "type": "string", "minLength": 1 },
+            "model_revision": { "type": ["string", "null"] }
+          },
+          "additionalProperties": false
+        },
+        "harness": {
+          "type": "object",
+          "required": ["name", "version"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "version": { "type": "string", "minLength": 1 }
+          },
+          "additionalProperties": false
+        },
+        "environment": {
+          "type": "object",
+          "required": ["name", "version", "digest"],
+          "properties": {
+            "name": { "type": "string", "minLength": 1 },
+            "version": { "type": "string", "minLength": 1 },
+            "digest": { "type": ["string", "null"] },
+            "region": { "type": ["string", "null"] }
+          },
+          "additionalProperties": false
+        },
+        "tool_versions": { "type": "object", "additionalProperties": { "type": "string" } },
+        "execution_parameters": { "type": "object" },
+        "protocol_ref": { "type": ["string", "null"] },
+        "configurations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["configuration_id", "target_revision", "model", "harness", "environment"],
+            "properties": {
+              "configuration_id": { "type": "string", "minLength": 1 },
+              "target_revision": { "type": "string", "minLength": 1 },
+              "model": { "type": "object" },
+              "harness": { "type": "object" },
+              "environment": { "type": "object" },
+              "tool_versions": { "type": "object", "additionalProperties": { "type": "string" } },
+              "execution_parameters": { "type": "object" }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "runs": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["run_id", "status", "seed", "trace_ref"],
+        "properties": {
+          "run_id": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["valid", "agent_failed", "environment_failed", "grader_failed", "unknown", "cancelled"] },
+          "seed": { "type": ["string", "integer", "null"] },
+          "started_at": { "type": ["string", "null"], "format": "date-time" },
+          "trace_ref": { "type": ["string", "null"] },
+          "result_ref": { "type": ["string", "null"] },
+          "failure_class": { "type": ["string", "null"] },
+          "case_id": { "type": ["string", "null"] },
+          "configuration_id": { "type": ["string", "null"] },
+          "target_revision": { "type": ["string", "null"] },
+          "agent_outcome": { "enum": ["pass", "fail", "abstain", "unknown", null] },
+          "process_outcome": { "enum": ["pass", "fail", "unknown", null] },
+          "grader_outcome": { "enum": ["pass", "fail", "abstain", "unknown", null] },
+          "gold_outcome": { "enum": ["pass", "fail", "unknown", null] },
+          "pair_id": { "type": ["string", "null"] },
+          "repeat_group_id": { "type": ["string", "null"] },
+          "fault_kind": { "enum": ["none", "historical", "mutation", null] },
+          "fault_id": { "type": ["string", "null"] },
+          "fault_injected": { "type": ["boolean", "null"] },
+          "fault_detected": { "type": ["boolean", "null"] },
+          "failure_exposed": { "type": ["boolean", "null"] },
+          "duration_seconds": { "type": ["number", "null"], "minimum": 0 },
+          "input_tokens": { "type": ["integer", "null"], "minimum": 0 },
+          "output_tokens": { "type": ["integer", "null"], "minimum": 0 },
+          "tool_calls": { "type": ["integer", "null"], "minimum": 0 },
+          "cost_usd": { "type": ["number", "null"], "minimum": 0 }
+        },
+        "additionalProperties": false
+      }
+    },
+    "grader_validation": {
+      "type": "object",
+      "required": ["status", "reference_standard", "sample_count", "metric_results", "limitations"],
+      "properties": {
+        "status": { "enum": ["PASS", "FAIL", "PARTIAL", "NOT_RUN", "NOT_ASSESSED"] },
+        "reference_standard": { "type": ["string", "null"] },
+        "sample_count": { "type": "integer", "minimum": 0 },
+        "metric_results": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["metric_id", "status", "value"],
+            "properties": {
+              "metric_id": { "type": "string", "minLength": 1 },
+              "status": { "enum": ["PASS", "FAIL", "MEASURED", "UNKNOWN", "NOT_RUN", "NOT_ASSESSED", "NOT_APPLICABLE"] },
+              "value": { "type": ["number", "string", "null"] },
+              "unit": { "type": ["string", "null"] },
+              "interval": { "type": ["object", "null"] },
+              "evidence_refs": { "type": "array", "items": { "type": "string" } }
+            },
+            "additionalProperties": false
+          }
+        },
+        "limitations": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "capability_analysis": {
+      "type": ["object", "null"],
+      "required": ["status", "method", "agent_configurations", "task_count", "results_ref", "limitations"],
+      "properties": {
+        "status": { "enum": ["PASS", "FAIL", "PARTIAL", "NOT_RUN", "NOT_ASSESSED"] },
+        "method": { "type": "string", "minLength": 1 },
+        "agent_configurations": { "type": "integer", "minimum": 0 },
+        "task_count": { "type": "integer", "minimum": 0 },
+        "results_ref": { "type": ["string", "null"] },
+        "limitations": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "regression_analysis": {
+      "type": ["object", "null"],
+      "required": ["status", "baseline_revision", "candidate_revision", "paired_case_count", "historical_faults_replayed", "mutants_replayed", "results_ref", "limitations"],
+      "properties": {
+        "status": { "enum": ["PASS", "FAIL", "PARTIAL", "NOT_RUN", "NOT_ASSESSED"] },
+        "baseline_revision": { "type": "string", "minLength": 1 },
+        "candidate_revision": { "type": "string", "minLength": 1 },
+        "paired_case_count": { "type": "integer", "minimum": 0 },
+        "historical_faults_replayed": { "type": "integer", "minimum": 0 },
+        "mutants_replayed": { "type": "integer", "minimum": 0 },
+        "results_ref": { "type": ["string", "null"] },
+        "limitations": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "metric_results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["metric_id", "status", "value", "unit", "evidence_refs", "limitations"],
+        "properties": {
+          "metric_id": { "type": "string", "minLength": 1 },
+          "status": { "enum": ["PASS", "FAIL", "MEASURED", "UNKNOWN", "NOT_RUN", "NOT_ASSESSED", "NOT_APPLICABLE", "NOT_VALIDATED"] },
+          "value": { "type": ["number", "string", "object", "null"] },
+          "unit": { "type": ["string", "null"] },
+          "numerator": { "type": ["number", "integer", "null"] },
+          "denominator": { "type": ["number", "integer", "null"] },
+          "interval": { "type": ["object", "null"] },
+          "evidence_refs": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "limitations": { "type": "array", "items": { "type": "string" } }
+        },
+        "additionalProperties": false
+      }
+    },
+    "evidence_sufficiency": {
+      "type": "object",
+      "required": ["status", "rationale", "missing_evidence"],
+      "properties": {
+        "status": { "enum": ["sufficient_for_scope", "partial", "insufficient", "not_assessed"] },
+        "rationale": { "type": "string" },
+        "missing_evidence": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "composite": {
+      "type": "object",
+      "required": ["status", "value", "model_id", "scope", "validation_report_ref", "limitations"],
+      "properties": {
+        "status": { "enum": ["NOT_COMPUTED", "NOT_VALIDATED", "PARTIALLY_VALIDATED", "VALIDATED_FOR_SCOPE", "REJECTED"] },
+        "value": { "type": ["number", "null"] },
+        "model_id": { "type": ["string", "null"] },
+        "scope": { "type": ["string", "null"] },
+        "validation_report_ref": { "type": ["string", "null"] },
+        "limitations": { "type": "array", "items": { "type": "string" } }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "status": { "const": "VALIDATED_FOR_SCOPE" } }, "required": ["status"] },
+          "then": {
+            "properties": {
+              "value": { "type": "number" },
+              "model_id": { "type": "string", "minLength": 1 },
+              "scope": { "type": "string", "minLength": 1 },
+              "validation_report_ref": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        {
+          "if": { "properties": { "status": { "enum": ["NOT_COMPUTED", "NOT_VALIDATED", "REJECTED"] } }, "required": ["status"] },
+          "then": { "properties": { "value": { "type": "null" } } }
+        }
+      ],
+      "additionalProperties": false
+    },
+    "findings": { "type": "array", "items": { "type": "object", "required": ["finding_id", "severity", "description", "evidence_refs"], "properties": { "finding_id": { "type": "string" }, "severity": { "enum": ["critical", "high", "medium", "low", "informational"] }, "description": { "type": "string" }, "evidence_refs": { "type": "array", "items": { "type": "string" } } }, "additionalProperties": false } },
+    "limitations": { "type": "array", "items": { "type": "string" } }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "evaluation_purpose": { "const": "capability" } }, "required": ["evaluation_purpose"] },
+      "then": { "required": ["capability_analysis"], "properties": { "capability_analysis": { "type": "object" } } }
+    },
+    {
+      "if": { "properties": { "evaluation_purpose": { "const": "regression" } }, "required": ["evaluation_purpose"] },
+      "then": { "required": ["regression_analysis"], "properties": { "regression_analysis": { "type": "object" } } }
+    },
+    {
+      "if": { "properties": { "evaluation_purpose": { "const": "both" } }, "required": ["evaluation_purpose"] },
+      "then": {
+        "required": ["capability_analysis", "regression_analysis"],
+        "properties": { "capability_analysis": { "type": "object" }, "regression_analysis": { "type": "object" } }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

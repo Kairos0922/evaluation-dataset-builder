@@ -135,6 +135,40 @@ jobs:
         if: steps.scope.outputs.run_validation == 'true'
         run: python -m unittest discover -s tests -p "test_*.py" -v
 
+      - name: Run G-Theory Monte Carlo parameter-recovery experiment (40x25)
+        if: steps.scope.outputs.run_validation == 'true'
+        run: python scripts/run_g_theory_parameter_recovery.py --persons 40 --items 25 --output artifacts/g-theory-parameter-recovery-40x25.json
+
+      - name: Run G-Theory small-design sensitivity (20x10)
+        if: steps.scope.outputs.run_validation == 'true'
+        run: python scripts/run_g_theory_parameter_recovery.py --persons 20 --items 10 --output artifacts/g-theory-parameter-recovery-20x10.json
+
+      - name: Run G-Theory large-design sensitivity (80x50)
+        if: steps.scope.outputs.run_validation == 'true'
+        run: python scripts/run_g_theory_parameter_recovery.py --persons 80 --items 50 --output artifacts/g-theory-parameter-recovery-80x50.json
+
+      - name: Upload G-Theory Monte Carlo evidence
+        if: steps.scope.outputs.run_validation == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: g-theory-parameter-recovery
+          path: artifacts/g-theory-parameter-recovery-*.json
+          if-no-files-found: error
+          retention-days: 90
+
+      - name: Run offline IDA controlled-mutation sensitivity experiment
+        if: steps.scope.outputs.run_validation == 'true'
+        run: python scripts/run_ida_mutation_validation.py --output artifacts/ida-mutation-validation.json
+
+      - name: Upload offline IDA mutation evidence
+        if: steps.scope.outputs.run_validation == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ida-mutation-validation
+          path: artifacts/ida-mutation-validation.json
+          if-no-files-found: error
+          retention-days: 90
+
       - name: 验证独立 Gold Oracle 与 Builder 输出验证器
         if: steps.scope.outputs.run_validation == 'true' && hashFiles('benchmarks/webapp-testing/oracle/adjudicate_pilot.py') != ''
         run: |
@@ -1509,3 +1543,150 @@ jobs:
           path: openrouter-preflight.json
           if-no-files-found: warn
           retention-days: 7
+
+  # PR #44 真实 Builder 产出与三条 DSH Pilot 的离线复核。
+  # 只下载已归档证据，不发起模型调用、不生成或修改正式评测用例。
+  round4-real-evidence-assessment:
+    if: github.event_name == 'pull_request' && github.event.pull_request.number == 44
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: .github/requirements-ci.txt
+
+      - name: 安装分析依赖
+        run: python -m pip install --disable-pip-version-check -r .github/requirements-ci.txt
+
+      - name: 下载冻结的 Round 4 Builder 与 Pilot 证据
+        uses: actions/download-artifact@v4
+        with:
+          repository: ${{ github.repository }}
+          run-id: 45189512695
+          name: round4-wb12-deepseek-output
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path: artifacts/round4-evidence
+
+      - name: 检查证据归档路径
+        env:
+          EVIDENCE_ROOT: artifacts/round4-evidence/evaluation-dataset-builder/evaluation-dataset-builder/artifacts
+        run: |
+          set -euo pipefail
+          test -f "$EVIDENCE_ROOT/source/webapp-testing-builder-output/wb-core.jsonl"
+          test -f "$EVIDENCE_ROOT/source/builder-replay-validation.json"
+          test -f "$EVIDENCE_ROOT/oracle-adjudication.json"
+          test -f "$EVIDENCE_ROOT/pilots/WB-02/runner-result.json"
+          test -f "$EVIDENCE_ROOT/pilots/WB-10/runner-result.json"
+          test -f "$EVIDENCE_ROOT/pilots/WB-12/runner-result.json"
+
+      - name: 将真实 DSH 运行与独立 Oracle 证据导入 ERA 记录
+        env:
+          EVIDENCE_ROOT: artifacts/round4-evidence/evaluation-dataset-builder/evaluation-dataset-builder/artifacts
+        run: |
+          set -euo pipefail
+          python scripts/import_dsh_pilot_records.py \
+            --evidence-root "$EVIDENCE_ROOT" \
+            --output artifacts/round4-runtime-records.jsonl \
+            --source-registry-output artifacts/round4-source-registry.json \
+            --metadata-output artifacts/round4-runtime-import-metadata.json \
+            --builder-run-id 44959366258 \
+            --builder-artifact-id 14729741906 \
+            --independent-validation-run-id 44968128127 \
+            --post-pilot-revalidation-run-id 45291624154 \
+            --pilot-run-id 45189512695 \
+            --pilot-artifact-id 14824967038
+
+      - name: 运行 IDA：对 Builder 原始产出做独立离线评价
+        env:
+          EVIDENCE_ROOT: artifacts/round4-evidence/evaluation-dataset-builder/evaluation-dataset-builder/artifacts
+        run: |
+          set -euo pipefail
+          python scripts/assess_dataset_quality.py \
+            --manifest "$EVIDENCE_ROOT/source/webapp-testing-builder-output/wb-core.manifest.json" \
+            --cases "$EVIDENCE_ROOT/source/webapp-testing-builder-output/wb-core.jsonl" \
+            --source-registry artifacts/round4-source-registry.json \
+            --output artifacts/round4-ida-report.json \
+            --evaluation-purpose capability
+
+      - name: 运行 ERA：分析三条真实 Skill Pilot
+        run: |
+          set -euo pipefail
+          python scripts/assess_runtime_quality.py \
+            --records artifacts/round4-runtime-records.jsonl \
+            --output artifacts/round4-era-report.json \
+            --dataset-version 1.0.0 \
+            --target-name "Anthropic webapp-testing Skill" \
+            --evaluation-purpose capability
+
+      - name: 对真实 Pilot 运行 Capability / Rasch / G-Theory 诊断
+        run: |
+          set -euo pipefail
+          python scripts/analyze_capability_measurement.py \
+            --records artifacts/round4-runtime-records.jsonl \
+            --output artifacts/round4-capability-measurement-report.json
+
+      - name: 核对报告边界与未完成证据
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          from scripts.validate_quality_assessment import validate_report
+          from scripts.analyze_capability_measurement import validate_report as validate_capability_report
+
+          ida = json.loads(Path("artifacts/round4-ida-report.json").read_text())
+          era = json.loads(Path("artifacts/round4-era-report.json").read_text())
+          capability = json.loads(Path("artifacts/round4-capability-measurement-report.json").read_text())
+          metadata = json.loads(Path("artifacts/round4-runtime-import-metadata.json").read_text())
+
+          for label, report in (("IDA", ida), ("ERA", era)):
+              errors = validate_report(report)
+              assert not errors, f"{label} report contract validation failed: {errors}"
+          capability_errors = validate_capability_report(capability)
+          assert not capability_errors, f"Capability measurement report contract failed: {capability_errors}"
+          assert capability["evidence"]["input_record_count"] == 3
+          assert capability["dif"]["status"] == "NOT_ASSESSED"
+          assert capability["measurement_invariance"]["status"] == "NOT_ASSESSED"
+          print(f"Capability measurement status: {capability['overall_status']}; eligible persons/items: {capability['evidence']['eligible_person_count']}/{capability['evidence']['eligible_item_count']}.")
+          print("PASS: IDA and ERA reports conform to their JSON Schemas and cross-field contracts.")
+
+          assert ida["overall_status"] == "PARTIAL", ida["overall_status"]
+          assert ida["composite"]["status"] == "NOT_VALIDATED"
+          assert era["capability_analysis"]["status"] == "PARTIAL"
+          assert era["grader_validation"]["status"] == "NOT_RUN"
+          assert era["composite"]["status"] == "NOT_VALIDATED"
+          assert len(era["runs"]) == 3
+          assert all(run["status"] == "valid" for run in era["runs"])
+          assert all(run["agent_outcome"] == "pass" for run in era["runs"])
+          assert all(run["gold_outcome"] == "pass" for run in era["runs"])
+          assert metadata["independent_validation_status"] == "PASS"
+          assert metadata["dataset_quality_status"] == "needs_info"
+          assert metadata["dataset_execution_status"] == "NOT_RUN"
+          assert metadata["case_count"] == 15
+          assert metadata["pilot_case_count"] == 3
+          assert metadata["unexecuted_case_count"] == 12
+          print("PASS: IDA/ERA reports preserve partial scope, missing Judge, NOT_RUN cases and unvalidated composite.")
+          PY
+
+      - name: 归档真实证据分析报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: round4-real-evidence-assessment
+          path: |
+            artifacts/round4-runtime-records.jsonl
+            artifacts/round4-runtime-import-metadata.json
+            artifacts/round4-source-registry.json
+            artifacts/round4-ida-report.json
+            artifacts/round4-era-report.json
+            artifacts/round4-capability-measurement-report.json
+          if-no-files-found: warn
+          retention-days: 90

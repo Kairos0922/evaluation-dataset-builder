@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -19,6 +20,25 @@ CHECK_IDS = {
     "discovery", "positive_trigger", "negative_trigger",
     "reference_loading", "task_execution",
 }
+
+
+def _reject_json_constant(value):
+    raise ValueError(f"非标准 JSON 数值常量：{value}")
+
+
+def _non_finite_number_paths(value, path="$"):
+    if isinstance(value, float) and not math.isfinite(value):
+        yield path
+    elif isinstance(value, dict):
+        for key, child in value.items():
+            yield from _non_finite_number_paths(child, f"{path}.{key}")
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            yield from _non_finite_number_paths(child, f"{path}[{index}]")
+
+
+def load_report(path):
+    return json.loads(Path(path).read_text(encoding="utf-8"), parse_constant=_reject_json_constant)
 
 
 def derive_status(values):
@@ -105,7 +125,11 @@ def validate_report(report, candidate_sha, skill_tree_sha,
     if jsonschema is None:
         raise RuntimeError("缺少 jsonschema；请运行 python -m pip install jsonschema")
 
-    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    non_finite = list(_non_finite_number_paths(report))
+    if non_finite:
+        raise ValueError("报告包含非有限数值：" + ", ".join(non_finite[:20]))
+
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"), parse_constant=_reject_json_constant)
     jsonschema.Draft202012Validator.check_schema(schema)
     validator = jsonschema.Draft202012Validator(
         schema, format_checker=jsonschema.FormatChecker()
@@ -188,7 +212,7 @@ def main():
     parser.add_argument("--require-pass", action="store_true", help="将非 PASS 状态视为发布阻断")
     args = parser.parse_args()
 
-    report = json.loads(Path(args.report).read_text(encoding="utf-8"))
+    report = load_report(args.report)
     validate_report(
         report, args.candidate_sha, args.skill_tree_sha,
         require_pass=args.require_pass, evidence_dir=args.evidence_dir,

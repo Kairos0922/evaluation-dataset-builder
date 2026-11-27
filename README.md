@@ -1,12 +1,22 @@
 # 评测数据集构建 Skill
 
-**版本：** 0.0.1  
-**发布状态：** 已正式发布（[GitHub Release v0.0.1](https://github.com/Kairos0922/evaluation-dataset-builder/releases/tag/v0.0.1)）  
+**当前分支候选版本：** 0.0.2（未发布）  
+**当前正式稳定版本：** 0.0.1（[GitHub Release v0.0.1](https://github.com/Kairos0922/evaluation-dataset-builder/releases/tag/v0.0.1)）  
 **类型：** Agent Skills 开放格式 Skill
 
 
 
 > **v0.0.1 发布说明：** 本版本已于 2026-11-24 正式发布。发布候选 Skill SHA 为 `e934a079c88f729d8d66abee50a717797d88f9c3`，发布标签绑定的合并提交为 `cacf86c3b5b68098aef4b969b1e5caa4653708f1`。发布评测及 Builder/Pilot 证据的限制和未解决项见 [RELEASE.md](RELEASE.md) 与 [Release 页面](https://github.com/Kairos0922/evaluation-dataset-builder/releases/tag/v0.0.1)。
+
+## v0.0.2 研发与发布准备状态
+
+v0.0.2 在独立分支 feat/quality-assessment-v0.0.2 开发。当前自主工程任务 22/22 DONE，已进入发布准备阶段；当前分支的 VERSION 与 Skill frontmatter 已更新为 **0.0.2**，用于候选包验证；main 上的正式稳定版本仍为 **0.0.1**。0.0.2 尚未冻结为正式 RC，也未发布。
+
+本版本候选交付包括 IDA 离线质量检查、ERA 运行证据分析、机器可读报告契约、Capability/Regression 分析设计与探索性工具，以及对应的安全校验、测试和文档。开发工具、研究协议、测试和 CI 不属于可安装 Skill 包。
+
+**重要限制：** Round 4 共有 15 条用例，仅 3 条完成真实 Pilot，12 条 NOT_RUN；IDA/ERA 均为 PARTIAL，Judge 为 NOT_RUN，无 Regression 配对数据；IRT/DIF/G-Theory 未在真实数据上拟合。IDA 8/8 mutation 仅是合成确定性变异敏感性证据。综合分、权重和阈值保持 NOT_VALIDATED / null。Codex、Claude Code、claude.ai 和 Claude API 均未完成逐平台兼容认证。移出当前范围的外部依赖任务不代表已通过科学验证。
+
+任务与证据：[TASKS.md](docs/quality-assessment-v0.0.2/TASKS.md)；当前阶段质量审计：[quality-report.md](docs/quality-assessment-v0.0.2/quality-report.md)；发布准备审计：[RELEASE-PREP-0.0.2.md](RELEASE-PREP-0.0.2.md)；收缩版发布门禁：[RELEASE-GATE-0.0.2.md](RELEASE-GATE-0.0.2.md)。
 
 ## 这个 Skill 是做什么的
 

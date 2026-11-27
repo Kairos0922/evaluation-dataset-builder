@@ -1,0 +1,327 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Kairos0922/evaluation-dataset-builder/blob/main/docs/quality-assessment-v0.0.2/schemas/round4-oracle-freeze-manifest.schema.json",
+  "title": "Round 4 Pre-execution Oracle Freeze Manifest",
+  "description": "A human-adjudicated, hash-bound freeze decision for all twelve remaining Round 4 cases. This manifest freezes Oracle rules, not execution outcomes.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "freeze_id",
+    "dataset_id",
+    "dataset_version",
+    "dataset_sha256",
+    "oracle_plan_sha256",
+    "review_inputs",
+    "adjudication",
+    "cases",
+    "freeze_status"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "freeze_id": {
+      "type": "string",
+      "pattern": "^OR-FREEZE-R4-[A-Za-z0-9_-]+$"
+    },
+    "dataset_id": {
+      "const": "wb-core"
+    },
+    "dataset_version": {
+      "const": "1.0.0"
+    },
+    "dataset_sha256": {
+      "const": "000d38b110b60eae902f86737ea6bd1368f98c6632c42a47bb9470a4a08bfc45"
+    },
+    "oracle_plan_sha256": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "review_inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reviewer_a_id",
+        "reviewer_b_id",
+        "reviewer_a_submission_sha256",
+        "reviewer_b_submission_sha256",
+        "comparison_report_sha256",
+        "crosswalk_sha256"
+      ],
+      "properties": {
+        "reviewer_a_id": {
+          "type": "string",
+          "pattern": "^RV-[A-Za-z0-9_-]{3,40}$"
+        },
+        "reviewer_b_id": {
+          "type": "string",
+          "pattern": "^RV-[A-Za-z0-9_-]{3,40}$"
+        },
+        "reviewer_a_submission_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "reviewer_b_submission_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "comparison_report_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        },
+        "crosswalk_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      }
+    },
+    "adjudication": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "adjudicator_id",
+        "adjudicated_at",
+        "method",
+        "decision_summary",
+        "evidence_refs"
+      ],
+      "properties": {
+        "adjudicator_id": {
+          "type": "string",
+          "pattern": "^ADJ-[A-Za-z0-9_-]{3,40}$"
+        },
+        "adjudicated_at": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "method": {
+          "enum": [
+            "independent_third_reviewer",
+            "documented_joint_resolution",
+            "user_approved_resolution"
+          ]
+        },
+        "decision_summary": {
+          "type": "string",
+          "minLength": 30
+        },
+        "evidence_refs": {
+          "type": "array",
+          "minItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 12,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "case_id",
+          "case_sha256",
+          "freeze_decision",
+          "application_assertions",
+          "skill_assertions",
+          "application_unknown_conditions",
+          "skill_unknown_conditions",
+          "max_script_runs",
+          "max_write_actions",
+          "prohibited_side_effects",
+          "rationale",
+          "evidence_refs"
+        ],
+        "properties": {
+          "case_id": {
+            "enum": [
+              "WB-01",
+              "WB-03",
+              "WB-04",
+              "WB-05",
+              "WB-06",
+              "WB-07",
+              "WB-08",
+              "WB-09",
+              "WB-11",
+              "WB-13",
+              "WB-14",
+              "WB-15"
+            ]
+          },
+          "case_sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "freeze_decision": {
+            "enum": [
+              "FROZEN",
+              "NOT_FROZEN"
+            ]
+          },
+          "application_assertions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "assertion_id",
+                "normative_ref",
+                "pass_condition",
+                "fail_condition",
+                "unknown_condition",
+                "observation_methods"
+              ],
+              "properties": {
+                "assertion_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "normative_ref": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "pass_condition": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "fail_condition": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "unknown_condition": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "observation_methods": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "enum": [
+                      "api_state",
+                      "dom",
+                      "accessibility_snapshot",
+                      "playwright_trace",
+                      "browser_event_log",
+                      "server_audit",
+                      "runner_contract",
+                      "human_blind_review"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "skill_assertions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "assertion_id",
+                "pass_condition",
+                "fail_condition",
+                "unknown_condition",
+                "observation_methods"
+              ],
+              "properties": {
+                "assertion_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "pass_condition": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "fail_condition": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "unknown_condition": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "observation_methods": {
+                  "type": "array",
+                  "minItems": 1,
+                  "uniqueItems": true,
+                  "items": {
+                    "enum": [
+                      "api_state",
+                      "dom",
+                      "accessibility_snapshot",
+                      "playwright_trace",
+                      "browser_event_log",
+                      "server_audit",
+                      "runner_contract",
+                      "human_blind_review"
+                    ]
+                  }
+                }
+              }
+            }
+          },
+          "application_unknown_conditions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "skill_unknown_conditions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "max_script_runs": {
+            "const": 1
+          },
+          "max_write_actions": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "prohibited_side_effects": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "rationale": {
+            "type": "string",
+            "minLength": 30
+          },
+          "evidence_refs": {
+            "type": "array",
+            "minItems": 2,
+            "uniqueItems": true,
+            "items": {
+              "type": "string",
+              "minLength": 1
+            }
+          }
+        }
+      }
+    },
+    "freeze_status": {
+      "enum": [
+        "FROZEN",
+        "NOT_FROZEN"
+      ]
+    }
+  }
+}

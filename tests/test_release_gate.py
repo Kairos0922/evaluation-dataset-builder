@@ -139,6 +139,10 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "references/scenario-buckets.md",
             "references/change-impact-and-repair.md",
             "references/dataset-manifest-schema.json",
+            "references/ida-report.schema.json",
+            "references/era-report.schema.json",
+            "references/runtime-record.schema.json",
+            "references/formula-validation.schema.json",
         ]
         for host_id in hosts:
             discovery = add_evidence(host_id, "discovery", f"{host_id}-discovery")
@@ -352,27 +356,84 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
     def test_tag_workflow_runs_verifier_before_release_creation(self):
         workflow = (ROOT / ".github" / "workflows" / "publish-release.yml").read_text(encoding="utf-8")
-        self.assertIn('push:', workflow)
-        self.assertIn('branches: ["main"]', workflow)
-        self.assertIn('.github/publish-release-trigger.txt', workflow)
-        self.assertIn('values.get("confirm_publish") != "true"', workflow)
+        self.assertNotIn('push:', workflow)
+        self.assertIn("if: github.event_name == 'workflow_dispatch' && inputs.confirm_publish == true", workflow)
         self.assertIn("INPUT_CONFIRM: ${{ inputs.confirm_publish }}", workflow)
         self.assertIn('RELEASE_BUILDER_PR_NUMBER', workflow)
         self.assertNotIn("python scripts/verify_release.py", workflow)
         self.assertIn("create_release_tag.py", workflow)
-        self.assertIn("python scripts/create_release_tag.py", workflow)
+        self.assertIn('tagger = importlib.import_module("create_release_tag")', workflow)
+        self.assertIn("tagger.create_release_tag()", workflow)
         self.assertIn("workflow_dispatch:", workflow)
         self.assertIn("candidate_sha:", workflow)
         self.assertIn("confirm_publish:", workflow)
         self.assertNotIn("pull_request:", workflow)
         self.assertIn("gh release create", workflow)
-        self.assertLess(workflow.index("python scripts/create_release_tag.py"),
+        self.assertLess(workflow.index("tagger.create_release_tag()"),
                         workflow.index("gh release create"))
-        self.assertIn("python scripts/update_release_doc.py", workflow)
+        self.assertIn('python "$RUNNER_TEMP/release-tools/scripts/update_release_doc.py"', workflow)
         self.assertLess(workflow.index("gh release create"),
-                        workflow.index("python scripts/update_release_doc.py"))
+                        workflow.index('python "$RUNNER_TEMP/release-tools/scripts/update_release_doc.py"'))
         self.assertIn("pull-requests: read", workflow)
         self.assertIn("actions: read", workflow)
+
+    def test_v0_0_2_release_workflow_is_manual_guarded_and_sha_bound(self):
+        workflow = (ROOT / ".github" / "workflows" / "publish-release-v0.0.2.yml").read_text(encoding="utf-8")
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertNotIn("push:", workflow)
+        self.assertNotIn("pull_request:", workflow)
+        self.assertIn("default: false", workflow)
+        self.assertIn("confirm_publish", workflow)
+        self.assertIn("candidate_sha", workflow)
+        self.assertIn("PR_JSON", workflow)
+        self.assertIn(".head.sha", workflow)
+        self.assertIn(".merge_commit_sha", workflow)
+        self.assertIn("CANDIDATE_TREE", workflow)
+        self.assertIn("MERGE_TREE", workflow)
+        self.assertIn('select(.name == "validate"', workflow)
+        self.assertIn('select(.name == "round4-real-evidence-assessment"', workflow)
+        self.assertIn('test "$(cat VERSION)" = "0.0.2"', workflow)
+        self.assertIn("python scripts/validate_skill.py", workflow)
+        self.assertIn('python -m unittest discover -s tests -p "test_*.py" -v', workflow)
+        self.assertIn("evaluation-dataset-builder-0.0.2.zip", workflow)
+        self.assertIn("git push origin refs/tags/v0.0.2", workflow)
+        self.assertIn("gh release create v0.0.2", workflow)
+
+    def test_v0_0_2_candidate_package_workflow_builds_runtime_only_exact_sha_archive(self):
+        workflow = (ROOT / ".github" / "workflows" / "package-release-candidate.yml").read_text(encoding="utf-8")
+        self.assertIn("pull_request:", workflow)
+        self.assertNotIn("    paths:", workflow)
+        self.assertIn("github.event.pull_request.head.sha", workflow)
+        self.assertIn("python scripts/validate_skill.py", workflow)
+        self.assertIn("evaluation-dataset-builder-0.0.2.zip", workflow)
+        self.assertIn("EXPECTED_SKILL_FILES", workflow)
+        self.assertIn("Archive content mismatch", workflow)
+        self.assertIn("skill-package-candidate-", workflow)
+        self.assertIn("actions/upload-artifact@v4", workflow)
+        self.assertIn("contents: read", workflow)
+        self.assertNotIn("gh release create", workflow)
+        self.assertNotIn("git push", workflow)
+
+    def test_v0_0_2_release_notes_disclose_evidence_boundaries(self):
+        notes = (ROOT / "RELEASE-NOTES-0.0.2.md").read_text(encoding="utf-8")
+        gate = (ROOT / "RELEASE-GATE-0.0.2.md").read_text(encoding="utf-8")
+        for required in ("12 条", "PARTIAL", "NOT_RUN", "NOT_VALIDATED", "综合分"):
+            self.assertIn(required, notes)
+        self.assertIn("不证明", notes)
+        self.assertIn("范围", gate)
+        self.assertIn("不得把范围移除解释为科学验证通过", gate)
+
+    def test_v0_0_2_release_prep_matches_candidate_scope_and_metadata(self):
+        prep = (ROOT / "RELEASE-PREP-0.0.2.md").read_text(encoding="utf-8")
+        tasks = (ROOT / "docs" / "quality-assessment-v0.0.2" / "TASKS.md").read_text(encoding="utf-8")
+        version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+        self.assertEqual(version, "0.0.2")
+        self.assertIn("22/22 DONE", prep)
+        self.assertIn("17 项", prep)
+        self.assertIn("READY FOR FINAL REVIEW", prep)
+        self.assertIn("NOT_VALIDATED", prep)
+        self.assertIn("当前统计：22 项", tasks)
+        self.assertIn("D-009", tasks)
 
     def test_manual_behavior_workflow_is_exact_sha_and_flash_only(self):
         workflow = (ROOT / ".github" / "workflows" / "behavioral-eval.yml").read_text(encoding="utf-8")
@@ -650,13 +711,13 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
     def test_release_document_is_marked_published_only_with_evidence(self):
         current = (
-            "# 0.0.1 发布候选说明\\n\\n"
-            "**状态：** 尚未正式发布\\n\\n"
-            "## 发布门禁\\n"
-            "- [ ] Builder 正式生成的评测套件通过独立验证。\\n"
-            "- [ ] 三条真实 Skill 试运行完成并有可复核证据。\\n"
-            "- [ ] 核心行为测试达到预设阈值，并提供可审查报告。\\n"
-            "- [ ] 匹配基线和重复运行稳定性检查通过。\\n"
+            "# 0.0.1 发布候选说明\n\n"
+            "**状态：** 尚未正式发布\n\n"
+            "## 发布门禁\n"
+            "- [ ] Builder 正式生成的评测套件通过独立验证。\n"
+            "- [ ] 三条真实 Skill 试运行完成并有可复核证据。\n"
+            "- [ ] 核心行为测试达到预设阈值，并提供可审查报告。\n"
+            "- [ ] 匹配基线和重复运行稳定性检查通过。\n"
         )
         report = {
             "models": {"generator": "qwen-test", "judge_and_trigger": "judge-test"},
@@ -672,7 +733,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
                 "workflow_run_url": "https://github.com/example/repo/actions/runs/98765",
                 "dataset_count": 3, "case_count": 24, "pilot_count": 3,
                 "pilot_case_ids": ["CASE-DELETE", "CASE-STATE", "CASE-SEARCH"],
-                "skill_tree_matches_release_candidate": True,
+                "skill_tree_matches_builder_evidence_and_release_candidate": True,
             },
         }
         updated = UPDATE_RELEASE_DOC.build_published_release_doc(
@@ -1778,6 +1839,9 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "references/scenario-buckets.md",
             "references/change-impact-and-repair.md",
             "references/dataset-manifest-schema.json",
+            "references/ida-report.schema.json",
+            "references/era-report.schema.json",
+            "references/runtime-record.schema.json",
         }
         for relative_path in required_refs:
             self.assertTrue((SKILL_DIR / relative_path).is_file(), relative_path)
@@ -1833,6 +1897,11 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "references/scenario-buckets.md",
             "references/change-impact-and-repair.md",
             "references/dataset-manifest-schema.json",
+            "references/ida-report.schema.json",
+            "references/era-report.schema.json",
+            "references/runtime-record.schema.json",
+            "references/formula-validation.schema.json",
+            "references/expert-review-record.schema.json",
         }
         actual_files = {
             item.relative_to(SKILL_DIR).as_posix()
@@ -1847,7 +1916,9 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
         skill_text = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("license: MIT", skill_text)
-        self.assertIn('version: "0.0.1"', skill_text)
+        version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+        self.assertEqual(version, "0.0.2")
+        self.assertIn(f'version: "{version}"', skill_text)
         self.assertNotIn("host-agent-capability-adapter", skill_text)
 
         forbidden_terms = (
