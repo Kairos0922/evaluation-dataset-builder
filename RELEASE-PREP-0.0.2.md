@@ -16,7 +16,7 @@
 | PR #44 | Draft / Open / 未合并 |
 | 当前正式版本 | 0.0.1 |
 | 0.0.2 版本元数据 | 尚未升级 |
-| 0.0.2 专属发布门禁 | 已建立准备基线；发布自动化尚未适配 |
+| 0.0.2 专属发布门禁 | 已建立；新增受显式确认保护的手动发布工作流，待精确 head CI/actionlint 验证 |
 | 精确当前 head CI | Run #2067 SUCCESS，head 5192144a497bdfede1d45c5d39dd2cdf187cd9a4 |
 | Release Candidate | 尚未批准/冻结 |
 | Tag / GitHub Release | 未创建 |
@@ -67,11 +67,12 @@
 - tests/ 下 JSON/JSONL、Benchmark fixtures、模板和报告 Schema 均是回归测试输入，不是临时产物，必须保留。
 - docs/ 下研究协议、证据索引、历史报告和决策记录是可审计研发资产，不作为安装包内容，不因“过程文件”名义删除。
 - Skill 安装包以 validate_skill.py 的白名单为准；CI 必须证明无额外文件。
-- 当前未发现可安全删除的已跟踪临时构建产物；因此本轮不做破坏性删除。
+- 已删除过时的 .github/publish-release-trigger.txt，并将 v0.0.1 发布工作流改为仅支持显式确认的手动触发，避免合并分支时因旧 trigger 文件变化意外重跑旧版本发布流程。
+- 当前未发现其他可安全删除的已跟踪临时构建产物；因此未删除测试夹具、协议或历史证据。
 
 ## 6. 发布前仍需完成的仓库内工作
 
-1. 建立并验证 0.0.2 专属发布工作流/脚本；现有发布工作流和验证器绑定 v0.0.1，不能直接复用。
+1. 验证新增 .github/workflows/publish-release-v0.0.2.yml：必须由 actionlint 与完整 CI 检查；工作流仅 workflow_dispatch，confirm_publish 默认 false，并核验 PR 合并、候选 SHA、tree identity、精确 CI 与 VERSION。
 2. 依据用户确认的收缩版发布范围，准备并同步版本元数据、README、CHANGELOG、RELEASE.md 和正式 Skill frontmatter。
 3. 将所有最终文档与代码提交到 PR #44，并对精确候选 SHA 执行完整 CI。
 4. 审查正式 Skill 包内容和发布 ZIP，确保只含运行时白名单资产。
@@ -79,8 +80,8 @@
 
 ## 7. 发布判定
 
-当前判定：**NOT READY — release candidate not frozen**。
+当前判定：**NOT READY — release candidate not frozen**。0.0.2 专属手动发布工作流已创建，但尚未通过新 head 的 CI/actionlint 验证；该工作流未触发，也未创建 Tag/Release。
 
-原因不是当前 22 项自主工程任务未完成，而是 0.0.2 专属发布自动化尚未建立，正式版本元数据尚未转换，最终候选 SHA 尚未完成发布审查。当前科学限制必须作为产品范围说明披露，不得被版本准备工作抹除。
+原因不是当前 22 项自主工程任务未完成，而是 0.0.2 专属发布自动化尚待 CI 验证，正式版本元数据尚未转换，最终候选 SHA 尚未完成发布审查。当前科学限制必须作为产品范围说明披露，不得被版本准备工作抹除。
 
 下一步按 RELEASE-GATE-0.0.2.md 执行。
