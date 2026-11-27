@@ -23,13 +23,17 @@ sys.path.insert(0, str(ROOT))
 from scripts.validate_judge_calibration import recompute_summary, validate_report
 
 
+def _reject_json_constant(token: str):
+    raise ValueError(f"invalid JSON numeric constant: {token}")
+
+
 def sha256_bytes(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
 def load_json(path: Path) -> tuple[dict, bytes]:
     raw = path.read_bytes()
-    value = json.loads(raw.decode("utf-8"))
+    value = json.loads(raw.decode("utf-8"), parse_constant=_reject_json_constant)
     if not isinstance(value, dict):
         raise ValueError(f"{path} must contain a JSON object")
     return value, raw
@@ -37,7 +41,7 @@ def load_json(path: Path) -> tuple[dict, bytes]:
 
 def build_report(observations: dict, suite_path: Path, observations_bytes: bytes,
                  *, run_id: str | None = None, commit_sha: str | None = None) -> dict:
-    schema = json.loads(INPUT_SCHEMA.read_text(encoding="utf-8"))
+    schema = json.loads(INPUT_SCHEMA.read_text(encoding="utf-8"), parse_constant=_reject_json_constant)
     Draft202012Validator.check_schema(schema)
     input_errors = sorted(
         Draft202012Validator(schema, format_checker=FormatChecker()).iter_errors(observations),
@@ -50,7 +54,7 @@ def build_report(observations: dict, suite_path: Path, observations_bytes: bytes
         ))
 
     suite_raw = suite_path.read_bytes()
-    suite = json.loads(suite_raw.decode("utf-8"))
+    suite = json.loads(suite_raw.decode("utf-8"), parse_constant=_reject_json_constant)
     dataset = observations["dataset"]
     if sha256_bytes(suite_raw) != dataset["suite_sha256"]:
         raise ValueError("dataset.suite_sha256 does not match frozen suite bytes")
