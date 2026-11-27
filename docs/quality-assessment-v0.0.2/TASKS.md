@@ -176,8 +176,8 @@
 
 
 ### 任务质量审计报告（2026-11-26）
-- 新增 [quality-report.md](quality-report.md)，逐项汇总 37 项任务状态、工程交付、CI/Artifact 证据、IDA/ERA 真实结果、科学效度缺口和发布建议。
-- 任务表状态统计：20 DONE、0 IN_PROGRESS、15 BLOCKED、2 DEFERRED、0 TODO。DONE 只表示该项设计/工程交付完成，不表示关联实证实验或发布门禁通过。
+- 新增 [quality-report.md](quality-report.md)，逐项汇总 38 项任务状态、工程交付、CI/Artifact 证据、IDA/ERA 真实结果、科学效度缺口和发布建议。
+- 任务表状态统计：21 DONE、0 IN_PROGRESS、15 BLOCKED、2 DEFERRED、0 TODO。DONE 只表示该项设计/工程交付完成，不表示关联实证实验或发布门禁通过。
 - 当前结论：工程验证通过，实证效度部分完成，发布门禁未通过。PR #44 保持 Draft/Open，不创建 v0.0.2 tag/release。
 
 
@@ -185,7 +185,7 @@
 - 最新报告/任务清单文档 head `87d3747444ddaa5e7391e202f7595121f1fa86a7` 对应 Run #1939（45720458350）Workflow SUCCESS：actionlint、正式 Skill 包、Benchmark、215/215 离线测试 PASS；Round 4 IDA/ERA 报告 Schema 与 cross-field contract PASS。
 - Round 4 artifact #15072186678，SHA-256 `be681dfd0a61be229e66b7953b3f02f66366d31d700b8e33755e3719df739b44`。IDA/ERA PARTIAL，15 条用例中 3 条 Pilot、12 条 NOT_RUN，Judge NOT_RUN，composite NOT_VALIDATED。
 - Builder production / independent-validation / Pilot / adjudication jobs 均 SKIPPED；本次没有新增真实运行或人工 Oracle 证据。
-- 最新任务质量报告见 `quality-report.md`；当前共 37 项任务。PR #44 继续 Draft/Open。
+- 最新任务质量报告见 `quality-report.md`；当前共 38 项任务。PR #44 继续 Draft/Open。
 
 
 ### TASKS.md 最终审计记录 head 复验（2026-11-26）
@@ -198,7 +198,7 @@
 - 精确 head `3a99fcc0de3609971d6c701bade210251c77fd04` 对应 Run #1941（45720784376）Workflow SUCCESS：actionlint、正式 Skill 包、Benchmark、215/215 离线测试 PASS；Round 4 IDA/ERA Schema 与 cross-field contract PASS。
 - Round 4 artifact #15070789521，SHA-256 `729c0131446788b21a06aa280b8b75f48218e3e21e5b666a284ca9a59977c1e5`。IDA/ERA PARTIAL，15 条中 3 条 Pilot、12 条 NOT_RUN，Judge NOT_RUN，composite NOT_VALIDATED。
 - Builder production、independent-validation、Pilot、adjudication jobs 均 SKIPPED；本次未新增真实运行、独立评审或 Oracle freeze。
-- 当前任务质量报告：`quality-report.md`。37 项任务状态：20 DONE、0 IN_PROGRESS、15 BLOCKED、2 DEFERRED、0 TODO。
+- 当前任务质量报告：`quality-report.md`。38 项任务状态：21 DONE、0 IN_PROGRESS、15 BLOCKED、2 DEFERRED、0 TODO。
 
 
 ### 最新质量报告提交 head 复验（2026-11-26）
@@ -395,3 +395,12 @@
 - 代码提交：`b0eae3305ba92dc6aaaede341dc24bbe8ed484b4`、`c223fc483b03e61b1220c5d4d63a13ea358ea07b`、`660453f2b5ffd4d0aa5c78aa98ffbd99dca774f4`；测试提交：`708c111b93c81e06bed70bf004b6e5490a6d277a`、`868350c02a710292415a06f6ac78f65427448e9e`。该批次净改动仅涉及 IDA evaluator 和对应测试。
 - Run #2034（[45916033576](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45916033576)，精确 head `ee0e03bbc0731acf4ca814a4d4a8b113f0ecad88`）SUCCESS：actionlint、Skill package、Benchmark、246/246 离线测试、G-Theory 三种设计模拟、IDA controlled-mutation、Round 4 IDA/ERA/Capability contracts 全部 PASS。三项新增畸形输入测试均通过；IDA mutation artifact #15162172012，Round 4 evidence artifact #15162087227，G-Theory artifact #15162201977。P0-ROBUST-01 据此标记 DONE。
 - 此修复只改善畸形输入处理的工程鲁棒性，不改变 IDA 对语义效度、独立 Gold、污染审计或综合分的判断；QA-02 继续 BLOCKED，composite 继续 NOT_VALIDATED。
+
+
+### 精确 PR head 完整复验（2026-11-27）
+
+- 最新 PR head `93dce24092908d8f569804d2c14c7372339b26b1` 对应 Run #2035（[45916212402](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45916212402)）SUCCESS。
+- actionlint、正式 Skill 包、Benchmark、246/246 离线测试、G-Theory 40×25 / 20×10 / 80×50 模拟、IDA controlled-mutation 和 Round 4 IDA/ERA/Capability report contracts 全部 PASS。
+- 新增 3 项 IDA 畸形输入回归测试全部 PASS；Run #2035 的 Round 4 artifact #15162063803、IDA mutation artifact #15162118788、G-Theory artifact #15161964062。
+- production Builder、独立验证、Pilot、adjudication 和 upstream asset audit jobs 均 SKIPPED；本次只复验既有冻结证据，没有新增生产运行、Pilot 或独立 Gold。
+- 当前 38 项任务：21 DONE、15 BLOCKED、2 DEFERRED；PR #44 仍 Draft/Open，正式版本仍 0.0.1。
