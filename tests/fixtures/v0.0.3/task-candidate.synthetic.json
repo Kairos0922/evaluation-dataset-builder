@@ -1,0 +1,20 @@
+{
+  "schema_version": "0.0.3",
+  "candidate_id": "cand-synthetic-001",
+  "source_id": "src-synthetic-001",
+  "discovery_signals": [
+    "user_correction",
+    "rework_or_revision",
+    "multi_turn_interaction"
+  ],
+  "evidence_refs": [
+    {
+      "event_start": "evt-001",
+      "event_end": "evt-008",
+      "description": "Synthetic correction and revision sequence."
+    }
+  ],
+  "status": "under_review",
+  "created_at": "2026-11-28T12:01:00Z",
+  "priority_rationale": "Illustrates candidate discovery only."
+}
