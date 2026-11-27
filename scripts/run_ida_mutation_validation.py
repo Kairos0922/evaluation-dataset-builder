@@ -24,6 +24,10 @@ from scripts.assess_dataset_quality import build_report
 from scripts.validate_quality_assessment import validate_report as validate_ida_report
 
 CATALOG_PATH = ROOT / "docs" / "quality-assessment-v0.0.2" / "defect-mutation-catalog.yaml"
+def _reject_json_constant(token: str):
+    raise ValueError(f"invalid JSON numeric constant: {token}")
+
+
 SCHEMA_PATH = ROOT / "docs" / "quality-assessment-v0.0.2" / "schemas" / "ida-mutation-validation-report.schema.json"
 
 
@@ -367,7 +371,7 @@ def run_validation() -> dict:
 
 
 def validate_report(report: dict) -> list[str]:
-    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"), parse_constant=_reject_json_constant)
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema, format_checker=FormatChecker())
     return [
