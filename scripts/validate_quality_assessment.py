@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -99,10 +100,31 @@ def _validate_composite(report: dict) -> list[str]:
     return errors
 
 
+def _non_finite_number_paths(value, path: str = "<root>") -> list[str]:
+    """Find NaN and +/-Infinity values before JSON Schema validation."""
+    if isinstance(value, float) and not math.isfinite(value):
+        return [path]
+    if isinstance(value, dict):
+        paths = []
+        for key, child in value.items():
+            paths.extend(_non_finite_number_paths(child, f"{path}.{key}"))
+        return paths
+    if isinstance(value, list):
+        paths = []
+        for index, child in enumerate(value):
+            paths.extend(_non_finite_number_paths(child, f"{path}[{index}]"))
+        return paths
+    return []
+
+
 def validate_report(report: dict, assessment_type: str | None = None) -> list[str]:
     """Return schema and cross-field errors; an empty list means contract-valid."""
     if not isinstance(report, dict):
         return ["report root must be an object"]
+
+    non_finite_paths = _non_finite_number_paths(report)
+    if non_finite_paths:
+        return [f"non-finite numeric value is not valid JSON at {path}" for path in non_finite_paths]
 
     actual_type = report.get("assessment_type")
     if assessment_type is None:
@@ -167,7 +189,12 @@ def main() -> int:
 
     report_path = Path(args.report)
     try:
-        report = json.loads(report_path.read_text(encoding="utf-8"))
+        report = json.loads(
+            report_path.read_text(encoding="utf-8"),
+            parse_constant=lambda token: (_ for _ in ()).throw(
+                ValueError(f"invalid JSON numeric constant: {token}")
+            ),
+        )
     except Exception as exc:
         print(f"FAIL: cannot read report: {exc}", file=sys.stderr)
         return 2
