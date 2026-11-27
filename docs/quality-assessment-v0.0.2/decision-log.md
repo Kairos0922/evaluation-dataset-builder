@@ -89,3 +89,10 @@
 - 版本边界：在 0.0.2 Release Candidate 尚未冻结、发布工作流尚未适配且用户未明确批准前，VERSION 与 Skill frontmatter 暂保持 0.0.1；不合并 PR、不创建 Tag/Release、不触发收费模型调用或生产运行。
 - 影响：新增 RELEASE-GATE-0.0.2.md 和 RELEASE-PREP-0.0.2.md；更新 TASKS、quality-report、README、CHANGELOG 与 RELEASE.md 的当前状态。现有 v0.0.1 发布工作流/验证器不得直接用于 0.0.2。
 - 解释：本决策仅授权准备发布资料与执行仓库内安全审计，不构成降低科学证据标准或最终发布批准。
+
+### D-010 执行补充：发布自动化准备与旧触发器清理
+
+- 新增 .github/workflows/publish-release-v0.0.2.yml：仅 workflow_dispatch，confirm_publish 默认 false；执行前要求 PR #44 已合并、PR head SHA 与用户提供 candidate SHA 完全一致、merge commit 与当前 main 精确一致、候选 tree 与合并 tree 一致、候选精确 SHA 的 validate 与 round4-real-evidence-assessment checks 成功，并重新运行包验证、Benchmark、离线测试和 actionlint。
+- 新增 RELEASE-NOTES-0.0.2.md 发布说明草案。该文件明确披露当前证据限制。
+- 删除过时 .github/publish-release-trigger.txt；将旧 v0.0.1 发布工作流从 push/path trigger 改为仅手动且必须 confirm_publish=true，避免旧版本发布流程因 trigger 文件更新意外运行。
+- 本次未触发发布工作流、未升级 VERSION/frontmatter、未合并 PR、未创建 Tag/Release。新工作流需通过精确 head CI 后方可视为发布自动化准备完成。
