@@ -11,7 +11,7 @@
 
 v0.0.2 已完成需求基线、研究与方法论设计、IDA/ERA 核心工程实现、报告契约、确定性检查、Round 4 Oracle 执行前冻结工具、盲审资料包生成/比较工具、Judge 校准证据契约，以及架构/ERA 执行协议。
 
-**工程与契约层：阶段性通过。** 最新完整验证为 Run #2023（head `49613acf6d540f5ef494335a45eebca65077a64b`）：actionlint、Skill package、Benchmark、243/243 离线测试、G-Theory 三种样本设计模拟、IDA controlled mutation 和 Round 4 real-evidence report contracts 全部 PASS。该 Run 没有启动生产 Builder、独立评审或新增 Pilot；不代表新增科学效度证据。
+**工程与契约层：阶段性通过。** 最新完整验证为 Run #2035（[45916212402](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45916212402)，精确 PR head `93dce24092908d8f569804d2c14c7372339b26b1`）：actionlint、Skill package、Benchmark、246/246 离线测试、G-Theory 三种样本设计模拟、IDA controlled mutation 和 Round 4 IDA/ERA/Capability report contracts 全部 PASS。新增 3 项 IDA 畸形输入回归测试通过。该 Run 没有启动生产 Builder、独立评审或新增 Pilot；不代表新增科学效度证据。
 
 **科学效度层：证据不足。** 当前真实 Round 4 数据只有 15 条用例中的 3 条完成 Pilot 和独立 Gold Oracle 判定；其余 12 条未运行。独立专家内容效度与 Round 4 Oracle 评审已按用户决定暂缓；Judge 独立校准、盲测语义缺陷识别、完整 Capability/Regression 效标和公式冻结验证仍未完成。暂缓不等于通过。
 
@@ -19,16 +19,16 @@ v0.0.2 已完成需求基线、研究与方法论设计、IDA/ERA 核心工程�
 
 ## 2. TASKS.md 完成度
 
-当前任务清单共 37 项。按本次核对后的状态：
+当前任务清单共 38 项。按本次核对后的状态：
 
 | 状态 | 数量 | 解释 |
 |---|---:|---|
-| DONE | 20 | 设计/工程任务已有可复核文档、代码或 CI 证据 |
+| DONE | 21 | 设计/工程任务已有可复核文档、代码或 CI 证据 |
 | IN_PROGRESS | 0 | 已有部分实现或部分真实证据，验收条件尚未全部满足 |
 | BLOCKED | 15 | 需要外部许可/数据、Gold/Oracle、真实运行授权或用户发布批准 |
 | DEFERRED | 2 | 独立专家评审与依赖其仲裁的 12-case Oracle 工作按用户决定暂缓，不计为完成 |
 | TODO | 0 | 尚未启动的任务已转为明确阻塞状态，避免掩盖依赖 |
-| **合计** | **37** | |
+| **合计** | **38** | |
 
 说明：DONE 仅表示该任务定义的设计/工程交付完成，不表示关联实验或更高层质量结论已通过。例如 DS-03/DS-04 的统计方案已设计完成，但 IRT/G-Theory 拟合和 Regression 真实配对实验仍未完成。
 
@@ -343,3 +343,11 @@ The root VERSION and Skill frontmatter metadata.version remain 0.0.1, matching t
 A code audit found that malformed nested collection fields could pass through schema-error collection and then raise an uncaught exception in later descriptive calculations. The offline evaluator now defensively handles malformed `coverage_tags`, `source_refs`, `scenario_bucket`, `grading.criteria`, and manifest coverage dimensions; invalid source registry identifiers are rejected explicitly. Three regression tests were added for malformed nested members, wrong collection types, and malformed manifest coverage dimensions.
 
 Run #2034（[45916033576](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45916033576)，exact head `ee0e03bbc0731acf4ca814a4d4a8b113f0ecad88`）completed SUCCESS. All three new malformed-input regression tests passed within 246/246 offline tests; actionlint, Skill package, Benchmark, G-Theory simulations, IDA controlled mutation and Round 4 IDA/ERA/Capability report contracts also passed. Artifacts: IDA mutation #15162172012; Round 4 evidence #15162087227; G-Theory #15162201977. P0-ROBUST-01 is now DONE. This remains an engineering robustness result only; no empirical-validity or composite-score status changes. Production Builder, independent validation, Pilot and adjudication jobs were skipped.
+
+
+### Run #2035 — 完整 PR head 复验（2026-11-27）
+
+- 精确 PR head `93dce24092908d8f569804d2c14c7372339b26b1` 的 Run #2035 SUCCESS：actionlint、Skill package、Benchmark、246/246 tests、G-Theory 三种设计模拟、IDA controlled mutation、Round 4 IDA/ERA/Capability contracts 全部通过。
+- 新增的 3 项畸形 IDA 输入测试均在全量测试套件中通过。
+- Round 4 artifact #15162063803；IDA mutation artifact #15162118788；G-Theory artifact #15161964062。
+- 生产 Builder、独立验证、Pilot、adjudication 和 upstream asset audit 均 SKIPPED；既有 Round 4 证据仍是 3/15 Pilot、12 NOT_RUN，Judge NOT_RUN，Regression 未配对，composite NOT_VALIDATED。
