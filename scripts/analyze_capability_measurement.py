@@ -17,6 +17,10 @@ from pathlib import Path
 
 from jsonschema import Draft202012Validator, FormatChecker
 
+def _reject_json_constant(token: str):
+    raise ValueError(f"invalid JSON numeric constant: {token}")
+
+
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = ROOT / "docs" / "quality-assessment-v0.0.2" / "schemas" / "capability-measurement-report.schema.json"
 GOLD_SOURCES = {"independent_oracle", "expert_adjudication"}
@@ -351,7 +355,7 @@ def analyze_records(records: list[dict], *, max_iterations: int = 500, tolerance
 
 
 def validate_report(report: dict) -> list[str]:
-    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"), parse_constant=_reject_json_constant)
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema, format_checker=FormatChecker())
     return [
@@ -368,7 +372,7 @@ def main() -> int:
     parser.add_argument("--tolerance", type=float, default=1e-7)
     args = parser.parse_args()
     try:
-        records = [json.loads(line) for line in args.records.read_text(encoding="utf-8").splitlines() if line.strip()]
+        records = [json.loads(line, parse_constant=_reject_json_constant) for line in args.records.read_text(encoding="utf-8").splitlines() if line.strip()]
         report = analyze_records(records, max_iterations=args.max_iterations, tolerance=args.tolerance)
         errors = validate_report(report)
         if errors:
