@@ -88,8 +88,8 @@ def load_source_registry(path: Path | None):
         raise ValueError("source registry must be a list, a {sources: []} object, or an ID-keyed object")
     registry = {}
     for entry in entries:
-        if not isinstance(entry, dict) or not entry.get("source_id"):
-            raise ValueError("every source registry entry must contain source_id")
+        if not isinstance(entry, dict) or not isinstance(entry.get("source_id"), str) or not entry["source_id"]:
+            raise ValueError("every source registry entry must contain a non-empty string source_id")
         if entry["source_id"] in registry:
             raise ValueError(f"duplicate source_id in registry: {entry['source_id']}")
         registry[entry["source_id"]] = entry
@@ -151,7 +151,7 @@ def coverage_summary(manifest: dict, cases: list[dict]):
         if not isinstance(item, dict):
             continue
         dimension = item.get("dimension")
-        if not dimension:
+        if not isinstance(dimension, str) or not dimension:
             continue
         actual_count = len(actual.get(dimension, set()))
         total = item.get("total")
