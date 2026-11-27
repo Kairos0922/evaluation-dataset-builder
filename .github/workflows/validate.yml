@@ -131,6 +131,14 @@ jobs:
         if: steps.scope.outputs.run_validation == 'true' && hashFiles('tests/benchmark/fixtures/refund-valid.json') != ''
         run: python tests/benchmark/validate_benchmark.py tests/benchmark/fixtures/refund-valid.json --strict
 
+      - name: 验证 v0.0.3 轨迹驱动贯通样例
+        if: steps.scope.outputs.run_validation == 'true'
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/validate_trajectory_assets.py
+          python scripts/validate_trajectory_assets.py --source tests/fixtures/v0.0.3/trajectory-source.synthetic.json --candidate tests/fixtures/v0.0.3/task-candidate.synthetic.json --qualification tests/fixtures/v0.0.3/failure-qualification.synthetic.json --slice tests/fixtures/v0.0.3/task-slice.synthetic.json --reconstruction tests/fixtures/v0.0.3/environment-reconstruction.synthetic.json
+          python -m unittest discover -s tests -p "test_validate_trajectory_assets.py" -v
+
       - name: 运行离线测试
         if: steps.scope.outputs.run_validation == 'true'
         run: python -m unittest discover -s tests -p "test_*.py" -v
