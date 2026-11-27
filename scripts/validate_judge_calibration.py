@@ -6,6 +6,7 @@ import argparse
 from collections import Counter
 import hashlib
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -13,6 +14,22 @@ from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA_PATH = ROOT / "docs" / "quality-assessment-v0.0.2" / "schemas" / "judge-calibration-report.schema.json"
+
+
+def _reject_json_constant(token: str):
+    raise ValueError(f"invalid JSON numeric constant: {token}")
+
+
+def _non_finite_number_paths(value, path: str = "<root>") -> list[str]:
+    if isinstance(value, float) and not math.isfinite(value):
+        return [path]
+    if isinstance(value, dict):
+        return [found for key, child in value.items()
+                for found in _non_finite_number_paths(child, f"{path}.{key}")]
+    if isinstance(value, list):
+        return [found for index, child in enumerate(value)
+                for found in _non_finite_number_paths(child, f"{path}[{index}]")]
+    return []
 
 
 def recompute_summary(results: list[dict], case_ids: list[str], repeats_per_case: int) -> dict:
@@ -74,6 +91,9 @@ def recompute_summary(results: list[dict], case_ids: list[str], repeats_per_case
 
 
 def validate_report(report: object, suite_path: Path | None = None) -> list[str]:
+    non_finite_paths = _non_finite_number_paths(report)
+    if non_finite_paths:
+        return [f"non-finite numeric value is not valid JSON at {path}" for path in non_finite_paths]
     if not isinstance(report, dict):
         return ["report root must be an object"]
     schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
@@ -157,7 +177,7 @@ def validate_report(report: object, suite_path: Path | None = None) -> list[str]
         if actual_sha != dataset["suite_sha256"]:
             errors.append("dataset.suite_sha256 does not match supplied suite bytes")
         try:
-            suite = json.loads(raw)
+            suite = json.loads(raw, parse_constant=_reject_json_constant)
             suite_ids = [case.get("id") for case in suite.get("cases", []) if isinstance(case, dict)]
             if set(suite_ids) != set(dataset["case_ids"]) or len(suite_ids) != len(dataset["case_ids"]):
                 errors.append("dataset.case_ids do not match supplied suite case IDs")
@@ -173,7 +193,7 @@ def main() -> int:
     parser.add_argument("--suite", type=Path, help="Optional exact calibration-suite JSON used to verify its SHA and case IDs.")
     args = parser.parse_args()
     try:
-        report = json.loads(args.report.read_text(encoding="utf-8"))
+        report = json.loads(args.report.read_text(encoding="utf-8"), parse_constant=_reject_json_constant)
     except (OSError, json.JSONDecodeError) as exc:
         print(f"Unable to read report: {exc}", file=sys.stderr)
         return 2
