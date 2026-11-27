@@ -121,3 +121,11 @@
 - Run #2089（45967184024，精确 head `71acd49be6a65754f048a147723b1e40c660bbf6`）SUCCESS：actionlint、正式 Skill 包、Benchmark、264/264 离线测试、G-Theory 三种设计模拟、IDA controlled mutation、Round 4 IDA/ERA/Capability contracts PASS。
 - 本次生产 Builder、独立评审、Pilot、adjudication 与 upstream audit 按授权/条件 SKIPPED；无新增生产运行或独立 Gold。
 - 该候选版本尚未合并、打 Tag 或发布；发布工作流仅为已验证配置，未被触发。
+
+
+### D-011 发布候选包构建补充（2026-11-27）
+
+- 新增 package-release-candidate.yml，每次 PR 更新均从 PR head SHA checkout，执行 validate_skill.py，构建 Skill ZIP，并用 EXPECTED_SKILL_FILES 精确比较归档内容；只上传 CI artifact，不创建 Release。
+- Package run #3（45968288702）SUCCESS，artifact #15184151507，17 个运行时文件，ZIP 44,025 bytes，artifact 名称绑定 head f9aa8822bf55458e76087ee9658c75bf96956226。
+- Run #2095（45968288724，精确 head f9aa8822bf55458e76087ee9658c75bf96956226）SUCCESS：actionlint、正式 Skill 包、Benchmark、265/265 离线测试、G-Theory 三种设计模拟、IDA controlled mutation、Round 4 IDA/ERA/Capability contracts PASS。
+- 该 artifact 是 PR 候选包，不是正式 Release 资产；PR 仍 Draft/Open，未合并、未打 Tag、未发布。
