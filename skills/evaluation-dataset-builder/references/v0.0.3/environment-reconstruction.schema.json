@@ -1,0 +1,218 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://evaluation-dataset-builder.local/schemas/v0.0.3/environment-reconstruction.schema.json",
+  "title": "Environment Reconstruction Manifest",
+  "description": "Declarative reconstruction contract. It describes a safe, reproducible environment; it does not execute commands or authorize side effects.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "reconstruction_id",
+    "slice_id",
+    "initial_state",
+    "dependencies",
+    "tools",
+    "permissions",
+    "resource_limits",
+    "reset_and_cleanup",
+    "reconstruction_diff",
+    "readiness"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.0.3"
+    },
+    "reconstruction_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "slice_id": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "initial_state": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "artifact_ref",
+          "sha256",
+          "purpose"
+        ],
+        "properties": {
+          "artifact_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-fA-F0-9]{64}$"
+          },
+          "purpose": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          }
+        }
+      }
+    },
+    "dependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "version"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "source": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1000
+          }
+        }
+      }
+    },
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "version",
+          "contract_ref"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "contract_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048
+          }
+        }
+      }
+    },
+    "permissions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 300
+      }
+    },
+    "resource_limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "timeout_seconds",
+        "action_budget",
+        "network_policy"
+      ],
+      "properties": {
+        "timeout_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "action_budget": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "network_policy": {
+          "enum": [
+            "disabled",
+            "allowlisted",
+            "unrestricted_not_recommended",
+            "unknown"
+          ]
+        },
+        "cpu": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 100
+        },
+        "memory_mb": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        }
+      }
+    },
+    "reset_and_cleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reset_strategy",
+        "cleanup_strategy",
+        "side_effects_reviewed"
+      ],
+      "properties": {
+        "reset_strategy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "cleanup_strategy": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "side_effects_reviewed": {
+          "type": "boolean"
+        }
+      }
+    },
+    "reconstruction_diff": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 1000
+      }
+    },
+    "readiness": {
+      "enum": [
+        "ready_for_review",
+        "not_ready",
+        "unknown"
+      ]
+    },
+    "notes": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "maxLength": 3000
+    }
+  }
+}
