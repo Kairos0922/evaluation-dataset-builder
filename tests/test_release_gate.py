@@ -404,6 +404,16 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn("git push origin refs/tags/v0.0.2", workflow)
         self.assertIn("gh release create v0.0.2", workflow)
 
+    def test_dsh_l4_external_judge_run_requires_manual_explicit_approval(self):
+        workflow = (ROOT / ".github" / "workflows" / "dsh-l4-mutation.yml").read_text(encoding="utf-8")
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertIn("confirm_execute:", workflow)
+        self.assertIn("default: false", workflow)
+        self.assertIn("inputs.confirm_execute == true", workflow)
+        self.assertNotIn("workflow_run:", workflow)
+        self.assertIn("缺少 EVAL_JUDGE_API_KEY 或 GROQ_API_KEY；未发送 Judge 请求。", workflow)
+        self.assertLess(workflow.index("检查独立 Judge 凭证与模型"), workflow.index("执行 L4 对照组与缺陷注入评测"))
+
     def test_v0_0_2_candidate_package_workflow_builds_runtime_only_exact_sha_archive(self):
         workflow = (ROOT / ".github" / "workflows" / "package-release-candidate.yml").read_text(encoding="utf-8")
         self.assertIn("pull_request:", workflow)
