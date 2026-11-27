@@ -399,8 +399,16 @@
 
 ### 精确 PR head 完整复验（2026-11-27）
 
-- 最新 PR head `93dce24092908d8f569804d2c14c7372339b26b1` 对应 Run #2035（[45916212402](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45916212402)）SUCCESS。
+- 最新 PR head `93dce24092908d8f569804d2c14c7372339b26b1` 对应 Run #2036（[45916212402](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45916212402)）SUCCESS。
 - actionlint、正式 Skill 包、Benchmark、246/246 离线测试、G-Theory 40×25 / 20×10 / 80×50 模拟、IDA controlled-mutation 和 Round 4 IDA/ERA/Capability report contracts 全部 PASS。
-- 新增 3 项 IDA 畸形输入回归测试全部 PASS；Run #2035 的 Round 4 artifact #15162063803、IDA mutation artifact #15162118788、G-Theory artifact #15161964062。
+- 新增 3 项 IDA 畸形输入回归测试全部 PASS；Run #2036 的 Round 4 artifact #15162063803、IDA mutation artifact #15162118788、G-Theory artifact #15161964062。
 - production Builder、独立验证、Pilot、adjudication 和 upstream asset audit jobs 均 SKIPPED；本次只复验既有冻结证据，没有新增生产运行、Pilot 或独立 Gold。
 - 当前 38 项任务：21 DONE、15 BLOCKED、2 DEFERRED；PR #44 仍 Draft/Open，正式版本仍 0.0.1。
+
+
+### Run #2036 — PR head 验证编号校正（2026-11-27）
+
+- GitHub Actions API 确认 workflow run ID `45916212402` 的正式 run_number 为 **2036**（此前文档误写为 #2035）；精确执行 head 为 `93dce24092908d8f569804d2c14c7372339b26b1`。
+- Run #2036 SUCCESS：actionlint、Skill package、Benchmark、246/246 离线测试、G-Theory 三种设计模拟、IDA controlled mutation 与 Round 4 IDA/ERA/Capability report contracts 均 PASS。
+- Artifacts：Round 4 #15162063803、IDA mutation #15162118788、G-Theory #15161964062。production Builder、independent validation、Pilot、adjudication、upstream asset audit 均 SKIPPED；没有新增生产运行、Pilot 或独立 Gold。
+- 本次仅校正 run 编号，不改变 38 项任务状态（21 DONE、15 BLOCKED、2 DEFERRED），也不改变 3/15 Pilot、12 NOT_RUN、Judge NOT_RUN、composite NOT_VALIDATED 的证据边界。
