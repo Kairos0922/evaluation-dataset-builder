@@ -175,7 +175,7 @@ jobs:
           from pathlib import Path
           case = json.loads(Path("artifacts/case-draft.synthetic.json").read_text(encoding="utf-8"))
           Path("artifacts/cases.synthetic.jsonl").write_text(
-              json.dumps(case, ensure_ascii=False, separators=(",", ":")) + "\\n",
+              json.dumps(case, ensure_ascii=False, separators=(",", ":")) + chr(10),
               encoding="utf-8",
           )
           PY
