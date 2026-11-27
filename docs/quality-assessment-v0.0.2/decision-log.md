@@ -96,3 +96,11 @@
 - 新增 RELEASE-NOTES-0.0.2.md 发布说明草案。该文件明确披露当前证据限制。
 - 删除过时 .github/publish-release-trigger.txt；将旧 v0.0.1 发布工作流从 push/path trigger 改为仅手动且必须 confirm_publish=true，避免旧版本发布流程因 trigger 文件更新意外运行。
 - 本次未触发发布工作流、未升级 VERSION/frontmatter、未合并 PR、未创建 Tag/Release。新工作流需通过精确 head CI 后方可视为发布自动化准备完成。
+
+
+### D-010 验证结果补充（2026-11-27）
+
+- Run #2080（45966113423，精确 head `6d75987763bb4a6e3a89b425e865faa288a9d0cc`）SUCCESS：actionlint、正式 Skill 包、Benchmark、263/263 离线测试、G-Theory 三种设计模拟、IDA controlled mutation、Round 4 IDA/ERA/Capability contracts 全部 PASS。
+- 测试新增对 v0.0.1 旧发布触发器清理、v0.0.2 手动发布工作流 SHA/Tree/CI/版本门禁及发布说明证据限制的契约断言。
+- 本次完整 CI 中 production Builder、独立评审、Pilot、adjudication 与 upstream asset audit 按条件 SKIPPED；没有新增真实运行或独立 Gold。
+- 工作流已通过静态/CI 验证，但尚未触发；正式 VERSION/frontmatter 仍 0.0.1，PR #44 未合并，v0.0.2 Tag/Release 未创建。
