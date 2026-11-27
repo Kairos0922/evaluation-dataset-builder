@@ -14,13 +14,17 @@ from statistics import NormalDist, median
 
 from jsonschema import Draft202012Validator, FormatChecker
 
+def _reject_json_constant(token: str):
+    raise ValueError(f"invalid JSON numeric constant: {token}")
+
+
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIME_SCHEMA = ROOT / "docs" / "quality-assessment-v0.0.2" / "schemas" / "runtime-record.schema.json"
 CONFIDENCE_Z = NormalDist().inv_cdf(0.975)
 
 
 def load_records(path: Path):
-    schema = json.loads(RUNTIME_SCHEMA.read_text(encoding="utf-8"))
+    schema = json.loads(RUNTIME_SCHEMA.read_text(encoding="utf-8"), parse_constant=_reject_json_constant)
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema, format_checker=FormatChecker())
     records = []
@@ -30,8 +34,8 @@ def load_records(path: Path):
             errors.append(f"line {line_number}: blank line")
             continue
         try:
-            record = json.loads(line)
-        except json.JSONDecodeError as exc:
+            record = json.loads(line, parse_constant=_reject_json_constant)
+        except (json.JSONDecodeError, ValueError) as exc:
             errors.append(f"line {line_number}: invalid JSON: {exc}")
             continue
         for error in validator.iter_errors(record):
@@ -152,7 +156,7 @@ def _single_or_multiple(values, keys):
         for value in values
     }
     if len(distinct) == 1:
-        return json.loads(next(iter(distinct)))
+        return json.loads(next(iter(distinct)), parse_constant=_reject_json_constant)
     return None
 
 
