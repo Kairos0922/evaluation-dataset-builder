@@ -1889,7 +1889,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
         skill_text = (SKILL_DIR / "SKILL.md").read_text(encoding="utf-8")
         self.assertIn("license: MIT", skill_text)
-        self.assertIn('version: "0.0.1"', skill_text)
+        self.assertIn('version: "0.0.2"', skill_text)
         self.assertNotIn("host-agent-capability-adapter", skill_text)
 
         forbidden_terms = (
