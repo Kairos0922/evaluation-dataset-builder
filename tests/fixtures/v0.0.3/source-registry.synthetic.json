@@ -1,0 +1,10 @@
+{
+  "sources": [
+    {
+      "source_id": "src-synthetic-001",
+      "title": "Synthetic trace source",
+      "source_type": "trace_log",
+      "authority": "Synthetic test fixture authority"
+    }
+  ]
+}
