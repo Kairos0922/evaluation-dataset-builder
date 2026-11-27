@@ -89,10 +89,10 @@
 **NOT READY — Release Candidate 尚未冻结。**
 
 原因：
-1. 现有发布工作流、发布验证器和发布 Tag 脚本绑定 v0.0.1，不能直接用于 0.0.2。
+1. 已新增 v0.0.2 专属手动发布工作流；仍需 actionlint/完整 CI 验证。既有 v0.0.1 发布脚本保持独立，不复用。
 2. VERSION 和 Skill frontmatter 仍为 0.0.1；需在 RC 冻结时同步升级。
-3. README、CHANGELOG、RELEASE.md 与当前收缩后的产品范围还需最终统一。
-4. 新增发布准备文件后的最终精确 head CI 尚未完成。
+3. README、CHANGELOG、RELEASE.md 已按当前范围更新，仍需随最终候选 SHA 复核。
+4. 新增发布工作流及清理旧 trigger 后的最终精确 head CI 尚未完成。
 5. PR #44 仍 Draft/Open，未取得合并和发布批准。
 
 0.0.2 收缩版发布门禁见 RELEASE-GATE-0.0.2.md。任何发布说明都必须披露本报告第 4 节限制，不得把范围移除解释为科学验证通过。
