@@ -203,7 +203,7 @@ def main() -> int:
     args = parser.parse_args()
 
     try:
-        schema = json.loads(args.schema.read_text(encoding="utf-8"))
+        schema = load_json(args.schema)
         Draft202012Validator.check_schema(schema)
         submission_a = load_json(args.reviewer_a)
         submission_b = load_json(args.reviewer_b)
