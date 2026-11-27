@@ -137,7 +137,7 @@ jobs:
           set -euo pipefail
           python -m py_compile scripts/discover_trajectory_candidates.py
           mkdir -p artifacts
-          python scripts/discover_trajectory_candidates.py --events tests/fixtures/v0.0.3/trajectory-events.synthetic.jsonl --source-id src-synthetic-001 --output artifacts/trajectory-candidates.synthetic.jsonl
+          python scripts/discover_trajectory_candidates.py --source tests/fixtures/v0.0.3/trajectory-source.synthetic.json --events tests/fixtures/v0.0.3/trajectory-events.synthetic.jsonl --output artifacts/trajectory-candidates.synthetic.jsonl
           python -c "import json; rows=[json.loads(x) for x in open('artifacts/trajectory-candidates.synthetic.jsonl', encoding='utf-8') if x.strip()]; assert len(rows)==1 and rows[0]['status']=='discovered'; print('PASS: one synthetic candidate discovered')"
           python -m unittest discover -s tests -p "test_discover_trajectory_candidates.py" -v
 
