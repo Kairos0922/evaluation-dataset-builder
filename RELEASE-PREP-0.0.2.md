@@ -5,7 +5,7 @@
 **开发 PR：** [#44](https://github.com/Kairos0922/evaluation-dataset-builder/pull/44)  
 **基线版本：** 0.0.1（已正式发布）  
 **目标版本：** 0.0.2  
-**结论：** 工程研发任务已完成；发布准备正在进行；当前尚未形成可发布的 Release Candidate，也未获发布批准。
+**结论：** v0.0.2 已正式发布。发布前工程门禁、候选身份复核、安装包构建和发布执行均已成功；科学效度限制按发布说明保留。
 
 ## 1. 当前阶段总览
 
@@ -13,13 +13,13 @@
 |---|---|
 | 自主工程任务 | 22/22 DONE |
 | 外部依赖任务 | 17 项按用户决定移出当前范围，不作为 DONE |
-| PR #44 | Draft / Open / 未合并 |
-| 当前正式版本 | 0.0.1 |
-| 0.0.2 版本元数据 | PR 分支 VERSION 与 Skill frontmatter 已同步为 0.0.2；main 稳定版本仍为 0.0.1 |
+| PR #44 | 已合并（merge/tag commit `f6b722ca630dacf0fa73bacba1100cff1fafff0f`） |
+| 当前正式版本 | 0.0.2（已发布） |
+| 0.0.2 版本元数据 | main 的 VERSION 与 Skill frontmatter 已随 PR #44 合并为 0.0.2 |
 | 0.0.2 专属发布门禁 | 已建立；手动发布工作流和精确 SHA 包构建工作流均通过 CI |
 | 最近完整 CI | Run #2083 SUCCESS，head a8071fd68c708bffcc1979518b74982552008bee；其后 VERSION/frontmatter 已升级为候选 0.0.2，Run #2089 已在版本元数据更新后的精确候选 head 上完成完整验证 |
-| Release Candidate | 尚未批准/冻结 |
-| Tag / GitHub Release | 未创建 |
+| Release Candidate | 已通过精确 SHA 与 Git tree identity 核验 |
+| Tag / GitHub Release | `v0.0.2` 已创建并正式发布 |
 
 ## 2. 0.0.2 当前交付内容
 
@@ -70,18 +70,17 @@
 - 已删除过时的 .github/publish-release-trigger.txt，并将 v0.0.1 发布工作流改为仅支持显式确认的手动触发，避免合并分支时因旧 trigger 文件变化意外重跑旧版本发布流程。
 - 当前未发现其他可安全删除的已跟踪临时构建产物；因此未删除测试夹具、协议或历史证据。
 
-## 6. 发布前仍需完成的仓库内工作
+## 6. 发布执行记录
 
-1. 验证新增 .github/workflows/publish-release-v0.0.2.yml：Run #2099（45968646417，精确 head 7e7bb5c4b59b35e9eeebd2efb3aa64d42043a022）已通过 actionlint、Skill package、Benchmark、266/266 离线测试、G-Theory 三种设计模拟、IDA controlled mutation 和 Round 4 IDA/ERA/Capability contracts；工作流仅 workflow_dispatch，confirm_publish 默认 false，并核验 PR 合并、候选 SHA、tree identity、精确 CI 与 VERSION。
-2. 已在 PR 分支将 VERSION 与 Skill frontmatter 同步为 0.0.2，并同步 README、CHANGELOG、RELEASE.md；main 正式版本仍是 0.0.1。
-3. 新增 package-release-candidate.yml，在每次 PR 更新时按精确 head 构建 Skill ZIP，并校验归档只含 17 个运行时白名单文件；当前候选 ZIP artifact 已生成，包内无脚本、测试、CI 或研究过程文件。
-4. 对最终提交继续执行完整 CI，并核对最新精确 SHA 的候选包 artifact。
-5. 用户批准后再合并、打 Tag 和发布；本次准备阶段不执行这些不可逆发布动作。
+1. PR #44 已合并；候选 SHA `4362ab14e01e7b694851eef95877f238f7e2d8cc` 与合并提交 Git tree 完全一致。
+2. PR #45 已合并，补齐在当前 GitHub 集成中可执行的 one-shot push trigger 路径；发布仍要求显式 `confirm_publish=true`、精确 PR #44 和候选 SHA。
+3. 正式发布工作流 [Run #45972007647](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45972007647) SUCCESS：候选/merge/tree/CI 验证、依赖安装、包/Benchmark/离线测试、actionlint、正式 Skill ZIP 构建、Tag 与 Release 创建全部通过。
+4. Tag `v0.0.2` 指向 `f6b722ca630dacf0fa73bacba110cff1fafff0f`；Release 地址为 [GitHub Release v0.0.2](https://github.com/Kairos0922/evaluation-dataset-builder/releases/tag/v0.0.2)。
+5. 正式 ZIP 为 44,025 bytes，SHA-256：`a7de57496e9beeb7b776361d712af81a6b0a6c7ed42bd900d95d8c08081c7fc4`；包含 17 个白名单运行时文件。
+6. PR #45 之后的发布后审计将移除一次性 push trigger 和审批标记，保留手动显式确认入口，避免已完成的发布流程被误触发。
 
 ## 7. 发布判定
 
-当前判定：**READY FOR FINAL REVIEW — NOT PUBLISHED**。Run #2095 已对精确 head 完成 265/265 测试、actionlint、Skill 包验证、Benchmark、G-Theory 模拟、IDA mutation 和 Round 4 IDA/ERA/Capability contracts；package workflow 已生成仅含 17 个运行时文件的 exact-SHA ZIP。手动发布 workflow 已通过 actionlint/CI，但未触发。PR 分支 VERSION/frontmatter 已同步为 0.0.2，main 稳定版本仍为 0.0.1。
+<badge>**PUBLISHED**</badge> v0.0.2 已正式发布。PR #44、PR #45 均已合并；发布工作流 Run #45972007647 SUCCESS；Tag、Release 与两项正式资产已通过 GitHub API 复核。
 
-尚未发布的原因是 PR #44 仍为 Draft/Open，尚未取得最终合并/发布批准；当前精确候选已具备工程验证和可下载的 Skill 包 artifact。当前科学限制必须作为产品范围说明披露，不得被版本准备工作抹除。
-
-下一步按 RELEASE-GATE-0.0.2.md 执行。
+本审计记录的是工程发布完成，不代表被 D-009 移出当前范围的 17 项外部依赖任务已经完成，也不代表科学效度门禁已通过。真实证据边界继续以 RELEASE-NOTES-0.0.2.md 和质量报告为准。
