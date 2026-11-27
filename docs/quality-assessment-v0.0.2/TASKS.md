@@ -450,3 +450,6 @@
 
 - 0.0.2 候选版本元数据已在 PR 分支同步：VERSION=0.0.2，Skill frontmatter metadata.version=0.0.2；main 正式版本仍为 0.0.1。
 - Run #2089（[45967184024](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45967184024)，精确 head `71acd49be6a65754f048a147723b1e40c660bbf6`）SUCCESS：actionlint、Skill package、Benchmark、264/264 离线测试、G-Theory 三种设计模拟、IDA controlled mutation、Round 4 IDA/ERA/Capability contracts 全部 PASS。Production Builder、独立评审、Pilot、adjudication 和 upstream audit 均按授权/条件 SKIPPED。
+
+- 新增 .github/workflows/package-release-candidate.yml：每次 PR 更新均对精确 head 执行 Skill validator，构建 ZIP 并与 EXPECTED_SKILL_FILES 白名单逐项比较；Package run #3（[45968288702](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45968288702)）SUCCESS，Artifact #15184151507，17 个运行时文件，ZIP 44,025 bytes，SHA-bound artifact 名称对应 head `f9aa8822bf55458e76087ee9658c75bf96956226`。
+- Run #2095（[45968288724](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45968288724)，精确 head `f9aa8822bf55458e76087ee9658c75bf96956226`）SUCCESS：actionlint、Skill package、Benchmark、265/265 离线测试、G-Theory 三种设计模拟、IDA controlled mutation、Round 4 IDA/ERA/Capability contracts PASS。production Builder、Pilot、independent review、adjudication 等按范围 SKIPPED。
