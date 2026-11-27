@@ -1,7 +1,7 @@
 # 评测数据集构建 Skill
 
-**版本：** 0.0.1  
-**发布状态：** 已正式发布（[GitHub Release v0.0.1](https://github.com/Kairos0922/evaluation-dataset-builder/releases/tag/v0.0.1)）  
+**当前分支候选版本：** 0.0.2（未发布）  
+**当前正式稳定版本：** 0.0.1（[GitHub Release v0.0.1](https://github.com/Kairos0922/evaluation-dataset-builder/releases/tag/v0.0.1)）  
 **类型：** Agent Skills 开放格式 Skill
 
 
@@ -10,7 +10,7 @@
 
 ## v0.0.2 研发与发布准备状态
 
-v0.0.2 在独立分支 feat/quality-assessment-v0.0.2 开发。当前自主工程任务 22/22 DONE，已进入发布准备阶段；正式版本仍为 **0.0.1**，0.0.2 尚未形成冻结的 Release Candidate，也未发布。
+v0.0.2 在独立分支 feat/quality-assessment-v0.0.2 开发。当前自主工程任务 22/22 DONE，已进入发布准备阶段；当前分支的 VERSION 与 Skill frontmatter 已更新为 **0.0.2**，用于候选包验证；main 上的正式稳定版本仍为 **0.0.1**。0.0.2 尚未冻结为正式 RC，也未发布。
 
 本版本候选交付包括 IDA 离线质量检查、ERA 运行证据分析、机器可读报告契约、Capability/Regression 分析设计与探索性工具，以及对应的安全校验、测试和文档。开发工具、研究协议、测试和 CI 不属于可安装 Skill 包。
 
