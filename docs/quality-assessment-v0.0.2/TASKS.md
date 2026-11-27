@@ -453,3 +453,6 @@
 
 - 新增 .github/workflows/package-release-candidate.yml：每次 PR 更新均对精确 head 执行 Skill validator，构建 ZIP 并与 EXPECTED_SKILL_FILES 白名单逐项比较；Package run #3（[45968288702](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45968288702)）SUCCESS，Artifact #15184151507，17 个运行时文件，ZIP 44,025 bytes，SHA-bound artifact 名称对应 head `f9aa8822bf55458e76087ee9658c75bf96956226`。
 - Run #2095（[45968288724](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45968288724)，精确 head `f9aa8822bf55458e76087ee9658c75bf96956226`）SUCCESS：actionlint、Skill package、Benchmark、265/265 离线测试、G-Theory 三种设计模拟、IDA controlled mutation、Round 4 IDA/ERA/Capability contracts PASS。production Builder、Pilot、independent review、adjudication 等按范围 SKIPPED。
+
+- 最新精确候选 head `7e7bb5c4b59b35e9eeebd2efb3aa64d42043a022`：Run #2099（[45968646417](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45968646417)）SUCCESS，actionlint、Skill package、Benchmark、266/266 离线测试、G-Theory 三种设计模拟、IDA controlled mutation、Round 4 IDA/ERA/Capability contracts 全部 PASS。Production Builder、Pilot、独立评审、adjudication 与 upstream asset audit 均 SKIPPED。
+- Package run #7（[45968646244](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45968646244)）对同一精确 head 构建成功：Artifact #15183069447，17 个运行时文件，ZIP 44,025 bytes；归档内容与 Skill 白名单完全一致。
