@@ -25,6 +25,10 @@ sys.path.insert(0, str(ROOT))
 
 from scripts.analyze_capability_measurement import _sigmoid, estimate_g_theory
 
+def _reject_json_constant(token: str):
+    raise ValueError(f"invalid JSON numeric constant: {token}")
+
+
 SCHEMA_PATH = ROOT / "docs" / "quality-assessment-v0.0.2" / "schemas" / "g-theory-monte-carlo-report.schema.json"
 
 SCENARIOS = [
@@ -237,7 +241,7 @@ def run_experiment(*, replications: int = 100, persons: int = 40, items: int = 2
 
 
 def validate_report(report: dict) -> list[str]:
-    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"), parse_constant=_reject_json_constant)
     Draft202012Validator.check_schema(schema)
     validator = Draft202012Validator(schema, format_checker=FormatChecker())
     return [
