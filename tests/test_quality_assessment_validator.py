@@ -189,6 +189,23 @@ class QualityAssessmentValidatorTests(unittest.TestCase):
     def test_valid_era_report(self):
         self.assertEqual(validate_report(base_era()), [])
 
+    def test_non_finite_metric_value_is_rejected(self):
+        report = base_ida()
+        report["metric_results"][0]["value"] = float("nan")
+        errors = validate_report(report)
+        self.assertTrue(any("non-finite numeric value" in error for error in errors))
+
+    def test_non_finite_nested_interval_bound_is_rejected(self):
+        report = base_ida()
+        report["metric_results"][0]["interval"] = {
+            "lower": 0.1,
+            "upper": float("inf"),
+            "level": 0.95,
+            "method": "test"
+        }
+        errors = validate_report(report)
+        self.assertTrue(any("non-finite numeric value" in error for error in errors))
+
     def test_ida_pass_requires_sufficient_evidence(self):
         report = base_ida()
         report["overall_status"] = "PASS"
