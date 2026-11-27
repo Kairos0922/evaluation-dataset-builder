@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.assess_dataset_quality import build_report
+from scripts.assess_dataset_quality import build_report, load_jsonl
 from scripts.validate_quality_assessment import validate_report
 
 
@@ -317,6 +317,15 @@ class OfflineDatasetAssessmentTests(unittest.TestCase):
             self.assertTrue(structural_errors)
             self.assertEqual(report["overall_status"], "FAIL")
             self.assertEqual(validate_report(report), [])
+
+
+class StrictJsonInputTests(unittest.TestCase):
+    def test_case_jsonl_rejects_nan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "cases.jsonl"
+            path.write_text('{"case_id":"CASE-1","score":NaN}\\n', encoding="utf-8")
+            _, errors = load_jsonl(path)
+            self.assertTrue(any("invalid JSON" in error for error in errors))
 
 
 if __name__ == "__main__":
