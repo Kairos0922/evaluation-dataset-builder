@@ -377,17 +377,21 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn("pull-requests: read", workflow)
         self.assertIn("actions: read", workflow)
 
-    def test_v0_0_2_release_workflow_is_manual_guarded_and_sha_bound(self):
+    def test_v0_0_2_release_workflow_is_explicitly_approved_and_sha_bound(self):
         workflow = (ROOT / ".github" / "workflows" / "publish-release-v0.0.2.yml").read_text(encoding="utf-8")
         self.assertIn("workflow_dispatch:", workflow)
-        self.assertNotIn("push:", workflow)
+        self.assertIn("push:", workflow)
+        self.assertIn('.github/publish-release-trigger-v0.0.2.txt', workflow)
         self.assertNotIn("pull_request:", workflow)
         self.assertIn("default: false", workflow)
         self.assertIn("confirm_publish", workflow)
+        self.assertIn('confirm = values.get("confirm_publish")', workflow)
+        self.assertIn('if confirm != "true":', workflow)
         self.assertIn("candidate_sha", workflow)
         self.assertIn("PR_JSON", workflow)
         self.assertIn(".head.sha", workflow)
         self.assertIn(".merge_commit_sha", workflow)
+        self.assertIn('git merge-base --is-ancestor "$MERGE_SHA" "$GITHUB_SHA"', workflow)
         self.assertIn("CANDIDATE_TREE", workflow)
         self.assertIn("MERGE_TREE", workflow)
         self.assertIn('select(.name == "validate"', workflow)
@@ -396,6 +400,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn("python scripts/validate_skill.py", workflow)
         self.assertIn('python -m unittest discover -s tests -p "test_*.py" -v', workflow)
         self.assertIn("evaluation-dataset-builder-0.0.2.zip", workflow)
+        self.assertIn('git tag v0.0.2 "$RELEASE_MERGE_SHA"', workflow)
         self.assertIn("git push origin refs/tags/v0.0.2", workflow)
         self.assertIn("gh release create v0.0.2", workflow)
 
