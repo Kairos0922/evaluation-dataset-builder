@@ -5,7 +5,7 @@ import tempfile
 import unittest
 
 from scripts.import_dsh_pilot_records import (
-    build_runtime_record, dataset_digest, runner_is_valid, verify_pilot_evidence
+    build_runtime_record, dataset_digest, runner_is_valid, verify_pilot_evidence, load_jsonl
 )
 
 
@@ -149,6 +149,15 @@ class ImportDshPilotRecordsTests(unittest.TestCase):
         oracle = oracle_case()
         oracle["checks"][0]["status"] = "FAIL"
         self.assertFalse(runner_is_valid(runner_result(), oracle))
+
+
+class StrictJsonInputTests(unittest.TestCase):
+    def test_cases_jsonl_rejects_nan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "cases.jsonl"
+            path.write_text('{"case_id":"WB-01","score":NaN}\\n', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "invalid JSON numeric constant"):
+                load_jsonl(path)
 
 
 if __name__ == "__main__":
