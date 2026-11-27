@@ -36,9 +36,13 @@ COMPARE_FIELDS = (
 )
 
 
+def _reject_json_constant(value: str):
+    raise ValueError(f"non-standard JSON numeric constant: {value}")
+
+
 def load_json(path: Path) -> dict:
     try:
-        value = json.loads(path.read_text(encoding="utf-8"))
+        value = json.loads(path.read_text(encoding="utf-8"), parse_constant=_reject_json_constant)
     except (OSError, json.JSONDecodeError) as exc:
         raise ValueError(f"cannot read JSON submission {path}: {exc}") from exc
     if not isinstance(value, dict):
