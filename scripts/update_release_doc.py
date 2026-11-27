@@ -16,6 +16,10 @@ from verify_release import (
 )
 
 
+def _reject_json_constant(token):
+    raise ValueError(f"invalid JSON numeric constant: {token}")
+
+
 def build_published_release_doc(current, report, candidate_sha, release_sha,
                                 workflow_run_id=None):
     heading = re.search(r"^# .*0\.0\.1.*发布候选说明\s*$", current, re.MULTILINE)
@@ -112,7 +116,7 @@ def put_file(path, token, payload):
         method="PUT",
     )
     with urllib.request.urlopen(request, timeout=60) as response:
-        return json.loads(response.read().decode("utf-8"))
+        return json.loads(response.read().decode("utf-8"), parse_constant=_reject_json_constant)
 
 
 def main():
@@ -124,7 +128,7 @@ def main():
             "GITHUB_TOKEN, GITHUB_REPOSITORY, and RELEASE_PR_NUMBER are required.")
 
     with open("artifacts/eval-report.json", encoding="utf-8") as handle:
-        report = json.load(handle)
+        report = json.load(handle, parse_constant=_reject_json_constant)
     candidate_sha = report.get("git_sha")
     require(bool(candidate_sha), "Evaluation report does not identify its candidate SHA.")
     if supplied_candidate_sha:
