@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.assess_runtime_quality import build_era_report
+from scripts.assess_runtime_quality import build_era_report, load_records
 from scripts.validate_quality_assessment import validate_report
 
 
@@ -155,6 +155,16 @@ class RuntimeAssessmentTests(unittest.TestCase):
             self.assertIsNone(report["regression_analysis"])
             self.assertEqual(report["capability_analysis"]["status"], "PARTIAL")
             self.assertEqual(validate_report(report), [])
+
+
+class StrictJsonInputTests(unittest.TestCase):
+    def test_runtime_jsonl_rejects_nan(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "records.jsonl"
+            path.write_text('{"run_id":"r1","score":NaN}\\n', encoding="utf-8")
+            records, errors = load_records(path)
+            self.assertEqual(records, [])
+            self.assertTrue(any("invalid JSON" in error for error in errors))
 
 
 if __name__ == "__main__":
