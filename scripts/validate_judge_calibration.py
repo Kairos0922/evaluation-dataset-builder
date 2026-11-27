@@ -181,7 +181,7 @@ def validate_report(report: object, suite_path: Path | None = None) -> list[str]
             suite_ids = [case.get("id") for case in suite.get("cases", []) if isinstance(case, dict)]
             if set(suite_ids) != set(dataset["case_ids"]) or len(suite_ids) != len(dataset["case_ids"]):
                 errors.append("dataset.case_ids do not match supplied suite case IDs")
-        except (UnicodeDecodeError, json.JSONDecodeError, AttributeError):
+        except (UnicodeDecodeError, json.JSONDecodeError, ValueError, AttributeError):
             errors.append("supplied suite must be a JSON object with a cases array")
 
     return errors
@@ -194,7 +194,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         report = json.loads(args.report.read_text(encoding="utf-8"), parse_constant=_reject_json_constant)
-    except (OSError, json.JSONDecodeError) as exc:
+    except (OSError, json.JSONDecodeError, ValueError) as exc:
         print(f"Unable to read report: {exc}", file=sys.stderr)
         return 2
     errors = validate_report(report, args.suite)
