@@ -12,7 +12,7 @@
 
 当前 TASKS.md 活跃任务表共 22 项，22 项全部 DONE，IN_PROGRESS/BLOCKED/DEFERRED/TODO 均为 0。此前 17 项依赖外部专家、独立 Gold/Oracle、第三方数据授权、真实运行资源或发布批准的任务，已根据用户 D-009 决定移出当前迭代范围；它们不计为 DONE，也不再属于当前待办。原始证据和科学限制保留在归档资料中。
 
-最近已核验的完整 PR workflow 为 Run #2067（精确 head 5192144a497bdfede1d45c5d39dd2cdf187cd9a4），SUCCESS。该 Run 在新增本轮发布准备文件之前完成；新文件提交后的精确 head 必须重新完整验证。
+最近完整 PR workflow 为 Run #2083（精确 head a8071fd68c708bffcc1979518b74982552008bee），SUCCESS：actionlint、Skill package、Benchmark、264/264 离线测试、G-Theory 三种设计模拟、IDA controlled mutation、Round 4 IDA/ERA/Capability contracts PASS。其后 VERSION 与 Skill frontmatter 更新为候选 0.0.2，故仍需对元数据更新后的最终 head 重新完整验证。
 
 ## 2. 任务分类总结
 
@@ -90,7 +90,7 @@
 
 原因：
 1. 已新增 v0.0.2 专属手动发布工作流；Run #2080 已通过 actionlint 和完整 CI。既有 v0.0.1 发布脚本保持独立，不复用。
-2. VERSION 和 Skill frontmatter 仍为 0.0.1；需在 RC 冻结时同步升级。
+2. PR 分支 VERSION 和 Skill frontmatter 已同步为 0.0.2；main 稳定版本仍为 0.0.1。需在更新后的精确 head 上复验。
 3. README、CHANGELOG、RELEASE.md 已按当前范围更新，仍需随最终候选 SHA 复核。
 4. 发布工作流及旧 trigger 清理后的精确 head `6d75987763bb4a6e3a89b425e865faa288a9d0cc` 已由 Run #2080（45966113423）完整验证成功：actionlint、正式 Skill 包、Benchmark、263/263 离线测试、G-Theory 三种设计模拟、IDA controlled mutation、Round 4 IDA/ERA/Capability contracts 全部 PASS。
 5. PR #44 仍 Draft/Open，未取得合并和发布批准。
