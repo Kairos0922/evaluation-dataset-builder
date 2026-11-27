@@ -96,7 +96,7 @@ def validate_report(report: object, suite_path: Path | None = None) -> list[str]
         return [f"non-finite numeric value is not valid JSON at {path}" for path in non_finite_paths]
     if not isinstance(report, dict):
         return ["report root must be an object"]
-    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"), parse_constant=_reject_json_constant)
     Draft202012Validator.check_schema(schema)
     errors = [
         f"schema at {'.'.join(str(p) for p in e.absolute_path) or '<root>'}: {e.message}"
