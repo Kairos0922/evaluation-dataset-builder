@@ -3,7 +3,7 @@
 ## 0.0.2 — Unreleased（研发中）
 
 > 本节记录开发分支已实现的工程资产，不代表发布批准或实证效度通过。正式版本号仍为 0.0.1。
-- IDA 畸形输入安全加固：离线评价器现在对错误类型的 coverage/source/scenario/grading/manifest 嵌套字段进行防御式处理，避免 Schema 报错后在统计阶段异常退出；新增 3 项回归测试。代码/测试已提交，精确 head CI 尚未观察到，工程任务暂保持 IN_PROGRESS，不宣称测试通过。
+- IDA 畸形输入安全加固：离线评价器现在对错误类型的 coverage/source/scenario/grading/manifest 嵌套字段进行防御式处理，非法 source registry ID 明确拒绝；新增 3 项回归测试。Run #2034（45916033576，精确 head `ee0e03bbc0731acf4ca814a4d4a8b113f0ecad88`）246/246 离线测试 PASS，IDA mutation 与 Round 4 IDA/ERA/Capability contracts PASS；P0-ROBUST-01 标记 DONE。仅为工程鲁棒性验证，不代表科学效度通过。
 
 - QA-02 加强 negative-control metamorphic invariance：除不触发硬 FAIL 外，四种语义保持变换必须保持 overall status、gate status/severity 与 metric values/statuses 不变。Run #2023（45892053327，head `49613acf6d540f5ef494335a45eebca65077a64b`）243/243 测试 PASS；8/8 deterministic mutations detected，4/4 negative controls 指标不变，0/4 false positives；artifact #15152600525（SHA-256 `bdc08d2a95efcffa5ec1c8bbaa43b9432c27e9b639b09795fcefb9c6e76125ef`）。这仍是合成实现敏感性验证，QA-02 保持 BLOCKED，M09–M12 NOT_ASSESSED。
 - 用户于 2026-11-27 决定暂缓独立专家评审；EX-03 与依赖其盲审/仲裁的 EX-07 调整为 DEFERRED。评审协议、Schema 和 Oracle 工具保留；12 条用例仍 NOT_RUN，科学效度结论不因此升级。
