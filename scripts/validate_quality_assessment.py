@@ -100,6 +100,10 @@ def _validate_composite(report: dict) -> list[str]:
     return errors
 
 
+def _reject_json_constant(token: str):
+    raise ValueError(f"invalid JSON numeric constant: {token}")
+
+
 def _non_finite_number_paths(value, path: str = "<root>") -> list[str]:
     """Find NaN and +/-Infinity values before JSON Schema validation."""
     if isinstance(value, float) and not math.isfinite(value):
@@ -191,9 +195,7 @@ def main() -> int:
     try:
         report = json.loads(
             report_path.read_text(encoding="utf-8"),
-            parse_constant=lambda token: (_ for _ in ()).throw(
-                ValueError(f"invalid JSON numeric constant: {token}")
-            ),
+            parse_constant=_reject_json_constant,
         )
     except Exception as exc:
         print(f"FAIL: cannot read report: {exc}", file=sys.stderr)
