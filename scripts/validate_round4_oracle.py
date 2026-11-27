@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 import sys
 from pathlib import Path
 
@@ -20,6 +21,21 @@ EXPECTED_CASE_IDS = {
 }
 
 
+def _reject_json_constant(value: str):
+    raise ValueError(f"non-standard JSON numeric constant: {value}")
+
+
+def _non_finite_number_paths(value, path: str = "$"):
+    if isinstance(value, float) and not math.isfinite(value):
+        yield path
+    elif isinstance(value, dict):
+        for key, child in value.items():
+            yield from _non_finite_number_paths(child, f"{path}.{key}")
+    elif isinstance(value, list):
+        for index, child in enumerate(value):
+            yield from _non_finite_number_paths(child, f"{path}[{index}]")
+
+
 def sha256_bytes(payload: bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
@@ -32,7 +48,7 @@ def load_dataset_case_hashes(path: Path) -> tuple[str, dict[str, str]]:
         if not line.strip():
             continue
         try:
-            item = json.loads(line)
+            item = json.loads(line, parse_constant=_reject_json_constant)
         except json.JSONDecodeError as exc:
             raise ValueError(f"dataset JSONL line {line_number} is invalid: {exc}") from exc
         case_id = item.get("case_id")
@@ -50,9 +66,12 @@ def load_jsonl_records(path: Path) -> list[dict]:
         if not line.strip():
             continue
         try:
-            record = json.loads(line)
+            record = json.loads(line, parse_constant=_reject_json_constant)
         except json.JSONDecodeError as exc:
             raise ValueError(f"Oracle JSONL line {line_number} is invalid: {exc}") from exc
+        non_finite = list(_non_finite_number_paths(record))
+        if non_finite:
+            raise ValueError(f"Oracle JSONL line {line_number} contains non-finite values: {', '.join(non_finite[:10])}")
         if not isinstance(record, dict):
             raise ValueError(f"Oracle JSONL line {line_number} must be a JSON object")
         records.append(record)
@@ -167,7 +186,7 @@ def main() -> int:
                 f"expected {EXPECTED_DATASET_SHA256}, got {dataset_sha256}"
             )
         plan_sha256 = sha256_bytes(args.oracle_plan.read_bytes())
-        schema = json.loads(args.schema.read_text(encoding="utf-8"))
+        schema = json.loads(args.schema.read_text(encoding="utf-8"), parse_constant=_reject_json_constant)
         Draft202012Validator.check_schema(schema)
         records = load_jsonl_records(args.records)
         errors = validate_records(
