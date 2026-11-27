@@ -29,7 +29,7 @@ permissions:
 
 jobs:
   verify-and-publish:
-    if: (github.event_name == 'push' && hashFiles('.github/publish-release-trigger-v0.0.2.txt') != '') || (github.event_name == 'workflow_dispatch' && inputs.confirm_publish == true)
+    if: github.event_name == 'push' || inputs.confirm_publish == true
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
