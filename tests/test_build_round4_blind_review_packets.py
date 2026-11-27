@@ -121,12 +121,12 @@ class Round4BlindReviewPacketTests(unittest.TestCase):
 
 class StrictJsonInputTests(unittest.TestCase):
     def test_dataset_jsonl_rejects_nan(self):
-        from scripts.build_round4_blind_review_packets import load_dataset
+        from scripts.build_round4_blind_review_packets import load_cases
         with tempfile.TemporaryDirectory() as tmp:
             path = Path(tmp) / "cases.jsonl"
             path.write_text('{"case_id":"WB-01","score":NaN}\\n', encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "invalid dataset JSONL"):
-                load_dataset(path)
+                load_cases(path, expected_dataset_sha256=None)
 
 
 if __name__ == "__main__":
