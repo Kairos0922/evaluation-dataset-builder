@@ -4,14 +4,15 @@
 
 - GitHub Issue：[#43](https://github.com/Kairos0922/evaluation-dataset-builder/issues/43)
 - 工作分支：feat/quality-assessment-v0.0.2
-- Draft PR：[#44](https://github.com/Kairos0922/evaluation-dataset-builder/pull/44)
-- 基线：main（v0.0.1 已发布）
-- main 当前正式版本：0.0.1
-- 本分支候选版本：0.0.2
-- 当前状态：22/22 项自主工程任务 DONE；进入 0.0.2 发布准备阶段，尚未形成 Release Candidate 或取得发布批准
+- 开发 PR：[#44](https://github.com/Kairos0922/evaluation-dataset-builder/pull/44)（已合并）
+- 发布执行 PR：[#45](https://github.com/Kairos0922/evaluation-dataset-builder/pull/45)（已合并）
+- 发布后审计 PR：[#46](https://github.com/Kairos0922/evaluation-dataset-builder/pull/46)（已合并）
+- 基线版本：0.0.1（已发布）
+- main 当前正式版本：0.0.2（已发布）
+- 当前状态：22/22 项自主工程任务 DONE；v0.0.2 已正式发布，发布后文档与触发器清理已合并
 - 发布准备审计：RELEASE-PREP-0.0.2.md
 - 0.0.2 发布门禁：RELEASE-GATE-0.0.2.md
-- 最后更新：2026-11-27
+- 最后更新：2026-11-27（正式发布与发布后审计）
 
 ## 状态定义
 
@@ -465,7 +466,7 @@
 - PR #45 合并了正式发布执行路径修复：`d473f85ae10540241a04980dd640c3d2f9fb1143`。采用与 v0.0.1 一致的 GitHub Actions push-trigger 执行路径，候选 SHA、PR 合并状态、Git tree identity 和适用 CI 门禁均在工作流中重新核验。
 - 正式发布工作流 [Run #45972007647](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45972007647) SUCCESS。候选身份与 tree 验证、包/Benchmark/全量离线测试、actionlint、正式 Skill ZIP 构建、Tag 创建及 GitHub Release 上传步骤全部 SUCCESS。
 - 正式资产：`evaluation-dataset-builder-0.0.2.zip`，44,025 bytes，SHA-256 `a7de57496e9beeb7b776361d712af81a6b0a6c7ed42bd900d95d8c08081c7fc4`；另上传 `RELEASE-NOTES-0.0.2.md`。
-- 发布后清理：一次性 push trigger 将从发布工作流移除，避免后续对触发标记的误操作再次启动已完成的发布流程；保留带显式 `confirm_publish=true` 的手动入口和不可移动 Tag 检查。该清理由发布后审计 PR 执行。
+- 发布后清理已完成：PR #46 移除一次性 push trigger 与审批标记，保留带显式 `confirm_publish=true` 的手动入口和不可移动 Tag 检查。
 - **任务统计：** 当前执行范围内 22/22 自主工程任务 DONE；D-009 移出的 17 项外部依赖任务仍不计为 DONE，相关真实效度限制继续有效。
 - **科学证据状态没有因发布改变：** Round 4 为 3/15 Pilot、12 NOT_RUN；IDA/ERA PARTIAL；Judge 校准 NOT_RUN；Regression 无有效配对数据；综合分 NOT_VALIDATED / null；IDA M09–M12 NOT_ASSESSED；平台兼容性未认证。
 - 本节覆盖并取代本文件较早阶段记录中“PR #44 Draft/Open、main 版本 0.0.1、尚未创建 Tag/Release”等发布前状态；这些历史记录保留为时间线，不再代表当前状态。
