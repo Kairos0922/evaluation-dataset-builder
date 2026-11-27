@@ -9,8 +9,12 @@ import re
 from pathlib import Path
 
 
+def _reject_json_constant(token: str):
+    raise ValueError(f"invalid JSON numeric constant: {token}")
+
+
 def load_json(path: Path):
-    return json.loads(path.read_text(encoding="utf-8"))
+    return json.loads(path.read_text(encoding="utf-8"), parse_constant=_reject_json_constant)
 
 
 def sha256_file(path: Path) -> str:
@@ -35,7 +39,7 @@ def load_jsonl(path: Path) -> list[dict]:
     for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
         if not line.strip():
             raise ValueError(f"blank JSONL line {line_number}")
-        value = json.loads(line)
+        value = json.loads(line, parse_constant=_reject_json_constant)
         if not isinstance(value, dict):
             raise ValueError(f"JSONL line {line_number} is not an object")
         cases.append(value)
@@ -49,7 +53,7 @@ def verify_trace_jsonl(trace_path: Path, runner: dict) -> None:
             raise ValueError(f"blank DSH trace line {line_number} for {runner['case_id']}")
         try:
             event = json.loads(line)
-        except json.JSONDecodeError as exc:
+        except (json.JSONDecodeError, ValueError) as exc:
             raise ValueError(f"invalid DSH trace JSON at line {line_number}: {exc}") from exc
         if not isinstance(event, dict):
             raise ValueError(f"DSH trace line {line_number} is not an object")
@@ -254,7 +258,7 @@ def import_evidence(
 
     manifest_bytes = manifest_path.read_bytes()
     cases_bytes = cases_path.read_bytes()
-    manifest = json.loads(manifest_bytes.decode("utf-8"))
+    manifest = json.loads(manifest_bytes.decode("utf-8"), parse_constant=_reject_json_constant)
     cases = load_jsonl(cases_path)
     if manifest.get("case_count") != len(cases):
         raise ValueError("Builder manifest case_count does not match the actual JSONL line count")
