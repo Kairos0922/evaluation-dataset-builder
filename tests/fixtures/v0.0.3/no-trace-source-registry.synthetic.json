@@ -1,0 +1,9 @@
+{
+  "sources": [
+    {
+      "source_id": "src-synthetic-no-trace-001",
+      "title": "Synthetic non-trajectory scenario fixture",
+      "source_type": "synthetic_scenario"
+    }
+  ]
+}
