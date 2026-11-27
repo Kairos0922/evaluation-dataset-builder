@@ -456,3 +456,16 @@
 
 - 最新精确候选 head `7e7bb5c4b59b35e9eeebd2efb3aa64d42043a022`：Run #2099（[45968646417](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45968646417)）SUCCESS，actionlint、Skill package、Benchmark、266/266 离线测试、G-Theory 三种设计模拟、IDA controlled mutation、Round 4 IDA/ERA/Capability contracts 全部 PASS。Production Builder、Pilot、独立评审、adjudication 与 upstream asset audit 均 SKIPPED。
 - Package run #7（[45968646244](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45968646244)）对同一精确 head 构建成功：Artifact #15183069447，17 个运行时文件，ZIP 44,025 bytes；归档内容与 Skill 白名单完全一致。
+
+
+## v0.0.2 正式发布与发布后审计（2026-11-27）
+
+- **正式状态：PUBLISHED。** GitHub Release [v0.0.2](https://github.com/Kairos0922/evaluation-dataset-builder/releases/tag/v0.0.2) 已于 2026-11-27 09:14:37 UTC 发布，发布者为 `github-actions[bot]`。
+- 核心功能 PR #44 已合并：候选 head `4362ab14e01e7b694851eef95877f238f7e2d8cc`，merge/tag commit `f6b722ca630dacf0fa73bacba1100cff1fafff0f`。Tag `v0.0.2` 指向该提交。
+- PR #45 合并了正式发布执行路径修复：`d473f85ae10540241a04980dd640c3d2f9fb1143`。采用与 v0.0.1 一致的 GitHub Actions push-trigger 执行路径，候选 SHA、PR 合并状态、Git tree identity 和适用 CI 门禁均在工作流中重新核验。
+- 正式发布工作流 [Run #45972007647](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45972007647) SUCCESS。候选身份与 tree 验证、包/Benchmark/全量离线测试、actionlint、正式 Skill ZIP 构建、Tag 创建及 GitHub Release 上传步骤全部 SUCCESS。
+- 正式资产：`evaluation-dataset-builder-0.0.2.zip`，44,025 bytes，SHA-256 `a7de57496e9beeb7b776361d712af81a6b0a6c7ed42bd900d95d8c08081c7fc4`；另上传 `RELEASE-NOTES-0.0.2.md`。
+- 发布后清理：一次性 push trigger 将从发布工作流移除，避免后续对触发标记的误操作再次启动已完成的发布流程；保留带显式 `confirm_publish=true` 的手动入口和不可移动 Tag 检查。该清理由发布后审计 PR 执行。
+- **任务统计：** 当前执行范围内 22/22 自主工程任务 DONE；D-009 移出的 17 项外部依赖任务仍不计为 DONE，相关真实效度限制继续有效。
+- **科学证据状态没有因发布改变：** Round 4 为 3/15 Pilot、12 NOT_RUN；IDA/ERA PARTIAL；Judge 校准 NOT_RUN；Regression 无有效配对数据；综合分 NOT_VALIDATED / null；IDA M09–M12 NOT_ASSESSED；平台兼容性未认证。
+- 本节覆盖并取代本文件较早阶段记录中“PR #44 Draft/Open、main 版本 0.0.1、尚未创建 Tag/Release”等发布前状态；这些历史记录保留为时间线，不再代表当前状态。
