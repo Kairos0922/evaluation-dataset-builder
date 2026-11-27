@@ -34,10 +34,10 @@ v0.0.3 不建立一套平行的轨迹评测产品。它在现有 Evaluation Data
 
 ## 当前验证边界
 
-最新 Run #2137（commit `e98df48dc2f8545a558f0cd0430aab4274cd48c0`）已通过 actionlint、正式 Skill 包、Benchmark、轨迹候选发现、v0.0.3 证据链、Case adapter、现有 IDA CLI、IDA 报告契约、全量离线测试、G-Theory 模拟和 IDA controlled-mutation。Case draft、JSONL 和 IDA report 已归档为 GitHub Actions artifact `trajectory-to-ida-integration`（90 天）。
+最新 Run #2145（commit `de21c723dc0c50a2116a1f31b58951558d8b1a96`）已通过 actionlint、正式 Skill 包、Benchmark、轨迹候选发现、v0.0.3 证据链、Case adapter、轨迹 Case→IDA、无轨迹 Case→IDA、IDA 报告契约、全量离线测试、G-Theory 模拟和 IDA controlled-mutation。轨迹 Case draft、轨迹 JSONL、两种路径的 IDA report 已归档为 GitHub Actions artifact `trajectory-to-ida-integration`（90 天）。
 
 本次 PR CI 中 Builder production、independent validation 和 Pilot 等受保护任务按条件 SKIPPED；没有真实轨迹导入或真实 Agent Pilot。合成样例只证明工程链路，不构成真实轨迹方法的有效性证据。
 
 ## 交付阶段
 
-详见 [TASKS.md](TASKS.md)。已实现 Candidate / Qualification / Slice 到现有 Case Schema 的草稿转换器（`scripts/build_case_draft_from_slice.py`），并在 CI 中完成现有 IDA CLI 端到端验证。IDA 能解析轨迹来源身份，同时明确将构念对齐、任务可解性保留为 `NOT_ASSESSED`，综合分保持 `NOT_VALIDATED`。下一步是补充无轨迹输入的原有 Builder / IDA 回归，再评估 ERA clean-run 与 Runtime Record 的最小接入；不是继续扩张独立 trajectory 模块。
+详见 [TASKS.md](TASKS.md)。已实现 Candidate / Qualification / Slice 到现有 Case Schema 的草稿转换器（`scripts/build_case_draft_from_slice.py`），并在 CI 中完成现有 IDA CLI 端到端验证。IDA 能解析轨迹来源身份，同时明确将构念对齐、任务可解性保留为 `NOT_ASSESSED`，综合分保持 `NOT_VALIDATED`。无轨迹输入回归也已通过：不带任何 trajectory-specific 字段的标准 Case 直接进入现有 IDA 并通过报告契约验证。下一步是评估如何把轨迹来源用例复用到 ERA clean-run / Runtime Record 路径，并明确真实运行的授权与独立 Oracle 条件；不是继续扩张独立 trajectory 模块。
