@@ -6,8 +6,8 @@
 - 工作分支：feat/quality-assessment-v0.0.2
 - Draft PR：[#44](https://github.com/Kairos0922/evaluation-dataset-builder/pull/44)
 - 基线：main（v0.0.1 已发布）
-- 当前版本：0.0.1
-- 目标版本：0.0.2
+- main 当前正式版本：0.0.1
+- 本分支候选版本：0.0.2
 - 当前状态：22/22 项自主工程任务 DONE；进入 0.0.2 发布准备阶段，尚未形成 Release Candidate 或取得发布批准
 - 发布准备审计：RELEASE-PREP-0.0.2.md
 - 0.0.2 发布门禁：RELEASE-GATE-0.0.2.md
@@ -439,7 +439,7 @@
 - 自主工程任务：22/22 DONE；没有剩余当前范围内的 BLOCKED/DEFERRED 任务。
 - 外部依赖任务：17 项已按 D-009 从当前任务队列移除；移除不等于完成或科学验证通过。历史证据与未验证限制保留。
 - 新增发布准备基线：根目录 RELEASE-PREP-0.0.2.md 和 RELEASE-GATE-0.0.2.md；新增仅手动触发、confirm_publish 默认 false 的 .github/workflows/publish-release-v0.0.2.yml。
-- 现有发布工作流/验证器仍绑定 v0.0.1；本分支 VERSION 与 Skill frontmatter 暂保持 0.0.1，尚未冻结 0.0.2 RC。
+- 旧 v0.0.1 发布脚本保持独立；本分支 VERSION 与 Skill frontmatter 已同步为 0.0.2，main 仍为 0.0.1。元数据更新后的最终 head CI 尚待验证，尚未冻结正式 RC。
 - 最新已确认精确 head CI：Run #2067 SUCCESS，head 5192144a497bdfede1d45c5d39dd2cdf187cd9a4；新增发布准备文档后需对新 head 重新执行完整 CI。
 - 过程产物审计删除过时的 .github/publish-release-trigger.txt，并将 v0.0.1 发布工作流改为手动显式确认；未发现其他可安全删除的已跟踪临时文件。测试夹具、研究协议、历史证据和工具均为受控研发资产，予以保留。盲审包未提交仓库，且不得重新分发/招募。
 - 未合并 PR #44、未创建 v0.0.2 Tag/Release、未触发收费或生产运行。
