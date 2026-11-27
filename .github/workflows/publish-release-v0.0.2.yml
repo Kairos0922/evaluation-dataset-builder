@@ -1,6 +1,10 @@
 name: Publish v0.0.2
 
 on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/publish-release-trigger-v0.0.2.txt"
   workflow_dispatch:
     inputs:
       confirm_publish:
@@ -25,7 +29,7 @@ permissions:
 
 jobs:
   verify-and-publish:
-    if: inputs.confirm_publish == true
+    if: (github.event_name == 'push' && hashFiles('.github/publish-release-trigger-v0.0.2.txt') != '') || (github.event_name == 'workflow_dispatch' && inputs.confirm_publish == true)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout main
@@ -35,11 +39,57 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
-      - name: Verify explicit approval, merged PR, exact SHA and tree identity
+      - name: Resolve explicit release approval and candidate bindings
+        id: release-inputs
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_CONFIRM: ${{ inputs.confirm_publish }}
+          INPUT_PR: ${{ inputs.release_pr_number }}
+          INPUT_SHA: ${{ inputs.candidate_sha }}
+        run: |
+          set -euo pipefail
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import os
+          import re
+          from pathlib import Path
+
+          if os.environ["EVENT_NAME"] == "push":
+              trigger = Path(".github/publish-release-trigger-v0.0.2.txt")
+              if not trigger.is_file():
+                  raise SystemExit("One-shot release trigger is missing.")
+              values = {}
+              for line in trigger.read_text(encoding="utf-8").splitlines():
+                  if not line or line.startswith("#"):
+                      continue
+                  if "=" not in line:
+                      raise SystemExit("Malformed release trigger line.")
+                  key, value = line.split("=", 1)
+                  if key in values:
+                      raise SystemExit("Duplicate release trigger key.")
+                  values[key] = value.strip()
+              confirm = values.get("confirm_publish")
+              pr_number = values.get("release_pr_number", "")
+              candidate_sha = values.get("candidate_sha", "")
+          else:
+              confirm = os.environ.get("INPUT_CONFIRM", "").lower()
+              pr_number = os.environ.get("INPUT_PR", "")
+              candidate_sha = os.environ.get("INPUT_SHA", "")
+          if confirm != "true":
+              raise SystemExit("Explicit confirm_publish=true is required.")
+          if not re.fullmatch(r"[1-9][0-9]*", pr_number):
+              raise SystemExit("Invalid release PR number.")
+          if not re.fullmatch(r"[0-9a-f]{40}", candidate_sha):
+              raise SystemExit("Invalid full candidate SHA.")
+          print("release_pr_number=" + pr_number)
+          print("candidate_sha=" + candidate_sha)
+          PY
+
+      - name: Verify merged PR, exact SHA, tree identity and successful CI gates
+        id: verify-release
         env:
           GH_TOKEN: ${{ github.token }}
-          RELEASE_PR_NUMBER: ${{ inputs.release_pr_number }}
-          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          RELEASE_PR_NUMBER: ${{ steps.release-inputs.outputs.release_pr_number }}
+          CANDIDATE_SHA: ${{ steps.release-inputs.outputs.candidate_sha }}
         run: |
           set -euo pipefail
           [[ "$RELEASE_PR_NUMBER" =~ ^[1-9][0-9]*$ ]]
@@ -50,7 +100,8 @@ jobs:
           test "$(jq -r '.base.ref' <<<"$PR_JSON")" = "main"
           test "$(jq -r '.head.sha' <<<"$PR_JSON")" = "$CANDIDATE_SHA"
           MERGE_SHA="$(jq -r '.merge_commit_sha' <<<"$PR_JSON")"
-          test "$MERGE_SHA" = "$GITHUB_SHA"
+          test -n "$MERGE_SHA"
+          git merge-base --is-ancestor "$MERGE_SHA" "$GITHUB_SHA"
           git fetch --no-tags origin "$CANDIDATE_SHA"
           CANDIDATE_TREE="$(git rev-parse "$CANDIDATE_SHA^{tree}")"
           MERGE_TREE="$(git rev-parse "$MERGE_SHA^{tree}")"
@@ -59,6 +110,7 @@ jobs:
           jq -e '[.check_runs[] | select(.name == "validate" and .status == "completed" and .conclusion == "success")] | length > 0' <<<"$CHECKS"
           jq -e '[.check_runs[] | select(.name == "round4-real-evidence-assessment" and .status == "completed" and .conclusion == "success")] | length > 0' <<<"$CHECKS"
           test "$(cat VERSION)" = "0.0.2"
+          echo "merge_sha=$MERGE_SHA" >> "$GITHUB_OUTPUT"
           echo "Verified candidate=$CANDIDATE_SHA merge=$MERGE_SHA tree=$MERGE_TREE"
 
       - name: Install validation dependencies
@@ -87,12 +139,13 @@ jobs:
       - name: Create immutable v0.0.2 tag and GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_MERGE_SHA: ${{ steps.verify-release.outputs.merge_sha }}
         run: |
           set -euo pipefail
           if git ls-remote --exit-code --tags origin refs/tags/v0.0.2 >/dev/null 2>&1; then
             echo "Tag v0.0.2 already exists; refusing to move or overwrite it."
             exit 1
           fi
-          git tag v0.0.2 "$GITHUB_SHA"
+          git tag v0.0.2 "$RELEASE_MERGE_SHA"
           git push origin refs/tags/v0.0.2
           gh release create v0.0.2 artifacts/evaluation-dataset-builder-0.0.2.zip RELEASE-NOTES-0.0.2.md --title "Evaluation Dataset Builder v0.0.2" --notes-file RELEASE-NOTES-0.0.2.md --verify-tag
