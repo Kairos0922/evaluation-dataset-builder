@@ -48,46 +48,19 @@ jobs:
           INPUT_BUILDER_PR: ${{ inputs.builder_evidence_pr_number }}
         run: |
           set -euo pipefail
-          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
-            [ "$INPUT_CONFIRM" = "true" ] || { echo "Publishing was not explicitly confirmed."; exit 2; }
-            PR_NUMBER="$INPUT_PR"
-            CANDIDATE_SHA="$INPUT_SHA"
-            BUILDER_PR_NUMBER="$INPUT_BUILDER_PR"
-          else
-            python - <<'PY' >> "$GITHUB_OUTPUT"
-          from pathlib import Path
-          import re
-
-          trigger = Path(".github/publish-release-trigger.txt")
-          if not trigger.is_file():
-              raise SystemExit("Release trigger file is missing.")
-          values = {}
-          for line in trigger.read_text(encoding="utf-8").splitlines():
-              if not line or line.startswith("#"):
-                  continue
-              if "=" not in line:
-                  raise SystemExit("Malformed release trigger line.")
-              key, value = line.split("=", 1)
-              if key in values:
-                  raise SystemExit("Duplicate release trigger key.")
-              values[key] = value.strip()
-          if values.get("confirm_publish") != "true":
-              raise SystemExit("Explicit confirm_publish=true is required.")
-          if not re.fullmatch(r"[1-9][0-9]*", values.get("release_pr_number", "")):
-              raise SystemExit("Invalid release PR number.")
-          if not re.fullmatch(r"[0-9a-f]{40}", values.get("candidate_sha", "")):
-              raise SystemExit("Invalid full candidate SHA.")
-          if not re.fullmatch(r"[1-9][0-9]*", values.get("builder_evidence_pr_number", "")):
-              raise SystemExit("Invalid Builder evidence PR number.")
-          print("release_pr_number=" + values["release_pr_number"])
-          print("candidate_sha=" + values["candidate_sha"])
-          print("builder_evidence_pr_number=" + values["builder_evidence_pr_number"])
-          PY
-            PR_NUMBER="$(sed -n 's/^release_pr_number=//p' "$GITHUB_OUTPUT" | tail -n 1)"
-            CANDIDATE_SHA="$(sed -n 's/^candidate_sha=//p' "$GITHUB_OUTPUT" | tail -n 1)"
-            BUILDER_PR_NUMBER="$(sed -n 's/^builder_evidence_pr_number=//p' "$GITHUB_OUTPUT" | tail -n 1)"
-          fi
+          [ "$INPUT_CONFIRM" = "true" ] || { echo "Publishing was not explicitly confirmed."; exit 2; }
+          PR_NUMBER="$INPUT_PR"
+          CANDIDATE_SHA="$INPUT_SHA"
+          BUILDER_PR_NUMBER="$INPUT_BUILDER_PR"
           [[ "$PR_NUMBER" =~ ^[1-9][0-9]*$ ]]
+          [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$BUILDER_PR_NUMBER" =~ ^[1-9][0-9]*$ ]]
+          {
+            echo "release_pr_number=$PR_NUMBER"
+            echo "candidate_sha=$CANDIDATE_SHA"
+            echo "builder_evidence_pr_number=$BUILDER_PR_NUMBER"
+          } >> "$GITHUB_OUTPUT"
+
           [[ "$CANDIDATE_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$BUILDER_PR_NUMBER" =~ ^[1-9][0-9]*$ ]]
           {
