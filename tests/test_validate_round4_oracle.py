@@ -1,8 +1,9 @@
 import json
+import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.validate_round4_oracle import EXPECTED_CASE_IDS, validate_records
+from scripts.validate_round4_oracle import (EXPECTED_CASE_IDS, validate_records, load_dataset_case_hashes, load_jsonl_records)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -101,6 +102,20 @@ class Round4OracleValidatorTests(unittest.TestCase):
             "plan_sha256": "c" * 64,
             "schema": SCHEMA,
         }
+
+    def test_rejects_non_standard_numeric_constants_in_oracle_jsonl(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "oracle.jsonl"
+            path.write_text('{"case_id":"WB-01","score":NaN}\\n', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "non-standard JSON numeric constant"):
+                load_jsonl_records(path)
+
+    def test_rejects_non_standard_numeric_constants_in_frozen_dataset(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "dataset.jsonl"
+            path.write_text('{"case_id":"WB-01","score":Infinity}\\n', encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "non-standard JSON numeric constant"):
+                load_dataset_case_hashes(path)
 
     def test_accepts_hash_bound_independently_reviewed_record(self):
         self.assertEqual(validate_records([record()], **self.kwargs), [])
