@@ -402,6 +402,7 @@ class ReleaseGateUnitTests(unittest.TestCase):
     def test_v0_0_2_candidate_package_workflow_builds_runtime_only_exact_sha_archive(self):
         workflow = (ROOT / ".github" / "workflows" / "package-release-candidate.yml").read_text(encoding="utf-8")
         self.assertIn("pull_request:", workflow)
+        self.assertNotIn("    paths:", workflow)
         self.assertIn("github.event.pull_request.head.sha", workflow)
         self.assertIn("python scripts/validate_skill.py", workflow)
         self.assertIn("evaluation-dataset-builder-0.0.2.zip", workflow)
@@ -421,6 +422,18 @@ class ReleaseGateUnitTests(unittest.TestCase):
         self.assertIn("不证明", notes)
         self.assertIn("范围", gate)
         self.assertIn("不得把范围移除解释为科学验证通过", gate)
+
+    def test_v0_0_2_release_prep_matches_candidate_scope_and_metadata(self):
+        prep = (ROOT / "RELEASE-PREP-0.0.2.md").read_text(encoding="utf-8")
+        tasks = (ROOT / "docs" / "quality-assessment-v0.0.2" / "TASKS.md").read_text(encoding="utf-8")
+        version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+        self.assertEqual(version, "0.0.2")
+        self.assertIn("22/22 DONE", prep)
+        self.assertIn("17 项", prep)
+        self.assertIn("READY FOR FINAL REVIEW", prep)
+        self.assertIn("NOT_VALIDATED", prep)
+        self.assertIn("当前统计：22 项", tasks)
+        self.assertIn("D-009", tasks)
 
     def test_manual_behavior_workflow_is_exact_sha_and_flash_only(self):
         workflow = (ROOT / ".github" / "workflows" / "behavioral-eval.yml").read_text(encoding="utf-8")
