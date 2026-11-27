@@ -160,18 +160,9 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "判定方式"
+        "grading_mode"
       ],
       "properties": {
-        "判定方式": {
-          "enum": [
-            "deterministic",
-            "rubric",
-            "hybrid",
-            "human_review",
-            "not_yet_defined"
-          ]
-        },
         "criteria_refs": {
           "type": "array",
           "items": {
@@ -195,6 +186,15 @@
             "minLength": 1,
             "maxLength": 1000
           }
+        },
+        "grading_mode": {
+          "enum": [
+            "deterministic",
+            "rubric",
+            "hybrid",
+            "human_review",
+            "not_yet_defined"
+          ]
         }
       }
     },
