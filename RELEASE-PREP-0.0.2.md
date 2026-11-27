@@ -17,7 +17,7 @@
 | 当前正式版本 | 0.0.2（已发布） |
 | 0.0.2 版本元数据 | main 的 VERSION 与 Skill frontmatter 已随 PR #44 合并为 0.0.2 |
 | 0.0.2 专属发布门禁 | 已建立；手动发布工作流和精确 SHA 包构建工作流均通过 CI |
-| 最近完整 CI | Run #2083 SUCCESS，head a8071fd68c708bffcc1979518b74982552008bee；其后 VERSION/frontmatter 已升级为候选 0.0.2，Run #2089 已在版本元数据更新后的精确候选 head 上完成完整验证 |
+| 发布前精确候选 CI | Run #2099 SUCCESS；正式发布工作流 Run #45972007647 再次完成候选/合并/tree/CI/包验证并成功发布 |
 | Release Candidate | 已通过精确 SHA 与 Git tree identity 核验 |
 | Tag / GitHub Release | `v0.0.2` 已创建并正式发布 |
 
@@ -77,7 +77,7 @@
 3. 正式发布工作流 [Run #45972007647](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/45972007647) SUCCESS：候选/merge/tree/CI 验证、依赖安装、包/Benchmark/离线测试、actionlint、正式 Skill ZIP 构建、Tag 与 Release 创建全部通过。
 4. Tag `v0.0.2` 指向 `f6b722ca630dacf0fa73bacba110cff1fafff0f`；Release 地址为 [GitHub Release v0.0.2](https://github.com/Kairos0922/evaluation-dataset-builder/releases/tag/v0.0.2)。
 5. 正式 ZIP 为 44,025 bytes，SHA-256：`a7de57496e9beeb7b776361d712af81a6b0a6c7ed42bd900d95d8c08081c7fc4`；包含 17 个白名单运行时文件。
-6. PR #45 之后的发布后审计将移除一次性 push trigger 和审批标记，保留手动显式确认入口，避免已完成的发布流程被误触发。
+6. 发布后审计 PR #46 已移除一次性 push trigger 和审批标记；保留手动显式确认入口，避免已完成的发布流程被误触发。
 
 ## 7. 发布判定
 
