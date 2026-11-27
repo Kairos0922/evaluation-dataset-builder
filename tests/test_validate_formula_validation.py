@@ -214,6 +214,12 @@ def not_validated_report():
 
 
 class FormulaValidationTests(unittest.TestCase):
+    def test_non_finite_statistic_is_rejected(self):
+        report = validated_report()
+        report["robustness"]["weight_sensitivity"]["estimate"] = float("nan")
+        errors = validate_formula_validation_report(report)
+        self.assertTrue(any("non-finite numeric value" in error for error in errors))
+
     def test_not_validated_report_is_valid_when_scalar_is_disabled(self):
         self.assertEqual(validate_formula_validation_report(not_validated_report()), [])
 
