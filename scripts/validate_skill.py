@@ -72,9 +72,13 @@ def read_skill_text(relative):
         return ""
 
 
+def _reject_json_constant(token):
+    raise ValueError(f"invalid JSON numeric constant: {token}")
+
+
 def read_skill_json(relative):
     try:
-        return json.loads(read_skill_text(relative))
+        return json.loads(read_skill_text(relative), parse_constant=_reject_json_constant)
     except Exception as exc:
         fail(f"Skill 文件 {relative} 不是有效 JSON：{exc}")
         return None
@@ -402,7 +406,7 @@ def main():
             fail(f"质量标准配置无效：{exc}")
 
     try:
-        suite = json.loads(read_repo_text("tests/self-eval-cases.json"))
+        suite = json.loads(read_repo_text("tests/self-eval-cases.json"), parse_constant=_reject_json_constant)
     except Exception as exc:
         fail(f"自评测试集不是有效 JSON：{exc}")
         suite = None
@@ -415,7 +419,7 @@ def main():
               "自评测试用例缺少 prompt 或 expected")
 
     try:
-        trigger_suite = json.loads(read_repo_text("tests/trigger-evals.json"))
+        trigger_suite = json.loads(read_repo_text("tests/trigger-evals.json"), parse_constant=_reject_json_constant)
     except Exception as exc:
         fail(f"触发测试集不是有效 JSON：{exc}")
         trigger_suite = None
