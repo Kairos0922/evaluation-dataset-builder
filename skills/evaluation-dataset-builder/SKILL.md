@@ -3,7 +3,7 @@ name: evaluation-dataset-builder
 description: 为 Agent、Skill、API、工作流和其他软件系统规划、生成、审查、修复和维护评测数据集。当用户需要设计评测方案、构建业务场景与评测用例、制定用例判定标准和覆盖矩阵，或更新既有评测数据集时使用。
 license: MIT
 metadata:
-  version: "0.0.1"
+  version: "0.0.2"
 ---
 
 # 评测数据集构建 Skill
