@@ -129,3 +129,10 @@
 - Package run #3（45968288702）SUCCESS，artifact #15184151507，17 个运行时文件，ZIP 44,025 bytes，artifact 名称绑定 head f9aa8822bf55458e76087ee9658c75bf96956226。
 - Run #2095（45968288724，精确 head f9aa8822bf55458e76087ee9658c75bf96956226）SUCCESS：actionlint、正式 Skill 包、Benchmark、265/265 离线测试、G-Theory 三种设计模拟、IDA controlled mutation、Round 4 IDA/ERA/Capability contracts PASS。
 - 该 artifact 是 PR 候选包，不是正式 Release 资产；PR 仍 Draft/Open，未合并、未打 Tag、未发布。
+
+
+### D-011 最终精确候选 head 复验（2026-11-27）
+
+- 当前候选 head `7e7bb5c4b59b35e9eeebd2efb3aa64d42043a022` 的 Run #2099（45968646417）SUCCESS：actionlint、Skill package、Benchmark、266/266 离线测试、G-Theory 三种设计模拟、IDA controlled mutation、Round 4 IDA/ERA/Capability contracts PASS。
+- Package run #7（45968646244）在同一精确 head 上生成 artifact #15183069447，17 个运行时文件，ZIP 44,025 bytes，严格匹配 EXPECTED_SKILL_FILES。
+- 受授权边界保护的生产 Builder、Pilot、独立评审和 adjudication jobs 均未执行。候选包仅供审查，正式发布工作流未触发。
