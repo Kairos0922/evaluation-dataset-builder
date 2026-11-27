@@ -3,6 +3,7 @@
 ## 0.0.2 — Unreleased（研发中）
 
 > 本节记录开发分支已实现的工程资产，不代表发布批准或实证效度通过。正式版本号仍为 0.0.1。
+- 最新 PR head 验证：Run #2036（workflow run ID 45916212402，执行 head `93dce24092908d8f569804d2c14c7372339b26b1`）SUCCESS，actionlint、Skill package、Benchmark、246/246 离线测试、G-Theory 三种设计模拟、IDA controlled mutation 和 Round 4 IDA/ERA/Capability contracts PASS。Run 编号已按 GitHub API 正式 run_number 校正；本次没有新增生产运行或独立 Gold。
 - IDA 畸形输入安全加固：离线评价器现在对错误类型的 coverage/source/scenario/grading/manifest 嵌套字段进行防御式处理，非法 source registry ID 明确拒绝；新增 3 项回归测试。Run #2034（45916033576，精确 head `ee0e03bbc0731acf4ca814a4d4a8b113f0ecad88`）246/246 离线测试 PASS，IDA mutation 与 Round 4 IDA/ERA/Capability contracts PASS；P0-ROBUST-01 标记 DONE。仅为工程鲁棒性验证，不代表科学效度通过。
 
 - QA-02 加强 negative-control metamorphic invariance：除不触发硬 FAIL 外，四种语义保持变换必须保持 overall status、gate status/severity 与 metric values/statuses 不变。Run #2023（45892053327，head `49613acf6d540f5ef494335a45eebca65077a64b`）243/243 测试 PASS；8/8 deterministic mutations detected，4/4 negative controls 指标不变，0/4 false positives；artifact #15152600525（SHA-256 `bdc08d2a95efcffa5ec1c8bbaa43b9432c27e9b639b09795fcefb9c6e76125ef`）。这仍是合成实现敏感性验证，QA-02 保持 BLOCKED，M09–M12 NOT_ASSESSED。
