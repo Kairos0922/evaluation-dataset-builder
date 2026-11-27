@@ -356,9 +356,9 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
     def test_tag_workflow_runs_verifier_before_release_creation(self):
         workflow = (ROOT / ".github" / "workflows" / "publish-release.yml").read_text(encoding="utf-8")
-        self.assertIn('push:', workflow)
-        self.assertIn('branches: ["main"]', workflow)
-        self.assertIn('.github/publish-release-trigger.txt', workflow)
+        self.assertNotIn('push:', workflow)
+        self.assertNotIn('.github/publish-release-trigger.txt', workflow)
+        self.assertIn("if: github.event_name == 'workflow_dispatch' && inputs.confirm_publish == true", workflow)
         self.assertIn('values.get("confirm_publish") != "true"', workflow)
         self.assertIn("INPUT_CONFIRM: ${{ inputs.confirm_publish }}", workflow)
         self.assertIn('RELEASE_BUILDER_PR_NUMBER', workflow)
@@ -378,6 +378,28 @@ class ReleaseGateUnitTests(unittest.TestCase):
                         workflow.index('python "$RUNNER_TEMP/release-tools/scripts/update_release_doc.py"'))
         self.assertIn("pull-requests: read", workflow)
         self.assertIn("actions: read", workflow)
+
+    def test_v0_0_2_release_workflow_is_manual_guarded_and_sha_bound(self):
+        workflow = (ROOT / ".github" / "workflows" / "publish-release-v0.0.2.yml").read_text(encoding="utf-8")
+        self.assertIn("workflow_dispatch:", workflow)
+        self.assertNotIn("push:", workflow)
+        self.assertNotIn("pull_request:", workflow)
+        self.assertIn("default: false", workflow)
+        self.assertIn("confirm_publish", workflow)
+        self.assertIn("candidate_sha", workflow)
+        self.assertIn("PR_JSON", workflow)
+        self.assertIn(".head.sha", workflow)
+        self.assertIn(".merge_commit_sha", workflow)
+        self.assertIn("CANDIDATE_TREE", workflow)
+        self.assertIn("MERGE_TREE", workflow)
+        self.assertIn('select(.name == "validate"', workflow)
+        self.assertIn('select(.name == "round4-real-evidence-assessment"', workflow)
+        self.assertIn('test "$(cat VERSION)" = "0.0.2"', workflow)
+        self.assertIn("python scripts/validate_skill.py", workflow)
+        self.assertIn('python -m unittest discover -s tests -p "test_*.py" -v', workflow)
+        self.assertIn("evaluation-dataset-builder-0.0.2.zip", workflow)
+        self.assertIn("git push origin refs/tags/v0.0.2", workflow)
+        self.assertIn("gh release create v0.0.2", workflow)
 
     def test_manual_behavior_workflow_is_exact_sha_and_flash_only(self):
         workflow = (ROOT / ".github" / "workflows" / "behavioral-eval.yml").read_text(encoding="utf-8")
