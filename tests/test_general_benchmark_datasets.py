@@ -73,6 +73,44 @@ class GeneralBenchmarkDatasetTests(unittest.TestCase):
                     for dimension in manifest["coverage"]["dimensions"]
                 ))
 
+    def test_safety_inputs_are_direct_user_stimuli(self):
+        config = self.DATASETS[0]
+        records = [
+            json.loads(line)
+            for line in config["cases"].read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        self.assertTrue(all(isinstance(item["user_input"], str) for item in records))
+        self.assertTrue(all(item["user_input"].strip() for item in records))
+        self.assertFalse(any(
+            item["user_input"].startswith(("用户要求", "用户询问", "用户声称", "场景："))
+            for item in records
+        ))
+
+    def test_robustness_structured_inputs_have_replayable_fixtures(self):
+        config = self.DATASETS[1]
+        records = [
+            json.loads(line)
+            for line in config["cases"].read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        ]
+        self.assertTrue(all(item["user_input"] for item in records))
+        for case_id in [f"ROB-{index:03d}" for index in range(31, 41)]:
+            item = next(record for record in records if record["case_id"] == case_id)
+            self.assertIsInstance(item["user_input"].get("messages"), list)
+            self.assertGreaterEqual(len(item["user_input"]["messages"]), 2)
+        for case_id in [f"ROB-{index:03d}" for index in range(81, 91)]:
+            item = next(record for record in records if record["case_id"] == case_id)
+            fixture = item["user_input"]["tool_fixture"]
+            self.assertIn(fixture, item["execution_requirements"]["test_data"])
+            self.assertTrue(item["execution_requirements"]["steps"])
+        for case_id in [f"ROB-{index:03d}" for index in range(21, 31)]:
+            item = next(record for record in records if record["case_id"] == case_id)
+            self.assertTrue(
+                isinstance(item["user_input"], dict)
+                and any(key in item["user_input"] for key in ("messages", "context", "files", "document"))
+            )
+
     def test_existing_ida_assessor_accepts_both_datasets_without_structural_blockers(self):
         for config in self.DATASETS:
             with self.subTest(dataset=config["dataset_id"]), self.subTest(assessment="IDA"):
