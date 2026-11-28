@@ -89,7 +89,19 @@ For each run, capture:
 
 A mention of a file path in generated text is not a read event. A preloaded context bundle is not proof of on-demand navigation; report it as preloaded context and do not count it as a selective read.
 
-## 5. Execution conditions
+## 5. Executable test assets
+
+The Pilot fixtures and evidence contracts are maintained under `tests/`:
+
+- `tests/self-eval-cases.json`: existing SE01–SE12 plus proposed SE13.
+- `tests/self-eval-rubric.json`: assertion-level severity, pass/fail/unknown anchors, and evidence requirements.
+- `tests/reference-navigation-cases.json`: RN01–RN08 task prompts and expected navigation behavior.
+- `tests/reference-dependency-manifest.json`: frozen task-to-reference dependency labels.
+- `tests/reference-read-event.schema.json`: host/harness event record contract.
+
+These are design assets. They do not imply that a host exposes file-read telemetry or that any Pilot task has been run.
+
+## 6. Execution conditions
 
 For outcome comparison, use matched conditions:
 - A: generic no-Skill baseline;
@@ -99,7 +111,7 @@ Freeze task prompts, model identity/revision, sampling parameters, tools, permis
 
 The current `tests/run_eval.py` can serve as an initial paired comparison prototype, but it does not implement P06 reference telemetry and its generator/Judge model identity is not independent. Use independent blind human review or a genuinely distinct evaluator for semantic outcomes.
 
-## 6. Pilot analysis
+## 7. Pilot analysis
 
 Report:
 - per-case and per-assertion PASS / FAIL / UNKNOWN;
@@ -112,7 +124,7 @@ Report:
 
 Do not compute a single Skill-quality score. Do not treat the existing release-gate thresholds as validated universal thresholds.
 
-## 7. Pilot exit criteria
+## 8. Pilot exit criteria
 
 The Pilot is complete only when:
 1. Every executed task is bound to a frozen Skill and suite version.
