@@ -82,7 +82,7 @@ Limitations requiring explicit treatment:
 4. Existing repeated-run and release thresholds are legacy operational gates. They must not be treated as universal validity thresholds for this new research.
 5. The runner is a paid external-model workflow. Running it requires explicit authorization and a frozen candidate SHA, budget, credentials, and stop conditions.
 
-**Decision:** reuse its paired baseline concept, evidence validation, checkpointing, and cost controls. Do not claim it already measures progressive disclosure or host-native discovery.
+**Decision:** reuse its paired baseline concept, evidence validation, checkpointing, and cost controls. On this research branch, the runner now loads `tests/self-eval-rubric.json`, verifies exact case/assertion alignment, annotates Judge checks with stable assertion IDs and severity, and reports critical-rule failures/UNKNOWNs separately without turning them into an automatic release gate. It still does not measure progressive disclosure or host-native discovery.
 
 ### 2.5 Cross-runtime compatibility
 
