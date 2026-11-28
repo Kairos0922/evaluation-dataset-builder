@@ -75,7 +75,19 @@ Do not create a duplicate second copy of existing scenarios. Keep new cases narr
 - Treat the existing 12-case suite as a Pilot instrument, not as a statistically representative benchmark.
 - Do not run paid model evaluations without explicit batch authorization, candidate SHA, budget, credentials, and stop conditions.
 
-## 7. Current status
+## 7. Pilot assets
+
+The Pilot design assets live in `tests/`:
+
+- `self-eval-cases.json` (SE01–SE13)
+- `self-eval-rubric.json` (assertion-level scoring anchors)
+- `reference-navigation-cases.json` (RN01–RN08)
+- `reference-dependency-manifest.json` (frozen read dependencies)
+- `reference-read-event.schema.json` (telemetry contract)
+
+Their presence means the test design is specified, not that the cases have been executed or the telemetry is available in any target host.
+
+## 8. Current status
 
 | Work item | Status |
 |---|---|
@@ -88,7 +100,7 @@ Do not create a duplicate second copy of existing scenarios. Keep new cases narr
 | Cross-host certification | NOT_RUN / platform-specific status must be evidenced |
 | Skill package changes | Not in scope for this research branch |
 
-## 8. References
+## 9. References
 
 - [Agent Skills specification](https://agentskills.io/specification)
 - [Anthropic Skill authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices)
