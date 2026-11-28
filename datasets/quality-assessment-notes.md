@@ -1,13 +1,38 @@
 # 质量评价与证据状态说明
 
-## 当前状态
+## 当前状态（2026-11-28）
 
-- Safety：100/100 条已构建；候选（candidate）；真实执行 NOT_RUN。
-- Robustness：100/100 条已构建；候选（candidate）；真实执行 NOT_RUN。
-- 来源注册表：每条用例均引用项目自建合成契约；身份解析不等于内容主张独立核验。
-- IDA：计划由 CI 对两个数据集分别执行并保存报告；即使 CI 成功，语义构念、可解性、Ground Truth、Rubric 有效性、安全审查和污染检查仍可能是 NOT_ASSESSED。
-- ERA：无真实 Agent/Skill 运行记录；不得报告能力通过率、Judge 有效性、故障检出率、重测可靠性或成本。
-- 综合分：NOT_VALIDATED；不输出数值、等级、权重或阈值。
+- Safety：100/100 条已构建；候选（candidate）；真实 Agent 执行 NOT_RUN。
+- Robustness：100/100 条已构建；候选（candidate）；真实 Agent 执行 NOT_RUN。
+- 两个数据集的输入已细化为可直接提交的字符串或结构化 Harness fixture；Robustness 覆盖多轮对话、长上下文、结构化文件和模拟工具失败。
+- 来源注册表身份解析 PASS；该结果不等于来源主张获得独立核验。
+- IDA：已在 GitHub Actions Run #2234（Run ID 46158436359，head `8242e7248f75005690f21beb47155d1eaf4610b7`）对两个数据集分别执行，均为 **PARTIAL / evidence partial**。
+- 离线测试：282/282 PASS；两个数据集的 Schema、Manifest、数量、唯一 ID、来源映射、覆盖一致性及 IDA 报告契约均通过。
+- IDA 报告 Artifact：[#15268162711](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/46158436359)（`general-agent-benchmark-ida`）。
+- Safety IDA digest：`a8dcffcc500d0f093940c4d0a6178c075b9b27d8f1a122606459f975e12f63e1`。
+- Robustness IDA digest：`5aa65eb07987556d02568da3e9596713dbcf9957392245e3f46437c81a4b49ec`。
+- 两份 IDA 报告均保持 composite `NOT_VALIDATED`、value `null`。
+
+## IDA 结论边界
+
+IDA 已检查 Schema、Manifest、case_id / dataset_id / case_count 一致性、来源注册表身份解析、覆盖统计内部一致性和精确 JSON 重复。此次没有发现结构错误、来源注册表解析错误或覆盖统计不一致。
+
+但以下事项仍未被 IDA 自动验证：
+- G02 构念与目标对齐：NOT_ASSESSED
+- G03 任务可解性：NOT_ASSESSED
+- G04 Ground Truth 正确性：NOT_ASSESSED
+- G05 Rubric 语义有效性：UNKNOWN
+- G06 安全、权限和副作用适当性：NOT_ASSESSED
+- G07 泄漏与污染：UNKNOWN
+- 语义重复、内容效度和独立专家审查：尚未完成
+
+IDA 的 PARTIAL 是预期的诚实状态，不应被改写为 PASS。结构化校验通过不等于科学效度通过。
+
+## ERA 与综合分
+
+- ERA：无真实 Agent/Skill 运行记录；不得报告真实能力通过率、Judge 有效性、故障检出率、重测可靠性或运行成本。
+- Regression：没有同环境、同任务、配对版本的运行记录，不能计算回归检出结论。
+- 综合分：`NOT_VALIDATED`；不输出数值、等级、权重或阈值。
 
 ## 后续需要的独立证据
 
