@@ -17,8 +17,8 @@ from scripts.compare_round4_blind_reviews import (
 
 SCHEMA = json.loads(DEFAULT_SCHEMA.read_text(encoding="utf-8"))
 PACKET_HASHES = {
-    "A": "0dff42e51bba9e85fc12df9f1ae170a6baec28793ad3ca3496e07a6abe94180f",
-    "B": "205bd9bda8579c19c127cb1279e3f8378518fcc02f0cf84abbe33a7a8f733d92",
+    "A": "1c6aeae5562026ae69c631ea3d60246ce35e5def5bae786c9e1f9c1af6c89049",
+    "B": "e22a09cdb4f7654163921496f55edc3e342fd8ad71eb3ab5d4787e422e159c74",
 }
 
 
