@@ -6,7 +6,7 @@
 - 工作分支: `feat/trajectory-driven-v0.0.3`
 - 基线: `main` / v0.0.2
 - 开发 PR: [#52](https://github.com/Kairos0922/evaluation-dataset-builder/pull/52)（Draft）
-- 最近一次完整 CI 验证：Run #2164 / 46093882003，validate PASS；v0.0.2 release-candidate package Run #72 / 46093882013 PASS（Harness 产物适配器待本轮 CI 验证）
+- 最近一次完整 CI 验证：Run #2170 / 46094733042，validate PASS（含 Harness 产物适配专项测试与全量离线测试）；v0.0.2 release-candidate package Run #78 / 46094733044 PASS
 - 轨迹→Case→IDA 与无轨迹回归：Run #2147 steps 9–14 全部 PASS；已归档轨迹 Case、无轨迹 Case 和两份 IDA report 到 `trajectory-to-ida-integration` artifact（90 天）
 - 真实 Builder production / independent validation / Pilot 等受保护任务按条件 SKIPPED；没有真实轨迹或真实 Pilot 结论
 - 状态: IN_PROGRESS
@@ -44,7 +44,7 @@
 | V03-16 | ERA 集成 | 验证新 clean-run Runtime Record 能绑定轨迹来源 Case，并由现有 ERA 消费 | DONE | `tests/test_trajectory_era_integration.py`；Run #2152 / 46086364131 step 15 全量离线测试 PASS。验证 dataset SHA / case_id / 新 trace_ref 绑定、历史 source trace 不被复用、缺少 Gold/Judge 时保持 NOT_RUN / NOT_VALIDATED。仅为合成契约回归，不执行 Agent，不构成真实运行证据 |
 | V03-17 | ERA 集成 | 从现有 Manifest + Case JSONL 生成冻结身份、逐 Case 执行要求和来源追溯的 ERA Run Plan 草稿 | DONE | `scripts/build_era_run_plan.py`、`tests/test_build_era_run_plan.py`；验证复用既有 Manifest/Case/Runtime Record schema、与既有 DSH importer 一致的数据集 SHA、READY_TO_RUN 门禁、Case 选择及历史 source trace 与新 runtime trace 分离；Run #2164 / 46093882003 step 14 PASS，step 16 全量离线测试 PASS；并验证了 Manifest 级 READY_TO_RUN 门禁与真实 CLI 输出。计划不启动 Agent、不分配 run_id | 
 
-| V03-18 | ERA 集成 | 将具体 Harness 已完成的执行 envelope 安全导入现有 Runtime Record / ERA | IN_PROGRESS | `scripts/import_era_harness_executions.py`、`tests/test_import_era_harness_executions.py`；验证 Run Plan 身份绑定、每 Case 唯一记录、session 不复用、run_id 唯一、新 Trace/Result 与历史 source refs 隔离、Trace SHA、无 Oracle 时 Gold=UNKNOWN；待本轮 CI 证明。该适配器不执行 Agent，也不证明 Harness 产物真实性 |
+| V03-18 | ERA 集成 | 将具体 Harness 已完成的执行 envelope 安全导入现有 Runtime Record / ERA | DONE | `scripts/import_era_harness_executions.py`、`tests/test_import_era_harness_executions.py`；验证 Run Plan 身份绑定、每 Case 唯一记录、session 不复用、run_id 唯一、新 Trace/Result 与历史 source refs 隔离、Trace SHA、无 Oracle 时 Gold=UNKNOWN；Run #2170 / 46094733042 step 15 PASS，step 17 全量离线测试 PASS。该适配器不执行 Agent，也不证明 Harness 产物真实性 |
 
 ## 融合原则
 
