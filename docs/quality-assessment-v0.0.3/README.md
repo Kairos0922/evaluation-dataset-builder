@@ -34,7 +34,7 @@ v0.0.3 不建立一套平行的轨迹评测产品。它在现有 Evaluation Data
 
 ## 当前验证边界
 
-最近一次完整 CI 验证为 Run #2170 / 46094733042（validate PASS，含 Harness 产物适配专项测试与全量离线测试）；v0.0.2 正式 Skill 包候选 Run #78 / 46094733044 PASS actionlint、正式 Skill 包、Benchmark、轨迹候选发现、v0.0.3 证据链、Case adapter、轨迹 Case→IDA、无轨迹 Case→IDA、IDA 报告契约、全量离线测试、G-Theory 模拟和 IDA controlled-mutation。轨迹 Case draft、轨迹 JSONL、两种路径的 IDA report 已归档为 GitHub Actions artifact `trajectory-to-ida-integration`（90 天）。
+最近一次完整 CI 验证为 Run #2175 / 46095359792（validate PASS，含 envelope Schema、Harness 产物适配专项测试与全量离线测试）；v0.0.2 正式 Skill 包候选 Run #83 / 46095359791 PASS actionlint、正式 Skill 包、Benchmark、轨迹候选发现、v0.0.3 证据链、Case adapter、轨迹 Case→IDA、无轨迹 Case→IDA、IDA 报告契约、全量离线测试、G-Theory 模拟和 IDA controlled-mutation。轨迹 Case draft、轨迹 JSONL、两种路径的 IDA report 已归档为 GitHub Actions artifact `trajectory-to-ida-integration`（90 天）。
 
 本次 PR CI 中 Builder production、independent validation 和 Pilot 等受保护任务按条件 SKIPPED；没有真实轨迹导入或真实 Agent Pilot。合成样例只证明工程链路，不构成真实轨迹方法的有效性证据。
 
