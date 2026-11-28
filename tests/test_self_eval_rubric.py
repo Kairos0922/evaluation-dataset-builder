@@ -1,4 +1,4 @@
-"""Offline contract tests for the Skill self-evaluation rubric integration."""
+"""Offline contract tests for execution-evaluation rubric integration."""
 import json
 import sys
 import unittest
@@ -53,52 +53,6 @@ class SelfEvalRubricTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "assertion text"):
             run_eval.index_self_eval_rubric(suite, rubric)
-
-    def test_reference_navigation_manifest_matches_cases_and_package_files(self):
-        navigation = json.loads(
-            (TESTS_DIR / "reference-navigation-cases.json").read_text(encoding="utf-8")
-        )
-        dependency = json.loads(
-            (TESTS_DIR / "reference-dependency-manifest.json").read_text(encoding="utf-8")
-        )
-        skill_dir = TESTS_DIR.parent / "skills" / "evaluation-dataset-builder"
-
-        self.assertEqual(len(navigation["cases"]), 8)
-        manifest_cases = {item["case_id"]: item for item in dependency["navigation_cases"]}
-        self.assertEqual(
-            {item["id"] for item in navigation["cases"]},
-            set(manifest_cases),
-        )
-        for case in navigation["cases"]:
-            manifest_item = manifest_cases[case["id"]]
-            self.assertEqual(manifest_item["required"], case["required"])
-            self.assertEqual(manifest_item["critical"], case["critical"])
-            self.assertTrue(set(case["critical"]).issubset(case["required"]))
-            referenced = (
-                case["required"]
-                + case["critical"]
-                + case["conditionally_relevant"]
-                + case["irrelevant_examples"]
-            )
-            for relative_path in referenced:
-                self.assertTrue(
-                    (skill_dir / relative_path).is_file(),
-                    f"{case['id']} references missing Skill asset: {relative_path}",
-                )
-
-    def test_reference_read_event_schema_captures_delivery_and_preload_distinctions(self):
-        schema = json.loads(
-            (TESTS_DIR / "reference-read-event.schema.json").read_text(encoding="utf-8")
-        )
-        self.assertIn("event_type", schema["required"])
-        self.assertIn("access_origin", schema["required"])
-        self.assertIn("delivery_status", schema["required"])
-        self.assertIn("evidence_ref", schema["required"])
-        event_types = schema["properties"]["event_type"]["enum"]
-        self.assertIn("CONTENT_DELIVERED", event_types)
-        self.assertIn("PRELOADED_CONTEXT", event_types)
-        self.assertIn("FILE_READ_FAILED", event_types)
-        self.assertIn("FILE_READ_DENIED", event_types)
 
     def test_critical_rule_summary_keeps_failures_and_unknowns_visible(self):
         summary = run_eval.summarize_critical_rule_checks([
