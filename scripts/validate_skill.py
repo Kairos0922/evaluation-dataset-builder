@@ -156,6 +156,35 @@ def validate_frontmatter(skill_text, version):
     check(bool(body.strip()), "SKILL.md Markdown 正文不能为空")
 
 
+
+def runtime_schema_boundary_errors(package_schema, research_schema):
+    """Allow only the documented ERA-only trace hash extension to the released contract."""
+    if not isinstance(package_schema, dict) or not isinstance(research_schema, dict):
+        return ["Runtime Record Schema 必须是 JSON 对象"]
+
+    package = json.loads(json.dumps(package_schema))
+    research = json.loads(json.dumps(research_schema))
+    package_properties = package.get("properties", {})
+    research_properties = research.get("properties", {})
+    extension = research_properties.pop("trace_sha256", None) if isinstance(research_properties, dict) else None
+    errors = []
+
+    if "trace_sha256" in package_properties or "trace_sha256" in package.get("required", []):
+        errors.append("正式 Skill v0.0.2 Runtime Record 契约不得包含 trace_sha256")
+    if not isinstance(extension, dict) or extension.get("type") != "string" or extension.get(
+        "pattern"
+    ) != "^[a-fA-F0-9]{64}$":
+        errors.append("研发侧 Runtime Record Schema 必须仅以可选的 64 位十六进制 trace_sha256 扩展正式契约")
+    if "trace_sha256" in research.get("required", []):
+        errors.append("研发侧 trace_sha256 扩展必须保持可选")
+
+    package.pop("$id", None)
+    research.pop("$id", None)
+    if package != research:
+        errors.append("研发侧 Runtime Record Schema 除 trace_sha256 扩展和 $id 外必须与正式 Skill 契约一致")
+    return errors
+
+
 def main():
     version = read_repo_text("VERSION").strip()
     check(bool(re.fullmatch(r"(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)", version)),
@@ -235,6 +264,19 @@ def main():
                       f"{schema_name} 必须使用 JSON Schema Draft 2020-12")
             except Exception as exc:
                 fail(f"{schema_name} 无效：{exc}")
+
+    research_runtime_schema = None
+    try:
+        research_runtime_schema = json.loads(
+            read_repo_text("docs/quality-assessment-v0.0.2/schemas/runtime-record.schema.json"),
+            parse_constant=_reject_json_constant
+        )
+    except Exception as exc:
+        fail(f"研发侧 Runtime Record Schema 无效：{exc}")
+    package_runtime_schema = read_skill_json("references/runtime-record.schema.json")
+    if isinstance(package_runtime_schema, dict) and isinstance(research_runtime_schema, dict):
+        for error in runtime_schema_boundary_errors(package_runtime_schema, research_runtime_schema):
+            fail(error)
 
     case_schema = read_skill_json("references/dataset-schema.json")
     if isinstance(case_schema, dict):
