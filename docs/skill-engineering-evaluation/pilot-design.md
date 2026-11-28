@@ -1,4 +1,4 @@
-# Skill Evaluation Pilot Design
+# Execution Effectiveness Pilot Design
 
 **Version:** 0.1.0  
 **Status:** Design only; all new Pilot runs are NOT_RUN.  
@@ -6,7 +6,7 @@
 
 ## 1. Pilot objective
 
-The Pilot should establish whether the existing evaluation instruments can reveal important Skill-use failures, identify gaps in the instruments, and test the evidence collection workflow. It is not intended to establish universal effectiveness or statistical generalization.
+The Pilot should establish whether the Builder Skill can produce evaluation datasets that satisfy the declared task requirements and whether its outputs are meaningfully better than a matched no-Skill baseline. This is a supporting execution-effectiveness study, not a replacement for independent evaluation-dataset quality assessment. It is not intended to establish universal effectiveness or statistical generalization.
 
 Do not create six replacement tasks. Use the existing cases wherever they already exercise the target behavior and add only narrowly scoped missing cases.
 
@@ -19,7 +19,7 @@ Do not create six replacement tasks. Use the existing cases wherever they alread
 | P03 — Evaluation-subject attribution | New targeted case proposed as SE13 | When the application is defective, can the test Agent/Skill correctly detect and report the defect without being scored as failing for the application's behavior? | Separate application outcome and test-Agent outcome; criterion-level subject labels; actual observation evidence |
 | P04 — Execution and critical gates | SE06, SE08, SE09 | Does the Skill preserve non-compensatory safety/quality gates and distinguish design readiness from actual execution? | Gate results, authorization/precondition/cleanup contract, NOT_RUN/UNKNOWN handling |
 | P05 — Semantic maintenance | SE07, SE12 | Can the Agent remove only true semantic duplicates and update only assets affected by a source/rule change? | Duplicate clusters, stable IDs, change-impact graph, regression/retest list |
-| P06 — Resource navigation | New instrumented navigation cases | Does the Agent read the correct references for the task, avoid critical omissions, and avoid unnecessary full-package loading? | Frozen dependency annotations and host/harness file-read events |
+
 
 SE02 remains a useful additional task for multi-dataset planning and risk-based scope definition. SE11 remains a negative trigger case and should also be assessed through the trigger suite where the labels are consistent. Do not force every existing case into one Pilot group if it is better reported separately.
 
@@ -62,32 +62,9 @@ The test Agent must inspect the state, compare it with BR-17, and report the obs
 
 The expected application state and test-Agent behavior must be frozen before the run. Reviewers assess the two subjects separately. A generator's own explanation is not evidence that a tool action did or did not occur.
 
-## 4. P06 — Reference-navigation instrument
+## 4. Deferred work
 
-The current runner does not expose actual reference reads. P06 must not be scored until an execution environment can produce file-access events.
-
-Prepare a task-to-reference dependency table before execution:
-
-| Navigation case | Task request | Required references | Criticality | Expected behavior |
-|---|---|---|---|---|
-| RN01 | Build a business-domain model from supplied source documents | `business-scenario-model.md`, `source-and-evidence-policy.md` | Critical | Read both before making source-backed business claims |
-| RN02 | Design scenario coverage and prioritize gaps | `scenario-buckets.md`, `coverage-design-guideline.md` | Important | Read both; do not load unrelated report schemas |
-| RN03 | Define case-level grading for an Agent using tools | `grader-guidelines.md` | Critical | Read grading rules and distinguish result from trace assertions |
-| RN04 | Audit a dataset and assign quality status | `quality-standard.md`; `quality-standard.yaml` only if machine-readable gate/metric detail is needed | Critical | Load human standard; load YAML only when task requires its machine-readable definitions |
-| RN05 | Produce a JSONL dataset and manifest | `dataset-schema.json`, `dataset-manifest-schema.json` | Critical | Read both schemas before final serialization/validation |
-| RN06 | Explain the difference between IDA and ERA at a conceptual level | `quality-standard.md` | Important | Read the conceptual standard; do not load unrelated per-report schemas |
-| RN07 | Update cases after a rule/source change | `change-impact-and-repair.md`, `source-and-evidence-policy.md` | Critical | Read change-impact and evidence governance before changing affected cases |
-| RN08 | Explain a general software-testing concept unrelated to building/evaluating datasets | No Skill reference required | N/A | Do not activate or load the Skill unless the request evolves into a dataset task |
-
-For each run, capture:
-- task ID and host/harness identity;
-- file path requested/opened;
-- event timestamp and success/failure;
-- whether content was actually made available to the Agent;
-- whether the file was required, relevant, conditional, or irrelevant;
-- whether the task completed with the required evidence.
-
-A mention of a file path in generated text is not a read event. A preloaded context bundle is not proof of on-demand navigation; report it as preloaded context and do not count it as a selective read.
+Reference-navigation and host file-read telemetry work is paused. It is not required for the current research questions and must not be implemented unless a concrete evaluation-validity gap is demonstrated.
 
 ## 5. Executable test assets
 
@@ -95,11 +72,8 @@ The Pilot fixtures and evidence contracts are maintained under `tests/`:
 
 - `tests/self-eval-cases.json`: existing SE01–SE12 plus proposed SE13.
 - `tests/self-eval-rubric.json`: assertion-level severity, pass/fail/unknown anchors, and evidence requirements.
-- `tests/reference-navigation-cases.json`: RN01–RN08 task prompts and expected navigation behavior.
-- `tests/reference-dependency-manifest.json`: frozen task-to-reference dependency labels.
-- `tests/reference-read-event.schema.json`: host/harness event record contract.
 
-These are design assets. The existing `tests/run_eval.py` now consumes the assertion rubric and reports critical-rule outcomes separately. It still loads only `SKILL.md`; the reference-navigation cases cannot be scored until a host/harness adapter emits validated read events. No host telemetry availability is assumed, and no Pilot task has been run.
+These are design assets. The existing `tests/run_eval.py` now consumes the assertion rubric and reports critical-rule outcomes separately. No Pilot task has been run.
 
 ## 6. Execution conditions
 
@@ -118,7 +92,6 @@ Report:
 - evaluability rate and judge failures;
 - critical violations by type and case;
 - Skill vs baseline paired task transitions;
-- reference recall, relevant-read precision, and critical omission rate only when event telemetry is complete;
 - trigger confusion matrix and raw counts;
 - run/host/model strata and protocol deviations.
 
@@ -132,7 +105,6 @@ The Pilot is complete only when:
 3. All expected assertions have PASS, FAIL, or UNKNOWN with a rationale.
 4. Critical violations are independently reviewed.
 5. Skill and baseline conditions are comparable or deviations are explicitly reported.
-6. Missing telemetry is marked NOT_ASSESSED rather than inferred.
 7. The report includes limitations and concrete instrument revisions.
 
 A successful Pilot means the evaluation protocol is usable and reveals interpretable evidence. It does not mean the Skill is universally effective or cross-runtime certified.
