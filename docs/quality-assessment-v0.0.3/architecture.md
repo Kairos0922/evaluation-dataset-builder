@@ -90,3 +90,20 @@ v0.0.3 首先完成最小融合：证明轨迹证据能够进入现有 Builder �
 5. 只在端到端证据证明必要时，才扩展 IDA/ERA 的报告字段或实现新的确定性检查。
 
 v0.0.2 正式 Skill 包和发布资产在 v0.0.3 合并前保持不变。
+
+## 9. ERA Run Plan 草稿：计划与执行严格分离
+
+现有仓库具备 Runtime Record Schema、ERA 分析器和特定 DSH Pilot 的证据导入路径，但没有可通用复用的 ERA Run Plan / clean-run 调度器。特定 DSH Runner 绑定 WebApp Testing 场景，不应伪装成通用 Runner。
+
+v0.0.3 因此只增加 scripts/build_era_run_plan.py，作为**从现有数据集契约到具体 Harness 的薄适配层**：
+
+- 输入仍是现有 Dataset Manifest、Case JSONL 和一份冻结的 Runtime Record 执行身份配置；不引入第二套 Dataset Manifest。
+- 生成前验证 Manifest / Case Schema、case_count、所有 Case 的 dataset_id、唯一 case_id 和所选 Case 的 execution_requirements.status=READY_TO_RUN。
+- 计划绑定 Manifest SHA、Case JSONL SHA，以及与既有 import_dsh_pilot_records.py 完全一致的数据集 SHA 算法，避免 Builder/IDA 与 ERA 侧对数据集身份产生不同解释。
+- 每个计划项保留原始 Case、逐 Case 执行要求和历史来源引用。历史来源引用仅用于 provenance；Runner 必须为新执行产生独立 trace_ref / result_ref。
+- 运行身份字段沿用 Runtime Record Schema 的 configuration_id、target_revision、target_type、model、harness、environment、tool_versions 和可选 seed。
+- 计划状态固定为 DRAFT_NOT_EXECUTED。计划生成不分配 run_id、不触发模型请求、不声称执行成功，也不产生 Runtime Record。
+
+具体 Harness 后续消费计划时，必须在每个 Case 的新 session 中执行，按原样绑定 dataset_sha256 / case_id / 冻结配置，并仅在执行开始后分配真实 run_id。若无独立 Oracle，gold_outcome 必须保持 unknown；基础设施异常不得归因于 Agent。
+
+这一步证明的是“现有 Case 可被安全整理成 ERA 执行计划”，不是“Runner 已经执行”。真实执行适配仍需针对具体 Harness 完成，并在授权和隔离条件具备后验证。
