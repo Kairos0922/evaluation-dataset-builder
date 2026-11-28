@@ -1,124 +1,77 @@
-# Skill Engineering Best Practices & Quality Evaluation
+# Evaluation Dataset Quality & Execution Effectiveness Research
 
-**Status:** Research design baseline; no new behavioral experiment has been run.  
-**Target:** `skills/evaluation-dataset-builder/` at the v0.0.2 baseline.  
-**Scope:** Skill package engineering quality, Agent behavior when using the Skill, task outcome effectiveness, and host integration compatibility.
+**Status:** Research support for the v0.0.2 evaluation methodology; proposed instruments are not empirically validated.
+**Target:** Evaluation datasets produced by the Builder, and their ability to measure real Agent/Skill execution.
+**Scope rule:** Every artifact in this branch must improve either (1) our ability to judge evaluation-dataset quality or (2) our ability to judge the effectiveness of those datasets in real execution. Work that does neither is out of scope.
 
-## 1. Purpose
+## 1. Research questions
 
-This research evaluates whether the Evaluation Dataset Builder Skill is discoverable, navigable, followed correctly, and measurably useful. It does not treat Markdown conformance or a high self-evaluation score as proof of effectiveness.
+1. **Dataset quality:** Can the quality-assessment method identify meaningful defects in generated evaluation datasets, distinguish their severity, and avoid false alarms on harmless changes?
+2. **Evaluation effectiveness:** Do datasets judged to be higher quality produce more valid, discriminative, and stable assessments of real Agent/Skill execution?
 
-The central question is:
+The two questions must remain separate. A structurally valid dataset is not necessarily semantically valid; a semantically plausible dataset is not necessarily effective when used in real runs.
 
-> Under controlled and explicitly bounded conditions, does providing this Skill improve the correctness, evidence quality, and practical usefulness of evaluation-dataset work compared with a matched no-Skill baseline?
+## 2. Reuse the existing v0.0.2 foundation
 
-## 2. Evaluation layers
+Do not create a parallel quality model or duplicate metric system. The authoritative starting points are:
 
-Keep these layers separate:
+- `docs/quality-assessment-v0.0.2/metric-catalog.md`: candidate IDA/ERA metrics, definitions, denominators, and evidence requirements.
+- `docs/quality-assessment-v0.0.2/experimental-design.md`: content review, controlled defect injection, real-run criterion validation, and frozen validation.
+- `docs/quality-assessment-v0.0.2/expert-review-protocol.md`: independent review, raw ratings, disagreement, and adjudication.
+- `tests/benchmark/`: offline structural/referential validation and controlled empirical benchmark contracts.
+- `tests/run_eval.py` and the existing self-evaluation suite: a reusable execution-comparison harness, subject to the limitations below.
 
-1. **Package conformance:** metadata, naming, package contents, references, schemas, and static integrity. Deterministic checks are appropriate.
-2. **Skill-use behavior:** discovery, reference selection/loading, instruction following, and handling of critical rules.
-3. **Outcome effectiveness:** quality of the resulting work compared with a matched baseline, assessed independently.
-4. **Host integration:** whether a specific host discovers, loads, executes, and safely handles the Skill package.
+Reuse these assets before adding anything. A new metric, schema, runner, or abstraction requires a demonstrated gap in answering one of the two research questions.
 
-A pass at one layer does not imply a pass at another. In particular, package validation does not prove correct Agent behavior; model behavior evaluation does not prove every host integration; and successful execution does not by itself prove outcome validity.
+## 3. What this branch contributes
 
-## 3. Existing project assets to reuse
+- An assertion-level rubric for the existing Skill behavior cases, with stable IDs, severity, and explicit PASS/FAIL/UNKNOWN evidence anchors.
+- Runner integration that checks rubric/case parity, attaches assertion metadata, and reports critical-rule outcomes separately without creating a compensatory score or automatic release decision.
+- A narrowly targeted subject-attribution case (SE13), separating the application outcome from the test Agent's performance when the suite is used to assess execution behavior.
 
-The repository already contains a meaningful first-generation evaluation foundation:
+These are supporting instruments for assessing the Builder Skill's execution on dataset-building tasks. They are not a substitute for the independent quality assessment of the datasets it generates.
 
-| Asset | Existing role | Reuse decision |
-|---|---|---|
-| `tests/trigger-evals.json` | 40 trigger examples, balanced 20 positive / 20 negative | Retain as discovery baseline; review label quality before expanding |
-| `tests/self-eval-cases.json` | 12 behavior cases (SE01–SE12) | Retain as behavior baseline; map coverage and add only missing critical scenarios |
-| `tests/run_eval.py` | External-model Skill vs generic-baseline evaluation, repeated runs, trigger classification, evidence-checked judging | Reuse concepts and report data; audit limitations before relying on results |
-| `scripts/validate_skill.py` | Static package, metadata, reference, schema, and test-suite checks | Keep as package-conformance gate |
-| `tests/target-runtime-matrix.md` | Host integration plan and platform-specific evidence requirements | Reuse and align its version/status with v0.0.2 |
-| `tests/target-runtime-report.schema.json` | Host compatibility report contract | Reuse where its required checks match the actual certification scope |
-| `docs/quality-assessment-v0.0.2/metric-catalog.md` | Metric governance and IDA/ERA metric definitions | Reuse denominator, evidence, missingness, and non-aggregation principles |
-| `docs/quality-assessment-v0.0.2/expert-review-protocol.md` | Blind review, raw ratings, adjudication, and agreement | Reuse for independent output-quality review |
-| `docs/quality-assessment-v0.0.2/experimental-design.md` | Baseline, defect injection, frozen validation, replication | Reuse experimental controls and evidence governance |
+## 4. Evidence boundaries
 
-The asset audit and limitations are documented in [asset-reuse-audit.md](asset-reuse-audit.md).
+- Offline schema and contract tests establish only that the implementation obeys encoded contracts.
+- Synthetic mutation tests establish sensitivity only to the exact mutation operators and fixtures tested.
+- Simulation / Monte Carlo parameter-recovery tests establish behavior under their specified simulated assumptions.
+- None of the above alone establishes semantic validity, real-world predictive validity, or effectiveness in actual Agent/Skill runs.
+- A same-model generator/Judge arrangement is not an independent semantic evaluator. Claims about semantic output quality require independent blind review or a genuinely distinct evaluator.
+- No paid model evaluation or real execution-effectiveness experiment is claimed unless its raw run evidence, frozen versions, and protocol are present.
 
-## 4. Evaluation dimensions
+## 5. Deferred / out of scope
 
-The proposed model has five dimensions:
+The following work is explicitly paused because it is not currently necessary to answer the two research questions:
 
-- **Discovery:** correct activation on relevant requests and non-activation on irrelevant requests.
-- **Progressive disclosure:** selection and loading of the references needed for a task, without critical omissions or unnecessary reads.
-- **Instruction following:** compliance with ordinary, important, and critical Skill rules, with critical violations reported non-compensatorily.
-- **Outcome effectiveness:** independently assessed quality difference between Skill-assisted and matched no-Skill outputs.
-- **Cross-runtime compatibility:** host-specific discovery, loading, task execution, and safety/cleanup behavior.
+- Host-specific adapter development and cross-host certification.
+- Claude Code, Codex, or other host hook comparisons.
+- Per-file reference-read telemetry and navigation scoring.
+- Generic Skill engineering quality or package optimization unrelated to measured evaluation outcomes.
 
-Package conformance remains a prerequisite gate rather than a sixth behavioral score.
+Do not revive these items without identifying the specific validity question they answer and demonstrating that existing execution evidence cannot answer it.
 
-Definitions, denominators, evidence requirements, and limitations are specified in [quality-model.md](quality-model.md).
+## 6. Immediate empirical priorities
 
-## 5. Pilot design
+1. **Metric sensitivity:** apply controlled, independently checked defects to representative evaluation datasets; predefine expected metric changes and harmless negative controls.
+2. **Criterion validity:** compare dataset quality assessments with independent expert judgments and, where feasible, known defect / real execution outcomes.
+3. **Execution effectiveness:** run matched Agent/Skill tasks using datasets with meaningfully different quality profiles; compare defect detection, false alarms, discrimination, and evaluability.
+4. **Stability:** repeat the same frozen runs and independent judgments to quantify run-to-run and reviewer variation.
 
-The first Pilot should reuse the existing SE01–SE12 cases and 40 trigger examples. The six proposed Pilot task groups are specified in [pilot-design.md](pilot-design.md). Two important gaps require new coverage before claiming full evaluation:
+Report raw counts, denominators, uncertainty, exclusions, and failure examples. Do not collapse these results into a single score without independent validation.
 
-1. A direct adversarial test of evaluation-subject attribution (application defect vs. test Agent/Skill performance).
-2. Instrumented reference-navigation tests that record which reference files were actually opened/read and why.
+## 7. Current status
 
-Do not create a duplicate second copy of existing scenarios. Keep new cases narrowly targeted at these uncovered behaviors.
-
-## 6. Experimental principles
-
-- Freeze the Skill tree, test suite, prompts, model, host, tools, and evaluation protocol for each batch.
-- Compare Skill and no-Skill conditions on the same tasks and as closely matched as possible.
-- Keep raw outputs, reference-read events, tool traces, judge records, and reviewer records.
-- Use deterministic validators for structural facts; use independent blind review for semantic judgments.
-- Report unknown, not-run, and not-assessed separately from pass/fail.
-- Report per-dimension results. Do not create a composite Skill-quality score or universal pass threshold without independent validation.
-- Treat the existing 12-case suite as a Pilot instrument, not as a statistically representative benchmark.
-- Do not run paid model evaluations without explicit batch authorization, candidate SHA, budget, credentials, and stop conditions.
-
-## 7. Pilot assets
-
-The Pilot design assets live in `tests/`:
-
-- `self-eval-cases.json` (SE01–SE13)
-- `self-eval-rubric.json` (assertion-level scoring anchors)
-- `reference-navigation-cases.json` (RN01–RN08)
-- `reference-dependency-manifest.json` (frozen read dependencies)
-- `reference-read-event.schema.json` (telemetry contract)
-
-The existing `tests/run_eval.py` has been minimally extended to validate and attach the assertion rubric to behavior results, including descriptive non-compensatory critical-rule counts. It still loads only `SKILL.md`; it does not implement reference-read telemetry.
-
-Their presence means the test design is specified, not that the cases have been executed or the telemetry is available in any target host.
-
-## 8. Current status
-
-| Work item | Status |
+| Evidence | Status |
 |---|---|
-| Repository asset inventory | Completed by source inspection |
-| Five-dimension model | Design baseline drafted |
-| Existing case coverage mapping | Drafted |
-| Assertion-level rubric for SE01–SE13 | Drafted; 64 assertions |
-| Reference-navigation cases RN01–RN08 | Drafted |
-| Reference dependency manifest | Drafted |
-| Reference-read event schema | Drafted; host telemetry not integrated |
-| Critical subject-attribution gap | SE13 added; NOT_RUN |
-| Reference-navigation instrumentation gap | Contract drafted; host/harness adapter not implemented |
-| New experiments | NOT_RUN |
-| Cross-host certification | NOT_RUN / platform-specific status must be evidenced |
-| Skill package changes | Not in scope for this research branch |
+| Rubric / case contract | Offline contract tests only |
+| Deterministic IDA mutation sensitivity | Synthetic controlled fixtures only |
+| IDA ambiguous / incorrect Gold / construct mismatch / leakage | NOT_ASSESSED without independent review or Oracle |
+| Expert content-validity evidence | NOT_RUN unless raw independent ratings are archived |
+| Real Agent/Skill execution-effectiveness experiment | NOT_RUN |
+| Cross-host compatibility | Out of scope for this research branch |
 
-## 9. Host telemetry capability audit
+## 8. References
 
-The host-level observability review is documented in [host-telemetry-capability-audit.md](host-telemetry-capability-audit.md).
-
-Current decision: Claude Code Hooks are the best documented first-adapter candidate for explicit `Read` tool calls because `PostToolBatch` exposes the content returned to the model. This is a documentation-based selection only; the adapter has not been implemented or run against a live Claude Code session. Known bypass paths (Skill-injected shell commands and prompt `@file` injection) must be excluded or separately classified.
-
-Codex Hooks are a viable second candidate. claude.ai and per-file Skill reads in Claude Managed Agents/API are not sufficiently documented by the reviewed sources to claim native per-file telemetry.
-
-Pilot scope is intentionally limited to RN01, RN05, and RN08 after a real adapter is validated. No host is certified at this stage.
-
-## 10. References
-
-- [Agent Skills specification](https://agentskills.io/specification)
-- [Anthropic Skill authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices)
-- [Anthropic: Equipping agents for the real world with Agent Skills](https://www.anthropic.com/research/equipping-agents-for-the-real-world-with-agent-skills)
-- Repository-local metric, experimental, expert-review, runtime, and package-validation assets listed above.
+- Repository-local v0.0.2 metric catalog, experimental design, expert-review protocol, and benchmark validation assets.
+- [Agent Skills specification](https://agentskills.io/specification) only where package behavior is directly relevant to a measured execution outcome.
