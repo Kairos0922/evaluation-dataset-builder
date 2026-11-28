@@ -77,10 +77,24 @@ def load_cases(dataset_path: Path, expected_dataset_sha256: str | None = EXPECTE
 
 
 def _write_zip(source_dir: Path, archive_path: Path):
-    with zipfile.ZipFile(archive_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+    """Write a byte-reproducible ZIP so reviewer submissions bind to stable hashes."""
+    with zipfile.ZipFile(
+        archive_path, "w", compression=zipfile.ZIP_DEFLATED, compresslevel=9
+    ) as archive:
         for path in sorted(source_dir.rglob("*")):
             if path.is_file():
-                archive.write(path, path.relative_to(source_dir.parent))
+                info = zipfile.ZipInfo(
+                    path.relative_to(source_dir.parent).as_posix(),
+                    date_time=(2026, 11, 28, 0, 0, 0),
+                )
+                info.compress_type = zipfile.ZIP_DEFLATED
+                info.external_attr = (0o100644 & 0xFFFF) << 16
+                archive.writestr(
+                    info,
+                    path.read_bytes(),
+                    compress_type=zipfile.ZIP_DEFLATED,
+                    compresslevel=9,
+                )
 
 
 def _worksheet(label: str) -> str:
