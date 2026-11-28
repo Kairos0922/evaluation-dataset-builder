@@ -40,4 +40,4 @@ v0.0.3 不建立一套平行的轨迹评测产品。它在现有 Evaluation Data
 
 ## 交付阶段
 
-详见 [TASKS.md](TASKS.md)。已实现 Candidate / Qualification / Slice 到现有 Case Schema 的草稿转换器（`scripts/build_case_draft_from_slice.py`），并在 CI 中完成现有 IDA CLI 端到端验证。IDA 能解析轨迹来源身份，同时明确将构念对齐、任务可解性保留为 `NOT_ASSESSED`，综合分保持 `NOT_VALIDATED`。无轨迹输入回归也已通过：不带任何 trajectory-specific 字段的标准 Case 直接进入现有 IDA 并通过报告契约验证。下一步是评估如何把轨迹来源用例复用到 ERA clean-run / Runtime Record 路径，并明确真实运行的授权与独立 Oracle 条件；不是继续扩张独立 trajectory 模块。
+详见 [TASKS.md](TASKS.md)。已实现 Candidate / Qualification / Slice 到现有 Case Schema 的草稿转换器（`scripts/build_case_draft_from_slice.py`），并在 CI 中完成现有 IDA CLI 端到端验证。IDA 能解析轨迹来源身份，同时明确将构念对齐、任务可解性保留为 `NOT_ASSESSED`，综合分保持 `NOT_VALIDATED`。无轨迹输入回归也已通过：不带任何 trajectory-specific 字段的标准 Case 直接进入现有 IDA 并通过报告契约验证。已新增 `tests/test_trajectory_era_integration.py`，针对现有 Runtime Record → ERA 报告链增加合成契约回归：检查新 clean-run 的 dataset SHA / case_id / trace_ref 绑定，防止历史 source trace 被当成新运行 trace，并确认无 Gold/Judge 时维持 NOT_RUN / NOT_VALIDATED。该测试等待 PR CI 验证；它不执行 Agent，也不代表真实 clean-run。下一步是把已审查轨迹 Case 与实际运行计划/记录关联，并在授权的隔离环境和独立 Oracle 条件具备后开展真实 Pilot。
