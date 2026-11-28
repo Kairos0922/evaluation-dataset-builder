@@ -45,7 +45,7 @@ The validator already checks:
 
 - `tests/self-eval-cases.json`
 - Suite ID: `edb-self-eval-v3-evidence-grounded`.
-- 12 cases, SE01–SE12, with 57 expected assertions in total.
+- 12 cases, SE01–SE12, with 58 expected assertions in total.
 
 | Case | Category | Main behavior |
 |---|---|---|
