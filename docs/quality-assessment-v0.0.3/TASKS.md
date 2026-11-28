@@ -9,7 +9,8 @@
 - 最近一次完整 CI 验证：Run #2175 / 46095359792，validate PASS（含 envelope Schema 校验、Harness 适配专项测试、全量离线测试）；v0.0.2 release-candidate package Run #83 / 46095359791 PASS
 - 轨迹→Case→IDA 与无轨迹回归：Run #2147 steps 9–14 全部 PASS；已归档轨迹 Case、无轨迹 Case 和两份 IDA report 到 `trajectory-to-ida-integration` artifact（90 天）
 - 真实 Builder production / independent validation / Pilot 等受保护任务按条件 SKIPPED；没有真实轨迹或真实 Pilot 结论
-- 状态: IN_PROGRESS（仓库内可独立完成的工程/文档工作已完成；真实执行和实证保留为用户控制的后续阶段）
+- 下一阶段执行清单：[pilot-next-steps.md](./pilot-next-steps.md)
+- 状态: IN_PROGRESS（仓库内可独立完成的工程/文档工作已完成；当前等待用户准备获授权的脱敏真实轨迹，并由用户执行真实 Harness Pilot）
 - 版本原则: 不修改 v0.0.2 历史结果；不把合成样例当作实证。
 
 ## 状态定义
@@ -47,6 +48,7 @@
 | V03-18 | ERA 集成 | 将具体 Harness 已完成的执行 envelope 安全导入现有 Runtime Record / ERA | DONE | `scripts/import_era_harness_executions.py`、`tests/test_import_era_harness_executions.py`；验证 Run Plan 身份绑定、每 Case 唯一记录、session 不复用、run_id 唯一、新 Trace/Result 与历史 source refs 隔离、Trace SHA、无 Oracle 时 Gold=UNKNOWN；Run #2170 / 46094733042 step 15 PASS，step 17 全量离线测试 PASS。该适配器不执行 Agent，也不证明 Harness 产物真实性 |
 
 | V03-19 | 交接准备 | 完成用户控制的 Harness 执行交接包，明确执行协议、envelope Schema、导入校验和人工复核边界 | DONE | `schemas/v0.0.3/era-harness-envelope.schema.json`、`docs/quality-assessment-v0.0.3/harness-execution-guide.md`；导入器执行 envelope Schema + v0.0.2 Runtime Record 双层校验；Run #2175 / 46095359792 step 15 PASS，step 17 全量离线测试 PASS。fresh-session 实际隔离与 Trace 哈希重算仍由 Harness/用户负责 |
+| V03-20 | 交接准备 | 将真实 Agent Pilot 的用户动作、助手动作、交付物、审计点和退出条件写成可执行清单 | DONE | `docs/quality-assessment-v0.0.3/pilot-next-steps.md`；明确真实轨迹授权/脱敏、候选发现与人工审查、Case/IDA、Run Plan、用户 Harness 执行、Runtime Record/ERA、证据审计及 V03-08/V03-11 退出条件。仅完成计划记录，不代表 Pilot 已启动或完成 |
 
 ## 融合原则
 
