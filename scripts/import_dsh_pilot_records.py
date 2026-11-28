@@ -92,7 +92,7 @@ def verify_pilot_evidence(pilot_dir: Path, runner: dict) -> dict[str, str]:
         if not resolved.is_relative_to(root) or not resolved.is_file():
             raise ValueError(f"evidence path escapes pilot directory for {runner['case_id']}: {relative}")
         observed = sha256_file(resolved)
-        if observed != expected:
+        if observed != expected.lower():
             raise ValueError(f"evidence hash mismatch for {runner['case_id']}: {relative}")
         verified[relative.as_posix()] = observed
 
