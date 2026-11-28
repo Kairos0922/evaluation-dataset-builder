@@ -70,7 +70,7 @@
 - [x] 完成架构与验收解释基线（SC-01）：architecture-and-acceptance-baseline.md + decision-log D-007。
 - [x] 完成 ERA 可执行运行协议（DS-02）：runtime-assessment-protocol.md。
 - [x] 完成 Judge Calibration Report Schema、验证器和 8 项契约测试；Run #1933 215/215 PASS（IM-03 仍待执行脚本集成和独立 Gold 实证）。
-- [x] 更新根 README、CHANGELOG、研发 README，记录 v0.0.2 未发布状态和限制；质量报告见 [quality-report.md](quality-report.md)。
+- [x] 更新根 README、CHANGELOG、研发 README，记录当时的 v0.0.2 开发状态和限制；该条是发布前历史记录，当前正式发布状态以本文件顶部及 CHANGELOG.md 的 0.0.2 发布记录为准。质量报告见 [quality-report.md](quality-report.md)。
 
 - [x] v0.0.2 需求边界写入 GitHub Issue #43。
 - [x] 建立工作分支 feat/quality-assessment-v0.0.2。
@@ -87,6 +87,8 @@
 - [x] 增加真实 DSH Pilot Runtime Record importer、缓存 Token/Model Step 字段、缺失 Judge 与 abstention 区分修复及回归测试；增加 PR #44 冻结证据 IDA/ERA CI Job，等待首次执行结果。
 
 ## 历史未验证事项（已移出当前任务范围，不构成待办）
+
+> 以下为开发阶段归档的历史状态快照，其中“尚未发布”“未形成 Release Candidate”等表述仅描述当时状态。v0.0.2 已于 2026-11-27 正式发布；当前版本与发布状态以本文件顶部、根目录 `VERSION`、`CHANGELOG.md` 和 GitHub Release 为准。历史记录保留用于追溯，不代表当前状态。
 
 - 独立专家内容效度、评分者一致性和 Round 4 双盲 Oracle 仲裁尚未执行。
 - 外部参考 Benchmark 的具体数据资产许可、版本哈希、Oracle 和合法快照尚未全部锁定。
