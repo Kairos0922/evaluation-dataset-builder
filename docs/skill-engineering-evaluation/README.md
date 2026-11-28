@@ -94,8 +94,12 @@ Their presence means the test design is specified, not that the cases have been 
 | Repository asset inventory | Completed by source inspection |
 | Five-dimension model | Design baseline drafted |
 | Existing case coverage mapping | Drafted |
-| Critical subject-attribution gap | Identified |
-| Reference-navigation instrumentation gap | Identified |
+| Assertion-level rubric for SE01–SE13 | Drafted; 64 assertions |
+| Reference-navigation cases RN01–RN08 | Drafted |
+| Reference dependency manifest | Drafted |
+| Reference-read event schema | Drafted; host telemetry not integrated |
+| Critical subject-attribution gap | SE13 added; NOT_RUN |
+| Reference-navigation instrumentation gap | Contract drafted; host/harness adapter not implemented |
 | New experiments | NOT_RUN |
 | Cross-host certification | NOT_RUN / platform-specific status must be evidenced |
 | Skill package changes | Not in scope for this research branch |
