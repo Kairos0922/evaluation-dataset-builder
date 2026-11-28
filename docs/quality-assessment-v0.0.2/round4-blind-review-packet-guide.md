@@ -53,11 +53,11 @@ python scripts/build_round4_blind_review_packets.py \
 
 | 产物 | 条目数 | SHA-256 |
 |---|---:|---|
-| reviewer A | 12 | 0dff42e51bba9e85fc12df9f1ae170a6baec28793ad3ca3496e07a6abe94180f |
-| reviewer B | 12 | 205bd9bda8579c19c127cb1279e3f8378518fcc02f0cf84abbe33a7a8f733d92 |
+| reviewer A | 12 | 1c6aeae5562026ae69c631ea3d60246ce35e5def5bae786c9e1f9c1af6c89049 |
+| reviewer B | 12 | e22a09cdb4f7654163921496f55edc3e342fd8ad71eb3ab5d4787e422e159c74 |
 | coordinator-only crosswalk | 24 个标签映射 | ff761e9ad1dbdc9e61165d33b4b2c6f03356e0a0eb293e58d636fe93449d6d4b |
 
-已检查两个审查者 ZIP：各含 12 个 task.md、12 个空白 review-sheet.md 和 4 个公开来源；未包含 crosswalk、原始 WB-01 等 case ID 或 Builder 评分/Gold 字段值。协调者交叉表单独存放。
+已检查两个审查者 ZIP：各含 12 个 task.md、12 个空白 review-sheet.md 和 4 个公开来源；未包含 crosswalk、原始 WB-01 等 case ID 或 Builder 评分/Gold 字段值。协调者交叉表单独存放。ZIP 元数据已固定，重复构建可得到相同字节和 SHA-256。
 
 ## 6. 分发和回收要求
 
