@@ -118,6 +118,20 @@ class ImportEraHarnessExecutionsTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "trace_sha256"):
             import_harness_executions(plan, [envelope])
 
+    def test_rejects_envelope_with_unrecognized_fields(self):
+        plan = make_plan()
+        envelope = make_envelope(plan)
+        envelope["agent_prompt"] = "should not be embedded in the transport envelope"
+        with self.assertRaisesRegex(ValueError, "envelope schema validation failed"):
+            import_harness_executions(plan, [envelope])
+
+    def test_rejects_missing_session_id_at_schema_boundary(self):
+        plan = make_plan()
+        envelope = make_envelope(plan)
+        del envelope["session_id"]
+        with self.assertRaisesRegex(ValueError, "envelope schema validation failed"):
+            import_harness_executions(plan, [envelope])
+
     def test_cli_writes_existing_runtime_record_jsonl(self):
         plan = make_plan()
         envelope = make_envelope(plan)
