@@ -8,7 +8,7 @@
 
 The repository already contains a static Skill validator, a balanced trigger suite, a 12-case behavior suite, a model-based baseline comparison runner, and a host compatibility matrix/report schema. The research should extend and clarify these assets rather than duplicate them.
 
-The most important uncovered capability is **observable progressive-disclosure evaluation**: the current behavior runner loads only `SKILL.md` and does not record whether an Agent/host actually opens the appropriate reference files.
+The most important uncovered capability remains **observable progressive-disclosure evaluation**: the current behavior runner loads only `SKILL.md` and does not record whether an Agent/host actually opens the appropriate reference files. The research branch now defines RN01–RN08, a dependency manifest, and an event schema; it does not yet provide a host adapter or actual telemetry.
 
 ## 2. Asset inventory and findings
 
@@ -62,9 +62,9 @@ The validator already checks:
 | SE11 | negative_trigger | do not invoke the Skill for an unrelated poetry request |
 | SE12 | incremental_update | update only cases affected by a rule change and preserve unaffected IDs |
 
-**Decision:** keep these cases as the initial behavior suite. Review assertion granularity and criticality labels before relying on the current aggregate behavior pass rate.
+**Decision:** retain SE01–SE12 as the baseline and use the branch's assertion-level rubric in `tests/self-eval-rubric.json`. The branch adds SE13 for subject attribution; the resulting 13-case / 64-assertion suite remains a proposed Pilot instrument, not an empirically validated benchmark.
 
-**Coverage gap:** there is no clearly isolated, adversarial case whose primary purpose is to distinguish an application's actual defect from a test Agent/Skill's correct detection/reporting behavior. Add a narrowly scoped subject-attribution case rather than rewriting existing broad cases.
+**Coverage gap:** there is no clearly isolated, adversarial case whose primary purpose is to distinguish an application's actual defect from a test Agent/Skill's correct detection/reporting behavior. A narrowly scoped subject-attribution case, SE13, has now been added on the research branch rather than rewriting existing broad cases.
 
 ### 2.4 Existing behavior runner
 
