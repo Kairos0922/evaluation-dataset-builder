@@ -2,8 +2,11 @@ import copy
 import hashlib
 import json
 import unittest
+import tempfile
+from pathlib import Path
+from unittest.mock import patch
 
-from scripts.build_era_run_plan import build_era_run_plan
+from scripts.build_era_run_plan import build_era_run_plan, main
 from scripts.import_dsh_pilot_records import dataset_digest as importer_dataset_digest
 
 
@@ -132,11 +135,40 @@ class BuildEraRunPlanTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "not READY_TO_RUN"):
             self.build([case], make_manifest(1))
 
+    def test_rejects_manifest_not_ready(self):
+        manifest = make_manifest(1)
+        manifest["execution_status"] = "NOT_RUN"
+        with self.assertRaisesRegex(ValueError, "execution_status must be READY_TO_RUN"):
+            self.build(manifest=manifest)
+
     def test_rejects_dataset_identity_mismatch(self):
         case = make_case()
         case["dataset_id"] = "different-dataset"
         with self.assertRaisesRegex(ValueError, "does not match Manifest"):
             self.build([case], make_manifest(1))
+
+    def test_cli_writes_non_executing_plan(self):
+        plan, manifest_bytes, cases_bytes = self.build()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest_path = root / "manifest.json"
+            cases_path = root / "cases.jsonl"
+            config_path = root / "configuration.json"
+            output_path = root / "era-run-plan.json"
+            manifest_path.write_bytes(manifest_bytes)
+            cases_path.write_bytes(cases_bytes)
+            config_path.write_text(json.dumps(make_configuration()), encoding="utf-8")
+            with patch("sys.argv", [
+                "build_era_run_plan.py",
+                "--manifest", str(manifest_path),
+                "--cases", str(cases_path),
+                "--configuration", str(config_path),
+                "--output", str(output_path),
+            ]):
+                self.assertEqual(main(), 0)
+            written = json.loads(output_path.read_text(encoding="utf-8"))
+            self.assertEqual(written["plan_id"], plan["plan_id"])
+            self.assertEqual(written["status"], "DRAFT_NOT_EXECUTED")
 
     def test_rejects_unknown_or_duplicate_selection(self):
         with self.assertRaisesRegex(ValueError, "not found"):
