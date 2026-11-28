@@ -85,6 +85,8 @@ The Pilot design assets live in `tests/`:
 - `reference-dependency-manifest.json` (frozen read dependencies)
 - `reference-read-event.schema.json` (telemetry contract)
 
+The existing `tests/run_eval.py` has been minimally extended to validate and attach the assertion rubric to behavior results, including descriptive non-compensatory critical-rule counts. It still loads only `SKILL.md`; it does not implement reference-read telemetry.
+
 Their presence means the test design is specified, not that the cases have been executed or the telemetry is available in any target host.
 
 ## 8. Current status
