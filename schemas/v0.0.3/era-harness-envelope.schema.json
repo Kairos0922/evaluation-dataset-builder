@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://evaluation-dataset-builder.local/schemas/v0.0.3/era-harness-envelope.schema.json",
+  "title": "ERA Harness Execution Envelope v0.0.3",
+  "description": "Outer transport envelope for one completed Harness execution. The nested runtime_record must independently validate against the unchanged v0.0.2 Runtime Record schema.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "plan_id",
+    "case_id",
+    "session_id",
+    "runtime_record"
+  ],
+  "properties": {
+    "plan_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Exact plan_id from the frozen v0.0.3 ERA Run Plan."
+    },
+    "case_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Exact Case ID executed in this Harness session."
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Harness-generated identifier for the isolated fresh session; must be unique per Case within a plan."
+    },
+    "runtime_record": {
+      "type": "object",
+      "description": "One complete existing v0.0.2 Runtime Record; validated separately by the importer."
+    }
+  }
+}
