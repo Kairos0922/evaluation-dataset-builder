@@ -108,9 +108,7 @@ python -m unittest discover -s tests
 
 ## 真实运行评价
 
-每行一条运行记录，必须符合：
-- docs/quality-assessment-v0.0.2/schemas/runtime-record.schema.json
-- Skill 内 references/runtime-record.schema.json
+运行记录以正式发布的 Skill 包内 `references/runtime-record.schema.json` 为基础契约。研发侧 `docs/quality-assessment-v0.0.2/schemas/runtime-record.schema.json` 是 ERA 分析扩展：在保持其余结构与正式契约一致的基础上，额外允许可选字段 `trace_sha256`，用于绑定轨迹文件摘要。该字段不属于已发布的 Skill v0.0.2 契约；包含该扩展字段的记录应按研发侧 Schema 校验，不能声称同时通过正式包 Schema（其 `additionalProperties` 为 `false`）。不含该扩展字段的记录应同时符合两份 Schema。
 
 Capability 示例：
 

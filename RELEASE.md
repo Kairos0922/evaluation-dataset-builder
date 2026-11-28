@@ -108,9 +108,11 @@ This release does not claim that each documented host's installation, discovery,
 
 
 
-## v0.0.2 发布准备状态（2026-11-27）
+## v0.0.2 发布前状态快照（历史记录，已被正式发布记录取代；2026-11-27）
 
-v0.0.2 正在独立分支 feat/quality-assessment-v0.0.2 准备。当前 22 项自主工程任务全部完成；该分支的 VERSION 与 Skill frontmatter 已同步为候选 0.0.2，main 上正式稳定版本仍为 0.0.1。0.0.2 的范围收缩、工程交付、真实证据限制和发布门禁见 [RELEASE-PREP-0.0.2.md](RELEASE-PREP-0.0.2.md) 与 [RELEASE-GATE-0.0.2.md](RELEASE-GATE-0.0.2.md)。本节不是 0.0.2 Release Notes，也不代表发布批准。
+> 本节保留发布前的历史状态，不代表当前分支或发布状态。v0.0.2 已于 2026-11-27 正式发布，当前正式版本和证据限制以本文件下方“v0.0.2 正式发布”及根目录 README 为准。
+
+v0.0.2 当时正在独立分支 feat/quality-assessment-v0.0.2 准备。当前 22 项自主工程任务全部完成；该分支的 VERSION 与 Skill frontmatter 已同步为候选 0.0.2，main 上正式稳定版本仍为 0.0.1。0.0.2 的范围收缩、工程交付、真实证据限制和发布门禁见 [RELEASE-PREP-0.0.2.md](RELEASE-PREP-0.0.2.md) 与 [RELEASE-GATE-0.0.2.md](RELEASE-GATE-0.0.2.md)。
 
 
 ## v0.0.2 正式发布

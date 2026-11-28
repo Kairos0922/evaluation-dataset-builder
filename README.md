@@ -15,6 +15,10 @@ v0.0.2 已正式发布。核心功能 PR #44 与发布执行机制 PR #45 均已
 
 任务与证据：[TASKS.md](docs/quality-assessment-v0.0.2/TASKS.md)；质量报告：[quality-report.md](docs/quality-assessment-v0.0.2/quality-report.md)；发布审计：[RELEASE-PREP-0.0.2.md](RELEASE-PREP-0.0.2.md)；发布门禁：[RELEASE-GATE-0.0.2.md](RELEASE-GATE-0.0.2.md)。
 
+## 项目开发规范
+
+参与开发前请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)。Agent Skill 的通用格式遵循 [Agent Skills Specification](https://agentskills.io/specification)，内容编写遵循 [Anthropic Skill authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices)；本项目只维护业务领域规则和必要的工程约定。
+
 ## 这个 Skill 是做什么的
 
 本 Skill 帮助 Agent 为 Agent、Skill、API、工作流及其他软件系统构建高质量评测数据集。它提供一套可复用的业务分析、场景规划、用例生成、判定契约设计、质量审查和增量维护流程。
@@ -109,7 +113,7 @@ API 使用方式与本地目录安装不同：先通过 Skills API 上传 Skill�
 
 README 当前记录的四种安装环境均尚未完成逐平台真实运行验证：
 
-**0.0.1 发布范围：** 核心行为验收统一使用 DeepSeek V4.1 Flash（deepseek-flash）完成生成、行为判分与触发分类；所有角色使用同一模型。判分流程与生成流程分离，但不属于跨模型独立评审。所有评测 LLM 请求均禁止使用第三方模型服务；缺少可核验 PASS 引用时允许一次证据提取重试，引用仍须本地精确匹配；不设固定 API 请求次数上限，保留 10 美元预估费用保护。不要求在 Codex、Claude Code、claude.ai 和 Claude API 上分别重复相同评测。四种安装方式是使用说明，不代表四个平台已完成兼容性认证。宿主的 Skill 发现、参考资料读取、文件能力和工具接口仍可能存在差异；本版本不作逐平台兼容性保证。
+**当前兼容性结论：** v0.0.2 没有作出 Codex、Claude Code、claude.ai 或 Claude API 的逐平台兼容性承诺。下表中的安装方式仅代表文档说明已提供，不代表宿主已完成真实安装、发现、参考资料加载或端到端任务验证。历史 v0.0.1 行为评测配置不作为当前版本的通用运行要求。
 
 | 宿主 | 当前状态 |
 |---|---|
@@ -118,7 +122,7 @@ README 当前记录的四种安装环境均尚未完成逐平台真实运行验�
 | claude.ai | DOCUMENTED_NOT_VERIFIED |
 | Claude API | DOCUMENTED_NOT_VERIFIED |
 
-安装文档和离线 CI 不构成宿主兼容性证据。需要逐平台认证时，可参考[目标宿主兼容性补充验证矩阵](tests/target-runtime-matrix.md)；该矩阵不是 0.0.1 发布门禁。
+安装文档和离线 CI 不构成宿主兼容性证据。需要逐平台认证时，可参考[目标宿主兼容性补充验证矩阵](tests/target-runtime-matrix.md)；该矩阵记录的是 v0.0.1 阶段制定的补充验证方案，不是 v0.0.2 的发布门禁。
 
 ## 使用方法
 
