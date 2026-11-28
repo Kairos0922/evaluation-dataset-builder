@@ -8,7 +8,6 @@ and immutable trace/result artifacts.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import re
 import sys
@@ -18,6 +17,7 @@ from typing import Any
 from jsonschema import Draft202012Validator, FormatChecker
 
 ROOT = Path(__file__).resolve().parents[1]
+ENVELOPE_SCHEMA = ROOT / "schemas" / "v0.0.3" / "era-harness-envelope.schema.json"
 RUNTIME_SCHEMA = ROOT / "docs" / "quality-assessment-v0.0.2" / "schemas" / "runtime-record.schema.json"
 CONFIGURATION_FIELDS = (
     "configuration_id", "target_revision", "target_type", "model",
@@ -96,6 +96,9 @@ def import_harness_executions(plan: dict, executions: list[dict]) -> list[dict]:
     if len(executions) != len(expected):
         raise ValueError(f"expected exactly {len(expected)} execution envelope(s), got {len(executions)}")
 
+    envelope_schema = json.loads(ENVELOPE_SCHEMA.read_text(encoding="utf-8"))
+    Draft202012Validator.check_schema(envelope_schema)
+    envelope_validator = Draft202012Validator(envelope_schema, format_checker=FormatChecker())
     runtime_schema = json.loads(RUNTIME_SCHEMA.read_text(encoding="utf-8"))
     Draft202012Validator.check_schema(runtime_schema)
     validator = Draft202012Validator(runtime_schema, format_checker=FormatChecker())
@@ -106,6 +109,16 @@ def import_harness_executions(plan: dict, executions: list[dict]) -> list[dict]:
 
     for index, envelope in enumerate(executions, start=1):
         label = f"execution line {index}"
+        envelope_errors = sorted(
+            envelope_validator.iter_errors(envelope),
+            key=lambda error: list(error.absolute_path),
+        )
+        if envelope_errors:
+            details = "; ".join(
+                f"{'.'.join(str(part) for part in error.absolute_path) or '<root>'}: {error.message}"
+                for error in envelope_errors[:20]
+            )
+            raise ValueError(f"{label} Harness envelope schema validation failed: {details}")
         if envelope.get("plan_id") != plan.get("plan_id"):
             raise ValueError(f"{label} plan_id does not match Run Plan")
         case_id = envelope.get("case_id")
