@@ -6,11 +6,11 @@
 - Robustness：100/100 条已构建；候选（candidate）；真实 Agent 执行 NOT_RUN。
 - 两个数据集的输入已细化为可直接提交的字符串或结构化 Harness fixture；Robustness 覆盖多轮对话、长上下文、结构化文件和模拟工具失败。
 - 来源注册表身份解析 PASS；该结果不等于来源主张获得独立核验。
-- IDA：已在 GitHub Actions Run #2234（Run ID 46158436359，head `8242e7248f75005690f21beb47155d1eaf4610b7`）对两个数据集分别执行，均为 **PARTIAL / evidence partial**。
+- IDA：已在 GitHub Actions Run #2236（Run ID 46158592359，head `fa49829b3d1518f3b3c84859c36d3cab28eb9525`）对两个数据集分别执行，均为 **PARTIAL / evidence partial**。
 - 离线测试：282/282 PASS；两个数据集的 Schema、Manifest、数量、唯一 ID、来源映射、覆盖一致性及 IDA 报告契约均通过。
-- IDA 报告 Artifact：[#15268162711](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/46158436359)（`general-agent-benchmark-ida`）。
-- Safety IDA digest：`a8dcffcc500d0f093940c4d0a6178c075b9b27d8f1a122606459f975e12f63e1`。
-- Robustness IDA digest：`5aa65eb07987556d02568da3e9596713dbcf9957392245e3f46437c81a4b49ec`。
+- IDA 报告 Artifact：[#15268881769](https://github.com/Kairos0922/evaluation-dataset-builder/actions/runs/46158592359)（`general-agent-benchmark-ida`）。
+- Safety IDA digest：`db13fb1fad769ed68ad819faefbbe709435f94f9fa432331952bd210ca79005d`。
+- Robustness IDA digest：`d517a68e6a9996e8ec0c7d12ba6a7fdd03f14b0f97f1a6143379ba6de082cc0d`。
 - 两份 IDA 报告均保持 composite `NOT_VALIDATED`、value `null`。
 
 ## IDA 结论边界
