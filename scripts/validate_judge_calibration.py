@@ -178,11 +178,18 @@ def validate_report(report: object, suite_path: Path | None = None) -> list[str]
             errors.append("dataset.suite_sha256 does not match supplied suite bytes")
         try:
             suite = json.loads(raw, parse_constant=_reject_json_constant)
-            suite_ids = [case.get("id") for case in suite.get("cases", []) if isinstance(case, dict)]
+            if not isinstance(suite, dict) or not isinstance(suite.get("cases"), list):
+                raise ValueError("suite root/cases shape is invalid")
+            suite_cases = suite["cases"]
+            if any(not isinstance(case, dict) or not isinstance(case.get("id"), str) or not case["id"] for case in suite_cases):
+                raise ValueError("suite case entries require non-empty string IDs")
+            suite_ids = [case["id"] for case in suite_cases]
+            if len(suite_ids) != len(set(suite_ids)):
+                errors.append("supplied suite contains duplicate case IDs")
             if set(suite_ids) != set(dataset["case_ids"]) or len(suite_ids) != len(dataset["case_ids"]):
                 errors.append("dataset.case_ids do not match supplied suite case IDs")
         except (UnicodeDecodeError, json.JSONDecodeError, ValueError, AttributeError):
-            errors.append("supplied suite must be a JSON object with a cases array")
+            errors.append("supplied suite must be a JSON object with a cases array and non-empty string case IDs")
 
     return errors
 
