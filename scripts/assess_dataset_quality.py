@@ -81,13 +81,16 @@ def load_source_registry(path: Path | None):
     data = load_json(path)
     if isinstance(data, list):
         entries = data
-    elif isinstance(data, dict) and isinstance(data.get("sources"), list):
+    elif isinstance(data, dict) and "sources" in data:
+        if not isinstance(data["sources"], list):
+            raise ValueError("source registry 'sources' field must be a list")
         entries = data["sources"]
     elif isinstance(data, dict):
-        entries = [
-            dict(value, source_id=key) if isinstance(value, dict) else {"source_id": key}
-            for key, value in data.items()
-        ]
+        entries = []
+        for source_id, value in data.items():
+            if not isinstance(value, dict):
+                raise ValueError(f"source registry entry {source_id!r} must be an object")
+            entries.append(dict(value, source_id=source_id))
     else:
         raise ValueError("source registry must be a list, a {sources: []} object, or an ID-keyed object")
     registry = {}
@@ -223,6 +226,8 @@ def build_report(manifest_path: Path, cases_path: Path, output_path: Path, evalu
     manifest_bytes = manifest_path.read_bytes()
     cases_bytes = cases_path.read_bytes()
     manifest = json.loads(manifest_bytes.decode("utf-8"), parse_constant=_reject_json_constant)
+    if not isinstance(manifest, dict):
+        raise ValueError("dataset manifest root must be a JSON object")
     cases, parse_errors = load_jsonl(cases_path)
     manifest_errors = validate_schema(manifest, MANIFEST_SCHEMA)
     case_errors = []

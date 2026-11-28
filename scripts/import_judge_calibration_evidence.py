@@ -55,12 +55,19 @@ def build_report(observations: dict, suite_path: Path, observations_bytes: bytes
 
     suite_raw = suite_path.read_bytes()
     suite = json.loads(suite_raw.decode("utf-8"), parse_constant=_reject_json_constant)
+    if not isinstance(suite, dict):
+        raise ValueError("frozen suite must be a JSON object")
+    suite_cases = suite.get("cases")
+    if not isinstance(suite_cases, list):
+        raise ValueError("frozen suite cases must be an array")
+    if any(not isinstance(case, dict) or not isinstance(case.get("id"), str) or not case["id"] for case in suite_cases):
+        raise ValueError("every frozen suite case must be an object with a non-empty string id")
     dataset = observations["dataset"]
     if sha256_bytes(suite_raw) != dataset["suite_sha256"]:
         raise ValueError("dataset.suite_sha256 does not match frozen suite bytes")
     if suite.get("suite_id") != dataset["suite_id"]:
         raise ValueError("dataset.suite_id does not match frozen suite")
-    suite_ids = [case.get("id") for case in suite.get("cases", []) if isinstance(case, dict)]
+    suite_ids = [case["id"] for case in suite_cases]
     case_ids = dataset["case_ids"]
     observation_rows = observations["observations"]
     result_ids = [item["case_id"] for item in observation_rows]

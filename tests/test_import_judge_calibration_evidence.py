@@ -57,6 +57,22 @@ class JudgeCalibrationImporterTests(unittest.TestCase):
                 self.assertEqual(report["summary"]["accuracy"], 0.5)
                 self.assertEqual(report["source_observations_sha256"], hashlib.sha256(raw).hexdigest())
 
+    def test_rejects_malformed_nested_suite_cases(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            suite_path, source, raw = make_fixture(Path(tmp))
+            malformed_suites = [
+                [],
+                {"suite_id": "heldout-suite-v1", "cases": None},
+                {"suite_id": "heldout-suite-v1", "cases": [{"id": "JC01"}, "JC02", {"id": ""}]},
+            ]
+            for suite in malformed_suites:
+                with self.subTest(suite=suite):
+                    suite_raw = json.dumps(suite).encode()
+                    suite_path.write_bytes(suite_raw)
+                    source["dataset"]["suite_sha256"] = hashlib.sha256(suite_raw).hexdigest()
+                    with self.assertRaisesRegex(ValueError, "frozen suite"):
+                        build_report(source, suite_path, raw)
+
     def test_rejects_suite_hash_mismatch(self):
         with tempfile.TemporaryDirectory() as tmp:
             suite_path, source, raw = make_fixture(Path(tmp))

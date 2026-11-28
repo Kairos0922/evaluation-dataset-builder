@@ -170,6 +170,24 @@ class JudgeCalibrationContractTests(unittest.TestCase):
             self.assertTrue(any("does not match supplied suite bytes" in e for e in validate_report(report, path)))
 
 
+    def test_supplied_suite_rejects_malformed_nested_case_entries(self):
+        report = base_report()
+        malformed_suites = [
+            [],
+            {"suite_id": "synthetic-suite", "cases": None},
+            {"suite_id": "synthetic-suite", "cases": [{"id": "JC01"}, "JC02"]},
+        ]
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "suite.json"
+            for suite in malformed_suites:
+                with self.subTest(suite=suite):
+                    raw = json.dumps(suite, separators=(",", ":")).encode()
+                    path.write_bytes(raw)
+                    report["dataset"]["suite_sha256"] = hashlib.sha256(raw).hexdigest()
+                    errors = validate_report(report, path)
+                    self.assertTrue(any("supplied suite must be a JSON object" in e for e in errors))
+
+
 if __name__ == "__main__":
     unittest.main()
 
