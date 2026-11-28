@@ -94,7 +94,9 @@ class GeneralBenchmarkDatasetTests(unittest.TestCase):
             for line in config["cases"].read_text(encoding="utf-8").splitlines()
             if line.strip()
         ]
-        self.assertTrue(all(item["user_input"] for item in records))
+        self.assertTrue(all(item["user_input"] or item["case_id"] == "ROB-061" for item in records))
+        empty_input = next(item for item in records if item["case_id"] == "ROB-061")
+        self.assertEqual(empty_input["user_input"], "")
         for case_id in [f"ROB-{index:03d}" for index in range(31, 41)]:
             item = next(record for record in records if record["case_id"] == case_id)
             self.assertIsInstance(item["user_input"].get("messages"), list)
