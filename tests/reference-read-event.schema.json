@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/evaluation-dataset-builder/reference-read-event.schema.json",
+  "title": "Skill Reference Read Event",
+  "description": "Host/harness telemetry for observed Skill reference access. This schema does not assert that any particular host exposes such telemetry.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "event_id",
+    "session_id",
+    "task_id",
+    "host_id",
+    "timestamp",
+    "event_type",
+    "relative_path",
+    "access_origin",
+    "delivery_status",
+    "evidence_ref"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.0.0"
+    },
+    "event_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "session_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "task_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "host_id": {
+      "enum": [
+        "codex",
+        "claude_code",
+        "claude_ai",
+        "claude_api",
+        "harness_other"
+      ]
+    },
+    "host_version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "model_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "model_version": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "skill_commit_sha": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^([0-9a-f]{40})?$"
+    },
+    "skill_tree_sha": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^([0-9a-f]{40})?$"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "event_type": {
+      "enum": [
+        "FILE_READ_REQUESTED",
+        "FILE_READ_SUCCEEDED",
+        "FILE_READ_FAILED",
+        "CONTENT_DELIVERED",
+        "PRELOADED_CONTEXT",
+        "FILE_READ_DENIED"
+      ]
+    },
+    "relative_path": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^(SKILL\\.md|references/[^/]+)$"
+    },
+    "access_origin": {
+      "enum": [
+        "agent_requested",
+        "host_automatic",
+        "harness_injected",
+        "preloaded",
+        "unknown"
+      ]
+    },
+    "delivery_status": {
+      "enum": [
+        "DELIVERED",
+        "NOT_DELIVERED",
+        "UNKNOWN"
+      ]
+    },
+    "content_sha256": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^([0-9a-f]{64})?$"
+    },
+    "byte_count": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 0
+    },
+    "evidence_ref": {
+      "type": "string",
+      "minLength": 1
+    },
+    "notes": {
+      "type": "string"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "CONTENT_DELIVERED"
+          }
+        },
+        "required": [
+          "event_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "delivery_status": {
+            "const": "DELIVERED"
+          },
+          "content_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$"
+          },
+          "byte_count": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "PRELOADED_CONTEXT"
+          }
+        },
+        "required": [
+          "event_type"
+        ]
+      },
+      "then": {
+        "properties": {
+          "access_origin": {
+            "const": "preloaded"
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}
