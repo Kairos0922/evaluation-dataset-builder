@@ -151,6 +151,18 @@ class ImportDshPilotRecordsTests(unittest.TestCase):
         self.assertFalse(runner_is_valid(runner_result(), oracle))
 
 
+    def test_uppercase_trace_digest_is_accepted(self):
+        with tempfile.TemporaryDirectory() as directory:
+            pilot_dir = Path(directory)
+            trace = pilot_dir / "dsh-events.jsonl"
+            trace.write_text(json.dumps({
+                "run_id": "run-WB-02", "case_id": "WB-02", "event": "completed"
+            }) + "\n", encoding="utf-8")
+            digest = hashlib.sha256(trace.read_bytes()).hexdigest().upper()
+            runner = runner_result()
+            runner["evidence_files"] = [{"path": "dsh-events.jsonl", "sha256": digest}]
+            self.assertEqual(verify_pilot_evidence(pilot_dir, runner)["dsh-events.jsonl"], digest.lower())
+
 class StrictJsonInputTests(unittest.TestCase):
     def test_cases_jsonl_rejects_nan(self):
         with tempfile.TemporaryDirectory() as tmp:
