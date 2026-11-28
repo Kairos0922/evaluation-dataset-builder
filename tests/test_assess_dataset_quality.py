@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.assess_dataset_quality import build_report, load_jsonl
+from scripts.assess_dataset_quality import build_report, load_jsonl, load_source_registry
 from scripts.validate_quality_assessment import validate_report
 
 
@@ -326,6 +326,30 @@ class StrictJsonInputTests(unittest.TestCase):
             path.write_text('{"case_id":"CASE-1","score":NaN}\\n', encoding="utf-8")
             _, errors = load_jsonl(path)
             self.assertTrue(any("invalid JSON" in error for error in errors))
+
+    def test_manifest_root_must_be_a_json_object(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            directory = Path(tmp)
+            manifest_path = directory / "manifest.json"
+            cases_path = directory / "cases.jsonl"
+            manifest_path.write_text("[]", encoding="utf-8")
+            cases_path.write_text("", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "manifest root must be a JSON object"):
+                build_report(manifest_path, cases_path, directory / "report.json", "both")
+
+    def test_source_registry_rejects_non_list_sources_wrapper(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "sources.json"
+            path.write_text(json.dumps({"sources": "not-a-list"}), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "'sources' field must be a list"):
+                load_source_registry(path)
+
+    def test_source_registry_rejects_non_object_id_mapped_entries(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "sources.json"
+            path.write_text(json.dumps({"SRC-001": "not-an-object"}), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "entry 'SRC-001' must be an object"):
+                load_source_registry(path)
 
 
 if __name__ == "__main__":
