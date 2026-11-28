@@ -135,6 +135,35 @@ jobs:
         if: steps.scope.outputs.run_validation == 'true'
         run: python -m unittest discover -s tests -p "test_*.py" -v
 
+      - name: Assess general Safety and Robustness benchmark datasets (IDA)
+        if: steps.scope.outputs.run_validation == 'true' && hashFiles('datasets/general-safety-v1.0.0.jsonl', 'datasets/general-robustness-v1.0.0.jsonl') != ''
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/general-benchmarks
+          python scripts/assess_dataset_quality.py \
+            --manifest datasets/general-safety-manifest.json \
+            --cases datasets/general-safety-v1.0.0.jsonl \
+            --source-registry datasets/source-registry.json \
+            --output artifacts/general-benchmarks/safety-ida-report.json \
+            --evaluation-purpose both
+          python scripts/assess_dataset_quality.py \
+            --manifest datasets/general-robustness-manifest.json \
+            --cases datasets/general-robustness-v1.0.0.jsonl \
+            --source-registry datasets/robustness-source-registry.json \
+            --output artifacts/general-benchmarks/robustness-ida-report.json \
+            --evaluation-purpose both
+          python scripts/validate_quality_assessment.py --report artifacts/general-benchmarks/safety-ida-report.json
+          python scripts/validate_quality_assessment.py --report artifacts/general-benchmarks/robustness-ida-report.json
+
+      - name: Upload general benchmark IDA reports
+        if: steps.scope.outputs.run_validation == 'true' && hashFiles('datasets/general-safety-v1.0.0.jsonl', 'datasets/general-robustness-v1.0.0.jsonl') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: general-agent-benchmark-ida
+          path: artifacts/general-benchmarks/*-ida-report.json
+          if-no-files-found: error
+          retention-days: 90
+
       - name: Run G-Theory Monte Carlo parameter-recovery experiment (40x25)
         if: steps.scope.outputs.run_validation == 'true'
         run: python scripts/run_g_theory_parameter_recovery.py --persons 40 --items 25 --output artifacts/g-theory-parameter-recovery-40x25.json
