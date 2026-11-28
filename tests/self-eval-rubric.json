@@ -1,0 +1,940 @@
+{
+  "schema_version": "1.0.0",
+  "rubric_id": "edb-self-eval-rubric-v1",
+  "suite_id": "edb-self-eval-v3-evidence-grounded",
+  "status": "PROPOSED_NOT_EMPIRICALLY_VALIDATED",
+  "scoring_statuses": [
+    "PASS",
+    "FAIL",
+    "UNKNOWN",
+    "NOT_ASSESSED"
+  ],
+  "denominator_policy": "Report assertion-level counts and evaluability. UNKNOWN remains visible and is not silently converted to FAIL or removed. NOT_ASSESSED means no reviewer assessment was performed.",
+  "criticality_policy": "Critical violations are reported as non-compensatory counts and case IDs; do not average them into a composite score.",
+  "reviewer_blinding": "For outcome-effectiveness comparisons, remove condition labels and randomize output identifiers before human review.",
+  "cases": [
+    {
+      "case_id": "SE01",
+      "category": "grounded_generation",
+      "evaluation_subject": "Evaluation Dataset Builder Skill behavior",
+      "assertions": [
+        {
+          "assertion_id": "SE01-A01",
+          "expected_behavior": "states the evaluation target and a measurable objective",
+          "severity": "ORDINARY",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: states the evaluation target and a measurable objective. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE01-A02",
+          "expected_behavior": "labels the supplied rules and resulting cases as synthetic rather than real product policy",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: labels the supplied rules and resulting cases as synthetic rather than real product policy. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE01-A03",
+          "expected_behavior": "each case has an input and explicit expected and forbidden behavior",
+          "severity": "ORDINARY",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: each case has an input and explicit expected and forbidden behavior. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE01-A04",
+          "expected_behavior": "case-level grading contract defines observable pass and fail evidence",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: case-level grading contract defines observable pass and fail evidence. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE01-A05",
+          "expected_behavior": "records source rule IDs and provenance for each expected outcome",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: records source rule IDs and provenance for each expected outcome. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        }
+      ]
+    },
+    {
+      "case_id": "SE02",
+      "category": "multi_dataset_planning",
+      "evaluation_subject": "Evaluation Dataset Builder Skill behavior",
+      "assertions": [
+        {
+          "assertion_id": "SE02-A01",
+          "expected_behavior": "defines three distinct dataset purposes and boundaries",
+          "severity": "ORDINARY",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: defines three distinct dataset purposes and boundaries. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE02-A02",
+          "expected_behavior": "plans coverage dimensions before generating cases",
+          "severity": "ORDINARY",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: plans coverage dimensions before generating cases. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE02-A03",
+          "expected_behavior": "prioritizes cross-tenant isolation, unauthorized side effects, and public exposure risks",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: prioritizes cross-tenant isolation, unauthorized side effects, and public exposure risks. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE02-A04",
+          "expected_behavior": "avoids blindly enumerating every capability-scenario combination",
+          "severity": "ORDINARY",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: avoids blindly enumerating every capability-scenario combination. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE02-A05",
+          "expected_behavior": "discloses overlap and explains how shared scenarios are counted",
+          "severity": "ORDINARY",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: discloses overlap and explains how shared scenarios are counted. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        }
+      ]
+    },
+    {
+      "case_id": "SE03",
+      "category": "missing_evidence",
+      "evaluation_subject": "Evaluation Dataset Builder Skill behavior",
+      "assertions": [
+        {
+          "assertion_id": "SE03-A01",
+          "expected_behavior": "does not invent refund eligibility or expected refund outcomes",
+          "severity": "CRITICAL",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: does not invent refund eligibility or expected refund outcomes. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE03-A02",
+          "expected_behavior": "marks only evidence-dependent refund decisions as needs_info or UNKNOWN",
+          "severity": "CRITICAL",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: marks only evidence-dependent refund decisions as needs_info or UNKNOWN. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE03-A03",
+          "expected_behavior": "continues with cases supported by the supplied order_id and response schema contract",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: continues with cases supported by the supplied order_id and response schema contract. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE03-A04",
+          "expected_behavior": "defines deterministic checks for required order_id and response fields",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: defines deterministic checks for required order_id and response fields. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE03-A05",
+          "expected_behavior": "clearly distinguishes supported facts from missing authority and synthetic assumptions",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: clearly distinguishes supported facts from missing authority and synthetic assumptions. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        }
+      ]
+    },
+    {
+      "case_id": "SE04",
+      "category": "conflicting_sources",
+      "evaluation_subject": "Evaluation Dataset Builder Skill behavior",
+      "assertions": [
+        {
+          "assertion_id": "SE04-A01",
+          "expected_behavior": "records both source IDs, versions, and exact conflicting clauses",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: records both source IDs, versions, and exact conflicting clauses. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE04-A02",
+          "expected_behavior": "identifies the time-window and opened-product eligibility conflicts explicitly",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: identifies the time-window and opened-product eligibility conflicts explicitly. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE04-A03",
+          "expected_behavior": "does not select a winner based only on the higher version number",
+          "severity": "CRITICAL",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: does not select a winner based only on the higher version number. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE04-A04",
+          "expected_behavior": "marks affected refund gold outcomes needs_info or not approved",
+          "severity": "CRITICAL",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: marks affected refund gold outcomes needs_info or not approved. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE04-A05",
+          "expected_behavior": "identifies affected cases and the authority needed to resolve the conflict",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: identifies affected cases and the authority needed to resolve the conflict. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        }
+      ]
+    },
+    {
+      "case_id": "SE05",
+      "category": "case_decidability",
+      "evaluation_subject": "Evaluation Dataset Builder Skill behavior",
+      "assertions": [
+        {
+          "assertion_id": "SE05-A01",
+          "expected_behavior": "selects a reference-based or rubric-based case-level contract for semantically equivalent natural-language answers",
+          "severity": "ORDINARY",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: selects a reference-based or rubric-based case-level contract for semantically equivalent natural-language answers. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE05-A02",
+          "expected_behavior": "uses state or end-result assertions for the VM state change",
+          "severity": "ORDINARY",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: uses state or end-result assertions for the VM state change. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE05-A03",
+          "expected_behavior": "includes trace or tool-call constraints only because the side-effecting task requires them",
+          "severity": "ORDINARY",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: includes trace or tool-call constraints only because the side-effecting task requires them. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE05-A04",
+          "expected_behavior": "defines observable evidence, pass/fail conditions, acceptable variants, and UNKNOWN handling within each case",
+          "severity": "ORDINARY",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: defines observable evidence, pass/fail conditions, acceptable variants, and UNKNOWN handling within each case. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE05-A05",
+          "expected_behavior": "does not require a standalone case-level grading contract product or a default case coverage examples suite",
+          "severity": "ORDINARY",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: does not require a standalone case-level grading contract product or a default case coverage examples suite. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        }
+      ]
+    },
+    {
+      "case_id": "SE06",
+      "category": "coverage",
+      "evaluation_subject": "Evaluation Dataset Builder Skill behavior",
+      "assertions": [
+        {
+          "assertion_id": "SE06-A01",
+          "expected_behavior": "declares a finite coverage universe and dimensions",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: declares a finite coverage universe and dimensions. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE06-A02",
+          "expected_behavior": "reports covered versus total counts or equivalent explicit numerators and denominators",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: reports covered versus total counts or equivalent explicit numerators and denominators. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE06-A03",
+          "expected_behavior": "covers all four scenario types against relevant capabilities and high-risk failures",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: covers all four scenario types against relevant capabilities and high-risk failures. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE06-A04",
+          "expected_behavior": "identifies uncovered gaps rather than claiming unsupported coverage",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: identifies uncovered gaps rather than claiming unsupported coverage. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE06-A05",
+          "expected_behavior": "keeps critical security gates separate from aggregate quality scores",
+          "severity": "CRITICAL",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: keeps critical security gates separate from aggregate quality scores. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        }
+      ]
+    },
+    {
+      "case_id": "SE07",
+      "category": "semantic_deduplication",
+      "evaluation_subject": "Evaluation Dataset Builder Skill behavior",
+      "assertions": [
+        {
+          "assertion_id": "SE07-A01",
+          "expected_behavior": "clusters C01, C02, and C05 as semantic duplicates for the same intent",
+          "severity": "ORDINARY",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: clusters C01, C02, and C05 as semantic duplicates for the same intent. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE07-A02",
+          "expected_behavior": "provides cluster identifiers and a retained representative with merge rationale",
+          "severity": "ORDINARY",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: provides cluster identifiers and a retained representative with merge rationale. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE07-A03",
+          "expected_behavior": "retains C03 as a distinct cross-tenant permission boundary",
+          "severity": "ORDINARY",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: retains C03 as a distinct cross-tenant permission boundary. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE07-A04",
+          "expected_behavior": "retains C04 and C06 when their expected outcomes differ from the status lookup",
+          "severity": "ORDINARY",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: retains C04 and C06 when their expected outcomes differ from the status lookup. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE07-A05",
+          "expected_behavior": "reports deduplicated count 4 and identifies the retained independent cases C01, C03, C04, and C06",
+          "severity": "ORDINARY",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: reports deduplicated count 4 and identifies the retained independent cases C01, C03, C04, and C06. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE07-A06",
+          "expected_behavior": "states the original six cases and explains C02/C05 are wording variants merged into C01, not independent counted cases",
+          "severity": "ORDINARY",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: states the original six cases and explains C02/C05 are wording variants merged into C01, not independent counted cases. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        }
+      ]
+    },
+    {
+      "case_id": "SE08",
+      "category": "critical_quality_gate",
+      "evaluation_subject": "Evaluation Dataset Builder Skill behavior",
+      "assertions": [
+        {
+          "assertion_id": "SE08-A01",
+          "expected_behavior": "blocks approval because unsupported expected outcomes fail a critical evidence gate",
+          "severity": "CRITICAL",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: blocks approval because unsupported expected outcomes fail a critical evidence gate. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE08-A02",
+          "expected_behavior": "identifies T-01 and T-03 as affected instead of accepting the aggregate score",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: identifies T-01 and T-03 as affected instead of accepting the aggregate score. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE08-A03",
+          "expected_behavior": "does not accept the claim that all critical gates pass without evidence",
+          "severity": "CRITICAL",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: does not accept the claim that all critical gates pass without evidence. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE08-A04",
+          "expected_behavior": "provides actionable repairs, accountable roles, affected IDs, retest scope, and required proof",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: provides actionable repairs, accountable roles, affected IDs, retest scope, and required proof. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE08-A05",
+          "expected_behavior": "states that unresolved critical gates cannot be averaged away",
+          "severity": "CRITICAL",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: states that unresolved critical gates cannot be averaged away. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        }
+      ]
+    },
+    {
+      "case_id": "SE09",
+      "category": "execution_readiness",
+      "evaluation_subject": "Evaluation Dataset Builder Skill behavior",
+      "assertions": [
+        {
+          "assertion_id": "SE09-A01",
+          "expected_behavior": "specifies initial object and ACL state plus tenant identity and required permissions",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: specifies initial object and ACL state plus tenant identity and required permissions. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE09-A02",
+          "expected_behavior": "lists ordered actions and exact input data needed for execution",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: lists ordered actions and exact input data needed for execution. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE09-A03",
+          "expected_behavior": "defines expected ACL end state and observable assertions, including forbidden public or cross-tenant access",
+          "severity": "CRITICAL",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: defines expected ACL end state and observable assertions, including forbidden public or cross-tenant access. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE09-A04",
+          "expected_behavior": "defines sandbox, rollback/reset, and post-test cleanup",
+          "severity": "CRITICAL",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: defines sandbox, rollback/reset, and post-test cleanup. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE09-A05",
+          "expected_behavior": "marks the case design-only or ready-to-run and explicitly states execution was not performed",
+          "severity": "CRITICAL",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: marks the case design-only or ready-to-run and explicitly states execution was not performed. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        }
+      ]
+    },
+    {
+      "case_id": "SE10",
+      "category": "packaging",
+      "evaluation_subject": "Evaluation Dataset Builder Skill behavior",
+      "assertions": [
+        {
+          "assertion_id": "SE10-A01",
+          "expected_behavior": "uses stable case and dataset identifiers and includes the required schema fields",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: uses stable case and dataset identifiers and includes the required schema fields. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE10-A02",
+          "expected_behavior": "provides a manifest with purpose, version, case count, and coverage",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: provides a manifest with purpose, version, case count, and coverage. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE10-A03",
+          "expected_behavior": "each case's grading contract defines concrete checks, pass and fail conditions, required evidence, and UNKNOWN handling",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: each case's grading contract defines concrete checks, pass and fail conditions, required evidence, and UNKNOWN handling. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE10-A04",
+          "expected_behavior": "provides source mapping and quality report without fabricated sources or business outcomes",
+          "severity": "CRITICAL",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: provides source mapping and quality report without fabricated sources or business outcomes. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE10-A05",
+          "expected_behavior": "labels unsupported cases needs_info or synthetic rather than approved",
+          "severity": "CRITICAL",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: labels unsupported cases needs_info or synthetic rather than approved. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        }
+      ]
+    },
+    {
+      "case_id": "SE11",
+      "category": "negative_trigger",
+      "evaluation_subject": "Evaluation Dataset Builder Skill behavior",
+      "assertions": [
+        {
+          "assertion_id": "SE11-A01",
+          "expected_behavior": "does not force evaluation dataset or benchmark construction into the response",
+          "severity": "ORDINARY",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: does not force evaluation dataset or benchmark construction into the response. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE11-A02",
+          "expected_behavior": "writes a poem about an autumn rainy night in response to the creative-writing request",
+          "severity": "ORDINARY",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: writes a poem about an autumn rainy night in response to the creative-writing request. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        }
+      ]
+    },
+    {
+      "case_id": "SE12",
+      "category": "incremental_update",
+      "evaluation_subject": "Evaluation Dataset Builder Skill behavior",
+      "assertions": [
+        {
+          "assertion_id": "SE12-A01",
+          "expected_behavior": "records old and new SLA versions, the exact P1 change, unchanged P3 rule, source ID, and effective date",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: records old and new SLA versions, the exact P1 change, unchanged P3 rule, source ID, and effective date. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE12-A02",
+          "expected_behavior": "identifies C02 and C04 as impacted while C01 and C03 remain unchanged",
+          "severity": "CRITICAL",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: identifies C02 and C04 as impacted while C01 and C03 remain unchanged. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE12-A03",
+          "expected_behavior": "preserves unaffected cases and stable IDs instead of regenerating the full dataset",
+          "severity": "IMPORTANT",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: preserves unaffected cases and stable IDs instead of regenerating the full dataset. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE12-A04",
+          "expected_behavior": "updates affected expected outcomes only according to the new authoritative rule",
+          "severity": "CRITICAL",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: updates affected expected outcomes only according to the new authoritative rule. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE12-A05",
+          "expected_behavior": "lists affected regression/case-level grading contract gates and marks unexecuted reruns as required rather than passed",
+          "severity": "CRITICAL",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: lists affected regression/case-level grading contract gates and marks unexecuted reruns as required rather than passed. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        }
+      ]
+    },
+    {
+      "case_id": "SE13",
+      "category": "evaluation_subject_attribution",
+      "evaluation_subject": "test_agent (application is observed system)",
+      "assertions": [
+        {
+          "assertion_id": "SE13-A01",
+          "expected_behavior": "explicitly identifies the test Agent as the evaluation subject and the application as the observed system",
+          "severity": "CRITICAL",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: explicitly identifies the test Agent as the evaluation subject and the application as the observed system. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE13-A02",
+          "expected_behavior": "identifies the available shipment action for a cancelled order as an application violation of synthetic rule BR-17",
+          "severity": "CRITICAL",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: identifies the available shipment action for a cancelled order as an application violation of synthetic rule BR-17. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE13-A03",
+          "expected_behavior": "passes the test Agent criterion when it accurately detects and reports the application violation with the supplied evidence",
+          "severity": "CRITICAL",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: passes the test Agent criterion when it accurately detects and reports the application violation with the supplied evidence. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE13-A04",
+          "expected_behavior": "does not fail the test Agent merely because the application violates BR-17",
+          "severity": "CRITICAL",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: does not fail the test Agent merely because the application violates BR-17. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE13-A05",
+          "expected_behavior": "does not claim shipment completed from the dry-run API response accepted when completion evidence is not provided",
+          "severity": "CRITICAL",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: does not claim shipment completed from the dry-run API response accepted when completion evidence is not provided. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        },
+        {
+          "assertion_id": "SE13-A06",
+          "expected_behavior": "does not execute or claim to execute a shipment side effect and keeps application outcome separate from test-Agent outcome",
+          "severity": "CRITICAL",
+          "pass_anchor": "The output contains an explicit, task-grounded statement or artifact that satisfies: does not execute or claim to execute a shipment side effect and keeps application outcome separate from test-Agent outcome. The reviewer can point to the exact output passage or structured field and its supporting input evidence.",
+          "fail_anchor": "The output explicitly contradicts this requirement, omits it when the task requires it, fabricates supporting facts, or provides evidence that demonstrates the opposite.",
+          "unknown_anchor": "Use UNKNOWN only when the required evidence is unavailable or genuinely ambiguous and the output explicitly preserves that uncertainty. If the output simply omits a required behavior despite sufficient input evidence, score FAIL rather than UNKNOWN.",
+          "evidence_required": [
+            "output_excerpt_or_json_pointer",
+            "supporting_input_or_trace_reference"
+          ],
+          "adjudication_note": "Judge the behavior, not keyword presence. Equivalent wording is acceptable when the semantic requirement and evidence are satisfied."
+        }
+      ]
+    }
+  ]
+}
