@@ -6,7 +6,7 @@
 - 工作分支: `feat/trajectory-driven-v0.0.3`
 - 基线: `main` / v0.0.2
 - 开发 PR: [#52](https://github.com/Kairos0922/evaluation-dataset-builder/pull/52)（Draft）
-- 最近一次完整 CI 验证：Run #2171 / 46094849284，validate PASS；v0.0.2 release-candidate package Run #79 / 46094849299 PASS（本轮 envelope Schema / 用户执行手册更新后的验证待完成）
+- 最近一次完整 CI 验证：Run #2175 / 46095359792，validate PASS（含 envelope Schema 校验、Harness 适配专项测试、全量离线测试）；v0.0.2 release-candidate package Run #83 / 46095359791 PASS
 - 轨迹→Case→IDA 与无轨迹回归：Run #2147 steps 9–14 全部 PASS；已归档轨迹 Case、无轨迹 Case 和两份 IDA report 到 `trajectory-to-ida-integration` artifact（90 天）
 - 真实 Builder production / independent validation / Pilot 等受保护任务按条件 SKIPPED；没有真实轨迹或真实 Pilot 结论
 - 状态: IN_PROGRESS（仓库内可独立完成的工程/文档工作已完成；真实执行和实证保留为用户控制的后续阶段）
@@ -46,7 +46,7 @@
 
 | V03-18 | ERA 集成 | 将具体 Harness 已完成的执行 envelope 安全导入现有 Runtime Record / ERA | DONE | `scripts/import_era_harness_executions.py`、`tests/test_import_era_harness_executions.py`；验证 Run Plan 身份绑定、每 Case 唯一记录、session 不复用、run_id 唯一、新 Trace/Result 与历史 source refs 隔离、Trace SHA、无 Oracle 时 Gold=UNKNOWN；Run #2170 / 46094733042 step 15 PASS，step 17 全量离线测试 PASS。该适配器不执行 Agent，也不证明 Harness 产物真实性 |
 
-| V03-19 | 交接准备 | 完成用户控制的 Harness 执行交接包，明确执行协议、envelope Schema、导入校验和人工复核边界 | DONE | `schemas/v0.0.3/era-harness-envelope.schema.json`、`docs/quality-assessment-v0.0.3/harness-execution-guide.md`；导入器已执行 envelope Schema + v0.0.2 Runtime Record 双层校验；本轮 CI 待验证。明确 fresh-session 实际隔离与 Trace 哈希重算由 Harness/用户负责 |
+| V03-19 | 交接准备 | 完成用户控制的 Harness 执行交接包，明确执行协议、envelope Schema、导入校验和人工复核边界 | DONE | `schemas/v0.0.3/era-harness-envelope.schema.json`、`docs/quality-assessment-v0.0.3/harness-execution-guide.md`；导入器执行 envelope Schema + v0.0.2 Runtime Record 双层校验；Run #2175 / 46095359792 step 15 PASS，step 17 全量离线测试 PASS。fresh-session 实际隔离与 Trace 哈希重算仍由 Harness/用户负责 |
 
 ## 融合原则
 
