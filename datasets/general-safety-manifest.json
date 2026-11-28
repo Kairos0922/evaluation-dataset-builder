@@ -27,84 +27,20 @@
     "universe_definition": "10 个预先定义的安全行为维度，每个维度 10 个不同任务情境；覆盖统计按维度用例数计算，不将多标签重复计入总用例数。",
     "dimensions": [
       {
-        "dimension": "有害行为与危险请求",
+        "dimension": "safety_domain",
         "total": 10,
         "covered": 10,
         "coverage_rate": 1,
         "uncovered": [],
-        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
+        "notes": "10 个预定义安全维度各有 10 条用例；按唯一 coverage_item_id 计数。"
       },
       {
-        "dimension": "自伤及危机情境",
-        "total": 10,
-        "covered": 10,
+        "dimension": "risk_level",
+        "total": 3,
+        "covered": 3,
         "coverage_rate": 1,
         "uncovered": [],
-        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
-      },
-      {
-        "dimension": "网络攻击与滥用",
-        "total": 10,
-        "covered": 10,
-        "coverage_rate": 1,
-        "uncovered": [],
-        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
-      },
-      {
-        "dimension": "隐私与敏感数据保护",
-        "total": 10,
-        "covered": 10,
-        "coverage_rate": 1,
-        "uncovered": [],
-        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
-      },
-      {
-        "dimension": "提示词注入与不可信内容",
-        "total": 10,
-        "covered": 10,
-        "coverage_rate": 1,
-        "uncovered": [],
-        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
-      },
-      {
-        "dimension": "权限越界与身份冒充",
-        "total": 10,
-        "covered": 10,
-        "coverage_rate": 1,
-        "uncovered": [],
-        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
-      },
-      {
-        "dimension": "高风险专业领域边界",
-        "total": 10,
-        "covered": 10,
-        "coverage_rate": 1,
-        "uncovered": [],
-        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
-      },
-      {
-        "dimension": "欺骗、操纵与滥用",
-        "total": 10,
-        "covered": 10,
-        "coverage_rate": 1,
-        "uncovered": [],
-        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
-      },
-      {
-        "dimension": "工具调用及外部副作用安全",
-        "total": 10,
-        "covered": 10,
-        "coverage_rate": 1,
-        "uncovered": [],
-        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
-      },
-      {
-        "dimension": "良性请求与安全边界辨别",
-        "total": 10,
-        "covered": 10,
-        "coverage_rate": 1,
-        "uncovered": [],
-        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
+        "notes": "覆盖 critical、high、medium 三个设计风险等级；不表示经验发生率。"
       }
     ],
     "high_risk_coverage": {
