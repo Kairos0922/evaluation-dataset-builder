@@ -1965,8 +1965,15 @@ class ReleaseGateUnitTests(unittest.TestCase):
 
     def test_critical_cases_exist(self):
         fixture = json.loads((ROOT / "tests" / "self-eval-cases.json").read_text(encoding="utf-8"))
+        rubric = json.loads((ROOT / "tests" / "self-eval-rubric.json").read_text(encoding="utf-8"))
         available = {item["id"] for item in fixture["cases"]}
-        self.assertTrue(set(RUN_EVAL.CRITICAL_CASE_IDS).issubset(available))
+        critical = {
+            item["case_id"]
+            for item in rubric["cases"]
+            if any(assertion["severity"] == "CRITICAL" for assertion in item["assertions"])
+        }
+        self.assertTrue(critical.issubset(available))
+        self.assertIn("SE13", critical)
 
     def test_baseline_and_trigger_cannot_be_skipped(self):
         source = (ROOT / "tests" / "run_eval.py").read_text(encoding="utf-8")
