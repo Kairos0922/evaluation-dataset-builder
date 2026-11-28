@@ -99,6 +99,8 @@ def build_era_run_plan(
     """Create a deterministic, non-executing plan over existing Case objects."""
     _validate(MANIFEST_SCHEMA, manifest, "Dataset Manifest")
     _validate_configuration(configuration)
+    if manifest.get("execution_status") != "READY_TO_RUN":
+        raise ValueError("Manifest execution_status must be READY_TO_RUN before creating an ERA run plan")
     if manifest.get("case_count") != len(cases):
         raise ValueError("Manifest case_count does not match Case JSONL line count")
     if not cases:
