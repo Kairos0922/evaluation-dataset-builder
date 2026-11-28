@@ -8,9 +8,9 @@
 
 The Pilot should establish whether the Builder Skill can produce evaluation datasets that satisfy the declared task requirements and whether its outputs are meaningfully better than a matched no-Skill baseline. This is a supporting execution-effectiveness study, not a replacement for independent evaluation-dataset quality assessment. It is not intended to establish universal effectiveness or statistical generalization.
 
-Do not create six replacement tasks. Use the existing cases wherever they already exercise the target behavior and add only narrowly scoped missing cases.
+Do not create replacement tasks. Use the existing cases wherever they already exercise the target behavior and add only narrowly scoped missing cases.
 
-## 2. Six Pilot task groups
+## 2. Five Pilot task groups
 
 | Pilot group | Existing cases | Main question | Required evidence |
 |---|---|---|---|
@@ -83,7 +83,7 @@ For outcome comparison, use matched conditions:
 
 Freeze task prompts, model identity/revision, sampling parameters, tools, permissions, environment, time/token budgets, and output capture rules. Randomize condition order where possible. Record deviations as separate strata.
 
-The current `tests/run_eval.py` can serve as an initial paired comparison prototype, but it does not implement P06 reference telemetry and its generator/Judge model identity is not independent. Use independent blind human review or a genuinely distinct evaluator for semantic outcomes.
+The current `tests/run_eval.py` can serve as an initial paired comparison prototype, but its generator/Judge model identity is not independent. Use independent blind human review or a genuinely distinct evaluator for semantic outcomes.
 
 ## 7. Pilot analysis
 
@@ -101,10 +101,10 @@ Do not compute a single Skill-quality score. Do not treat the existing release-g
 
 The Pilot is complete only when:
 1. Every executed task is bound to a frozen Skill and suite version.
-2. Raw outputs and required event/trace evidence are retained.
+2. Raw outputs and the evidence needed to assess each executed task are retained.
 3. All expected assertions have PASS, FAIL, or UNKNOWN with a rationale.
 4. Critical violations are independently reviewed.
 5. Skill and baseline conditions are comparable or deviations are explicitly reported.
-7. The report includes limitations and concrete instrument revisions.
+6. The report includes limitations and concrete instrument revisions.
 
 A successful Pilot means the evaluation protocol is usable and reveals interpretable evidence. It does not mean the Skill is universally effective or cross-runtime certified.
