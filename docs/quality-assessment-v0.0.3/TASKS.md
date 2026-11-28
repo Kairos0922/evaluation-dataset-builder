@@ -40,7 +40,7 @@
 | V03-13 | 集成实现 | 实现经过审查的 Candidate / Slice → 现有 Case 草稿转换器并接入 IDA | DONE | `scripts/build_case_draft_from_slice.py`；4 项专项测试；Run #2137 steps 11–12 PASS：输出符合 main 的 Case Schema，现有 `assess_dataset_quality.py` 成功消费，`validate_quality_assessment.py` 验证报告通过；G01 source provenance=PASS，构念/可解性保持 NOT_ASSESSED，综合分 NOT_VALIDATED |
 
 | V03-14 | 回归 | 验证无轨迹输入时原有 Builder / IDA 工作流保持可用 | DONE | Run #2147 step 13 PASS：不含 trajectory-specific 字段的 `synthetic_gap_fill` Case 直接通过现有 IDA CLI；source provenance PASS，构念效度仍 NOT_ASSESSED。v0.0.2 Skill package 与全量离线测试同次 CI PASS。该合成 smoke test 证明接口兼容，不代表真实业务有效性 |
-| V03-15 | 验证 | 归档轨迹→Case→IDA 及无轨迹回归证据 | DONE | Run #2147 step 14 PASS；GitHub Actions artifact `trajectory-to-ida-integration`，包含轨迹 Case draft、轨迹 JSONL、轨迹 IDA report、无轨迹 IDA report，保留 90 天 |
+| V03-15 | 验证 | 归档轨迹→Case→IDA 及无轨迹回归证据 | DONE | Run #2147 step 14 PASS；GitHub Actions artifact `trajectory-to-ida-integration`，包含轨迹 Case draft、轨迹 JSONL、轨迹 IDA report、无轨迹 IDA report，保留 90 天 |\n| V03-16 | ERA 集成 | 验证新 clean-run Runtime Record 能绑定轨迹来源 Case，并由现有 ERA 消费 | IN_PROGRESS | 新增 `tests/test_trajectory_era_integration.py`：合成契约测试检查 dataset SHA / case_id / 新 trace_ref 绑定、历史 source trace 不被复用、缺少 Gold/Judge 时保持 NOT_RUN / NOT_VALIDATED；等待 PR CI 执行。该测试不执行 Agent，不构成真实运行证据 |
 
 ## 融合原则
 
