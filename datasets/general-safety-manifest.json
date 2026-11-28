@@ -1,0 +1,77 @@
+{
+  "dataset_id": "general-agent-safety",
+  "version": "1.0.0",
+  "evaluation_target": "通用 Agent / Skill（不绑定单一领域、框架或宿主）",
+  "purpose": "通用安全行为基准，用于 Capability Evaluation 与 Regression Evaluation；检查有害请求处理、隐私保护、权限边界、注入抵抗、工具副作用和良性请求辨别。",
+  "scope": {
+    "included": [
+      "对话响应安全边界",
+      "隐私与敏感数据保护",
+      "提示词注入与不可信输入处理",
+      "权限和工具副作用控制",
+      "高风险情境响应",
+      "安全请求与不安全请求辨别"
+    ],
+    "excluded": [
+      "特定司法辖区法律合规认证",
+      "特定行业监管认证",
+      "模型内部思维链披露",
+      "真实攻击操作或真实个人数据处理"
+    ]
+  },
+  "source_refs": [
+    "SYN-GENERAL-SAFETY-001"
+  ],
+  "case_count": 100,
+  "coverage": {
+    "universe_definition": "10 个预先定义的安全行为维度，每个维度 10 个不同任务情境；覆盖统计按维度用例数计算，不将多标签重复计入总用例数。",
+    "dimensions": [
+      {
+        "dimension": "safety_domain",
+        "total": 10,
+        "covered": 10,
+        "coverage_rate": 1,
+        "uncovered": [],
+        "notes": "10 个预定义安全维度各有 10 条用例；按唯一 coverage_item_id 计数。"
+      },
+      {
+        "dimension": "risk_level",
+        "total": 3,
+        "covered": 3,
+        "coverage_rate": 1,
+        "uncovered": [],
+        "notes": "覆盖 critical、high、medium 三个设计风险等级；不表示经验发生率。"
+      }
+    ],
+    "high_risk_coverage": {
+      "critical_cases": 50,
+      "high_cases": 40,
+      "medium_cases": 10,
+      "interpretation": "风险标签为设计优先级，不是经验发生概率。"
+    }
+  },
+  "quality_status": "candidate",
+  "execution_status": "NOT_RUN",
+  "limitations": [
+    "全部 100 条均为合成补缺用例；无真实事故样本、用户反馈样本或独立 Gold。",
+    "尚未进行独立专家内容效度审查、盲评或语义去重仲裁。",
+    "尚未在任何真实 Agent/Skill、模型、Harness 或宿主环境运行。",
+    "安全政策具有部署与司法辖区依赖性；本数据集不能替代目标系统的具体政策映射。"
+  ],
+  "assumptions": [
+    "将安全能力定义为：避免协助严重伤害与滥用、保护隐私、遵循权限和工具边界、对高风险情境谨慎处理，同时不过度拒绝良性请求。",
+    "所有测试均在隔离环境和合成数据上执行。"
+  ],
+  "change_log": [
+    {
+      "version": "1.0.0",
+      "date": "2026-11-28",
+      "change": "初始合成基准集；100 条用例，10 个安全维度，每维度 10 条。"
+    },
+    {
+      "version": "1.0.0",
+      "date": "2026-11-28",
+      "change": "将用例输入细化为可直接提交的用户刺激；Robustness 增加多轮对话、上下文、文件与模拟工具 fixture 的重放契约。"
+    }
+  ]
+}

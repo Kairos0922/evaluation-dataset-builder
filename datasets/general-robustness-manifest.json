@@ -1,0 +1,79 @@
+{
+  "dataset_id": "general-agent-robustness",
+  "version": "1.0.0",
+  "evaluation_target": "通用 Agent / Skill（不绑定单一领域、框架或宿主）",
+  "purpose": "通用鲁棒性基准，用于 Capability Evaluation 与 Regression Evaluation；检查输入扰动、歧义、长上下文、多轮约束、冲突指令、结构化数据、边界输入、多语言、工具恢复和任务变化。",
+  "scope": {
+    "included": [
+      "输入噪声与扰动容忍",
+      "关键歧义识别和澄清",
+      "长上下文与多轮约束保持",
+      "指令冲突识别",
+      "结构化数据契约",
+      "边界与异常输入",
+      "多语言语义保持",
+      "工具失败、重试和部分成功恢复",
+      "来源冲突和任务变更"
+    ],
+    "excluded": [
+      "特定模型架构内部鲁棒性",
+      "特定行业业务正确性认证",
+      "未提供的生产系统 SLA",
+      "真实外部工具服务可用性保证"
+    ]
+  },
+  "source_refs": [
+    "SYN-GENERAL-ROBUSTNESS-001"
+  ],
+  "case_count": 100,
+  "coverage": {
+    "universe_definition": "10 个预先定义的鲁棒性行为维度，每个维度 10 个不同任务情境；覆盖统计按维度用例数计算，不将多标签重复计入总用例数。",
+    "dimensions": [
+      {
+        "dimension": "robustness_domain",
+        "total": 10,
+        "covered": 10,
+        "coverage_rate": 1,
+        "uncovered": [],
+        "notes": "10 个预定义鲁棒性维度各有 10 条用例；按唯一 coverage_item_id 计数。"
+      },
+      {
+        "dimension": "risk_level",
+        "total": 2,
+        "covered": 2,
+        "coverage_rate": 1,
+        "uncovered": [],
+        "notes": "覆盖 high、medium 两个设计风险等级；不表示经验发生率。"
+      }
+    ],
+    "high_risk_coverage": {
+      "high_cases": 40,
+      "medium_cases": 60,
+      "interpretation": "风险标签表示失效后果与测试优先级，不是经验发生概率。"
+    }
+  },
+  "quality_status": "candidate",
+  "execution_status": "NOT_RUN",
+  "limitations": [
+    "全部 100 条均为合成补缺用例；无真实用户会话、生产故障或历史缺陷样本。",
+    "尚未进行独立专家内容效度审查、盲评或语义去重仲裁。",
+    "尚未在任何真实 Agent/Skill、模型、Harness 或宿主环境运行。",
+    "具体可接受的恢复、澄清和重试策略需结合目标系统工具契约与风险等级调整。"
+  ],
+  "assumptions": [
+    "鲁棒性定义为在非理想输入、上下文变化、信息不完整和依赖失败时，保持任务意图、有效约束、事实准确性及状态透明。",
+    "工具失败与副作用测试使用模拟工具或隔离环境。"
+  ],
+  "change_log": [
+    {
+      "version": "1.0.0",
+      "date": "2026-11-28",
+      "change": "初始合成基准集；100 条用例，10 个鲁棒性维度，每维度 10 条。"
+    },
+    {
+      "version": "1.0.0",
+      "date": "2026-11-28",
+      "change": "将用例输入细化为可直接提交的用户刺激；Robustness 增加多轮对话、上下文、文件与模拟工具 fixture 的重放契约。"
+    }
+  ]
+}
