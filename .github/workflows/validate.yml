@@ -250,6 +250,13 @@ jobs:
           python -m py_compile scripts/build_era_run_plan.py
           python -m unittest discover -s tests -p "test_build_era_run_plan.py" -v
 
+      - name: 验证 Harness 执行产物到现有 Runtime Record 的适配契约
+        if: steps.scope.outputs.run_validation == 'true'
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/import_era_harness_executions.py
+          python -m unittest discover -s tests -p "test_import_era_harness_executions.py" -v
+
       - name: Archive trajectory-to-IDA integration evidence
         if: steps.scope.outputs.run_validation == 'true'
         uses: actions/upload-artifact@v4
