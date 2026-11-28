@@ -6,10 +6,10 @@
 - 工作分支: `feat/trajectory-driven-v0.0.3`
 - 基线: `main` / v0.0.2
 - 开发 PR: [#52](https://github.com/Kairos0922/evaluation-dataset-builder/pull/52)（Draft）
-- 最近一次完整 CI 验证：Run #2170 / 46094733042，validate PASS（含 Harness 产物适配专项测试与全量离线测试）；v0.0.2 release-candidate package Run #78 / 46094733044 PASS
+- 最近一次完整 CI 验证：Run #2171 / 46094849284，validate PASS；v0.0.2 release-candidate package Run #79 / 46094849299 PASS（本轮 envelope Schema / 用户执行手册更新后的验证待完成）
 - 轨迹→Case→IDA 与无轨迹回归：Run #2147 steps 9–14 全部 PASS；已归档轨迹 Case、无轨迹 Case 和两份 IDA report 到 `trajectory-to-ida-integration` artifact（90 天）
 - 真实 Builder production / independent validation / Pilot 等受保护任务按条件 SKIPPED；没有真实轨迹或真实 Pilot 结论
-- 状态: IN_PROGRESS
+- 状态: IN_PROGRESS（仓库内可独立完成的工程/文档工作已完成；真实执行和实证保留为用户控制的后续阶段）
 - 版本原则: 不修改 v0.0.2 历史结果；不把合成样例当作实证。
 
 ## 状态定义
@@ -32,7 +32,7 @@
 | V03-05 | 实现 | 实现安全的轨迹候选导入与确定性校验 | DONE | `scripts/discover_trajectory_candidates.py` 先验证授权/脱敏来源再读取规范化事件；合成 CLI 端到端步骤 Run #2124 PASS |
 | V03-06 | 实现 | 实现来源、资格审查、切片和重建证据的契约校验 | DONE | `scripts/validate_trajectory_assets.py` 跨记录门禁；Run #2124 完整 validate job PASS。该项是契约校验，不代表语义资格审查自动化 |
 | V03-07 | 实现 | 实现环境重建的独立 Runner / Manifest 工作流 | DEFERRED | 接口对照发现现有 Case `execution_requirements`、Manifest 和 Runtime Record 已承载主要执行约束；暂不另建 Runner/Manifest。若端到端案例证明字段不足，再提出最小扩展 |
-| V03-08 | 集成 | 将审查后的轨迹候选映射到现有 Case / Manifest，并复用 IDA / ERA | IN_PROGRESS | Case 草稿转换、IDA、Runtime Record → ERA 报告契约及非执行式 ERA Run Plan 草稿已打通；仍缺具体 Harness 消费计划、实际 clean-run 及新 Runtime Record 的端到端证据 |
+| V03-08 | 集成 | 将审查后的轨迹候选映射到现有 Case / Manifest，并复用 IDA / ERA | BLOCKED | 仓库侧已完成 Case 草稿转换、IDA、Runtime Record → ERA 报告契约、非执行式 Run Plan、Harness envelope Schema 与导入适配器、用户执行手册；解除条件是用户在获授权 Harness 中执行至少一组 Case，并提供可核验的新 Trace / Result / Runtime Record。仓库不自动启动 Agent |
 | V03-09 | 验证 | 建立 SYNTHETIC 端到端样例和对抗性测试 | DONE | Run #2124：候选发现 CLI、v0.0.3 资产链贯通样例、离线测试全部 PASS；仅证明工程契约，不代表真实轨迹有效性 |
 | V03-10 | 验证 | 完成 CI、正式 Skill 包、全量离线测试 | DONE | Run #2137（commit `e98df48`）：actionlint、正式 Skill 包、Benchmark、轨迹发现、v0.0.3 证据链、Case adapter、IDA CLI 与报告验证、全量离线测试、G-Theory 模拟、IDA mutation 均 PASS。受保护的 Builder production / independent validation / Pilot jobs 按条件 SKIPPED，不属于本项通过证据 |
 | V03-11 | 实证 | 在明确授权的真实轨迹、独立 Oracle 和运行资源下开展 Pilot | BLOCKED | 当前无获准真实轨迹输入与新的独立 Pilot 授权；保持 BLOCKED，不以合成样例替代 |
@@ -45,6 +45,8 @@
 | V03-17 | ERA 集成 | 从现有 Manifest + Case JSONL 生成冻结身份、逐 Case 执行要求和来源追溯的 ERA Run Plan 草稿 | DONE | `scripts/build_era_run_plan.py`、`tests/test_build_era_run_plan.py`；验证复用既有 Manifest/Case/Runtime Record schema、与既有 DSH importer 一致的数据集 SHA、READY_TO_RUN 门禁、Case 选择及历史 source trace 与新 runtime trace 分离；Run #2164 / 46093882003 step 14 PASS，step 16 全量离线测试 PASS；并验证了 Manifest 级 READY_TO_RUN 门禁与真实 CLI 输出。计划不启动 Agent、不分配 run_id | 
 
 | V03-18 | ERA 集成 | 将具体 Harness 已完成的执行 envelope 安全导入现有 Runtime Record / ERA | DONE | `scripts/import_era_harness_executions.py`、`tests/test_import_era_harness_executions.py`；验证 Run Plan 身份绑定、每 Case 唯一记录、session 不复用、run_id 唯一、新 Trace/Result 与历史 source refs 隔离、Trace SHA、无 Oracle 时 Gold=UNKNOWN；Run #2170 / 46094733042 step 15 PASS，step 17 全量离线测试 PASS。该适配器不执行 Agent，也不证明 Harness 产物真实性 |
+
+| V03-19 | 交接准备 | 完成用户控制的 Harness 执行交接包，明确执行协议、envelope Schema、导入校验和人工复核边界 | DONE | `schemas/v0.0.3/era-harness-envelope.schema.json`、`docs/quality-assessment-v0.0.3/harness-execution-guide.md`；导入器已执行 envelope Schema + v0.0.2 Runtime Record 双层校验；本轮 CI 待验证。明确 fresh-session 实际隔离与 Trace 哈希重算由 Harness/用户负责 |
 
 ## 融合原则
 
