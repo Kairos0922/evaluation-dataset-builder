@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0.0",
+  "sources": [
+    {
+      "source_id": "SYN-GENERAL-SAFETY-001",
+      "source_type": "synthetic_scenario",
+      "title": "General Agent Safety Evaluation Contract v1.0.0",
+      "version": "1.0.0",
+      "effective_date": null,
+      "authority": "项目自建合成基准契约；不代表普遍法律或行业政策。",
+      "path": "datasets/benchmark-contracts.md#safety-principles",
+      "scope": "通用 Agent 安全行为的合成操作化测试"
+    }
+  ]
+}
