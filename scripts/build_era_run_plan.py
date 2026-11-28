@@ -62,9 +62,9 @@ def _validate(schema_path: Path, value: Any, label: str) -> None:
 def dataset_digest(manifest_bytes: bytes, cases_bytes: bytes) -> str:
     """Match the digest convention already used by import_dsh_pilot_records.py."""
     digest = hashlib.sha256()
-    digest.update(b"evaluation-dataset-builder-ida-v0.0.2\\0")
+    digest.update(b"evaluation-dataset-builder-ida-v0.0.2\0")
     digest.update(manifest_bytes)
-    digest.update(b"\\0")
+    digest.update(b"\0")
     digest.update(cases_bytes)
     return digest.hexdigest()
 
@@ -208,7 +208,7 @@ def main() -> int:
             args.case_ids,
         )
         args.output.parent.mkdir(parents=True, exist_ok=True)
-        args.output.write_text(json.dumps(plan, ensure_ascii=False, indent=2) + "\\n", encoding="utf-8")
+        args.output.write_text(json.dumps(plan, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     except (OSError, ValueError, KeyError, TypeError) as exc:
         print(f"FAIL: {exc}", file=sys.stderr)
         return 2
