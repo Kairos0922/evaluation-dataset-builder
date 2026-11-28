@@ -6,7 +6,7 @@
 - 工作分支: `feat/trajectory-driven-v0.0.3`
 - 基线: `main` / v0.0.2
 - 开发 PR: [#52](https://github.com/Kairos0922/evaluation-dataset-builder/pull/52)（Draft）
-- 最近一次完整 CI 验证：Run #2147 / 46085403868，PR HEAD `ff5fdaff1ced2dd48f084b0b0a0fdcfe8621b3ac`（包含 no-trace fixture 修复 commit `de21c723dc0c50a2116a1f31b58951558d8b1a96`），validate 与 v0.0.2 release-candidate package 均 PASS
+- 最近一次完整 CI 验证：Run #2152 / 46086364131，PR HEAD `8314aee0e18252a79b68654fa1f80f3582a1cb45`，validate PASS；v0.0.2 release-candidate package Run #60 / 46086364167 PASS
 - 轨迹→Case→IDA 与无轨迹回归：Run #2147 steps 9–14 全部 PASS；已归档轨迹 Case、无轨迹 Case 和两份 IDA report 到 `trajectory-to-ida-integration` artifact（90 天）
 - 真实 Builder production / independent validation / Pilot 等受保护任务按条件 SKIPPED；没有真实轨迹或真实 Pilot 结论
 - 状态: IN_PROGRESS
@@ -40,7 +40,7 @@
 | V03-13 | 集成实现 | 实现经过审查的 Candidate / Slice → 现有 Case 草稿转换器并接入 IDA | DONE | `scripts/build_case_draft_from_slice.py`；4 项专项测试；Run #2137 steps 11–12 PASS：输出符合 main 的 Case Schema，现有 `assess_dataset_quality.py` 成功消费，`validate_quality_assessment.py` 验证报告通过；G01 source provenance=PASS，构念/可解性保持 NOT_ASSESSED，综合分 NOT_VALIDATED |
 
 | V03-14 | 回归 | 验证无轨迹输入时原有 Builder / IDA 工作流保持可用 | DONE | Run #2147 step 13 PASS：不含 trajectory-specific 字段的 `synthetic_gap_fill` Case 直接通过现有 IDA CLI；source provenance PASS，构念效度仍 NOT_ASSESSED。v0.0.2 Skill package 与全量离线测试同次 CI PASS。该合成 smoke test 证明接口兼容，不代表真实业务有效性 |
-| V03-15 | 验证 | 归档轨迹→Case→IDA 及无轨迹回归证据 | DONE | Run #2147 step 14 PASS；GitHub Actions artifact `trajectory-to-ida-integration`，包含轨迹 Case draft、轨迹 JSONL、轨迹 IDA report、无轨迹 IDA report，保留 90 天 |\n| V03-16 | ERA 集成 | 验证新 clean-run Runtime Record 能绑定轨迹来源 Case，并由现有 ERA 消费 | IN_PROGRESS | 新增 `tests/test_trajectory_era_integration.py`：合成契约测试检查 dataset SHA / case_id / 新 trace_ref 绑定、历史 source trace 不被复用、缺少 Gold/Judge 时保持 NOT_RUN / NOT_VALIDATED；等待 PR CI 执行。该测试不执行 Agent，不构成真实运行证据 |
+| V03-15 | 验证 | 归档轨迹→Case→IDA 及无轨迹回归证据 | DONE | Run #2147 step 14 PASS；GitHub Actions artifact `trajectory-to-ida-integration`，包含轨迹 Case draft、轨迹 JSONL、轨迹 IDA report、无轨迹 IDA report，保留 90 天 |\n| V03-16 | ERA 集成 | 验证新 clean-run Runtime Record 能绑定轨迹来源 Case，并由现有 ERA 消费 | DONE | `tests/test_trajectory_era_integration.py`；Run #2152 / 46086364131 step 15 全量离线测试 PASS。验证 dataset SHA / case_id / 新 trace_ref 绑定、历史 source trace 不被复用、缺少 Gold/Judge 时保持 NOT_RUN / NOT_VALIDATED。仅为合成契约回归，不执行 Agent，不构成真实运行证据 |
 
 ## 融合原则
 
