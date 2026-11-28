@@ -19,7 +19,6 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 API_URL = DEEPSEEK_BASE_URL + "/chat/completions"
-CRITICAL_CASE_IDS = ["SE03", "SE04", "SE05", "SE08", "SE09", "SE11", "SE12"]
 POLICY = {
     "behavior_pass_rate": 0.90,
     "trigger_precision": 0.95,
@@ -887,8 +886,82 @@ def summarize(values):
     }
 
 
+def index_self_eval_rubric(suite, rubric):
+    """Validate and index assertion-level scoring metadata without making API calls."""
+    if rubric.get("suite_id") != suite.get("suite_id"):
+        raise ValueError("self-evaluation rubric suite_id does not match the case suite")
+    suite_cases = {case["id"]: case for case in suite.get("cases", [])}
+    rubric_cases = {case["case_id"]: case for case in rubric.get("cases", [])}
+    if set(suite_cases) != set(rubric_cases):
+        raise ValueError("self-evaluation rubric case IDs do not match the case suite")
+
+    indexed = {}
+    seen_assertion_ids = set()
+    for case_id, case in suite_cases.items():
+        rubric_case = rubric_cases[case_id]
+        assertions = rubric_case.get("assertions", [])
+        if len(assertions) != len(case.get("expected", [])):
+            raise ValueError(f"{case_id}: rubric assertion count does not match expected criteria")
+        for criterion, assertion in zip(case["expected"], assertions):
+            if assertion.get("expected_behavior") != criterion:
+                raise ValueError(f"{case_id}: rubric assertion text does not match suite criterion")
+            assertion_id = assertion.get("assertion_id")
+            severity = assertion.get("severity")
+            if not assertion_id or assertion_id in seen_assertion_ids:
+                raise ValueError(f"{case_id}: missing or duplicate assertion_id")
+            if severity not in ("ORDINARY", "IMPORTANT", "CRITICAL"):
+                raise ValueError(f"{case_id}: invalid assertion severity {severity!r}")
+            seen_assertion_ids.add(assertion_id)
+        indexed[case_id] = rubric_case
+    return indexed
+
+
+def annotate_checks_with_rubric(checks, rubric_case):
+    """Attach frozen rubric IDs/severity to Judge results; do not change Judge status."""
+    assertions = rubric_case["assertions"]
+    if len(checks) != len(assertions):
+        raise ValueError("Judge check count does not match rubric assertion count")
+    annotated = []
+    for check, assertion in zip(checks, assertions):
+        if check.get("criterion") != assertion["expected_behavior"]:
+            raise ValueError("Judge criterion order/content does not match rubric")
+        annotated.append({
+            **check,
+            "assertion_id": assertion["assertion_id"],
+            "severity": assertion["severity"],
+        })
+    return annotated
+
+
+def summarize_critical_rule_checks(case_runs):
+    checks = [
+        check
+        for case in case_runs
+        for check in case.get("checks", [])
+        if check.get("severity") == "CRITICAL"
+    ]
+    return {
+        "opportunities": len(checks),
+        "passed": sum(check.get("status") == "PASS" for check in checks),
+        "failed": sum(check.get("status") == "FAIL" for check in checks),
+        "unknown": sum(check.get("status") == "UNKNOWN" for check in checks),
+        "failed_assertion_ids": [
+            check["assertion_id"] for check in checks if check.get("status") == "FAIL"
+        ],
+        "failed_case_ids": sorted({
+            case["id"]
+            for case in case_runs
+            if any(
+                check.get("severity") == "CRITICAL" and check.get("status") == "FAIL"
+                for check in case.get("checks", [])
+            )
+        }),
+        "interpretation": "descriptive_non_compensatory; no composite score or automatic release decision",
+    }
+
+
 def evaluate_once(index, generator_api_key, judge_api_key, generator_model, judge_model,
-                  skill, baseline, suite, trigger_suite, judge_api_url=JUDGE_API_URL):
+                  skill, baseline, suite, trigger_suite, rubric_cases, judge_api_url=JUDGE_API_URL):
     run = {
         "run_index": index,
         "skill_cases": [],
@@ -921,6 +994,7 @@ def evaluate_once(index, generator_api_key, judge_api_key, generator_model, judg
                 "evidence": [], "evidence_validated": False,
                 "generator_api_error": True,
             } for criterion in case["expected"]]
+        skill_checks = annotate_checks_with_rubric(skill_checks, rubric_cases[case["id"]])
         skill_passed += sum(item["status"] == "PASS" for item in skill_checks)
         skill_failed += sum(item["status"] == "FAIL" for item in skill_checks)
         skill_unknown += sum(item["status"] == "UNKNOWN" for item in skill_checks)
@@ -960,6 +1034,7 @@ def evaluate_once(index, generator_api_key, judge_api_key, generator_model, judg
                 "evidence": [], "evidence_validated": False,
                 "generator_api_error": True,
             } for criterion in case["expected"]]
+        baseline_checks = annotate_checks_with_rubric(baseline_checks, rubric_cases[case["id"]])
         baseline_passed += sum(item["status"] == "PASS" for item in baseline_checks)
         baseline_failed += sum(item["status"] == "FAIL" for item in baseline_checks)
         baseline_unknown += sum(item["status"] == "UNKNOWN" for item in baseline_checks)
@@ -1017,6 +1092,10 @@ def evaluate_once(index, generator_api_key, judge_api_key, generator_model, judg
     behavior_evaluability_rate = skill_scored / skill_total if skill_total else 0.0
     baseline_evaluability_rate = baseline_scored / baseline_total if baseline_total else 0.0
     precision, recall = binary_metrics(tp, fp, fn)
+    run["critical_rule_checks"] = {
+        "skill": summarize_critical_rule_checks(run["skill_cases"]),
+        "baseline": summarize_critical_rule_checks(run["baseline_cases"]),
+    }
     run["trigger_confusion"] = {"tp": tp, "fp": fp, "fn": fn, "tn": tn}
     run["trigger_parse_errors"] = trigger_parse_errors
     run["metrics"] = {
@@ -1093,6 +1172,13 @@ def main():
     suite = json.loads(
         (ROOT / "tests/self-eval-cases.json").read_text(encoding="utf-8")
     )
+    rubric = json.loads(
+        (ROOT / "tests/self-eval-rubric.json").read_text(encoding="utf-8")
+    )
+    rubric_cases = index_self_eval_rubric(suite, rubric)
+    rubric_sha256 = hashlib.sha256(
+        json.dumps(rubric, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    ).hexdigest()
     trigger_suite = json.loads(
         (ROOT / "tests/trigger-evals.json").read_text(encoding="utf-8")
     )
@@ -1109,6 +1195,7 @@ def main():
     ESTIMATED_COST_RESERVED_USD = 0.0
     signature_payload = {
         "suite": suite,
+        "rubric_sha256": rubric_sha256,
         "trigger_suite": trigger_suite,
         "skill_sha256": hashlib.sha256(skill.encode("utf-8")).hexdigest(),
         "generator_model": args.generator_model,
@@ -1144,7 +1231,7 @@ def main():
         try:
             runs.append(evaluate_once(
                 index, generator_api_key, judge_api_key, args.generator_model, args.judge_model,
-                skill, baseline, suite, trigger_suite, judge_api_url=judge_api_url,
+                skill, baseline, suite, trigger_suite, rubric_cases, judge_api_url=judge_api_url,
             ))
         except ProviderStopError as exc:
             partial_report = {
@@ -1236,6 +1323,9 @@ def main():
         "api_base_url": DEEPSEEK_BASE_URL,
         "judge_api_base_url": judge_api_base_url,
         "suite_id": suite["suite_id"],
+        "rubric_id": rubric.get("rubric_id"),
+        "rubric_sha256": rubric_sha256,
+        "rubric_assertion_count": sum(len(item["assertions"]) for item in rubric["cases"]),
         "evaluation_scope": {
             "type": "SKILL_ENTRYPOINT_TEXT_PROXY",
             "loaded_assets": ["SKILL.md"],
@@ -1262,6 +1352,11 @@ def main():
             "trigger_eval_count": len(trigger_suite["evals"]),
         },
         "runs": runs,
+        "critical_rule_reporting": {
+            "source": "tests/self-eval-rubric.json",
+            "aggregation": "descriptive_non_compensatory",
+            "automatic_release_gate": False,
+        },
         "stability": stability,
         "stability_gates": stability_gates,
         "baseline_comparison": {
