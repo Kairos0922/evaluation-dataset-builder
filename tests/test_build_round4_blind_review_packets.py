@@ -99,6 +99,26 @@ class Round4BlindReviewPacketTests(unittest.TestCase):
             self.assertIn("WB-15", crosswalk)
         self.assertNotEqual(reviewer_text[0], reviewer_text[1])
 
+    def test_reviewer_archives_are_byte_reproducible(self):
+        second_output = self.root / "out-second"
+        first = build_packets(
+            self.dataset, self.assets, self.output,
+            expected_dataset_sha256=None, seed=23,
+        )
+        second = build_packets(
+            self.dataset, self.assets, second_output,
+            expected_dataset_sha256=None, seed=23,
+        )
+        for first_item, second_item in zip(first["reviewer_archives"], second["reviewer_archives"]):
+            self.assertEqual(
+                Path(first_item["path"]).read_bytes(),
+                Path(second_item["path"]).read_bytes(),
+            )
+        self.assertEqual(
+            Path(first["crosswalk_archive"]["path"]).read_bytes(),
+            Path(second["crosswalk_archive"]["path"]).read_bytes(),
+        )
+
     def test_rejects_wrong_frozen_dataset_hash(self):
         with self.assertRaisesRegex(ValueError, "SHA-256 mismatch"):
             build_packets(
