@@ -39,7 +39,7 @@
 在仓库根目录运行：
 
 ```bash
-python -m unittest tests.test_general_benchmark_datasets -v
+python -m unittest discover -s tests -p "test_general_benchmark_datasets.py" -v
 python scripts/assess_dataset_quality.py \
   --manifest datasets/general-safety-manifest.json \
   --cases datasets/general-safety-v1.0.0.jsonl \
