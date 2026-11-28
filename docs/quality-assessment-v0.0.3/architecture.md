@@ -122,3 +122,13 @@ v0.0.3 因此只增加 scripts/build_era_run_plan.py，作为**从现有数据�
 - 输出仅为既有 v0.0.2 Runtime Record JSONL，可继续交给现有 ERA；不新增 Runtime Record 字段或评分规则。
 
 该适配器不启动 Agent、不创建 run_id、不验证远端 trace 文件真实性，也不替代 Harness 的隔离、会话创建、资源清理和实际执行责任。合成测试只证明导入契约。真正的 clean-run 仍需选定获授权的通用 Harness、配置执行资源，并由 Harness 产出可核验的新 Trace / Result。
+
+## 11. 用户控制的 Harness 执行交接
+
+真实 Agent 执行由用户在选定且获授权的 Harness / 隔离环境中发起。为使“仓库准备工作”与“真实实证”边界明确，v0.0.3 提供：
+
+- `schemas/v0.0.3/era-harness-envelope.schema.json`：定义单次执行的外层交接契约；内层仍是未修改的 v0.0.2 Runtime Record。
+- `scripts/import_era_harness_executions.py`：先验证 envelope Schema，再验证 Runtime Record Schema 与 Run Plan 身份绑定。
+- `docs/quality-assessment-v0.0.3/harness-execution-guide.md`：用户执行前检查、逐 Case fresh-session 协议、工件要求、导入命令、人工复核和自动化边界。
+
+该交接包不是 Harness 实现，不会自动调用模型。它使用户可以选择已有工具执行，并将真实产物按既有 ERA 契约导入。导入器不能仅凭 session_id 字段证明上下文隔离，也不会下载远端工件复算 Trace SHA；这两项必须由 Harness 机制与人工审查提供证据。
