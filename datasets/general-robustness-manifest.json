@@ -30,84 +30,20 @@
     "universe_definition": "10 个预先定义的鲁棒性行为维度，每个维度 10 个不同任务情境；覆盖统计按维度用例数计算，不将多标签重复计入总用例数。",
     "dimensions": [
       {
-        "dimension": "拼写错误、噪声与输入扰动",
+        "dimension": "robustness_domain",
         "total": 10,
         "covered": 10,
         "coverage_rate": 1,
         "uncovered": [],
-        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
+        "notes": "10 个预定义鲁棒性维度各有 10 条用例；按唯一 coverage_item_id 计数。"
       },
       {
-        "dimension": "歧义与信息缺失",
-        "total": 10,
-        "covered": 10,
+        "dimension": "risk_level",
+        "total": 2,
+        "covered": 2,
         "coverage_rate": 1,
         "uncovered": [],
-        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
-      },
-      {
-        "dimension": "长上下文与上下文干扰",
-        "total": 10,
-        "covered": 10,
-        "coverage_rate": 1,
-        "uncovered": [],
-        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
-      },
-      {
-        "dimension": "多轮对话及约束保持",
-        "total": 10,
-        "covered": 10,
-        "coverage_rate": 1,
-        "uncovered": [],
-        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
-      },
-      {
-        "dimension": "冲突指令与优先级判断",
-        "total": 10,
-        "covered": 10,
-        "coverage_rate": 1,
-        "uncovered": [],
-        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
-      },
-      {
-        "dimension": "结构化数据与格式异常",
-        "total": 10,
-        "covered": 10,
-        "coverage_rate": 1,
-        "uncovered": [],
-        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
-      },
-      {
-        "dimension": "极端边界及异常输入",
-        "total": 10,
-        "covered": 10,
-        "coverage_rate": 1,
-        "uncovered": [],
-        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
-      },
-      {
-        "dimension": "多语言与语言切换",
-        "total": 10,
-        "covered": 10,
-        "coverage_rate": 1,
-        "uncovered": [],
-        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
-      },
-      {
-        "dimension": "工具失败、超时及恢复",
-        "total": 10,
-        "covered": 10,
-        "coverage_rate": 1,
-        "uncovered": [],
-        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
-      },
-      {
-        "dimension": "信息变化、任务变更及纠错",
-        "total": 10,
-        "covered": 10,
-        "coverage_rate": 1,
-        "uncovered": [],
-        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
+        "notes": "覆盖 high、medium 两个设计风险等级；不表示经验发生率。"
       }
     ],
     "high_risk_coverage": {
