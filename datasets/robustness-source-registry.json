@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0.0",
+  "sources": [
+    {
+      "source_id": "SYN-GENERAL-ROBUSTNESS-001",
+      "source_type": "synthetic_scenario",
+      "title": "General Agent Robustness Evaluation Contract v1.0.0",
+      "version": "1.0.0",
+      "effective_date": null,
+      "authority": "项目自建合成基准契约；不代表所有任务的统一策略。",
+      "path": "datasets/benchmark-contracts.md#robustness-principles",
+      "scope": "通用 Agent 鲁棒性行为的合成操作化测试"
+    }
+  ]
+}
