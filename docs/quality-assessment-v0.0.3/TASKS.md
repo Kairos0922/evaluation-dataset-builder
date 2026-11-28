@@ -32,7 +32,7 @@
 | V03-05 | 实现 | 实现安全的轨迹候选导入与确定性校验 | DONE | `scripts/discover_trajectory_candidates.py` 先验证授权/脱敏来源再读取规范化事件；合成 CLI 端到端步骤 Run #2124 PASS |
 | V03-06 | 实现 | 实现来源、资格审查、切片和重建证据的契约校验 | DONE | `scripts/validate_trajectory_assets.py` 跨记录门禁；Run #2124 完整 validate job PASS。该项是契约校验，不代表语义资格审查自动化 |
 | V03-07 | 实现 | 实现环境重建的独立 Runner / Manifest 工作流 | DEFERRED | 接口对照发现现有 Case `execution_requirements`、Manifest 和 Runtime Record 已承载主要执行约束；暂不另建 Runner/Manifest。若端到端案例证明字段不足，再提出最小扩展 |
-| V03-08 | 集成 | 将审查后的轨迹候选映射到现有 Case / Manifest，并复用 IDA / ERA | IN_PROGRESS | Case 草稿转换和 IDA 已打通；仍需完成无轨迹回归与 ERA clean-run / Runtime Record 接入，不能将 IDA 贯通等同于 ERA 完成 |
+| V03-08 | 集成 | 将审查后的轨迹候选映射到现有 Case / Manifest，并复用 IDA / ERA | IN_PROGRESS | Case 草稿转换、IDA、Runtime Record → ERA 报告契约及非执行式 ERA Run Plan 草稿已打通；仍缺具体 Harness 消费计划、实际 clean-run 及新 Runtime Record 的端到端证据 |
 | V03-09 | 验证 | 建立 SYNTHETIC 端到端样例和对抗性测试 | DONE | Run #2124：候选发现 CLI、v0.0.3 资产链贯通样例、离线测试全部 PASS；仅证明工程契约，不代表真实轨迹有效性 |
 | V03-10 | 验证 | 完成 CI、正式 Skill 包、全量离线测试 | DONE | Run #2137（commit `e98df48`）：actionlint、正式 Skill 包、Benchmark、轨迹发现、v0.0.3 证据链、Case adapter、IDA CLI 与报告验证、全量离线测试、G-Theory 模拟、IDA mutation 均 PASS。受保护的 Builder production / independent validation / Pilot jobs 按条件 SKIPPED，不属于本项通过证据 |
 | V03-11 | 实证 | 在明确授权的真实轨迹、独立 Oracle 和运行资源下开展 Pilot | BLOCKED | 当前无获准真实轨迹输入与新的独立 Pilot 授权；保持 BLOCKED，不以合成样例替代 |
@@ -40,7 +40,9 @@
 | V03-13 | 集成实现 | 实现经过审查的 Candidate / Slice → 现有 Case 草稿转换器并接入 IDA | DONE | `scripts/build_case_draft_from_slice.py`；4 项专项测试；Run #2137 steps 11–12 PASS：输出符合 main 的 Case Schema，现有 `assess_dataset_quality.py` 成功消费，`validate_quality_assessment.py` 验证报告通过；G01 source provenance=PASS，构念/可解性保持 NOT_ASSESSED，综合分 NOT_VALIDATED |
 
 | V03-14 | 回归 | 验证无轨迹输入时原有 Builder / IDA 工作流保持可用 | DONE | Run #2147 step 13 PASS：不含 trajectory-specific 字段的 `synthetic_gap_fill` Case 直接通过现有 IDA CLI；source provenance PASS，构念效度仍 NOT_ASSESSED。v0.0.2 Skill package 与全量离线测试同次 CI PASS。该合成 smoke test 证明接口兼容，不代表真实业务有效性 |
-| V03-15 | 验证 | 归档轨迹→Case→IDA 及无轨迹回归证据 | DONE | Run #2147 step 14 PASS；GitHub Actions artifact `trajectory-to-ida-integration`，包含轨迹 Case draft、轨迹 JSONL、轨迹 IDA report、无轨迹 IDA report，保留 90 天 |\n| V03-16 | ERA 集成 | 验证新 clean-run Runtime Record 能绑定轨迹来源 Case，并由现有 ERA 消费 | DONE | `tests/test_trajectory_era_integration.py`；Run #2152 / 46086364131 step 15 全量离线测试 PASS。验证 dataset SHA / case_id / 新 trace_ref 绑定、历史 source trace 不被复用、缺少 Gold/Judge 时保持 NOT_RUN / NOT_VALIDATED。仅为合成契约回归，不执行 Agent，不构成真实运行证据 |
+| V03-15 | 验证 | 归档轨迹→Case→IDA 及无轨迹回归证据 | DONE | Run #2147 step 14 PASS；GitHub Actions artifact `trajectory-to-ida-integration`，包含轨迹 Case draft、轨迹 JSONL、轨迹 IDA report、无轨迹 IDA report，保留 90 天 |
+| V03-16 | ERA 集成 | 验证新 clean-run Runtime Record 能绑定轨迹来源 Case，并由现有 ERA 消费 | DONE | `tests/test_trajectory_era_integration.py`；Run #2152 / 46086364131 step 15 全量离线测试 PASS。验证 dataset SHA / case_id / 新 trace_ref 绑定、历史 source trace 不被复用、缺少 Gold/Judge 时保持 NOT_RUN / NOT_VALIDATED。仅为合成契约回归，不执行 Agent，不构成真实运行证据 |
+| V03-17 | ERA 集成 | 从现有 Manifest + Case JSONL 生成冻结身份、逐 Case 执行要求和来源追溯的 ERA Run Plan 草稿 | IN_PROGRESS | `scripts/build_era_run_plan.py`、`tests/test_build_era_run_plan.py`；验证复用既有 Manifest/Case/Runtime Record schema、与既有 DSH importer 一致的数据集 SHA、READY_TO_RUN 门禁、Case 选择及历史 source trace 与新 runtime trace 分离；等待 CI。计划不启动 Agent、不分配 run_id | 
 
 ## 融合原则
 
