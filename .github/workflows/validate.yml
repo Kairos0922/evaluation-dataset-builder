@@ -243,6 +243,13 @@ jobs:
           print("PASS: existing non-trajectory Case path remains consumable by IDA without trajectory-specific inputs.")
           PY
 
+      - name: 验证现有 Case 到 ERA 执行计划草稿的融合
+        if: steps.scope.outputs.run_validation == 'true'
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/build_era_run_plan.py
+          python -m unittest discover -s tests -p "test_build_era_run_plan.py" -v
+
       - name: Archive trajectory-to-IDA integration evidence
         if: steps.scope.outputs.run_validation == 'true'
         uses: actions/upload-artifact@v4
