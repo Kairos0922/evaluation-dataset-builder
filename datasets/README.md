@@ -23,6 +23,17 @@
 - 所有用例当前 `quality_status=candidate`、`execution_requirements.status=NOT_RUN`；未进行真实 Agent 执行。
 - 不输出未经验证的综合分、权重或通过阈值。
 
+## 输入与执行适配
+
+`user_input` 可为字符串或结构化对象：
+
+- 字符串：作为单轮用户输入原样提交。
+- `messages`：按数组顺序重放多轮对话，保留 role 与内容；`task` 为最后评测任务。
+- `context` / `document` / `files`：作为合成上下文或文件 fixture 装载，再执行对应 task。
+- `tool_fixture`：配置模拟工具的成功、失败、超时或未知状态；按用例执行步骤重放，不连接真实支付、生产或外部副作用工具。
+
+具体宿主需要一个薄的 harness adapter 将这些结构映射到其会话和 mock-tool 接口。该 adapter 不应改变用例语义或预期行为。
+
 ## 本地验证
 
 在仓库根目录运行：
