@@ -99,7 +99,7 @@ The Pilot fixtures and evidence contracts are maintained under `tests/`:
 - `tests/reference-dependency-manifest.json`: frozen task-to-reference dependency labels.
 - `tests/reference-read-event.schema.json`: host/harness event record contract.
 
-These are design assets. They do not imply that a host exposes file-read telemetry or that any Pilot task has been run.
+These are design assets. The existing `tests/run_eval.py` now consumes the assertion rubric and reports critical-rule outcomes separately. It still loads only `SKILL.md`; the reference-navigation cases cannot be scored until a host/harness adapter emits validated read events. No host telemetry availability is assumed, and no Pilot task has been run.
 
 ## 6. Execution conditions
 
