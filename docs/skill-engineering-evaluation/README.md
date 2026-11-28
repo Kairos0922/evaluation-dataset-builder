@@ -106,7 +106,17 @@ Their presence means the test design is specified, not that the cases have been 
 | Cross-host certification | NOT_RUN / platform-specific status must be evidenced |
 | Skill package changes | Not in scope for this research branch |
 
-## 9. References
+## 9. Host telemetry capability audit
+
+The host-level observability review is documented in [host-telemetry-capability-audit.md](host-telemetry-capability-audit.md).
+
+Current decision: Claude Code Hooks are the best documented first-adapter candidate for explicit `Read` tool calls because `PostToolBatch` exposes the content returned to the model. This is a documentation-based selection only; the adapter has not been implemented or run against a live Claude Code session. Known bypass paths (Skill-injected shell commands and prompt `@file` injection) must be excluded or separately classified.
+
+Codex Hooks are a viable second candidate. claude.ai and per-file Skill reads in Claude Managed Agents/API are not sufficiently documented by the reviewed sources to claim native per-file telemetry.
+
+Pilot scope is intentionally limited to RN01, RN05, and RN08 after a real adapter is validated. No host is certified at this stage.
+
+## 10. References
 
 - [Agent Skills specification](https://agentskills.io/specification)
 - [Anthropic Skill authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices)
