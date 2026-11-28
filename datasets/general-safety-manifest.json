@@ -1,0 +1,136 @@
+{
+  "dataset_id": "general-agent-safety",
+  "version": "1.0.0",
+  "evaluation_target": "通用 Agent / Skill（不绑定单一领域、框架或宿主）",
+  "purpose": "通用安全行为基准，用于 Capability Evaluation 与 Regression Evaluation；检查有害请求处理、隐私保护、权限边界、注入抵抗、工具副作用和良性请求辨别。",
+  "scope": {
+    "included": [
+      "对话响应安全边界",
+      "隐私与敏感数据保护",
+      "提示词注入与不可信输入处理",
+      "权限和工具副作用控制",
+      "高风险情境响应",
+      "安全请求与不安全请求辨别"
+    ],
+    "excluded": [
+      "特定司法辖区法律合规认证",
+      "特定行业监管认证",
+      "模型内部思维链披露",
+      "真实攻击操作或真实个人数据处理"
+    ]
+  },
+  "source_refs": [
+    "SYN-GENERAL-SAFETY-001"
+  ],
+  "case_count": 100,
+  "coverage": {
+    "universe_definition": "10 个预先定义的安全行为维度，每个维度 10 个不同任务情境；覆盖统计按维度用例数计算，不将多标签重复计入总用例数。",
+    "dimensions": [
+      {
+        "dimension": "有害行为与危险请求",
+        "total": 10,
+        "covered": 10,
+        "coverage_rate": 1,
+        "uncovered": [],
+        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
+      },
+      {
+        "dimension": "自伤及危机情境",
+        "total": 10,
+        "covered": 10,
+        "coverage_rate": 1,
+        "uncovered": [],
+        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
+      },
+      {
+        "dimension": "网络攻击与滥用",
+        "total": 10,
+        "covered": 10,
+        "coverage_rate": 1,
+        "uncovered": [],
+        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
+      },
+      {
+        "dimension": "隐私与敏感数据保护",
+        "total": 10,
+        "covered": 10,
+        "coverage_rate": 1,
+        "uncovered": [],
+        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
+      },
+      {
+        "dimension": "提示词注入与不可信内容",
+        "total": 10,
+        "covered": 10,
+        "coverage_rate": 1,
+        "uncovered": [],
+        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
+      },
+      {
+        "dimension": "权限越界与身份冒充",
+        "total": 10,
+        "covered": 10,
+        "coverage_rate": 1,
+        "uncovered": [],
+        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
+      },
+      {
+        "dimension": "高风险专业领域边界",
+        "total": 10,
+        "covered": 10,
+        "coverage_rate": 1,
+        "uncovered": [],
+        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
+      },
+      {
+        "dimension": "欺骗、操纵与滥用",
+        "total": 10,
+        "covered": 10,
+        "coverage_rate": 1,
+        "uncovered": [],
+        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
+      },
+      {
+        "dimension": "工具调用及外部副作用安全",
+        "total": 10,
+        "covered": 10,
+        "coverage_rate": 1,
+        "uncovered": [],
+        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
+      },
+      {
+        "dimension": "良性请求与安全边界辨别",
+        "total": 10,
+        "covered": 10,
+        "coverage_rate": 1,
+        "uncovered": [],
+        "notes": "10/10 个合成场景已分配；尚未完成独立语义审查。"
+      }
+    ],
+    "high_risk_coverage": {
+      "critical_cases": 50,
+      "high_cases": 40,
+      "medium_cases": 10,
+      "interpretation": "风险标签为设计优先级，不是经验发生概率。"
+    }
+  },
+  "quality_status": "candidate",
+  "execution_status": "NOT_RUN",
+  "limitations": [
+    "全部 100 条均为合成补缺用例；无真实事故样本、用户反馈样本或独立 Gold。",
+    "尚未进行独立专家内容效度审查、盲评或语义去重仲裁。",
+    "尚未在任何真实 Agent/Skill、模型、Harness 或宿主环境运行。",
+    "安全政策具有部署与司法辖区依赖性；本数据集不能替代目标系统的具体政策映射。"
+  ],
+  "assumptions": [
+    "将安全能力定义为：避免协助严重伤害与滥用、保护隐私、遵循权限和工具边界、对高风险情境谨慎处理，同时不过度拒绝良性请求。",
+    "所有测试均在隔离环境和合成数据上执行。"
+  ],
+  "change_log": [
+    {
+      "version": "1.0.0",
+      "date": "2026-11-28",
+      "change": "初始合成基准集；100 条用例，10 个安全维度，每维度 10 条。"
+    }
+  ]
+}
