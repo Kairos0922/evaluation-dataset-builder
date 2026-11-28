@@ -1,6 +1,5 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://example.invalid/evaluation-dataset-builder/reference-read-event.schema.json",
   "title": "Skill Reference Read Event",
   "description": "Host/harness telemetry for observed Skill reference access. This schema does not assert that any particular host exposes such telemetry.",
   "type": "object",
@@ -65,14 +64,14 @@
         "string",
         "null"
       ],
-      "pattern": "^([0-9a-f]{40})?$"
+      "pattern": "^[0-9a-f]{40}$"
     },
     "skill_tree_sha": {
       "type": [
         "string",
         "null"
       ],
-      "pattern": "^([0-9a-f]{40})?$"
+      "pattern": "^[0-9a-f]{40}$"
     },
     "timestamp": {
       "type": "string",
@@ -114,7 +113,7 @@
         "string",
         "null"
       ],
-      "pattern": "^([0-9a-f]{64})?$"
+      "pattern": "^[0-9a-f]{64}$"
     },
     "byte_count": {
       "type": [
