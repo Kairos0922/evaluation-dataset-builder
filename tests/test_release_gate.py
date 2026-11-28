@@ -1744,9 +1744,17 @@ class ReleaseGateUnitTests(unittest.TestCase):
             "evals": [{"query": "build an evaluation dataset", "should_trigger": True}]
         }
         with mock.patch.object(RUN_EVAL, "api_call", side_effect=RuntimeError("provider unavailable")):
+            rubric_cases = {
+                "SE-TEMP": {
+                    "assertions": [
+                        {"assertion_id": "SE-TEMP-A01", "expected_behavior": "criterion one", "severity": "IMPORTANT"},
+                        {"assertion_id": "SE-TEMP-A02", "expected_behavior": "criterion two", "severity": "IMPORTANT"},
+                    ]
+                }
+            }
             result = RUN_EVAL.evaluate_once(
                 1, "generator-key", "judge-key", "deepseek-flash", "deepseek-flash",
-                "skill text", "baseline text", suite, trigger_suite,
+                "skill text", "baseline text", suite, trigger_suite, rubric_cases,
             )
         self.assertTrue(result["skill_cases"][0]["generation_error"])
         self.assertTrue(result["baseline_cases"][0]["generation_error"])
@@ -1800,7 +1808,8 @@ class ReleaseGateUnitTests(unittest.TestCase):
             (ROOT / "tests" / "self-eval-cases.json").read_text(encoding="utf-8")
         )
         cases = {item["id"]: item for item in fixture["cases"]}
-        self.assertEqual(len(cases), 12)
+        self.assertEqual(len(cases), 13)
+        self.assertIn("SE13", cases)
         self.assertTrue(all(item.get("prompt") and item.get("expected") for item in cases.values()))
         self.assertTrue(all(2 <= len(item["expected"]) <= 6 for item in cases.values()))
         self.assertIn("POLICY-A", cases["SE04"]["prompt"])
