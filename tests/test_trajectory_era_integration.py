@@ -65,7 +65,7 @@ class TrajectoryEraIntegrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             records_path = root / "runtime-records.synthetic.jsonl"
-            records_path.write_text(json.dumps(record) + "\\n", encoding="utf-8")
+            records_path.write_text(json.dumps(record) + "\n", encoding="utf-8")
             loaded, errors = load_records(records_path)
             self.assertEqual(errors, [])
             self.assertEqual(len(loaded), 1)
