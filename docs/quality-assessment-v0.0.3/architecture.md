@@ -107,3 +107,18 @@ v0.0.3 因此只增加 scripts/build_era_run_plan.py，作为**从现有数据�
 具体 Harness 后续消费计划时，必须在每个 Case 的新 session 中执行，按原样绑定 dataset_sha256 / case_id / 冻结配置，并仅在执行开始后分配真实 run_id。若无独立 Oracle，gold_outcome 必须保持 unknown；基础设施异常不得归因于 Agent。
 
 这一步证明的是“现有 Case 可被安全整理成 ERA 执行计划”，不是“Runner 已经执行”。真实执行适配仍需针对具体 Harness 完成，并在授权和隔离条件具备后验证。
+
+
+## 10. Harness 产物适配：执行与导入分离
+
+对现有执行路径的核对确认：仓库当前没有可直接消费通用 ERA Run Plan 的通用 clean-run Harness。现有 DSH Pilot 导入路径与 WebApp Testing 专用基准强绑定，包括固定 Skill/工具身份、浏览器及服务端证据、预算与清理条件、三条 Pilot Case 和对应 Oracle adjudication。它不是通用 Agent Harness，不能安全地直接消费任意 Case。
+
+因此 v0.0.3 不把 DSH Pilot Runner 改造成通用 Runner，也不新增第二套 Runtime Record。新增的 `scripts/import_era_harness_executions.py` 仅作为**Harness 产物导入适配器**：
+
+- 输入为 Run Plan 和 Harness 已完成执行后生成的 JSONL envelope；每条 envelope 在 Runtime Record 外携带 `plan_id`、`case_id`、`session_id`，避免修改 v0.0.2 Runtime Record Schema。
+- 导入器逐条校验现有 Runtime Record Schema，并核对 dataset_id / dataset_sha256 / case_id 与冻结配置身份。
+- 要求每个 Case 恰好一条记录、run_id 唯一、session_id 非空且跨 Case 不复用；新 trace_ref / result_ref 不得复用历史来源引用，并要求 trace_sha256。
+- 当前适配器没有独立 Oracle 证据输入，因此强制 `gold_outcome=unknown`、`gold_source=not_available`；不得从 Agent 自报或 Harness 成功状态推导 Gold。
+- 输出仅为既有 v0.0.2 Runtime Record JSONL，可继续交给现有 ERA；不新增 Runtime Record 字段或评分规则。
+
+该适配器不启动 Agent、不创建 run_id、不验证远端 trace 文件真实性，也不替代 Harness 的隔离、会话创建、资源清理和实际执行责任。合成测试只证明导入契约。真正的 clean-run 仍需选定获授权的通用 Harness、配置执行资源，并由 Harness 产出可核验的新 Trace / Result。
